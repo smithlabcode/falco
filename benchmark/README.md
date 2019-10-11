@@ -10,36 +10,33 @@ Fastq files can be downloaded using the `fastq-dump` program in the [SRA
 Toolkit](https://www.ncbi.nlm.nih.gov/sra/docs/toolkitsoft) (alternatively
 available on [conda](https://anaconda.org/bioconda/sra-tools)).
 
-List of SRR accessions tested
-=============================
-SRR10124060
-SRR10143153
-SRR3897196
-SRR9624732
-SRR1853178
-SRR6387347
-SRR891268
-SRR1772703
-SRR9878537
-SRR6059706
-
 Command to download all fastq files
 ===================================
-To populate the `tests` directory, just run the command below. Note that you
-need at least 300GB of disk space:
-```
-files="SRR10124060 SRR10143153 SRR3897196 SRR9624732 SRR1853178 SRR6387347
-SRR891268 SRR1772703 SRR9878537"
-for i in $files
-do
-  echo "Downloading ${i}..."
-  fastq-dump --outdir  --gzip --skip-technical --readids \
-               --read-filter pass --dumpbase --split-3 --clip \
-               ${i}
-done
-```
+With an active internet connection, the `fastq-dump` command in your `PATH`
+variable and at least 300GB of disk space, run the following to download the
+fastq files onto the test directory:
+`./download_files.sh`
 
 Command to run benchmarking
 ===========================
 Once files are downloaded you can reproduce the benchmarking in the paper by
 running `./run_benchmark.sh`.
+
+List of SRR accessions tested
+=============================
+ - SRR10124060
+ - SRR10143153
+ - SRR3897196
+ - SRR9624732
+ - SRR1853178
+ - SRR6387347
+ - SRR891268
+ - SRR1772703
+ - SRR9878537
+ - SRR6059706
+
+The human genome nanopore file can be downloaded from the [Human Whole Genome
+Sequencing
+Project](https://github.com/nanopore-wgs-consortium/NA12878/blob/master/nanopore-human-genome/rel_3_4.md) (file [FAB49164](http://s3.amazonaws.com/nanopore-human-wgs/rel3-nanopore-wgs-4045668814-FAB49164.fastq.gz))
+
+
