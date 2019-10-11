@@ -1,4 +1,4 @@
-/* fqc: quality control for sequencing read files
+/* falco: quality control for sequencing read files
 *
 * Copyright (C) 2019 Guilherme De Sena Brandine and
 *                    Andrew D. Smith
@@ -75,7 +75,6 @@ read_stream_into_stats(T &in,
 
 int main(int argc, const char **argv) {
   /****************** COMMAND LINE OPTIONS ********************/
-  const string PROG_NAME = "fqc";
   bool help = false;
   bool version = false;
 
@@ -87,7 +86,7 @@ int main(int argc, const char **argv) {
   string forced_file_format;
   string outdir = "";
 
-  OptionParser opt_parse(PROG_NAME,
+  OptionParser opt_parse(argv[0],
                          "A high throughput sequence QC analysis tool",
                          "seqfile1 seqfile2 ... seqfileN");
 
