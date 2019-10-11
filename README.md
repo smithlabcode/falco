@@ -46,15 +46,15 @@ Optional C++ dependencies
 Running
 =======
 
-Run an example as follows:
+Run an example as follows, where `$` is your shell:
 ```
-falco example.fastq
+$ falco example.fastq
 ```
 
 This will generate two files :
  * ``example.fastq_qc_summary.txt`` is a text file with a summary of the QC
    metrics
- * ``example.fast_report.html`` is the visual HTML report showing plots of the
+ * ``example.fastq_report.html`` is the visual HTML report showing plots of the
    QC metrics summarized in the text summary.
 
 Copyright and License Information
