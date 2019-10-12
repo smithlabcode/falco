@@ -28,24 +28,11 @@ using std::ifstream;
 using std::runtime_error;
 using std::chrono::system_clock;
 using std::min;
-
-HtmlMaker::HtmlMaker(string filepath) {
-  sourcecode = "";
-  ifstream in(filepath);
-  if (!in) {
-    throw runtime_error("HTML layout not found: " + filepath);
-  }
-
-  // pass the whole source code template to a string
-  string line;
-  while (getline(in, line))
-    sourcecode += line + "\n";
-}
-
 void
-HtmlMaker::replace_placeholder_with_data(const string &placeholder,
-                                         const string &data) {
-  auto pos = sourcecode.find(placeholder);
+replace_placeholder_with_data(string &html_boilerplate,
+                              const string &placeholder,
+                              const string &data) {
+  auto pos = html_boilerplate.find(placeholder);
 
   // Placeholder not found
   if (pos == string::npos) {
@@ -54,111 +41,125 @@ HtmlMaker::replace_placeholder_with_data(const string &placeholder,
 
   // at least one placeholder found
   while (pos != string::npos) {
-    sourcecode.replace(pos, placeholder.size(), data);
-    pos = sourcecode.find(placeholder, pos + 1);
+    html_boilerplate.replace(pos, placeholder.size(), data);
+    pos = html_boilerplate.find(placeholder, pos + 1);
   }
 }
 
 // Comments out html pieces if analyses were skipped
 void
-HtmlMaker::comment_if_skipped(string ph_begin,
-                              string ph_end,
-                              bool done) {
+comment_if_skipped(string &html_boilerplate,
+                   string ph_begin,
+                   string ph_end,
+                   bool done) {
   // put html comments if analysis was skipped
   if (!done) {
-    replace_placeholder_with_data(ph_begin, "<!--");
-    replace_placeholder_with_data(ph_end, "-->");
+    replace_placeholder_with_data(html_boilerplate, ph_begin, "<!--");
+    replace_placeholder_with_data(html_boilerplate, ph_end, "-->");
   }
 
   // otherwise delete placeholder
   else {
-    replace_placeholder_with_data(ph_begin, "");
-    replace_placeholder_with_data(ph_end, "");
+    replace_placeholder_with_data(html_boilerplate, ph_begin, "");
+    replace_placeholder_with_data(html_boilerplate, ph_end, "");
   }
 }
 
 void
-HtmlMaker::comment_out(const FalcoConfig &falco_config) {
-  comment_if_skipped("{{skipbasesequence_s}}",
+comment_out(string &html_boilerplate,
+            const FalcoConfig &falco_config) {
+  comment_if_skipped(html_boilerplate,
+                     "{{skipbasesequence_s}}",
                      "{{skipbasesequence_e}}",
                      falco_config.do_quality_base);
-  comment_if_skipped("{{skiptile_s}}",
+  comment_if_skipped(html_boilerplate, "{{skiptile_s}}",
                      "{{skiptile_e}}",
                      falco_config.do_tile);
 
-  comment_if_skipped("{{skipsequencequal_s}}",
+  comment_if_skipped(html_boilerplate,
+                     "{{skipsequencequal_s}}",
                      "{{skipsequencequal_e}}",
                      falco_config.do_quality_sequence);
 
-  comment_if_skipped("{{skipbasecontent_s}}",
+  comment_if_skipped(html_boilerplate,
+                     "{{skipbasecontent_s}}",
                      "{{skipbasecontent_e}}",
                      falco_config.do_sequence);
 
-  comment_if_skipped("{{skipsequencegc_s}}",
+  comment_if_skipped(html_boilerplate,
+                     "{{skipsequencegc_s}}",
                      "{{skipsequencegc_e}}",
                      falco_config.do_gc_sequence);
 
-  comment_if_skipped("{{skipbasencontent_s}}",
+  comment_if_skipped(html_boilerplate,
+                     "{{skipbasencontent_s}}",
                      "{{skipbasencontent_e}}",
                      falco_config.do_n_content);
 
-  comment_if_skipped("{{skipseqlength_s}}",
+  comment_if_skipped(html_boilerplate,
+                     "{{skipseqlength_s}}",
                      "{{skipseqlength_e}}",
                      falco_config.do_n_content);
 
-  comment_if_skipped("{{skipseqdup_s}}",
+  comment_if_skipped(html_boilerplate,
+                     "{{skipseqdup_s}}",
                      "{{skipseqdup_e}}",
                      falco_config.do_duplication);
 
-  comment_if_skipped("{{skipoverrep_s}}",
+  comment_if_skipped(html_boilerplate,
+                     "{{skipoverrep_s}}",
                      "{{skipoverrep_e}}",
                      falco_config.do_overrepresented);
 
-  comment_if_skipped("{{skipadapter_s}}",
+  comment_if_skipped(html_boilerplate,
+                      "{{skipadapter_s}}",
                      "{{skipadapter_e}}",
                      falco_config.do_adapter);
 }
 
 void
-HtmlMaker::put_file_details(const FalcoConfig &falco_config) {
+put_file_details(string &html_boilerplate,
+                 const FalcoConfig &falco_config) {
   // Put filename in filename placeholder
-  replace_placeholder_with_data("{{filename}}",
+  replace_placeholder_with_data(html_boilerplate, "{{filename}}",
                                 falco_config.filename_stripped);
 
   // Put date on date placeholder
   auto tmp = system_clock::to_time_t(system_clock::now());
   string time_fmt = string(ctime(&tmp));
-  replace_placeholder_with_data("{{date}}", time_fmt);
+  replace_placeholder_with_data(html_boilerplate, "{{date}}", time_fmt);
 }
 
 void
-HtmlMaker::put_pass_warn_fail(const FastqStats &stats) {
-  replace_placeholder_with_data("{{passbasic}}",
+put_pass_warn_fail(string &html_boilerplate,
+                   const FastqStats &stats) {
+  replace_placeholder_with_data(html_boilerplate, "{{passbasic}}",
                                 stats.pass_basic_statistics);
-  replace_placeholder_with_data("{{passbasesequence}}",
+  replace_placeholder_with_data(html_boilerplate, "{{passbasesequence}}",
                                 stats.pass_per_base_sequence_quality);
-  replace_placeholder_with_data("{{passpertile}}",
+  replace_placeholder_with_data(html_boilerplate, "{{passpertile}}",
                                 stats.pass_per_tile_sequence_quality);
-  replace_placeholder_with_data("{{passpersequencequal}}",
+  replace_placeholder_with_data(html_boilerplate, "{{passpersequencequal}}",
                                 stats.pass_per_sequence_quality_scores);
-  replace_placeholder_with_data("{{passperbasecontent}}",
+  replace_placeholder_with_data(html_boilerplate, "{{passperbasecontent}}",
                                 stats.pass_per_base_sequence_content);
-  replace_placeholder_with_data("{{passpersequencegc}}",
+  replace_placeholder_with_data(html_boilerplate, "{{passpersequencegc}}",
                                 stats.pass_per_sequence_gc_content);
-  replace_placeholder_with_data("{{passperbasencontent}}",
+  replace_placeholder_with_data(html_boilerplate, "{{passperbasencontent}}",
                                 stats.pass_per_base_n_content);
-  replace_placeholder_with_data("{{passseqlength}}",
+  replace_placeholder_with_data(html_boilerplate, "{{passseqlength}}",
                                 stats.pass_sequence_length_distribution);
-  replace_placeholder_with_data("{{passseqdup}}",
+  replace_placeholder_with_data(html_boilerplate, "{{passseqdup}}",
                                 stats.pass_duplicate_sequences);
-  replace_placeholder_with_data("{{passoverrep}}",
+  replace_placeholder_with_data(html_boilerplate, "{{passoverrep}}",
                                 stats.pass_overrepresented_sequences);
-  replace_placeholder_with_data("{{passadapter}}",
+  replace_placeholder_with_data(html_boilerplate, "{{passadapter}}",
                                 stats.pass_adapter_content);
 }
 void
-HtmlMaker::make_basic_statistics(const FastqStats &stats,
-                                 FalcoConfig &falco_config) {
+make_basic_statistics(string &html_boilerplate,
+                      const FastqStats &stats,
+                      FalcoConfig &falco_config) {
   string placeholder = "{{BASICSTATSDATA}}";
   ostringstream data;
   data << "<table><thead><tr><th>Measure</th><th>Value"
@@ -182,12 +183,13 @@ HtmlMaker::make_basic_statistics(const FastqStats &stats,
   }
   data << "</tbody></table>";
 
-  replace_placeholder_with_data(placeholder, data.str());
+  replace_placeholder_with_data(html_boilerplate, placeholder, data.str());
 }
 
 void
-HtmlMaker::make_position_quality_data(const FastqStats &stats,
-                                      const FalcoConfig &falco_config) {
+make_position_quality_data(string &html_boilerplate,
+                           const FastqStats &stats,
+                           const FalcoConfig &falco_config) {
   ostringstream data;
   const string placeholder = "{{SEQBASEQUALITYDATA}}";
   if (falco_config.do_quality_base) {
@@ -223,12 +225,13 @@ HtmlMaker::make_position_quality_data(const FastqStats &stats,
         data << ", ";
     }
   }
-  replace_placeholder_with_data(placeholder, data.str());
+  replace_placeholder_with_data(html_boilerplate, placeholder, data.str());
 }
 
 void
-HtmlMaker::make_tile_quality_data(FastqStats &stats,
-                                  const FalcoConfig &falco_config) {
+make_tile_quality_data(string &html_boilerplate,
+                       FastqStats &stats,
+                       const FalcoConfig &falco_config) {
   ostringstream data;
   const string placeholder = "{{TILEQUALITYDATA}}";
 
@@ -274,12 +277,13 @@ HtmlMaker::make_tile_quality_data(FastqStats &stats,
     data << "]";
     data << ", type : 'heatmap' }";
   }
-  replace_placeholder_with_data(placeholder, data.str());
+  replace_placeholder_with_data(html_boilerplate, placeholder, data.str());
 }
 
 void
-HtmlMaker::make_sequence_quality_data(const FastqStats &stats,
-                                      const FalcoConfig &falco_config) {
+make_sequence_quality_data(string &html_boilerplate,
+                           const FastqStats &stats,
+                           const FalcoConfig &falco_config) {
   ostringstream data;
   const string placeholder = "{{SEQQUALITYDATA}}";
 
@@ -302,12 +306,13 @@ HtmlMaker::make_sequence_quality_data(const FastqStats &stats,
     data << "], type: 'line', line : {color : 'red'}, "
          << "name : 'Sequence quality distribution'}";
   }
-  replace_placeholder_with_data(placeholder, data.str());
+  replace_placeholder_with_data(html_boilerplate, placeholder, data.str());
 }
 
 void
-HtmlMaker::make_base_sequence_content_data(const FastqStats &stats,
-                                           const FalcoConfig &falco_config) {
+make_base_sequence_content_data(string &html_boilerplate,
+                                const FastqStats &stats,
+                                const FalcoConfig &falco_config) {
   ostringstream data;
   const string placeholder = "{{BASESEQCONTENTDATA}}";
 
@@ -368,12 +373,13 @@ HtmlMaker::make_base_sequence_content_data(const FastqStats &stats,
         data << ", ";
     }
   }
-  replace_placeholder_with_data(placeholder, data.str());
+  replace_placeholder_with_data(html_boilerplate, placeholder, data.str());
 }
 
 void
-HtmlMaker::make_sequence_gc_content_data(const FastqStats &stats,
-                                         const FalcoConfig &falco_config) {
+make_sequence_gc_content_data(string &html_boilerplate,
+                              const FastqStats &stats,
+                              const FalcoConfig &falco_config) {
   ostringstream data;
   const string placeholder = "{{SEQGCCONTENTDATA}}";
   if (falco_config.do_gc_sequence) {
@@ -412,12 +418,13 @@ HtmlMaker::make_sequence_gc_content_data(const FastqStats &stats,
     data << "], type: 'line', line : {color : 'blue'},"
          << "name : 'Theoretical distribution'}";
   }
-  replace_placeholder_with_data(placeholder, data.str());
+  replace_placeholder_with_data(html_boilerplate, placeholder, data.str());
 }
 
 void
-HtmlMaker::make_base_n_content_data(const FastqStats &stats,
-                                    const FalcoConfig &falco_config) {
+make_base_n_content_data(string &html_boilerplate,
+                         const FastqStats &stats,
+                         const FalcoConfig &falco_config) {
   ostringstream data;
   const string placeholder = "{{BASENCONTENTDATA}}";
 
@@ -444,12 +451,13 @@ HtmlMaker::make_base_n_content_data(const FastqStats &stats,
     data << "], type: 'line', line : {color : 'red'}, "
          << "name : 'Fraction of N reads per base'}";
   }
-  replace_placeholder_with_data(placeholder, data.str());
+  replace_placeholder_with_data(html_boilerplate, placeholder, data.str());
 }
 
 void
-HtmlMaker::make_sequence_length_data(const FastqStats &stats,
-                                     const FalcoConfig &falco_config) {
+make_sequence_length_data(string &html_boilerplate,
+                          const FastqStats &stats,
+                          const FalcoConfig &falco_config) {
   ostringstream data;
   const string placeholder = "{{SEQLENDATA}}";
 
@@ -528,13 +536,14 @@ HtmlMaker::make_sequence_length_data(const FastqStats &stats,
          << "line : {width : 2}}, "
          << "name : 'Sequence length distribution'}";
   }
-  replace_placeholder_with_data(placeholder, data.str());
+  replace_placeholder_with_data(html_boilerplate, placeholder, data.str());
 }
 
 
 void
-HtmlMaker::make_sequence_duplication_data(const FastqStats &stats,
-                                          const FalcoConfig &falco_config) {
+make_sequence_duplication_data(string &html_boilerplate,
+                               const FastqStats &stats,
+                               const FalcoConfig &falco_config) {
   ostringstream data;
   const string placeholder = "{{SEQDUPDATA}}";
 
@@ -568,13 +577,14 @@ HtmlMaker::make_sequence_duplication_data(const FastqStats &stats,
     data << "], type: 'line', line : {color : 'red'}, "
          << "name : 'total sequences'}";
   }
-  replace_placeholder_with_data(placeholder, data.str());
+  replace_placeholder_with_data(html_boilerplate, placeholder, data.str());
 }
 
 
 void
-HtmlMaker::make_overrepresented_sequences_data(const FastqStats &stats,
-                                               const FalcoConfig &falco_config) {
+make_overrepresented_sequences_data(string &html_boilerplate,
+                                    const FastqStats &stats,
+                                    const FalcoConfig &falco_config) {
   string placeholder = "{{OVERREPSEQDATA}}";
   ostringstream data;
 
@@ -599,12 +609,13 @@ HtmlMaker::make_overrepresented_sequences_data(const FastqStats &stats,
     }
     data << "</tbody></table>";
   }
-  replace_placeholder_with_data(placeholder, data.str());
+  replace_placeholder_with_data(html_boilerplate, placeholder, data.str());
 }
 
 void
-HtmlMaker::make_adapter_content_data(FastqStats &stats,
-                                     FalcoConfig &falco_config) {
+make_adapter_content_data(string &html_boilerplate,
+                          FastqStats &stats,
+                          FalcoConfig &falco_config) {
   string placeholder = "{{ADAPTERDATA}}";
   ostringstream data;
 
@@ -650,30 +661,44 @@ HtmlMaker::make_adapter_content_data(FastqStats &stats,
       ++jj;
     }
   }
-  replace_placeholder_with_data(placeholder, data.str());
+  replace_placeholder_with_data(html_boilerplate, placeholder, data.str());
 }
+
+HtmlMaker::HtmlMaker(string filepath) {
+  html_boilerplate = "";
+  ifstream in(filepath);
+  if (!in) {
+    throw runtime_error("HTML layout not found: " + filepath);
+  }
+
+  // pass the whole source code template to a string
+  string line;
+  while (getline(in, line))
+    html_boilerplate += line + "\n";
+}
+
 
 void
 HtmlMaker::write(FastqStats &stats, FalcoConfig &falco_config) {
   // Filename and date
-  put_file_details(falco_config);
+  put_file_details(html_boilerplate, falco_config);
 
   // Put html comments around things to skip
-  comment_out(falco_config);
+  comment_out(html_boilerplate, falco_config);
 
   // Put colors in pass, warn and fail
-  put_pass_warn_fail(stats);
+  put_pass_warn_fail(html_boilerplate, stats);
 
   // Put data on tables and plotly javascripts
-  make_basic_statistics(stats, falco_config);
-  make_position_quality_data(stats, falco_config);
-  make_tile_quality_data(stats, falco_config);
-  make_sequence_quality_data(stats, falco_config);
-  make_base_sequence_content_data(stats, falco_config);
-  make_sequence_gc_content_data(stats, falco_config);
-  make_base_n_content_data(stats, falco_config);
-  make_sequence_length_data(stats, falco_config);
-  make_sequence_duplication_data(stats, falco_config);
-  make_overrepresented_sequences_data(stats, falco_config);
-  make_adapter_content_data(stats, falco_config);
+  make_basic_statistics(html_boilerplate, stats, falco_config);
+  make_position_quality_data(html_boilerplate, stats, falco_config);
+  make_tile_quality_data(html_boilerplate, stats, falco_config);
+  make_sequence_quality_data(html_boilerplate, stats, falco_config);
+  make_base_sequence_content_data(html_boilerplate, stats, falco_config);
+  make_sequence_gc_content_data(html_boilerplate, stats, falco_config);
+  make_base_n_content_data(html_boilerplate, stats, falco_config);
+  make_sequence_length_data(html_boilerplate, stats, falco_config);
+  make_sequence_duplication_data(html_boilerplate, stats, falco_config);
+  make_overrepresented_sequences_data(html_boilerplate, stats, falco_config);
+  make_adapter_content_data(html_boilerplate, stats, falco_config);
 }

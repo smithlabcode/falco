@@ -265,7 +265,7 @@ int main(int argc, const char **argv) {
 
         // Start writing
         ofstream html(htmlfile);
-        html << html_maker.sourcecode;
+        html << html_maker.html_boilerplate;
       }
 
       /************************** TIME SUMMARY *****************************/
