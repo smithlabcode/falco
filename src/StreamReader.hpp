@@ -26,9 +26,7 @@
 #include <sys/mman.h>
 
 // Optional zlib usage
-#ifdef USE_ZLIB
 #include <zlib.h>
-#endif
 
 #ifdef USE_HTS
 #include <htslib/sam.h>
@@ -178,7 +176,6 @@ class FastqReader : public StreamReader {
   ~FastqReader();
 };
 
-#ifdef USE_ZLIB
 /*******************************************************/
 /*************** READ FASTQ GZ RCORD *******************/
 /*******************************************************/
@@ -195,7 +192,6 @@ class GzFastqReader : public FastqReader {
   bool operator >> (FastqStats &stats);
   ~GzFastqReader();
 };
-#endif
 
 /*******************************************************/
 /*************** READ SAM RECORD ***********************/

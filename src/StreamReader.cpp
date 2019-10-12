@@ -544,7 +544,6 @@ FastqReader::~FastqReader()  {
   munmap(mmap_data, st.st_size);
 }
 
-#ifdef USE_ZLIB
 /*******************************************************/
 /*************** READ FASTQ GZ RCORD *******************/
 /*******************************************************/
@@ -607,7 +606,6 @@ GzFastqReader::operator >>(FastqStats &stats) {
   // Returns if file should keep being checked
   return !is_eof();
 }
-#endif
 
 /*******************************************************/
 /*************** READ SAM RECORD ***********************/

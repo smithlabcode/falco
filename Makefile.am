@@ -23,6 +23,10 @@ bin_PROGRAMS = falco
 
 falco_CXXFLAGS = $(OPENMP_CXXFLAGS) $(AM_CXXFLAGS)
 falco_CPPFLAGS = -DPROGRAM_PATH=\"$(abspath $(top_srcdir))/Configuration\"
+if ENABLE_HTS
+falco_CPPFLAGS += -DUSE_HTS
+endif
+
 falco_SOURCES = \
 	src/falco.cpp \
 	src/HtmlMaker.cpp \
