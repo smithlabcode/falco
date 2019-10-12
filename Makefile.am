@@ -14,7 +14,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # General Public License for more details.
 
-EXTRA_DIST = README.md
+EXTRA_DIST = README.md Configuration
 
 ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS = -I $(top_srcdir)/src
@@ -22,10 +22,19 @@ AM_CPPFLAGS = -I $(top_srcdir)/src
 bin_PROGRAMS = falco
 
 falco_CXXFLAGS = $(OPENMP_CXXFLAGS) $(AM_CXXFLAGS)
-falco_SOURCES = src/falco.cpp
-falco_LDADD = src/HtmlMaker.o \
-	src/FastqStats.o \
-	src/StreamReader.o \
-	src/FalcoConfig.o \
-	src/OptionParser.o \
-	src/smithlab_utils.o
+falco_CPPFLAGS = -DPROGRAM_PATH=\"$(abspath $(top_srcdir))/Configuration\"
+falco_SOURCES = \
+	src/falco.cpp \
+	src/HtmlMaker.cpp \
+	src/FastqStats.cpp \
+	src/StreamReader.cpp \
+	src/FalcoConfig.cpp \
+	src/OptionParser.cpp \
+	src/smithlab_utils.cpp \
+	src/HtmlMaker.hpp \
+	src/FastqStats.hpp \
+	src/StreamReader.hpp \
+	src/FalcoConfig.hpp \
+	src/OptionParser.hpp \
+	src/smithlab_utils.hpp \
+	src/aux.hpp
