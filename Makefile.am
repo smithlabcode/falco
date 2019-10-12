@@ -26,6 +26,6 @@ falco_SOURCES = src/falco.cpp
 falco_LDADD = src/HtmlMaker.o \
 	src/FastqStats.o \
 	src/StreamReader.o \
-	src/Config.o \
+	src/FalcoConfig.o \
 	src/OptionParser.o \
 	src/smithlab_utils.o
