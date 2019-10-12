@@ -27,6 +27,19 @@ using std::ifstream;
 using std::runtime_error;
 using std::istringstream;
 
+bool
+is_limit_line (const string &line) {
+  // comment
+  if (line[0] == '#')
+    return false;
+
+  // newline
+  if (line.size() <= 1)
+    return false;
+
+  return true;
+}
+
 // Sets magic numbers
 FalcoConfig::FalcoConfig() {
   kPoorQualityThreshold = 20;
@@ -39,10 +52,10 @@ FalcoConfig::FalcoConfig() {
   min_length = 0;
   format = "";
   threads = 1;
-  contaminants_file = string(PROGRAM_PATH) + "/Configuration/contaminant_list.txt";
-  adapters_file = string(PROGRAM_PATH) + "/Configuration/adapter_list.txt";
-  limits_file = string(PROGRAM_PATH) + "/Configuration/limits.txt";
-  html_file = string(PROGRAM_PATH) + "/Configuration/template.html";
+  contaminants_file = "Configuration/contaminant_list.txt";
+  adapters_file = "Configuration/adapter_list.txt";
+  limits_file = "Configuration/limits.txt";
+  html_file = "Configuration/template.html";
   kmer_size = 7;
   quiet = false;
   tmpdir = ".";
@@ -144,8 +157,8 @@ FalcoConfig::read_limits() {
   string line, instruction;
   double value;
   while (getline(in, line)) {
-    // Lines with # are comments and should be skipped
-    if (line[0] != '#') {
+    // Checks if the line has something to be parsed
+    if (is_limit_line (line)) {
       istringstream iss(line);
 
       // Every line is a limit, warn/error/ignore and the value
