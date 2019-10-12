@@ -290,18 +290,28 @@ make_sequence_quality_data(string &html_boilerplate,
   if (falco_config.do_quality_sequence) {
     // X values : avg quality phred scores
     data << "{x : [";
+    bool seen_first = false;
     for (size_t i = 0; i < 41; ++i) {
-      data << i + stats.kBaseQuality;
-      if (i < 40)
-        data << ", ";
+      if (seen_first)
+        data << ",";
+      else
+        seen_first = true;
+
+      if (stats.quality_count[i] > 0)
+        data << i;
     }
 
     // Y values: frequency with which they were seen
     data << "], y : [";
+    seen_first = false;
     for (size_t i = 0; i < 41; ++i) {
-      data << stats.quality_count[i];
-      if (i < 40)
-        data << ", ";
+      if (seen_first)
+        data << ",";
+      else
+        seen_first = true;
+
+      if (stats.quality_count[i] > 0)
+        data << stats.quality_count[i];
     }
     data << "], type: 'line', line : {color : 'red'}, "
          << "name : 'Sequence quality distribution'}";
