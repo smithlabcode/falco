@@ -17,7 +17,7 @@
 EXTRA_DIST = README.md
 
 ACLOCAL_AMFLAGS = -I m4
-AM_CPPFLAGS = -I $(top_srcdir)/src
+AM_CPPFLAGS = -I $(top_srcdir)/src -DPROGRAM_PATH=\"$(abspath $(top_srcdir))\"
 
 bin_PROGRAMS = falco
 
