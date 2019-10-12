@@ -163,10 +163,11 @@ FalcoConfig::read_limits() {
 
       // Every line is a limit, warn/error/ignore and the value
       string limit;
-      iss >> limit >> instruction >> value;
+      if (!(iss >> limit >> instruction >> value))
+        throw runtime_error("malformed limits line: \"" + line + "\"");
 
-      if (find(values_to_check.begin(), values_to_check.end(), limit)
-          == values_to_check.end())
+      if (find(begin(values_to_check), end(values_to_check), limit)
+          == end(values_to_check))
         throw runtime_error("unknown limit option: " + limit);
 
       if (instruction != "warn" &&
