@@ -42,7 +42,7 @@ install: $(PROGRAMS)
 	@install -m 755 $(PROGRAMS) bin
 	rm $(PROGRAMS)
 
-$(PROGRAMS): HtmlMaker.o FastqStats.o StreamReader.o Config.o \
+$(PROGRAMS): HtmlMaker.o FastqStats.o StreamReader.o FalcoConfig.o \
 	OptionParser.o smithlab_utils.o
 
 %.o: %.cpp %.hpp
