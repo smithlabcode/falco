@@ -22,7 +22,7 @@ AM_CPPFLAGS = -I $(top_srcdir)/src
 bin_PROGRAMS = falco
 
 falco_CXXFLAGS = $(OPENMP_CXXFLAGS) $(AM_CXXFLAGS)
-falco_CPPFLAGS = -DPROGRAM_PATH=\"$(abspath $(top_srcdir))/Configuration\"
+falco_CPPFLAGS = -DPROGRAM_PATH=\"$(abspath $(top_srcdir))\"
 if ENABLE_HTS
 falco_CPPFLAGS += -DUSE_HTS
 endif
