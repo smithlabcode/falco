@@ -1,6 +1,23 @@
-#include "Config.hpp"
+/* Copyright (C) 2019 Guilherme De Sena Brandine and
+ *                    Andrew D. Smith
+ * Authors: Guilherme De Sena Brandine, Andrew Smith
+ *
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ */
+
+#include "FalcoConfig.hpp"
+
 #include <fstream>
 #include <sstream>
+
 using std::string;
 using std::vector;
 using std::unordered_map;
@@ -10,17 +27,42 @@ using std::ifstream;
 using std::runtime_error;
 using std::istringstream;
 
+// Sets magic numbers
+FalcoConfig::FalcoConfig() {
+  kPoorQualityThreshold = 20;
+  kOverrepMinFrac = 0.001;
+  casava = false;
+  nanopore = false;
+  nofilter = false;
+  extract = false;
+  nogroup = false;
+  min_length = 0;
+  format = "";
+  threads = 1;
+  contaminants_file = string(PROGRAM_PATH) + "/Configuration/contaminant_list.txt";
+  adapters_file = string(PROGRAM_PATH) + "/Configuration/adapter_list.txt";
+  limits_file = string(PROGRAM_PATH) + "/Configuration/limits.txt";
+  html_file = string(PROGRAM_PATH) + "/Configuration/template.html";
+  kmer_size = 7;
+  quiet = false;
+  tmpdir = ".";
+
+  is_sam = false;
+  is_bam = false;
+  is_fastq = false;
+  is_fastq_gz = false;
+}
+
 // Check if a std::string ends with another, to be use to figure out the file format
 static inline bool
-endswith(std::string const & value, std::string const & ending) {
+endswith(std::string const &value, std::string const &ending) {
   if (ending.size() > value.size()) {
     return false;
   }
   return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 }
 
-string
-Config::strip_path(string full_path) const {
+string strip_path(string full_path) {
   size_t start = full_path.find_last_of('/');
   if (start == string::npos)
     start = 0;
@@ -29,7 +71,7 @@ Config::strip_path(string full_path) const {
   return full_path.substr(start);
 }
 
-const vector<string> Config::values_to_check({
+const vector<string> FalcoConfig::values_to_check({
     "duplication",
     "kmer",
     "n_content",
@@ -55,68 +97,36 @@ const vector<string> Config::values_to_check({
     "adapter"
   });
 
-// Sets magic numbers
-Config::Config() {
-  kPoorQualityThreshold = 20;
-  kOverrepMinFrac = 0.001;
-  casava = false;
-  nanopore = false;
-  nofilter = false;
-  extract = false;
-  nogroup = false;
-  min_length = 0;
-  format = "";
-  threads = 1;
-  contaminants_file = string(PROGRAM_PATH) + "/Configuration/contaminant_list.txt";
-  adapters_file = string(PROGRAM_PATH) + "/Configuration/adapter_list.txt";
-  limits_file = string(PROGRAM_PATH) + "/Configuration/limits.txt";
-  html_file = string(PROGRAM_PATH) + "/Configuration/template.html";
-  kmer_size = 7;
-  quiet = false;
-  tmpdir = ".";
-
-  is_sam = false;
-  is_bam = false;
-  is_fastq = false;
-  is_fastq_gz = false;
-
-}
-
 void
-Config::setup() {
+FalcoConfig::setup() {
   define_file_format();
   read_limits();
   if (limits["adapter"]["ignore"] == 0.0)
     read_adapters();
   if (limits["adapter"]["ignore"] == 0.0)
-    read_contaminants();
+    read_contaminants_file();
 
   filename_stripped = strip_path(filename);
 }
 
 void
-Config::define_file_format() {
+FalcoConfig::define_file_format() {
   if (format == "") {
     if (endswith(filename, "sam")) {
       is_sam = true;
     }
-
     if (endswith(filename, "bam")) {
       is_bam = true;
     }
-
     if (endswith(filename, "fastq.gz")) {
       is_fastq_gz = true;
     }
-
     if (endswith(filename, "fq.gz")) {
       is_fastq_gz = true;
     }
-
     if (endswith(filename, "fastq")) {
       is_fastq = true;
     }
-
     if (endswith(filename, "fq")) {
       is_fastq = true;
     }
@@ -124,13 +134,14 @@ Config::define_file_format() {
 }
 
 void
-Config::read_limits() {
+FalcoConfig::read_limits() {
+
   ifstream in(limits_file);
   if (!in)
     throw runtime_error("limits file does not exist: " + limits_file);
 
   // Variables to parse lines
-  string line, limit, instruction;
+  string line, instruction;
   double value;
   while (getline(in, line)) {
     // Lines with # are comments and should be skipped
@@ -138,6 +149,7 @@ Config::read_limits() {
       istringstream iss(line);
 
       // Every line is a limit, warn/error/ignore and the value
+      string limit;
       iss >> limit >> instruction >> value;
 
       if (find(values_to_check.begin(), values_to_check.end(), limit)
@@ -147,19 +159,17 @@ Config::read_limits() {
       if (instruction != "warn" &&
           instruction != "error" &&
           instruction != "ignore")
-        throw runtime_error("unknown instruction for limit " + limit +
-                            ": " + instruction);
+        throw runtime_error("unknown instruction for limit " +
+                            limit + ": " + instruction);
 
       limits[limit][instruction] = value;
     }
   }
 
-  for (auto v : values_to_check) {
+  for (auto v : values_to_check)
     if (limits.count(v) == 0)
       throw runtime_error("instruction for limit " + v +
                           " not found in file " + limits_file);
-  }
-  in.close();
 
   // Get useful data from config that tells us which analyses to skip
   do_duplication = (limits["duplication"]["ignore"] == 0.0);
@@ -176,7 +186,7 @@ Config::read_limits() {
 }
 
 void
-Config::read_adapters() {
+FalcoConfig::read_adapters() {
   ifstream in(adapters_file);
   if (!in)
     throw runtime_error("adapter file not found: " + adapters_file);
@@ -226,44 +236,41 @@ Config::read_adapters() {
 }
 
 void
-Config::read_contaminants() {
+FalcoConfig::read_contaminants_file() {
+
   ifstream in(contaminants_file);
   if (!in)
     throw runtime_error("contaminants file not found: " + contaminants_file);
 
-  string line, _tmp;
   vector<string> line_by_space;
-  string contaminant_name, contaminant_seq;
 
-  // The contaminants file has a space separated name, and the last instance is
-  // the biological sequence
+  // The contaminants file has a space separated name, and the last
+  // instance is the biological sequence
+  string line;
   while (getline(in, line)) {
     if (line[0] != '#') {
-      contaminant_name = "";
-      contaminant_seq = "";
+      string contaminant_seq = "";
       istringstream iss(line);
-      while (iss >> _tmp) {
-        line_by_space.push_back(_tmp);
-      }
+      string token;
+      while (iss >> token)
+        line_by_space.push_back(token);
 
       if (line_by_space.size() > 1) {
-        for (size_t i = 0; i < line_by_space.size() - 1; ++i) {
+        string contaminant_name;
+        for (size_t i = 0; i < line_by_space.size() - 1; ++i)
           contaminant_name += line_by_space[i] + " ";
-        }
-        contaminant_seq = line_by_space.back();
+        const string contaminent_seq(line_by_space.back());
         contaminants.push_back(make_pair(contaminant_name, contaminant_seq));
       }
-
       line_by_space.clear();
     }
   }
-  in.close();
 }
 
 // Find contaminant with highest overlap with sequence or return "No Hit" if
 // there is none
 string
-Config::get_matching_contaminant(string seq) const {
+FalcoConfig::get_matching_contaminant(const string &seq) const {
   size_t best = 0;
   string ret;
   for (auto v : contaminants) {
@@ -285,9 +292,7 @@ Config::get_matching_contaminant(string seq) const {
   }
 
   // If any sequence is a match, return the best one
-  if (best > 0) {
+  if (best > 0)
     return ret;
-  }
   return "No Hit";
 }
-

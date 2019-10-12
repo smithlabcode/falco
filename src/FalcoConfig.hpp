@@ -1,9 +1,26 @@
-#ifndef _CONFIG_HPP
-#define _CONFIG_HPP
+/* Copyright (C) 2019 Guilherme De Sena Brandine and
+ *                    Andrew D. Smith
+ * Authors: Guilherme De Sena Brandine, Andrew Smith
+ *
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ */
+
+#ifndef FALCO_CONFIG_HPP
+#define FALCO_CONFIG_HPP
+
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <utility>
+
 #include "aux.hpp"
 
 /*************************************************************
@@ -11,10 +28,10 @@
  *************************************************************/
 
 // config from options, constants, magic numbers, etc
-struct Config {
- private:
-  std::string strip_path (std::string full_path) const;
- public:
+struct FalcoConfig {
+
+  FalcoConfig();  // set magic defaults
+
   /************************************************************
    *************** MY UNIVERSAL CONSTANTS *********************
    ************************************************************/
@@ -63,16 +80,15 @@ struct Config {
    *************** FASTQC LIMITS *******************************
    ************************************************************/
   // These will become const bools in the stream reader
-  std::unordered_map <std::string,
-                      std::unordered_map <std::string, double> > limits;
-  static const std::vector <std::string> values_to_check;
+  std::unordered_map<std::string,
+                     std::unordered_map<std::string, double> > limits;
+  static const std::vector<std::string> values_to_check;
 
   /*************** CONTAMINANTS *****************/
-  std::vector <std::pair <std::string, std::string> > 
-               contaminants;  // first = name, scond = seq
-
-  std::vector <std::pair <std::string, size_t> > 
-               adapters;  // kmer of the adapter prefix
+  // below: first = name, scond = seq
+  std::vector<std::pair<std::string, std::string> > contaminants;
+  // kmer of the adapter prefix
+  std::vector<std::pair<std::string, size_t> > adapters;
 
   /*************** DEFINE FILE TYPE ************/
 
@@ -82,13 +98,12 @@ struct Config {
   std::string filename_stripped;
 
   /*********** FUNCTIONS TO READ FILES *************/
-  Config();  // set magic defaults
   void define_file_format();
   void read_limits();  // populate limits hash map
   void read_adapters();
-  void read_contaminants();
+  void read_contaminants_file();
 
   void setup();
-  std::string get_matching_contaminant(std::string seq) const;
+  std::string get_matching_contaminant(const std::string &seq) const;
 };
 #endif
