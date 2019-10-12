@@ -1,4 +1,20 @@
+/* Copyright (C) 2019 Guilherme De Sena Brandine and
+ *                    Andrew D. Smith
+ * Authors: Guilherme De Sena Brandine, Andrew Smith
+ *
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ */
+
 #include "StreamReader.hpp"
+
 #include <vector>
 #include <cstring>
 
@@ -9,28 +25,29 @@ using std::runtime_error;
 /****************************************************/
 /***************** STREAMREADER *********************/
 /****************************************************/
-StreamReader::StreamReader(Config &config,
+StreamReader::StreamReader(FalcoConfig &config,
                            const size_t _buffer_size,
                            const char _field_separator,
                            const char _line_separator) :
-// I have to pass the config skips as const to read them fast
-do_duplication(config.do_duplication),
-do_kmer(config.do_kmer),
-do_n_content(config.do_n_content),
-do_overrepresented(config.do_overrepresented),
-do_quality_base(config.do_quality_base),
-do_sequence(config.do_sequence),
-do_gc_sequence(config.do_gc_sequence),
-do_quality_sequence(config.do_quality_sequence),
-do_tile(config.do_tile),
-do_adapter(config.do_adapter),
-do_sequence_length(config.do_sequence_length),
-do_nogroup(config.nogroup),
+  // I have to pass the config skips as const to read them fast
+  do_duplication(config.do_duplication),
+  do_kmer(config.do_kmer),
+  do_n_content(config.do_n_content),
+  do_overrepresented(config.do_overrepresented),
+  do_quality_base(config.do_quality_base),
+  do_sequence(config.do_sequence),
+  do_gc_sequence(config.do_gc_sequence),
+  do_quality_sequence(config.do_quality_sequence),
+  do_tile(config.do_tile),
+  do_adapter(config.do_adapter),
+  do_sequence_length(config.do_sequence_length),
+  do_nogroup(config.nogroup),
 
-// Here are the usual stream reader configs
-buffer_size(_buffer_size),
-field_separator(_field_separator),
-line_separator(_line_separator) {
+  // Here are the usual stream reader configs
+  buffer_size(_buffer_size),
+  field_separator(_field_separator),
+  line_separator(_line_separator) {
+
   // Allocates buffer to temporarily store reads
   buffer = new char[buffer_size + 1];
   buffer[buffer_size] = '\0';
@@ -65,7 +82,8 @@ StreamReader::put_base_in_buffer() {
   base_from_buffer = *cur_char;
   if (write_to_buffer) {
     buffer[read_pos] = base_from_buffer;
-  } else {
+  }
+  else {
     if (leftover_ind == leftover_buffer.size())
       leftover_buffer.push_back(base_from_buffer);
     else
@@ -78,7 +96,8 @@ inline void
 StreamReader::get_base_from_buffer() {
   if (read_from_buffer) {
     base_from_buffer = buffer[read_pos];
-  } else {
+  }
+  else {
     base_from_buffer = leftover_buffer[leftover_ind];
   }
 }
@@ -209,7 +228,7 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
           // registers k-mer if seen at least k nucleotides since the last n
           if (num_bases_after_n == stats.kmer_size) {
             stats.kmer_count[(read_pos << stats.kBitShiftKmer)
-                           | (cur_kmer & stats.kmer_mask)]++;
+                             | (cur_kmer & stats.kmer_mask)]++;
           }
 
           else {
@@ -238,7 +257,7 @@ StreamReader::process_sequence_base_from_leftover(FastqStats &stats) {
     // increments basic statistic counts
     cur_gc_count += (base_ind & 1);
     stats.long_base_count[(leftover_ind << stats.kBitShiftNucleotide)
-                         | base_ind]++;
+                          | base_ind]++;
 
     // WE WILL NOT DO KMER STATS OUTSIDE OF BUFFER
   }
@@ -326,13 +345,13 @@ inline void
 StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
   // Average quality in position
   stats.position_quality_count[
-        (read_pos << stats.kBitShiftQuality) | quality_value]++;
+                               (read_pos << stats.kBitShiftQuality) | quality_value]++;
 
   // Tile processing
   if (!tile_ignore) {
     if ((stats.num_reads == next_tile_read) && tile_cur != 0) {
       stats.tile_position_quality[tile_cur][read_pos]
-          += quality_value;
+        += quality_value;
       stats.tile_position_count[tile_cur][read_pos]++;
     }
   }
@@ -343,13 +362,13 @@ inline void
 StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
   // Average quality in position
   stats.long_position_quality_count[
-        (leftover_ind << stats.kBitShiftQuality) | quality_value]++;
+                                    (leftover_ind << stats.kBitShiftQuality) | quality_value]++;
 
   // Tile processing
   if (!tile_ignore) {
     if ((stats.num_reads == next_tile_read) && tile_cur != 0) {
       stats.tile_position_quality[tile_cur][leftover_ind + stats.kNumBases]
-          += quality_value;
+        += quality_value;
       stats.tile_position_count[tile_cur][read_pos]++;
     }
   }
@@ -433,7 +452,8 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
           continue_storing_sequences = false;
         }
       }
-    } else {
+    }
+    else {
       stats.sequence_count[sequence_to_hash]++;
       if (continue_storing_sequences)
         stats.count_at_limit++;
@@ -464,9 +484,9 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
 /*******************************************************/
 
 // Set fastq separator as \n
-FastqReader::FastqReader(Config &_config,
-                          const size_t _buffer_size) :
-StreamReader(_config, _buffer_size, '\n', '\n') {
+FastqReader::FastqReader(FalcoConfig &_config,
+                         const size_t _buffer_size) :
+  StreamReader(_config, _buffer_size, '\n', '\n') {
 }
 
 bool inline
@@ -498,7 +518,7 @@ FastqReader::load() {
 
 // Parses the particular fastq format
 bool inline
-FastqReader::operator >> (FastqStats &stats) {
+FastqReader::operator>>(FastqStats &stats) {
   read_tile_line(stats);
   skip_separator();
 
@@ -529,9 +549,9 @@ FastqReader::~FastqReader()  {
 /*************** READ FASTQ GZ RCORD *******************/
 /*******************************************************/
 // the gz fastq constructor is the same as the fastq
-GzFastqReader::GzFastqReader(Config &_config,
+GzFastqReader::GzFastqReader(FalcoConfig &_config,
                              const size_t _buffer_size) :
-FastqReader(_config, _buffer_size) {
+  FastqReader(_config, _buffer_size) {
 }
 
 // Load fastq with zlib
@@ -593,9 +613,9 @@ GzFastqReader::operator >>(FastqStats &stats) {
 /*************** READ SAM RECORD ***********************/
 /*******************************************************/
 // set sam separator as tab
-SamReader::SamReader(Config &_config,
+SamReader::SamReader(FalcoConfig &_config,
                      const size_t _buffer_size) :
-StreamReader(_config, _buffer_size, '\t', '\n') {}
+  StreamReader(_config, _buffer_size, '\t', '\n') {}
 
 void
 SamReader::load() {
@@ -663,10 +683,10 @@ SamReader::~SamReader() {
 /*******************************************************/
 /*************** READ BAM RECORD ***********************/
 /*******************************************************/
+
 // set sam separator as tab
-BamReader::BamReader(Config &_config,
-                      const size_t _buffer_size) :
-StreamReader(_config, _buffer_size, '\t', '\n') {
+BamReader::BamReader(FalcoConfig &_config, const size_t _buffer_size) :
+  StreamReader(_config, _buffer_size, '\t', '\n') {
   rd_ret = 0;
 }
 
@@ -676,10 +696,10 @@ BamReader::load() {
     throw runtime_error("cannot load bam file : " + filename);
 
   if (!(hdr = sam_hdr_read(hts)))
-     throw runtime_error("failed to read header from file: " + filename);
+    throw runtime_error("failed to read header from file: " + filename);
 
   if (!(b = bam_init1()))
-     throw runtime_error("failed to read record from file: " + filename);
+    throw runtime_error("failed to read record from file: " + filename);
 }
 
 // We will check eof on the >> operator
@@ -689,7 +709,7 @@ BamReader::is_eof() {
 }
 
 bool inline
-BamReader::operator >> (FastqStats &stats) {
+BamReader::operator>>(FastqStats &stats) {
   if ((rd_ret = sam_read1(hts, hdr, b)) >= 0) {
     fmt_ret = 0;
     if ((fmt_ret = sam_format1(hdr, b, &hts->line)) > 0) {
@@ -711,13 +731,11 @@ BamReader::operator >> (FastqStats &stats) {
       postprocess_fastq_record(stats);
       stats.num_reads++;
       return true;
-    } else {
-      throw runtime_error("failed reading record from : " + filename);
     }
+    else throw runtime_error("failed reading record from: " + filename);
 
     return false;
   }
-
   // If I could not read another line it means it's eof
   return false;
 }
@@ -727,12 +745,10 @@ BamReader::~BamReader() {
     bam_hdr_destroy(hdr);
     hdr = 0;
   }
-
   if (b) {
     bam_destroy1(b);
     b = 0;
   }
-
   if (hts) {
     hts_close(hts);
     hts = 0;

@@ -1,25 +1,39 @@
-#ifndef _FASTQSTATS_HPP
-#define _FASTQSTATS_HPP
+/* Copyright (C) 2019 Guilherme De Sena Brandine and
+ *                    Andrew D. Smith
+ * Authors: Guilherme De Sena Brandine, Andrew Smith
+ *
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ */
+
+#ifndef FASTQSTATS_HPP
+#define FASTQSTATS_HPP
+
 #include <string>
 #include <vector>
 #include <iostream>
 #include <unordered_map>
-#include "Config.hpp"
+#include "FalcoConfig.hpp"
 
-// log of a power of two, to use in bit shifting for fast index acces
-static constexpr size_t
-log2exact(size_t powerOfTwo) {
-  // throws cannot be used in constexpr at g++ < 7 
-  //if (powerOfTwo & (powerOfTwo - 1))
-  //throw std::runtime_error("not a power of two!");
-
-  size_t ans = 0;
-  while (powerOfTwo > 0) {
-    ans++;
-    powerOfTwo >>= 1;
-  }
-
-  return ans - 1;
+// log of qa power of two, to use in bit shifting for fast index acces
+// returns the log2 of a number if it is a power of two, or zero
+// otherwise
+constexpr size_t
+log2exact(size_t v) {
+  return (63 -
+          ((v & 0x00000000FFFFFFFF) ? 32 : 0) -
+          ((v & 0x0000FFFF0000FFFF) ? 16 : 0) -
+          ((v & 0x00FF00FF00FF00FF) ?  8 : 0) -
+          ((v & 0x0F0F0F0F0F0F0F0F) ?  4 : 0) -
+          ((v & 0x3333333333333333) ?  2 : 0) -
+          ((v & 0x5555555555555555) ?  1 : 0));
 }
 
 /*************************************************************
@@ -202,13 +216,11 @@ struct FastqStats {
   // candidate frequent sequences with that given suffix
 
   // Summarize all statistics we need before writing
-  void summarize(Config &config);
+  void summarize(FalcoConfig &config);
 
   // Writes to outpute fastqc-style
-  void write(std::ostream &os, const Config &config);
+  void write(std::ostream &os, const FalcoConfig &config);
 };
 
 
 #endif
-
-

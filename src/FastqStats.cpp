@@ -1,6 +1,23 @@
+/* Copyright (C) 2019 Guilherme De Sena Brandine and
+ *                    Andrew D. Smith
+ * Authors: Guilherme De Sena Brandine, Andrew Smith
+ *
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ */
+
 #include "FastqStats.hpp"
+
 #include <algorithm>
 #include <cmath>
+
 using std::string;
 using std::vector;
 using std::unordered_map;
@@ -8,6 +25,7 @@ using std::sort;
 using std::min;
 using std::max;
 using std::ostream;
+using std::pair;
 
 /******************* IMPLEMENTATION OF FASTQC FUNCTIONS **********************/
 // FastQC extrapolation of counts to the full file size
@@ -149,7 +167,7 @@ FastqStats::FastqStats() {
 }
 
 // When we read new bases, dynamically allocate new space for their statistics
-void 
+void
 FastqStats::allocate_new_base(const bool ignore_tile) {
   for (size_t i = 0; i < kNumNucleotides; ++i) {
     long_base_count.push_back(0);
@@ -176,7 +194,7 @@ FastqStats::allocate_new_base(const bool ignore_tile) {
 
 // Calculates all summary statistics and pass warn fails
 void
-FastqStats::summarize(Config &config) {
+FastqStats::summarize(FalcoConfig &config) {
   /******************* BASIC STATISTICS **********************/
   pass_basic_statistics = "pass";  // in fastqc, basic statistics is always pass
   // Average read length
@@ -553,9 +571,9 @@ FastqStats::summarize(Config &config) {
     }
 
     // Sort strings by frequency
-    sort(overrep_sequences.begin(), overrep_sequences.end(),
-         [](auto &a, auto &b){
-            return a.second > b.second;
+    sort(begin(overrep_sequences), end(overrep_sequences),
+         [](pair<string, size_t> &a, pair<string, size_t> &b){
+           return a.second > b.second;
          });
   }
   /************** ADAPTER CONTENT ******************************/
@@ -638,7 +656,7 @@ FastqStats::summarize(Config &config) {
 
 /****************** WRITE STATS ***********************/
 void
-FastqStats::write(ostream &os, const Config &config) {
+FastqStats::write(ostream &os, const FalcoConfig &config) {
   // Header
   os << "##FastQC\t0.11.8\n";
 
@@ -863,4 +881,3 @@ FastqStats::write(ostream &os, const Config &config) {
     os << ">>END_MODULE\n";
   }
 }
-

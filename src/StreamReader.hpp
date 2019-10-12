@@ -1,5 +1,21 @@
-#ifndef _STREAMREADER_H
-#define _STREAMREADER_H
+/* Copyright (C) 2019 Guilherme De Sena Brandine and
+ *                    Andrew D. Smith
+ * Authors: Guilherme De Sena Brandine, Andrew Smith
+ *
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ */
+
+#ifndef STREAMREADER_HPP
+#define STREAMREADER_HPP
+
 #include <string>
 #include <cmath>
 
@@ -18,7 +34,7 @@
 #include <htslib/sam.h>
 #endif
 
-#include "Config.hpp"
+#include "FalcoConfig.hpp"
 #include "FastqStats.hpp"
 
 /*************************************************************
@@ -132,10 +148,8 @@ class StreamReader{
   inline void read_sequence_line(FastqStats &stats);  // parse sequence
   inline void read_quality_line(FastqStats &stats);  // parse quality
 
-  StreamReader(Config &config,
-               const size_t buffer_size,
-               const char _field_separator,
-               const char _line_separator);
+  StreamReader(FalcoConfig &config, const size_t buffer_size,
+               const char _field_separator, const char _line_separator);
 
   /************ FUNCTIONS TO IMPLEMENT BASED ON FILE FORMAT  ***********/
   virtual void load() = 0;
@@ -156,8 +170,7 @@ class FastqReader : public StreamReader {
   void *mmap_data;
 
  public:
-  FastqReader(Config &_config,
-              const size_t _buffer_size);
+  FastqReader(FalcoConfig &fc, const size_t _buffer_size);
 
   void load();
   bool is_eof();
@@ -176,8 +189,7 @@ class GzFastqReader : public FastqReader {
   gzFile fileobj;
 
  public:
-  GzFastqReader(Config &_config,
-                const size_t _buffer_size);
+  GzFastqReader(FalcoConfig &fc, const size_t _buffer_size);
   void load();
   bool is_eof();
   bool operator >> (FastqStats &stats);
@@ -196,8 +208,7 @@ class SamReader : public StreamReader {
   void *mmap_data;
   char *last;
  public:
-  SamReader(Config &_config,
-            const size_t _buffer_size);
+  SamReader(FalcoConfig &fc, const size_t _buffer_size);
   void load();
   bool is_eof();
   bool operator >> (FastqStats &stats);
@@ -217,8 +228,7 @@ class BamReader : public StreamReader {
   int rd_ret, fmt_ret;
   char *last;
  public:
-  BamReader(Config &_config,
-            const size_t _buffer_size);
+  BamReader(FalcoConfig &fc, const size_t _buffer_size);
   void load();
   bool is_eof();
   bool operator >> (FastqStats &stats);
