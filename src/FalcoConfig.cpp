@@ -52,10 +52,10 @@ FalcoConfig::FalcoConfig() {
   min_length = 0;
   format = "";
   threads = 1;
-  contaminants_file = "Configuration/contaminant_list.txt";
-  adapters_file = "Configuration/adapter_list.txt";
-  limits_file = "Configuration/limits.txt";
-  html_file = "Configuration/template.html";
+  contaminants_file = string(PROGRAM_PATH) + "/Configuration/contaminant_list.txt";
+  adapters_file = string(PROGRAM_PATH) + "/Configuration/adapter_list.txt";
+  limits_file = string(PROGRAM_PATH) + "/Configuration/limits.txt";
+  html_file = string(PROGRAM_PATH) + "/Configuration/template.html";
   kmer_size = 7;
   quiet = false;
   tmpdir = ".";
