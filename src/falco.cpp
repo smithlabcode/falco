@@ -37,6 +37,7 @@ using std::chrono::system_clock;
 using std::chrono::duration_cast;
 using time_point = std::chrono::time_point<std::chrono::system_clock>;
 
+// Function to get seconds elapsed in program
 static size_t
 get_seconds_since(const time_point &start_time) {
   auto current_time = system_clock::now();
@@ -51,6 +52,16 @@ log_process(const string &s) {
   string time_fmt(std::ctime(&tmp));
   time_fmt.pop_back();
   cerr << "[" << time_fmt << "] " << s << endl;
+}
+
+// Function to check existance of directory
+static bool dir_exists(const string &path) {
+  struct stat info;
+  if (stat(path.c_str(), &info ) != 0)
+    return false;
+  else if (info.st_mode & S_IFDIR)
+    return true;
+  return false;
 }
 
 // Read any file type until the end and logs progress
@@ -90,6 +101,7 @@ int main(int argc, const char **argv) {
     // skip outputs
     bool skip_text = false;
     bool skip_html = false;
+    bool skip_short_summary = false;
 
     FalcoConfig falco_config;
     string forced_file_format;
@@ -105,7 +117,8 @@ int main(int argc, const char **argv) {
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(argv[0], description, "<seqfile1> <seqfile2> ...");
-    opt_parse.add_opt("-help", 'h', "print this help file and exit", false, help);
+    opt_parse.add_opt("-help", 'h', "print this help file and exit", false,
+                        help);
     opt_parse.add_opt("-version", 'v', "print the program version and exit",
                       false, version);
     opt_parse.add_opt("-outdir", 'o', outdir_description, false, outdir);
@@ -115,7 +128,8 @@ int main(int argc, const char **argv) {
     opt_parse.add_opt("-nano", 'n', "Files come from fast5 nanopore sequences",
                       false, falco_config.nanopore);
     opt_parse.add_opt("-nofilter", 'F', "If running with --casava do not "
-                      "sequences (currently ignored)", false, falco_config.nofilter);
+                      "sequences (currently ignored)", false,
+                      falco_config.nofilter);
     opt_parse.add_opt("-noextract", 'e', "If running with --casava do not "
                       "remove poor quality sequences (currently ignored)",
                       false, falco_config.casava);
@@ -140,6 +154,8 @@ int main(int argc, const char **argv) {
                       "(Default = false)", false, skip_text);
     opt_parse.add_opt("-skip-html", 'H', "Skip generating HTML file "
                       "(Default = false)", false, skip_html);
+    opt_parse.add_opt("-skip-short-summary", 'S', "Skip short summary"
+                      "(Default = false)", false, skip_short_summary);
     opt_parse.add_opt("-quiet", 'q', "print more run info", false, falco_config.quiet);
     opt_parse.add_opt("-dir", 'd', "directory in which to create temp files",
                       false, falco_config.quiet);
@@ -164,8 +180,20 @@ int main(int argc, const char **argv) {
       cerr << opt_parse.help_message() << endl;
       return EXIT_SUCCESS;
     }
+
+    if (!dir_exists(outdir)) {
+      cerr << "output directory does not exist: " << outdir << endl;
+      return EXIT_SUCCESS;
+    }
     const vector<string> all_seq_filenames(leftover_args);
-    /***** END COMMAND LINE PARSING *************************************/
+
+    /****************** END COMMAND LINE OPTIONS ********************/
+    // create a summary if requested by user
+    ofstream summary_txt;
+    if (!skip_short_summary) {
+      string summary_file = outdir + "/summary.txt";
+      summary_txt.open(summary_file.c_str(), std::ofstream::binary);
+    }
 
     for (auto filename : all_seq_filenames) {
       const time_point file_start_time = system_clock::now();
@@ -226,8 +254,8 @@ int main(int argc, const char **argv) {
       if (!falco_config.quiet)
         log_process("Summarizing data");
 
-      // This function has to be called before writing to output. This is where we
-      // calculate all the summary statistics that will be written to output.
+      // This function has to be called before writing to output. This is where
+      // we calculate all the summary statistics that will be written to output.
       stats.summarize(falco_config);
 
       /************************ WRITE TO OUTPUT *****************************/
@@ -268,6 +296,10 @@ int main(int argc, const char **argv) {
         html << html_maker.html_boilerplate;
       }
 
+      /************************ WRITE TO SUMMARY ***************************/
+      if (!skip_short_summary) {
+        stats.write_summary (summary_txt, falco_config);
+      }
       /************************** TIME SUMMARY *****************************/
       if (!falco_config.quiet)
         cerr << "Elapsed time for file " << filename << ": "
@@ -280,3 +312,5 @@ int main(int argc, const char **argv) {
   }
   return EXIT_SUCCESS;
 }
+
+

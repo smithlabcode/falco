@@ -17,7 +17,6 @@
 
 #include <algorithm>
 #include <cmath>
-
 using std::string;
 using std::vector;
 using std::unordered_map;
@@ -26,8 +25,21 @@ using std::min;
 using std::max;
 using std::ostream;
 using std::pair;
+using std::transform;
+using std::toupper;
+/*****************************************************************************/
+/******************* AUX FUNCTIONS *******************************************/
+/*****************************************************************************/
+string toupper (const string &s) {
+  string out;
+  transform(s.begin(), s.end(), std::back_inserter(out),(int (*)(int))toupper);
+  return out;
+}
 
+/*****************************************************************************/
 /******************* IMPLEMENTATION OF FASTQC FUNCTIONS **********************/
+/*****************************************************************************/
+
 // FastQC extrapolation of counts to the full file size
 double get_corrected_count(size_t count_at_limit,
                            size_t num_reads,
@@ -656,9 +668,96 @@ FastqStats::summarize(FalcoConfig &config) {
 
 /****************** WRITE STATS ***********************/
 void
+FastqStats::write_summary(ostream &os, const FalcoConfig &config) {
+  // Basic statistics
+  os << "PASS" << "\t"
+     << "Basic Statistics" << "\t"
+     << config.filename_stripped << "\n";
+
+  // Per base sequence quality
+  if (config.do_quality_base) {
+    os << toupper(pass_per_base_sequence_quality) << "\t"
+       << "Per base sequence quality" << "\t"
+       << config.filename_stripped
+       << "\n";
+  }
+
+  // Per tile sequence quality
+  if (config.do_tile) {
+    os << toupper(pass_per_tile_sequence_quality) << "\t"
+       << "Per tile sequence quality" << "\t"
+       << config.filename_stripped
+       << "\n";
+  }
+
+  // Per sequence quality scores
+  if (config.do_quality_sequence) {
+    os << toupper(pass_per_sequence_quality_scores) << "\t"
+       << "Per sequence quality scores" << "\t"
+       << config.filename_stripped
+       << "\n";
+  }
+
+  // Per base sequence content
+  if (config.do_sequence) {
+    os << toupper(pass_per_base_sequence_content) << "\t"
+       << "Per base sequence content" << "\t"
+       << config.filename_stripped
+       << "\n";
+  }
+
+  // Per sequence gc content
+  if (config.do_gc_sequence) {
+    os << toupper(pass_per_sequence_gc_content) << "\t"
+       << "Per sequence GC content" << "\t"
+       << config.filename_stripped
+       << "\n";
+  }
+
+  if (config.do_n_content) {
+    os << toupper(pass_per_base_n_content) << "\t"
+       << "Per base N content" << "\t"
+       << config.filename_stripped
+       << "\n";
+  }
+
+  // Sequence length distribution
+  if (config.do_sequence_length) {
+    os << toupper(pass_sequence_length_distribution) << "\t"
+       << "Sequence Length Distribution" << "\t"
+       << config.filename_stripped
+       << "\n";
+  }
+
+  // Sequence duplication levels
+  if (config.do_duplication) {
+    os << toupper(pass_duplicate_sequences) << "\t"
+       << "Sequence Duplication Levels" << "\t"
+       << config.filename_stripped
+       << "\n";
+  }
+
+  // Overrepresented sequences
+  if (config.do_overrepresented) {
+    os << toupper(pass_overrepresented_sequences) << "\t"
+       << "Overrepresented sequences" << "\t"
+       << config.filename_stripped
+       << "\n";
+  }
+
+  // Adapter content
+  if (config.do_adapter) {
+    os << toupper(pass_adapter_content) << "\t"
+       << "Adapter Content" << "\t"
+       << config.filename_stripped
+       << "\n";
+  }
+}
+
+void
 FastqStats::write(ostream &os, const FalcoConfig &config) {
   // Header
-  os << "##FastQC\t0.11.8\n";
+  os << "##Falco 0.1\n";
 
   // Basic statistics
   os << ">>Basic Statistics\t" << pass_basic_statistics << "\n";
@@ -713,7 +812,9 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
         os << i << "\t" << quality_count[i] << "\n";
     }
     os << ">>END_MODULE\n";
+  }
 
+  if (config.do_sequence) {
     // Per base sequence content
     os << ">>Per base sequence content\t" <<
           pass_per_base_sequence_content << "\n";
@@ -772,8 +873,10 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
       }
     }
     os << ">>END_MODULE\n";
+  }
 
-    // Per base N content
+  // Per base N content
+  if (config.do_n_content) {
     os << ">>Per base N concent\t" << pass_per_base_n_content << "\n";
     os << "#Base\tN-Count\n";
 
@@ -852,6 +955,10 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
           << config.get_matching_contaminant(seq.first) << "\n";
     }
     os << ">>END_MODULE\n";
+  }
+
+  // Adapter content
+  if (config.do_adapter) {
     os << ">>Adapter Content\t" << pass_adapter_content << "\n";
 
     os << "#Position\t";
@@ -881,3 +988,4 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
     os << ">>END_MODULE\n";
   }
 }
+

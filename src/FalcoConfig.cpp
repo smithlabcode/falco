@@ -17,6 +17,8 @@
 
 #include <fstream>
 #include <sstream>
+#include <sys/stat.h>
+#include <unistd.h>
 
 using std::string;
 using std::vector;
@@ -27,7 +29,12 @@ using std::ifstream;
 using std::runtime_error;
 using std::istringstream;
 
-bool
+/********************************************************************/
+/**************************** AUX FUNCTIONS *************************/
+/********************************************************************/
+
+// Check if line is not a comment or newline
+inline bool
 is_limit_line (const string &line) {
   // comment
   if (line[0] == '#')
@@ -40,6 +47,37 @@ is_limit_line (const string &line) {
   return true;
 }
 
+// Check existance of config files
+inline bool
+file_exists(const std::string& name) {
+  struct stat buffer;
+  return (stat (name.c_str(), &buffer) == 0);
+}
+
+// Check if a std::string ends with another,
+// to be use to figure out the file format
+inline bool
+endswith(std::string const &value, std::string const &ending) {
+  if (ending.size() > value.size()) {
+    return false;
+  }
+  return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
+// Removes absolute path from a file
+static string
+strip_path(string full_path) {
+  size_t start = full_path.find_last_of('/');
+  if (start == string::npos)
+    start = 0;
+  else
+    ++start;
+  return full_path.substr(start);
+}
+
+/********************************************************************/
+/******************** FALCOCONFIG FUNCTIONS *************************/
+/********************************************************************/
 // Sets magic numbers
 FalcoConfig::FalcoConfig() {
   kPoorQualityThreshold = 20;
@@ -52,10 +90,19 @@ FalcoConfig::FalcoConfig() {
   min_length = 0;
   format = "";
   threads = 1;
-  contaminants_file = string(PROGRAM_PATH) + "/Configuration/contaminant_list.txt";
-  adapters_file = string(PROGRAM_PATH) + "/Configuration/adapter_list.txt";
-  limits_file = string(PROGRAM_PATH) + "/Configuration/limits.txt";
-  html_file = string(PROGRAM_PATH) + "/Configuration/template.html";
+  contaminants_file = string(PROGRAM_PATH) +
+                      "/Configuration/contaminant_list.txt";
+  adapters_file = string(PROGRAM_PATH) +
+                      "/Configuration/adapter_list.txt";
+  limits_file = string(PROGRAM_PATH) +
+                      "/Configuration/limits.txt";
+  html_file = string(PROGRAM_PATH) +
+                      "/Configuration/template.html";
+
+  // Template has to be checked here
+  if (!file_exists(html_file)) {
+    throw runtime_error("HTML template file does not exist: " + html_file);
+  }
   kmer_size = 7;
   quiet = false;
   tmpdir = ".";
@@ -64,24 +111,6 @@ FalcoConfig::FalcoConfig() {
   is_bam = false;
   is_fastq = false;
   is_fastq_gz = false;
-}
-
-// Check if a std::string ends with another, to be use to figure out the file format
-static inline bool
-endswith(std::string const &value, std::string const &ending) {
-  if (ending.size() > value.size()) {
-    return false;
-  }
-  return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
-}
-
-string strip_path(string full_path) {
-  size_t start = full_path.find_last_of('/');
-  if (start == string::npos)
-    start = 0;
-  else
-    ++start;
-  return full_path.substr(start);
 }
 
 const vector<string> FalcoConfig::values_to_check({
@@ -112,14 +141,20 @@ const vector<string> FalcoConfig::values_to_check({
 
 void
 FalcoConfig::setup() {
+  // Now check for the file format (FASTQ/SAM/BAM, compressed or not)
   define_file_format();
+
+  // Get filename without absolute path
+  filename_stripped = strip_path(filename);
+
+  // read which modules to run and the cutoffs for pass/warn/fail
   read_limits();
+
+  // Read files for appropriate modules
   if (limits["adapter"]["ignore"] == 0.0)
     read_adapters();
   if (limits["adapter"]["ignore"] == 0.0)
     read_contaminants_file();
-
-  filename_stripped = strip_path(filename);
 }
 
 void
@@ -310,3 +345,4 @@ FalcoConfig::get_matching_contaminant(const string &seq) const {
     return ret;
   return "No Hit";
 }
+

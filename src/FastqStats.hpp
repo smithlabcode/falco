@@ -218,8 +218,11 @@ struct FastqStats {
   // Summarize all statistics we need before writing
   void summarize(FalcoConfig &config);
 
-  // Writes to outpute fastqc-style
+  // Writes equivalent of fastqc_data.txt
   void write(std::ostream &os, const FalcoConfig &config);
+
+  // Writes equivalent of fastqc's summary.txt
+  void write_summary(std::ostream &os, const FalcoConfig &config);
 };
 
 
