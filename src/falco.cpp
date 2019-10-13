@@ -231,13 +231,11 @@ int main(int argc, const char **argv) {
       }
 #endif
 
-#ifdef USE_ZLIB
       else if (falco_config.is_fastq_gz) {
         log_process("reading file as gzipped fastq format");
         GzFastqReader in(falco_config, stats.kNumBases);
         read_stream_into_stats(in,stats,falco_config);
       }
-#endif
       else if (falco_config.is_fastq) {
         log_process("reading file as uncompressed fastq format");
         FastqReader in(falco_config, stats.kNumBases);
