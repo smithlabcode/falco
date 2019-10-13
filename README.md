@@ -51,11 +51,15 @@ Run an example as follows, where `$` is your shell:
 $ falco example.fastq
 ```
 
-This will generate two files :
+This will generate three files :
  * ``example.fastq_qc_summary.txt`` is a text file with a summary of the QC
    metrics
  * ``example.fastq_report.html`` is the visual HTML report showing plots of the
    QC metrics summarized in the text summary.
+* ``summary.txt``: A tab-separated file describing whether the pass/warn/fail
+  result for each module. If multiple files are provided, only one summary file
+  is generated, with one of the columns being the file name associated to each
+  module result.
 
 Copyright and License Information
 =================================
