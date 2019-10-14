@@ -3,55 +3,57 @@ This program is an emulation of the popular
 [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc) software to
 check large sequencing reads for common problems.
 
-Full installation
+Installation
 ============
-Installation can be done by first compiling and then installing. By default, we
-will look for the zlib (`-lz`) and htslib (`-lhts`) libraries in your
-`LIBRARY_PATH` environment variables, as well as their sources in your
+Installation can be done with the standard autotools commands. By default, we
+will look for the zlib (`-lz`) library in your
+`LIBRARY_PATH` environment variables,as well as their sources in your
 `CPLUS_INCLUDE_PATH` variable. If those are installed, compiling can be done by
-running:
+running the following commands, where `$` is your shell:
 ```
-make all
+$ ./configure
+$ make all
+$ make install
 ```
 
-Minimal installation
+Required C++ dependencies
 ============
-If you only wish to run the program on uncompressed files (FASTQ and SAM) you
-can disable the zlib and hts dependencies by running:
+[zlib](https://zlib.net) is required to read gzipped fastq files. It is
+usually installed by default in most UNIX computers and is part of the htslib
+setup, but it can also be installed with apt or brew. If not available,
+fastq.gz files will be considered unrecognized file formats.
 
+On Ubuntu, zlib C++ libraries can be installed with `apt`:
 ```
-make NO_HTS=1 NO_ZLIB=1
+$ sudo apt install zlib1g zlib1g-dev
 ```
-You can also disable only one or the other. Most unix machines have the zlib
-dependency by default, so it is likely that you will not need the `NO_ZLIB=1`
-flag.
 
-In either case (full or minimum), installation can be done by running:
-```
-make install
-```
-This will create a **bin** directory with the **falco** executable inside, which
-can either be added to your PATH variable or run locally.
 
 Optional C++ dependencies
 ============
- * [htslib](https://github.com/samtools/htslib) is required to process bam
-   files. If not provided, bam files will be treated as unrecognized file
-   formats.
- * [zlib](https://zlib.net) is required to read gzipped fastq files. It is
-   usually installed by default in most UNIX computers and is part of the htslib
-   setup, but it can also be installed with apt or brew. If not available,
-   fastq.gz files will be considered unrecognized file formats.
+[htslib](https://github.com/samtools/htslib) is required to process bam
+files. If not provided, bam files will be treated as unrecognized file
+formats.
+
+If htslib is installed, `falco` can be compiled with it by simply replacing the
+configure command above with the `--enable-hts` flag:
+
+```
+$ ./configure --enable-hts
+```
+If successfully compiled, `falco` can be used in bam files the same way as it is
+used with fastq and sam files.
 
 Running
 =======
 
-Run an example as follows, where `$` is your shell:
+Run `falco` in a hypothetical fastq file `example.fastq` with the following
+command:
 ```
 $ falco example.fastq
 ```
 
-This will generate three files :
+This will generate three files in the same directory as the input fastq file:
  * ``example.fastq_qc_summary.txt`` is a text file with a summary of the QC
    metrics
  * ``example.fastq_report.html`` is the visual HTML report showing plots of the
