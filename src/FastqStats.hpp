@@ -55,9 +55,6 @@ struct FastqStats {
   // How many possible nucleotides (must be power of 2!)
   static const size_t kNumNucleotides = 4;  // A = 00,C = 01,T = 10,G = 11
 
-  // maximum tile value
-  static const size_t kMinTileNumber = 10000;
-
   // Maximum number of bases for which to do kmer statistics
   static const size_t kKmerMaxBases = 500;
 
@@ -101,6 +98,10 @@ struct FastqStats {
   size_t total_gc;
   double avg_gc;  // (sum of g bases + c bases) / (num_reads)
   double total_deduplicated_pct;  // number of reads left if deduplicated
+
+  // Basic statistics
+  std::string file_type;  // for now always conventional base calls
+  std::string file_encoding;  // for now always conventional base calls
 
   /*********************************************************
    *********** METRICS COLLECTED DURING IO *****************
@@ -211,9 +212,8 @@ struct FastqStats {
   // Allocation of more read positions
   void allocate_new_base(const bool ignore_tile);
 
-  /******* DUPLICATION AND OVERREPRESENTATION *******/
-  // Makes a hash map with keys as 32-bit suffixes and values as all the
-  // candidate frequent sequences with that given suffix
+  // Given an input fastqc_data.txt file, populate the statistics with it
+  void read(std::istream &is);
 
   // Summarize all statistics we need before writing
   void summarize(FalcoConfig &config);

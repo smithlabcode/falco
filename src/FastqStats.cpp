@@ -16,6 +16,7 @@
 #include "FastqStats.hpp"
 
 #include <algorithm>
+#include <iomanip>
 #include <cmath>
 using std::string;
 using std::vector;
@@ -27,6 +28,8 @@ using std::ostream;
 using std::pair;
 using std::transform;
 using std::toupper;
+using std::setprecision;
+
 /*****************************************************************************/
 /******************* AUX FUNCTIONS *******************************************/
 /*****************************************************************************/
@@ -209,6 +212,13 @@ void
 FastqStats::summarize(FalcoConfig &config) {
   /******************* BASIC STATISTICS **********************/
   pass_basic_statistics = "pass";  // in fastqc, basic statistics is always pass
+
+  // File type
+  file_type = "Conventional base calls";
+
+  // File encoding
+  file_encoding = "Sanger / Illumina 1.9";
+
   // Average read length
   avg_read_length = 0;
   for (size_t i = 0; i < max_read_length; ++i) {
@@ -228,8 +238,6 @@ FastqStats::summarize(FalcoConfig &config) {
 
   // Poor quality reads
   num_poor = 0;
-  for (size_t i = 0; i < config.kPoorQualityThreshold; ++i)
-    num_poor += quality_count[i];
 
   // Cumulative read length frequency
   size_t cumulative_sum = 0;
@@ -273,9 +281,10 @@ FastqStats::summarize(FalcoConfig &config) {
            cur_uquartile = 0,
            cur_udecile = 0;
 
+    size_t cur_sum;
     double cur_mean;
     for (size_t i = 0; i < max_read_length; ++i) {
-      cur_mean = 0;
+      cur_sum = 0;
       size_t counts = 0;
 
       // Number of counts I need to see to know in which bin each *ile is
@@ -318,15 +327,17 @@ FastqStats::summarize(FalcoConfig &config) {
         if (counts < udecile_thresh && counts + cur >= udecile_thresh)
           cur_udecile = j;
 
-        cur_mean += cur*j;
+        cur_sum += cur*j;
         counts += cur;
       }
 
       // Normalize mean
       if (i < kNumBases)
-        cur_mean = cur_mean / cumulative_read_length_freq[i];
+        cur_mean = static_cast<double>(cur_sum) /
+                   static_cast<double>(cumulative_read_length_freq[i]);
       else
-        cur_mean = cur_mean / long_cumulative_read_length_freq[i - kNumBases];
+        cur_mean = static_cast<double>(cur_sum) /
+                   static_cast<double>(long_cumulative_read_length_freq[i - kNumBases]);
 
       if (i < kNumBases) {
         mean[i] = cur_mean;
@@ -763,11 +774,19 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
   os << ">>Basic Statistics\t" << pass_basic_statistics << "\n";
   os << "#Measure\tValue\n";
   os << "Filename\t" << config.filename_stripped << "\n";
+  os << "File type\t" << file_type << "\n";
+  os << "Encoding\t" << file_encoding << "\n";
   os << "Total Sequences\t" << num_reads << "\n";
-  os << "Sequences flagged as poor quality \t" << num_poor << "\n";
+  os << "Sequences flagged as poor quality\t" << num_poor << "\n";
+  os << "Sequence length\t";
+  if (min_read_length == max_read_length)
+    os << min_read_length;
+  else
+    os << min_read_length << "-" << max_read_length;
+  os << "\n";
 
   if (config.do_sequence)
-    os << "%GC \t" << avg_gc << "\n";
+    os << "%GC\t" << static_cast<size_t>(avg_gc) << "\n";
   os << ">>END_MODULE\n";
 
   // Per base quality
@@ -776,29 +795,56 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
            pass_per_base_sequence_quality << "\n";
 
     os << "#Base\tMean\tMedian\tLower Quartile\tUpper Quartile" <<
-          "\t10th Percentile 90th Percentile\n";
+          "\t10th Percentile\t90th Percentile\n";
     for (size_t i = 0; i < max_read_length; ++i) {
       if (i < kNumBases) {
         // Write distribution to new line
         os << i + 1 << "\t"
            << mean[i] << "\t"
-           << median[i] << "\t"
-           << lquartile[i] << "\t"
-           << uquartile[i] << "\t"
-           << ldecile[i] << "\t"
-           << udecile[i] << "\n";
+           << median[i] << ".0\t"
+           << lquartile[i] << ".0\t"
+           << uquartile[i] << ".0\t"
+           << ldecile[i] << ".0\t"
+           << udecile[i] << ".0\n";
       } else {
         os << i + 1 << "\t"
            << long_mean[i - kNumBases] << "\t"
-           << long_median[i - kNumBases] << "\t"
-           << long_lquartile[i - kNumBases] << "\t"
-           << long_uquartile[i - kNumBases] << "\t"
-           << long_ldecile[i - kNumBases] << "\t"
-           << long_udecile[i - kNumBases] << "\n";
+           << long_median[i - kNumBases] << ".0\t"
+           << long_lquartile[i - kNumBases] << ".0\t"
+           << long_uquartile[i - kNumBases] << ".0\t"
+           << long_ldecile[i - kNumBases] << ".0\t"
+           << long_udecile[i - kNumBases] << ".0\n";
       }
     }
     os << ">>END_MODULE\n";
   }
+
+  if (config.do_tile) {
+    // Per tile sequence quality
+    // get tile values and sort
+    vector<size_t> tiles_sorted;
+    for (auto v : tile_count) {
+      tiles_sorted.push_back(v.first);
+    }
+
+    sort(tiles_sorted.begin(), tiles_sorted.end());
+    if (config.do_tile) {
+      os << ">>Per tile sequence quality\t" <<
+            pass_per_tile_sequence_quality << "\n";
+
+      // prints tiles sorted by value
+      for (size_t i = 0; i < tiles_sorted.size(); ++i) {
+        for (size_t j = 0; j < max_read_length; ++j) {
+          os << tiles_sorted[i] << "\t" << j + 1 << "\t"
+             << tile_position_quality[tiles_sorted[i]][j];
+          os << "\n";
+        }
+      }
+
+      os << ">>END_MODULE\n";
+    }
+  }
+
 
   // Per sequence quality scores
   if (config.do_quality_sequence) {
@@ -836,30 +882,6 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
               long_c_pct[i - kNumBases] << "\n";
       }
     }
-    os << ">>END_MODULE\n";
-  }
-
-  // Per tile sequence quality
-  // get tile values and sort
-  vector<size_t> tiles_sorted;
-  for (auto v : tile_count) {
-    tiles_sorted.push_back(v.first);
-  }
-
-  sort(tiles_sorted.begin(), tiles_sorted.end());
-  if (config.do_tile) {
-    os << ">>Per tile sequence quality\t" <<
-          pass_per_tile_sequence_quality << "\n";
-
-    // prints tiles sorted by value
-    for (size_t i = 0; i < tiles_sorted.size(); ++i) {
-      for (size_t j = 0; j < max_read_length; ++j) {
-        os << tiles_sorted[i] << "\t" << j + 1 << "\t"
-           << tile_position_quality[tiles_sorted[i]][j];
-        os << "\n";
-      }
-    }
-
     os << ">>END_MODULE\n";
   }
 
