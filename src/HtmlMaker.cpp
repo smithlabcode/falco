@@ -166,6 +166,10 @@ make_basic_statistics(string &html_boilerplate,
        << "</th></tr></thead><tbody>";
   data << "<tr><td>Filename</td><td>" << falco_config.filename_stripped
        << "</td></tr>";
+  data << "<tr><td>File type</td><td>" << stats.file_type
+       << "</td></tr>";
+  data << "<tr><td>Encoding</td><td>" << stats.file_encoding
+       << "</td></tr>";
   data << "<tr><td>Total Sequences</td><td>" << stats.num_reads << "</td></tr>";
   data << "<tr><td>Sequences Flagged As Poor Quality</td><td>"
        << stats.num_poor << "</td></tr>";
