@@ -106,7 +106,7 @@ int main(int argc, const char **argv) {
     FalcoConfig falco_config;
     string forced_file_format;
 
-    string outdir;
+    string outdir, tmpdir;
     const string outdir_description =
       "Create all output files in the specified output directory. If not"
       "provided, files will be created in the same directory as the input "
@@ -158,7 +158,7 @@ int main(int argc, const char **argv) {
                       "(Default = false)", false, skip_short_summary);
     opt_parse.add_opt("-quiet", 'q', "print more run info", false, falco_config.quiet);
     opt_parse.add_opt("-dir", 'd', "directory in which to create temp files",
-                      false, falco_config.quiet);
+                      false, tmpdir);
 
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
@@ -181,20 +181,13 @@ int main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
 
-    if (!dir_exists(outdir)) {
+    if (!outdir.empty() && !dir_exists(outdir)) {
       cerr << "output directory does not exist: " << outdir << endl;
-      return EXIT_SUCCESS;
+      return EXIT_FAILURE;
     }
     const vector<string> all_seq_filenames(leftover_args);
 
     /****************** END COMMAND LINE OPTIONS ********************/
-    // create a summary if requested by user
-    ofstream summary_txt;
-    if (!skip_short_summary) {
-      string summary_file = outdir + "/summary.txt";
-      summary_txt.open(summary_file.c_str(), std::ofstream::binary);
-    }
-
     for (auto filename : all_seq_filenames) {
       const time_point file_start_time = system_clock::now();
 
@@ -256,6 +249,18 @@ int main(int argc, const char **argv) {
       // we calculate all the summary statistics that will be written to output.
       stats.summarize(falco_config);
 
+      /************************ WRITE TO SUMMARY ***************************/
+      if (!skip_short_summary) {
+        string summary_file = filename;
+        if (!outdir.empty())
+          summary_file = outdir + "/" + falco_config.filename_stripped;
+        summary_file += "_summary.txt";
+
+        ofstream summary_txt;
+        summary_txt.open(summary_file.c_str(), std::ofstream::binary);
+        stats.write_summary (summary_txt, falco_config);
+      }
+
       /************************ WRITE TO OUTPUT *****************************/
       if (!skip_text) {
         string outfile = filename;
@@ -294,10 +299,6 @@ int main(int argc, const char **argv) {
         html << html_maker.html_boilerplate;
       }
 
-      /************************ WRITE TO SUMMARY ***************************/
-      if (!skip_short_summary) {
-        stats.write_summary (summary_txt, falco_config);
-      }
       /************************** TIME SUMMARY *****************************/
       if (!falco_config.quiet)
         cerr << "Elapsed time for file " << filename << ": "
