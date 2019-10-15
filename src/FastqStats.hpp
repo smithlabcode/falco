@@ -20,9 +20,10 @@
 #include <vector>
 #include <iostream>
 #include <unordered_map>
+#include <array>
 #include "FalcoConfig.hpp"
 
-// log of qa power of two, to use in bit shifting for fast index acces
+// log of a power of two, to use in bit shifting for fast index acces
 // returns the log2 of a number if it is a power of two, or zero
 // otherwise
 constexpr size_t
@@ -35,6 +36,81 @@ log2exact(size_t v) {
           ((v & 0x3333333333333333) ?  2 : 0) -
           ((v & 0x5555555555555555) ?  1 : 0));
 }
+
+/******************* BEGIN COPY FROM FASTQC *****************/
+struct GCModelValue {
+  int percent;
+  double increment;
+  GCModelValue() {
+    percent = 0;
+    increment = 0.0;
+  }
+};
+struct GCModel {
+  std::vector<std::vector<GCModelValue>> models;
+  GCModel() {}
+  GCModel(const int read_length) {
+    if (read_length == 0)
+      return;
+
+    // Number of counts that goes into each bin
+    std::array<size_t, 101> claiming_counts;
+    claiming_counts.fill(0);
+
+
+    // Iterate over all possible gc counts (pos)
+    for (int pos = 0; pos <= read_length; pos++) {
+      double low_count = static_cast<double>(pos) - 0.5;
+      double high_count = static_cast<double>(pos) + 0.5;
+
+      if (low_count < 0) low_count = 0;
+      if (high_count < 0) high_count = 0;
+      if (high_count > read_length) high_count = read_length;
+      if (low_count > read_length) low_count = read_length;
+
+      int low_pct = (int)round(100 * low_count / 
+                    static_cast<double>(read_length));
+      int high_pct = (int)round(100 * high_count / 
+                    static_cast<double>(read_length));
+
+      for(int p = low_pct; p <= high_pct; p++) {
+        claiming_counts[p]++;
+      }
+    }
+
+    // We now do a second pass to make up the model using the weightings
+    // we calculated previously.
+    for (int pos = 0; pos <= read_length; pos++) {
+      double low_count = static_cast<double>(pos) - 0.5;
+      double high_count = static_cast<double>(pos) + 0.5;
+
+      if (low_count < 0) low_count = 0;
+      if (high_count < 0) high_count = 0;
+      if (high_count > read_length) high_count = read_length;
+      if (low_count > read_length) low_count = read_length;
+
+      // Check the bins in which percentages must be put
+      int low_pct = (int)round((100 * low_count) / 
+                      static_cast<double>(read_length));
+      int high_pct = (int)round((100 * high_count) / 
+                      static_cast<double>(read_length));
+
+      // Add a new vector of values
+      models.push_back(
+        std::vector<GCModelValue>(high_pct - low_pct + 1, GCModelValue())
+      );
+
+      // populates the increment in each bin
+      for (int p = low_pct; p <= high_pct; ++p) {
+        models[pos][p - low_pct].percent = p;
+        models[pos][p - low_pct].increment =
+          1.0 / static_cast<double>(claiming_counts[p]);
+      }
+    }
+  }
+};
+
+/********************** END COPY FROM FASTQC *************/
 
 /*************************************************************
  ******************** FASTQ STATS ****************************
@@ -87,7 +163,6 @@ struct FastqStats {
   size_t total_bases;  // sum of all bases in all reads
   size_t avg_read_length;  // average of all read lengths
   size_t num_reads;  // total number of lines read
-  size_t num_reads_kmer;  // number of reads in which kmer counts was performed
   size_t min_read_length;  // minimum read length seen
   size_t max_read_length;  // total number of lines read
   size_t num_poor;  // reads whose average quality was <= poor
@@ -103,6 +178,9 @@ struct FastqStats {
   // Basic statistics
   std::string file_type;  // for now always conventional base calls
   std::string file_encoding;  // for now always conventional base calls
+
+  // Pre-calculated GC model increments
+  static const std::array<GCModel, kNumBases> gc_models;
 
   /*********************************************************
    *********** METRICS COLLECTED DURING IO *****************
@@ -172,6 +250,9 @@ struct FastqStats {
   /********** KMER FREQUENCY ****************/
   // A 2^K + 1 std::vector to count all possible kmers
   std::vector<size_t> kmer_count;
+
+  // How many kmers were counted in each position
+  std::array<size_t, kNumBases> pos_kmer_count;
 
   /********** ADAPTER COUNT *****************/
   // Percentage of times we saw each adapter in each position

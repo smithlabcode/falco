@@ -34,10 +34,20 @@ using std::setprecision;
 /*****************************************************************************/
 /******************* AUX FUNCTIONS *******************************************/
 /*****************************************************************************/
-string toupper (const string &s) {
+string toupper(const string &s) {
   string out;
   transform(s.begin(), s.end(), std::back_inserter(out),(int (*)(int))toupper);
   return out;
+}
+
+// To make the gc models static const
+static array<GCModel, FastqStats::kNumBases>
+make_gc_models () {
+  array<GCModel, FastqStats::kNumBases> ans;
+  for (size_t i = 0; i < FastqStats::kNumBases; ++i) {
+    ans[i] = GCModel(i);
+  }
+  return ans;
 }
 
 /*****************************************************************************/
@@ -106,7 +116,6 @@ sum_deviation_from_normal(const array <double, 101> &gc_count,
 
   for (size_t i = 0; i < num_gc_bins; ++i) {
     total_count += gc_count[i];
-
     if (gc_count[i] > mode_count) {
       mode_count = gc_count[i];
       first_mode = i;
@@ -170,18 +179,18 @@ sum_deviation_from_normal(const array <double, 101> &gc_count,
   // = stdev to the mode from the sampled gc content from the data
   double ans = 0.0, theoretical_sum = 0.0, z;
   theoretical.fill(0);
-  for (size_t i = 0; i < 101; ++i) {
+  for (size_t i = 0; i <= 100; ++i) {
     z = i - mode;
     theoretical[i] = exp(- (z*z)/ (2.0 * stdev *stdev));
     theoretical_sum += theoretical[i];
   }
 
   // Normalize theoretical so it sums to the total of readsq
-  for (size_t i = 0; i < 101; ++i) {
+  for (size_t i = 0; i <= 100; ++i) {
     theoretical[i] = theoretical[i] * total_count / theoretical_sum;
   }
 
-  for (size_t i = 0; i < 101; ++i) {
+  for (size_t i = 0; i <= 100; ++i) {
     ans += fabs(gc_count[i] - theoretical[i]);
   }
   // Fractional deviation
@@ -199,7 +208,6 @@ FastqStats::FastqStats() {
   total_gc = 0;
   avg_gc = 0;
   num_reads = 0;
-  num_reads_kmer = 0;
   min_read_length = 0;
   max_read_length = 0;
   num_poor = 0;
@@ -214,12 +222,17 @@ FastqStats::FastqStats() {
   quality_count.fill(0);
   gc_count.fill(0);
   position_quality_count.fill(0);
+  pos_kmer_count.fill(0);
 
   // Defines k-mer mask, length and allocates vector
   kmer_mask = (1ll << (2*kmer_size)) - 1;
   kmer_count = vector<size_t>(min(kNumBases, kKmerMaxBases)
                                   * (kmer_mask + 1), 0);
 }
+
+// Initialize as many gc models as fast bases
+const array<GCModel, FastqStats::kNumBases>
+FastqStats::gc_models = make_gc_models();
 
 // When we read new bases, dynamically allocate new space for their statistics
 void
@@ -668,7 +681,12 @@ FastqStats::summarize(FalcoConfig &config) {
       if (cumulative_read_length_freq[i] > 0) {
         jj = 0;
         for (auto v : config.adapters) {
-          kmer_by_base[i][jj] = kmer_by_base[i][jj] * 100.0 / num_reads_kmer;
+          if (pos_kmer_count[i] > 0) {
+            kmer_by_base[i][jj] = kmer_by_base[i][jj] * 100.0 / 
+                                  pos_kmer_count[i];
+          } else {
+            kmer_by_base[i][jj] = 0;
+          }
 
           // Update pass warn fail
           if (pass_adapter_content != "fail") {
@@ -891,8 +909,7 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
     os << "#Quality\tCount\n";
 
     for (size_t i = 0; i < kNumQualityValues; ++i) {
-      if (quality_count[i] > 0)
-        os << i << "\t" << quality_count[i] << "\n";
+      os << i << "\t" << quality_count[i] << "\n";
     }
     os << ">>END_MODULE\n";
   }
@@ -927,9 +944,7 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
     os << ">>Per sequence gc content\t" << pass_per_sequence_gc_content << "\n";
     os << "#GC Content\tCount\n";
     for (size_t i = 0; i <= 100; ++i) {
-      if (gc_count[i] > 0) {
-        os << i << "\t" << gc_count[i] << "\n";
-      }
+      os << i << "\t" << gc_count[i] << "\n";
     }
     os << ">>END_MODULE\n";
   }

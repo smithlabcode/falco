@@ -220,28 +220,30 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
     cur_gc_count += (base_ind & 1);
     stats.base_count[(read_pos << stats.kBitShiftNucleotide) | base_ind]++;
 
-    if (do_adapter) {
-      if (stats.num_reads == next_kmer_read) {
-        if (read_pos < stats.kKmerMaxBases) {
-          cur_kmer = ((cur_kmer << stats.kBitShiftNucleotide) | base_ind);
+    if ((do_adapter) &&
+        (stats.num_reads == next_kmer_read)  &&
+        (read_pos < stats.kKmerMaxBases)) {
 
-          // registers k-mer if seen at least k nucleotides since the last n
-          if (num_bases_after_n == stats.kmer_size) {
-            stats.kmer_count[(read_pos << stats.kBitShiftKmer)
-                             | (cur_kmer & stats.kmer_mask)]++;
-          }
+      // Update k-mer sequence
+      cur_kmer = ((cur_kmer << stats.kBitShiftNucleotide) | base_ind);
 
-          else {
-            num_bases_after_n++;
-          }
-        }
+      // registers k-mer if seen at least k nucleotides since the last n
+      if (num_bases_after_n == stats.kmer_size) {
+        stats.kmer_count[(read_pos << stats.kBitShiftKmer)
+                         | (cur_kmer & stats.kmer_mask)]++;
+        stats.pos_kmer_count[read_pos]++;
+      }
+
+      // Otherwise register a new non-n base
+      else {
+        num_bases_after_n++;
       }
     }
   }
 }
 
 // slower version of process_sequence_base_from_buffer that dynamically
-// allocates
+// allocates if base position is not already cached
 inline void
 StreamReader::process_sequence_base_from_leftover(FastqStats &stats) {
   if (base_from_buffer == 'N') {
@@ -266,12 +268,16 @@ StreamReader::process_sequence_base_from_leftover(FastqStats &stats) {
 // Gets statistics after reading the entire sequence line
 inline void
 StreamReader::postprocess_sequence_line(FastqStats &stats) {
+  // Updates basic statistics total GC
+  stats.total_gc += cur_gc_count;
+
   if (do_sequence_length) {
     // read length frequency histogram
-    if ((read_pos != 0) && (read_pos <= stats.kNumBases))
+    if ((read_pos != 0) && (read_pos <= stats.kNumBases)) {
       stats.read_length_freq[read_pos - 1]++;
-    else
+    } else {
       stats.long_read_length_freq[leftover_ind - 1]++;
+    }
   }
 
   // Updates maximum read length if applicable
@@ -279,14 +285,21 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
     stats.max_read_length = read_pos;
   }
 
-  // Registers GC % in all the bins it could have come from
-  // This might be done faster idk
+  // FastQC's gc model summarized, if requested
   if (do_gc_sequence) {
-    gc_lower_limit = round(100.0*(cur_gc_count - 0.5) / read_pos);
-    gc_higher_limit = round(100.0*(cur_gc_count + 0.5) / read_pos);
-    for (int i = gc_lower_limit; i != gc_higher_limit; ++i) {
-      if ((i < 0) || (i > 100)) continue;
-      stats.gc_count[i]++;
+    // If we haven't passed the short base threshold, we use the cached models
+    if (write_to_buffer) {
+      if (next_truncation == 100) {
+        truncated_length = read_pos;
+        truncated_gc_count = cur_gc_count;
+      }
+      for (auto v :
+          stats.gc_models[truncated_length].models[truncated_gc_count]) {
+        stats.gc_count[v.percent] += v.increment;
+      }
+    } else {
+      // if the read length is too large, we just use the ratio
+      stats.gc_count[100 * cur_gc_count / read_pos]++;
     }
   }
 }
@@ -297,9 +310,11 @@ StreamReader::read_sequence_line(FastqStats &stats) {
   // restart line counters
   read_pos = 0;
   cur_gc_count = 0;
+  truncated_gc_count = 0;
   num_bases_after_n = 1;
   write_to_buffer = true;
   leftover_ind = 0;
+  next_truncation = 100;
 
   /*********************************************************/
   /********** THIS LOOP MUST BE ALWAYS OPTIMIZED ***********/
@@ -336,6 +351,14 @@ StreamReader::read_sequence_line(FastqStats &stats) {
     if (read_pos == buffer_size) {
       write_to_buffer = false;
     }
+
+    if (do_gc_sequence) {
+      if (read_pos == next_truncation) {
+        truncated_gc_count = cur_gc_count;
+        truncated_length= read_pos;
+        next_truncation += 100;
+      }
+    }
   }
 
   // statistics summarized after the read
@@ -367,7 +390,7 @@ inline void
 StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
   // Average quality in position
   stats.long_position_quality_count[
-                                    (leftover_ind << stats.kBitShiftQuality) | quality_value]++;
+        (leftover_ind << stats.kBitShiftQuality) | quality_value]++;
 
   // Tile processing
   if (!tile_ignore) {
@@ -479,7 +502,6 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
   if (do_adapter) {
     if (stats.num_reads == next_kmer_read) {
       next_kmer_read += num_reads_for_kmer;
-      stats.num_reads_kmer++;
     }
   }
 }
