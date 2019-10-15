@@ -279,10 +279,15 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
     stats.max_read_length = read_pos;
   }
 
-  // Registers GC % in the bin truncated to the nearest integer
+  // Registers GC % in all the bins it could have come from
+  // This might be done faster idk
   if (do_gc_sequence) {
-    stats.total_gc += cur_gc_count;
-    stats.gc_count[round(100 * cur_gc_count / static_cast<double>(read_pos))]++;
+    gc_lower_limit = round(100.0*(cur_gc_count - 0.5) / read_pos);
+    gc_higher_limit = round(100.0*(cur_gc_count + 0.5) / read_pos);
+    for (int i = gc_lower_limit; i != gc_higher_limit; ++i) {
+      if ((i < 0) || (i > 100)) continue;
+      stats.gc_count[i]++;
+    }
   }
 }
 

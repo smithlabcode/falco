@@ -20,6 +20,7 @@
 #include <cmath>
 using std::string;
 using std::vector;
+using std::array;
 using std::unordered_map;
 using std::sort;
 using std::min;
@@ -87,65 +88,104 @@ double get_corrected_count(size_t count_at_limit,
   return num_obs/(1 - p_not_seeing);
 }
 
-// Function to create a smooth gc model similar to FastQC's
-inline void
-smooth_gc_model(std::array <double, 101> &smooth_gc_count,
-                std::array <size_t, 101> gc_count) {
+// Function to calculate the deviation of a histogram with 100 bins from a
+// theoretical normal distribution with same mode and standard deviation
+double
+sum_deviation_from_normal(const array <double, 101> &gc_count,
+                          array <double, 101> &theoretical) {
+  /******************* BEGIN COPIED FROM FASTQC **********************/
+  const size_t num_gc_bins = 101;
 
-  // impute based on adjacent values
-  for (size_t i = 1; i < 100; ++i) {
-    if (gc_count[i] == 0) {
-      gc_count[i] = (gc_count[i-1] + gc_count[i+1])/2.0;
+  // Sum of all gc counts in all histogram bins
+  double total_count = 0.0;
+
+  // We use the mode to calculate the theoretical distribution
+  // so that we cope better with skewed distributions.
+  size_t first_mode = 0;
+  double mode_count = 0.0;
+
+  for (size_t i = 0; i < num_gc_bins; ++i) {
+    total_count += gc_count[i];
+
+    if (gc_count[i] > mode_count) {
+      mode_count = gc_count[i];
+      first_mode = i;
     }
   }
 
-  // smooth with a regular sliding window
-  for (size_t i = 1; i < 100; ++i) {
-    smooth_gc_count[i] = (gc_count[i-1] + gc_count[i] + gc_count[i+1])/3.0;
+  // The mode might not be a very good measure of the centre
+  // of the distribution either due to duplicated vales or
+  // several very similar values next to each other.  We therefore
+  // average over adjacent points which stay above 95% of the modal
+  // value
+
+  double mode = 0;
+  size_t mode_duplicates = 0;
+  bool fell_off_top = true;
+
+  for (size_t i = first_mode; i < num_gc_bins; ++i) {
+    if (gc_count[i] > gc_count[first_mode] - (gc_count[first_mode]/10.0)) {
+      mode += i;
+      mode_duplicates++;
+    }
+    else {
+      fell_off_top = false;
+      break;
+    }
   }
-}
 
-// Function to calculate the deviation of a histogram with 100 bins from a
-// theoretical normal distribution with same mean and standard deviation
-double
-sum_deviation_from_normal(const std::array <double, 101> &smooth_gc_count,
-                           std::array <double, 101> &theoretical) {
-  double mode = 0.0,  num_reads = 0.0;
-
-  // Mode and total number of reads (note that we "smoothed" the gc content by
-  // filling up the 0 reads, so the number of reads is not the same as the
-  // number of reads in the whole fastq
-  for (size_t i = 0; i < 101; ++i) {
-    mode += i*smooth_gc_count[i];
-    num_reads += smooth_gc_count[i];
+  bool fell_off_bottom = true;
+  for (int i = first_mode - 1; i >= 0; --i) {
+    if (gc_count[i] > gc_count[first_mode]
+                          - (gc_count[first_mode]/10.0)) {
+      mode += i;
+      mode_duplicates++;
+    }
+    else {
+      fell_off_bottom = false;
+      break;
+    }
   }
-  mode /= num_reads;
 
-  // stadard deviation from the modde
+  if (fell_off_bottom || fell_off_top) {
+    // If the distribution is so skewed that 95% of the mode
+    // is off the 0-100% scale then we keep the mode as the
+    // centre of the model
+    mode = first_mode;
+  } else {
+    mode /= mode_duplicates;
+  }
+
+  // We can now work out a theoretical distribution
   double stdev = 0.0;
-  for (size_t i = 0; i < 101; ++i)
-    stdev += (mode - i) * (mode - i) * smooth_gc_count[i];
-  stdev = sqrt(stdev / (num_reads - 1));
+  for (size_t i = 0; i < num_gc_bins; ++i) {
+    stdev += (i - mode) * (i - mode) * gc_count[i];
+  }
 
+  stdev = stdev / (total_count-1);
+  stdev = sqrt(stdev);
+
+  /******************* END COPIED FROM FASTQC **********************/
   // theoretical sampling from a normal distribution with mean = mode and stdev
   // = stdev to the mode from the sampled gc content from the data
   double ans = 0.0, theoretical_sum = 0.0, z;
   theoretical.fill(0);
   for (size_t i = 0; i < 101; ++i) {
     z = i - mode;
-    theoretical[i] = exp(- (z*z)/ (2 * stdev *stdev));
+    theoretical[i] = exp(- (z*z)/ (2.0 * stdev *stdev));
     theoretical_sum += theoretical[i];
   }
 
   // Normalize theoretical so it sums to the total of readsq
   for (size_t i = 0; i < 101; ++i) {
-    theoretical[i] = theoretical[i] * num_reads / theoretical_sum;
+    theoretical[i] = theoretical[i] * total_count / theoretical_sum;
   }
-  for (size_t i = 0; i < 101; ++i)
-    ans += fabs(smooth_gc_count[i] - theoretical[i]);
 
+  for (size_t i = 0; i < 101; ++i) {
+    ans += fabs(gc_count[i] - theoretical[i]);
+  }
   // Fractional deviation
-  return 100.0 * ans / num_reads;
+  return 100.0 * ans / total_count;
 }
 
 /****************************************************************/
@@ -448,11 +488,8 @@ FastqStats::summarize(FalcoConfig &config) {
   /******************* PER SEQUENCE GC CONTENT *****************/
   if (config.do_gc_sequence) {
     pass_per_sequence_gc_content = "pass";
-    // Here we smooth the gc content using a sliding window:
-    smooth_gc_model(smooth_gc_count, gc_count);
-
     // Calculate pass warn fail statistics
-    double gc_deviation = sum_deviation_from_normal(smooth_gc_count,
+    double gc_deviation = sum_deviation_from_normal(gc_count,
                                                     theoretical_gc_count);
     if (gc_deviation >= config.limits["gc_sequence"]["error"]) {
       pass_per_sequence_gc_content = "fail";
@@ -1010,4 +1047,5 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
     os << ">>END_MODULE\n";
   }
 }
+
 

@@ -96,6 +96,7 @@ struct FastqStats {
   // mask to get only the first 2*k bits of the sliding window
   size_t kmer_mask;
   size_t total_gc;
+
   double avg_gc;  // (sum of g bases + c bases) / (num_reads)
   double total_deduplicated_pct;  // number of reads left if deduplicated
 
@@ -121,8 +122,7 @@ struct FastqStats {
 
   /*********** PER GC VALUE METRICS ****************/
   // histogram of GC fraction in each read from 0 to 100%
-  std::array<size_t, 101> gc_count;
-  std::array<double, 101> smooth_gc_count;
+  std::array<double, 101> gc_count;
   std::array<double, 101> theoretical_gc_count;
 
     /*********** PER READ METRICS ***************/

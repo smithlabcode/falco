@@ -113,6 +113,10 @@ class StreamReader{
   size_t num_bases_after_n;  // count of k-mers that reset at every N
   size_t cur_kmer;  // 32-mer hash as you pass through the sequence line
 
+  // stuff for gc model
+  size_t gc_lower_limit,
+         gc_higher_limit;
+
   // Temporarily store line 2 out of 4 to know the base to which
   // quality characters are associated
   std::string leftover_buffer;

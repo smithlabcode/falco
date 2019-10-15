@@ -408,7 +408,7 @@ make_sequence_gc_content_data(string &html_boilerplate,
     // Y values: frequency with which they were seen
     data << "], y : [";
     for (size_t i = 0; i < 101; ++i) {
-      data << stats.smooth_gc_count[i];
+      data << stats.gc_count[i];
       if (i < 101)
         data << ", ";
     }
