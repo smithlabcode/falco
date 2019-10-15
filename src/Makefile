@@ -52,5 +52,5 @@ $(PROGRAMS): HtmlMaker.o FastqStats.o StreamReader.o FalcoConfig.o \
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
 clean:
-	rm $(PROGRAMS) *.o
+	@-rm -f $(PROGRAMS) *.o
 .PHONY: clean
