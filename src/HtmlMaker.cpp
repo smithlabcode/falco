@@ -634,8 +634,11 @@ make_adapter_content_data(string &html_boilerplate,
   ostringstream data;
 
   if (falco_config.do_adapter) {
-    // Number of bases to make adapter content
-    size_t num_bases =  min(stats.kNumBases, stats.kKmerMaxBases);
+
+    // number of bases to make adapter content
+    const size_t n_bases_to_count_kmers =
+      (FastqStats::kNumBases < FastqStats::kKmerMaxBases ?
+       FastqStats::kNumBases : FastqStats::kKmerMaxBases);
     bool seen_first = false;
 
     size_t jj = 0;
@@ -650,10 +653,10 @@ make_adapter_content_data(string &html_boilerplate,
 
       // X values : read position
       data << "x : [";
-      for (size_t i = 0; i < num_bases; ++i) {
+      for (size_t i = 0; i < n_bases_to_count_kmers; ++i) {
         if (stats.cumulative_read_length_freq[i] > 0) {
           data << i+1;
-          if (i < num_bases - 1)
+          if (i < n_bases_to_count_kmers - 1)
             data << ",";
         }
       }
@@ -661,10 +664,10 @@ make_adapter_content_data(string &html_boilerplate,
 
       // Y values : cumulative adapter frequency
       data << ", y : [";
-      for (size_t i = 0; i < num_bases; ++i) {
+      for (size_t i = 0; i < n_bases_to_count_kmers; ++i) {
         if (stats.cumulative_read_length_freq[i] > 0) {
           data << stats.kmer_by_base[i][jj];
-          if (i < num_bases - 1)
+          if (i < n_bases_to_count_kmers - 1)
             data << ",";
         }
       }

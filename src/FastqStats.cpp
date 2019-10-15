@@ -217,8 +217,10 @@ FastqStats::FastqStats() {
 
   // Defines k-mer mask, length and allocates vector
   kmer_mask = (1ll << (2*kmer_size)) - 1;
-  kmer_count = vector<size_t>(min(kNumBases, kKmerMaxBases)
-                                  * (kmer_mask + 1), 0);
+  const size_t n_bases_to_count_kmers =
+    (FastqStats::kNumBases < FastqStats::kKmerMaxBases ?
+     FastqStats::kNumBases : FastqStats::kKmerMaxBases);
+  kmer_count = vector<size_t>(n_bases_to_count_kmers*(kmer_mask + 1), 0);
 }
 
 // When we read new bases, dynamically allocate new space for their statistics
@@ -642,7 +644,10 @@ FastqStats::summarize(FalcoConfig &config) {
 
     // Cumulative count of adapter kmers by position
     size_t jj;
-    for (size_t i = 0; i < min(kNumBases, kKmerMaxBases); ++i) {
+    const size_t n_bases_to_count_kmers =
+      (FastqStats::kNumBases < FastqStats::kKmerMaxBases ?
+       FastqStats::kNumBases : FastqStats::kKmerMaxBases);
+    for (size_t i = 0; i < n_bases_to_count_kmers; ++i) {
       if (cumulative_read_length_freq[i] > 0) {
         // Makes the count of kmers by position cumulative by copying
         // the previous position count
@@ -664,7 +669,7 @@ FastqStats::summarize(FalcoConfig &config) {
       }
     }
 
-    for (size_t i = 0; i < min(kNumBases, kKmerMaxBases); ++i) {
+    for (size_t i = 0; i < n_bases_to_count_kmers; ++i) {
       if (cumulative_read_length_freq[i] > 0) {
         jj = 0;
         for (auto v : config.adapters) {
@@ -1029,7 +1034,10 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
 
     // Number of kmers counted
     size_t jj;
-    for (size_t i = 0; i < min(kNumBases, kKmerMaxBases); ++i) {
+    const size_t n_bases_to_count_kmers =
+      (FastqStats::kNumBases < FastqStats::kKmerMaxBases ?
+       FastqStats::kNumBases : FastqStats::kKmerMaxBases);
+    for (size_t i = 0; i < n_bases_to_count_kmers; ++i) {
       if (cumulative_read_length_freq[i] > 0) {
         os << i + 1 << "\t";
         jj = 0;
@@ -1047,5 +1055,3 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
     os << ">>END_MODULE\n";
   }
 }
-
-
