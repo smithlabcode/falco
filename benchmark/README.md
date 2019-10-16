@@ -6,8 +6,7 @@ performed. the shell files in this directory can be run given an input
 directory, and will run the three compared tools, redirecting the `time` output
 to the `outs` directory.
 
-Downloading benchmark fastqs
-============================
+### Downloading benchmark fastqs
 
 FASTQ files can be downloaded using the `fastq-dump` program in the [SRA
 Toolkit](https://www.ncbi.nlm.nih.gov/sra/docs/toolkitsoft) (alternatively
@@ -19,15 +18,13 @@ fastq files onto the test directory:
 ```
 $ bash download_files.sh
 ```
-QC software download links
-==========================
+### QC software download links
 The following tools need to be installed to run the benchmarking:
  * [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc)
  * [fastp](https://github.com/OpenGene/fastp/releases)
  * [HTQC](https://sourceforge.net/projects/htqc)
 
-Command to run benchmarking
-===========================
+### Command to run benchmarking
 Once files are downloaded and programs are installed and added to your local
 `PATH` variable, you can reproduce the benchmarking in the paper by running the
 following three commands:
@@ -40,8 +37,7 @@ $ bash run_all_htqc_tests.sh
 
 This will output the real, user and sys runtimes for each tool in each dataset.
 
-List of SRR accessions tested
-=============================
+#### List of SRR accessions tested
  * SRR10124060
  * SRR10143153
  * SRR3897196
