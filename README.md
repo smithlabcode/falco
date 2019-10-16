@@ -3,21 +3,17 @@ This program is an emulation of the popular
 [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc) software to
 check large sequencing reads for common problems.
 
-Installation
-============
-Installation can be done with the standard autotools commands. By default, we
-will look for the zlib (`-lz`) library in your
-`LIBRARY_PATH` environment variables,as well as their sources in your
-`CPLUS_INCLUDE_PATH` variable. If those are installed, compiling can be done by
-running the following commands, where `$` is your shell:
+Installing falco
+================
+Installation can be done with the standard autotools commands:
 ```
-$ ./configure
+$ bash configure
 $ make all
 $ make install
 ```
 
-Required C++ dependencies
-============
+### Required C++ dependencies
+
 [zlib](https://zlib.net) is required to read gzipped fastq files. It is
 usually installed by default in most UNIX computers and is part of the htslib
 setup, but it can also be installed with apt or brew. If not available,
@@ -28,9 +24,8 @@ On Ubuntu, zlib C++ libraries can be installed with `apt`:
 $ sudo apt install zlib1g zlib1g-dev
 ```
 
+### Optional C++ dependencies
 
-Optional C++ dependencies
-============
 [htslib](https://github.com/samtools/htslib) is required to process bam
 files. If not provided, bam files will be treated as unrecognized file
 formats.
@@ -39,13 +34,14 @@ If htslib is installed, `falco` can be compiled with it by simply replacing the
 configure command above with the `--enable-hts` flag:
 
 ```
-$ ./configure --enable-hts
+$ bash configure --enable-hts
 ```
+
 If successfully compiled, `falco` can be used in bam files the same way as it is
 used with fastq and sam files.
 
-Running
-=======
+Running falco
+=============
 
 Run `falco` in a hypothetical fastq file `example.fastq` with the following
 command:
