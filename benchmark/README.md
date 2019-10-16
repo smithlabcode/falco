@@ -36,6 +36,7 @@ $ bash run_all_htqc_tests.sh
 ```
 
 This will output the real, user and sys runtimes for each tool in each dataset.
+
 List of SRR accessions tested
 =============================
  - SRR10124060
