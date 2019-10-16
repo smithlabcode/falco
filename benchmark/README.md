@@ -1,6 +1,6 @@
 # Benchmarking tools
 This directory shows the script and one example output of how benchmarking was
-performed. the `run_benchmarking.sh` shell file can be run given an input
+performed. the shell files in this directory can be run given an input
 directory, and will run the three compared tools, redirecting the `time` output
 to the `outs` directory.
 
@@ -17,11 +17,25 @@ variable and at least 300GB of disk space, run the following to download the
 fastq files onto the test directory:
 `./download_files.sh`
 
+QC software download links
+=======================
+ * [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc)
+ * [fastp](https://github.com/OpenGene/fastp/releases)
+ * [HTQC](https://sourceforge.net/projects/htqc)
+
 Command to run benchmarking
 ===========================
-Once files are downloaded you can reproduce the benchmarking in the paper by
-running `./run_benchmark.sh`.
+Once files are downloaded and programs are installed and added to your local
+`PATH` variable, you can reproduce the benchmarking in the paper by running the
+following three commands:
+```
+$ bash run_all_falco_tests.sh
+$ bash run_all_fastp_tests.sh
+$ bash run_all_fastqc_tests.sh
+$ bash run_all_htqc_tests.sh
+```
 
+This will output the real, user and sys runtimes for each tool in each dataset.
 List of SRR accessions tested
 =============================
  - SRR10124060
