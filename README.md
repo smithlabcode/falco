@@ -40,6 +40,16 @@ $ bash configure --enable-hts
 If successfully compiled, `falco` can be used in bam files the same way as it is
 used with fastq and sam files.
 
+### Optional optimization
+The greatest speed benefit from falco can be obtained by compiling the program
+with the `-O3` flag. Autotools allows users to provide optional compiling flags
+thorugh the `CXXFLAGS` variable. To compile with O3, replace `make all` above by
+the following command:
+
+```
+$ make CXXFLAGS="-O3"
+```
+
 Running falco
 =============
 
