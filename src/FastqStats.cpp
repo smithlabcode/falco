@@ -893,6 +893,7 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
             pass_per_tile_sequence_quality << "\n";
 
       // prints tiles sorted by value
+      os << "#Tile\tBase\tMean\n";
       for (size_t i = 0; i < tiles_sorted.size(); ++i) {
         for (size_t j = 0; j < max_read_length; ++j) {
           os << tiles_sorted[i] << "\t" << j + 1 << "\t"
@@ -914,7 +915,8 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
     os << "#Quality\tCount\n";
 
     for (size_t i = 0; i < kNumQualityValues; ++i) {
-      os << i << "\t" << quality_count[i] << "\n";
+      if (quality_count[i] > 0)
+        os << i << "\t" << quality_count[i] << "\n";
     }
     os << ">>END_MODULE\n";
   }
@@ -956,7 +958,7 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
 
   // Per base N content
   if (config.do_n_content) {
-    os << ">>Per base N concent\t" << pass_per_base_n_content << "\n";
+    os << ">>Per base N content\t" << pass_per_base_n_content << "\n";
     os << "#Base\tN-Count\n";
 
     for (size_t i = 0; i < max_read_length; ++i) {
@@ -994,10 +996,10 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
     os << ">>Sequence Duplication Levels\t" <<
            pass_duplicate_sequences << "\n";
 
-    os << ">>Total Deduplicated Percentage\t" <<
+    os << "#Total Deduplicated Percentage\t" <<
            total_deduplicated_pct << "\n";
 
-    os << "#Duplication Level  Percentage of deduplicated  "
+    os << "#Duplication Level\tPercentage of deduplicated\t"
        << "Percentage of total\n";
 
     for (size_t i = 0; i < 9; ++i) {
@@ -1019,7 +1021,7 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
        << "\t" << percentage_total[14] << "\n";
     os << ">10k+\t" << percentage_deduplicated[15]
        << "\t" << percentage_total[15] << "\n";
-    os << ">>END_MOUDLE\n";
+    os << ">>END_MODULE\n";
   }
 
   // Overrepresented sequences
@@ -1040,11 +1042,10 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
   if (config.do_adapter) {
     os << ">>Adapter Content\t" << pass_adapter_content << "\n";
 
-    os << "#Position\t";
+    os << "#Position";
     for (auto v : config.adapters) {
-      os << v.first << "\t";
+      os << "\t" << v.first;
     }
-
     os << "\n";
 
     // Number of kmers counted
@@ -1061,7 +1062,7 @@ FastqStats::write(ostream &os, const FalcoConfig &config) {
           ++jj;
 
           if (jj != config.adapters.size()) {
-            os << " ";
+            os << "\t";
           }
         }
         os << "\n";
