@@ -1039,7 +1039,9 @@ ModulePerBaseNContent::summarize_module(const FastqStats &stats) {
     }
     else {
       n_pct[i] = 100.0 * stats.long_n_base_count[i - FastqStats::kNumBases] /
-                         stats.long_cumulative_read_length_freq[i];
+                         stats.long_cumulative_read_length_freq[
+                           i - FastqStats::kNumBases
+                         ];
     }
   }
 }
