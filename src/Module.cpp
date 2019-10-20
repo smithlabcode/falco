@@ -521,18 +521,19 @@ ModulePerBaseSequenceQuality::make_grade() {
   num_warn = 0;
   num_error = 0;
   for (size_t i = 0; i < num_groups; ++i) {
-    if (grade != "fail") {
-      if (group_lquartile[i] < base_lower_error ||
-          group_median[i] < base_median_error) {
-        num_error++;
-      } else if (group_lquartile[i] < base_lower_warn ||
-                 group_median[i] < base_median_warn) {
-        num_warn++;
+    // there was enough data to make this assessment
+    if (group_lquartile[i] > 0) {
+      if (grade != "fail") {
+        if (group_lquartile[i] < base_lower_error ||
+            group_median[i] < base_median_error) {
+          num_error++;
+        } else if (group_lquartile[i] < base_lower_warn ||
+                   group_median[i] < base_median_warn) {
+          num_warn++;
+        }
       }
     }
   }
-
-  // bad bases greater than 25% of all bases
   if (num_error > 0)
     grade = "fail";
   else if (num_warn > 0)
@@ -779,26 +780,27 @@ ModulePerSequenceQualityScores::make_html_data() {
   data << "{x : [";
   bool seen_first = false;
   for (size_t i = 0; i < 41; ++i) {
-    if (seen_first)
-      data << ",";
-    else
-      seen_first = true;
+    if (quality_count[i] > 0){
+      if (seen_first)
+        data << ",";
+      else
+        seen_first = true;
 
-    if (quality_count[i] > 0)
-      data << i;
+        data << i;
+    }
   }
 
   // Y values: frequency with which they were seen
   data << "], y : [";
   seen_first = false;
   for (size_t i = 0; i < 41; ++i) {
-    if (seen_first)
-      data << ",";
-    else
-      seen_first = true;
-
-    if (quality_count[i] > 0)
+    if (quality_count[i] > 0){
+      if (seen_first)
+        data << ",";
+      else
+        seen_first = true;
       data << quality_count[i];
+    }
   }
   data << "], type: 'line', line : {color : 'red'}, "
        << "name : 'Sequence quality distribution'}";
