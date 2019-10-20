@@ -56,7 +56,8 @@ log_process(const string &s) {
   cerr << "[" << time_fmt << "] " << s << endl;
 }
 
-// Function to check existance of directory
+// Function to check existance of directort size_t last_slash_idx =
+// filename.rfind('\\');
 static bool dir_exists(const string &path) {
   struct stat info;
   if (stat(path.c_str(), &info ) != 0)
@@ -152,10 +153,7 @@ write_results(const FalcoConfig &falco_config,
   // Here we open the short summary ofstream
   ofstream summary_txt;
   if (!skip_short_summary) {
-    string summary_file = falco_config.filename;
-    if (!outdir.empty())
-      summary_file = outdir + "/" + falco_config.filename_stripped;
-    summary_file += "_summary.txt";
+    string summary_file = outdir + "/summary.txt";
     summary_txt.open(summary_file.c_str(), std::ofstream::binary);
   }
 
@@ -163,9 +161,7 @@ write_results(const FalcoConfig &falco_config,
   ofstream qc_data_txt;
   if (!skip_text) {
     string qc_data_file = falco_config.filename;
-    if (!outdir.empty())
-      qc_data_file = outdir + "/" + falco_config.filename_stripped;
-    qc_data_file += "_qc_data.txt";
+    qc_data_file = outdir + "/fastqc_data.txt";
     qc_data_txt.open(qc_data_file.c_str(), std::ofstream::binary);
   }
 
@@ -174,10 +170,7 @@ write_results(const FalcoConfig &falco_config,
   ofstream html;
   if (!skip_html) {
     // Decide html filename based on input
-    string html_file = falco_config.filename;
-    if (!outdir.empty())
-      html_file = outdir + "/" + falco_config.filename_stripped;
-    html_file += "_report.html";
+    string html_file = outdir + "/fastqc_report.html";
 
     if (!falco_config.quiet)
       log_process("Writing HTML report to " + html_file);
@@ -451,10 +444,24 @@ int main(int argc, const char **argv) {
 
       stats.summarize();
 
+      // if oudir is empty we will set it as the filename path
+      string cur_outdir;
+      if (outdir.empty()) {
+        const size_t last_slash_idx = filename.rfind('/');
+        // if file was given with relative path in the current dir, we set a dot
+        if (last_slash_idx == string::npos) {
+          cur_outdir = ".";
+        } else {
+          cur_outdir = falco_config.filename.substr(0, last_slash_idx);
+        }
+      } else {
+        cur_outdir = outdir;
+      }
+
       // Write results
       log_process("Writing results");
       write_results(falco_config, stats, skip_text, skip_html,
-                   skip_short_summary, outdir);
+                   skip_short_summary, cur_outdir);
 
       /************************** TIME SUMMARY *****************************/
       if (!falco_config.quiet)
