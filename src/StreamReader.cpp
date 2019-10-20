@@ -41,7 +41,6 @@ StreamReader::StreamReader(FalcoConfig &config,
   do_tile(config.do_tile),
   do_adapter(config.do_adapter),
   do_sequence_length(config.do_sequence_length),
-  do_nogroup(config.nogroup),
 
   // Here are the usual stream reader configs
   buffer_size(_buffer_size),
@@ -464,7 +463,7 @@ inline void
 StreamReader::postprocess_fastq_record(FastqStats &stats) {
   if (do_overrepresented || do_duplication) {
     // if reads are >75pb, truncate to 50
-    if (do_nogroup || read_pos <= stats.kDupReadMaxSize) {
+    if (read_pos <= stats.kDupReadMaxSize) {
       buffer[read_pos] = '\0';
     }
     else {
@@ -673,7 +672,7 @@ SamReader::load() {
 
 bool inline
 SamReader::is_eof() {
-  return (cur_char == last + 1);
+return (cur_char == last + 1);
 }
 
 bool inline

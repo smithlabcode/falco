@@ -29,14 +29,16 @@ endif
 
 falco_SOURCES = \
 	src/falco.cpp \
-	src/HtmlMaker.cpp \
 	src/FastqStats.cpp \
+	src/HtmlMaker.cpp \
+	src/Module.cpp \
 	src/StreamReader.cpp \
 	src/FalcoConfig.cpp \
 	src/OptionParser.cpp \
 	src/smithlab_utils.cpp \
-	src/HtmlMaker.hpp \
+	src/Module.hpp \
 	src/FastqStats.hpp \
+	src/HtmlMaker.hpp \
 	src/StreamReader.hpp \
 	src/FalcoConfig.hpp \
 	src/OptionParser.hpp \

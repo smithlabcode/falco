@@ -113,8 +113,13 @@ write_if_requested(T module,
   html_maker.put_comment(module.placeholder_cs, module.placeholder_ce,
                          requested);
 
-  // If module has not been requested all we do is take placeholders from html
-  if (!requested) return;
+  // If module has not been requested we put nothing where the data is
+  if (!requested) {
+    // puts the actual data (table, graph, etc)
+    html_maker.put_data(module.placeholder_data,
+                        "");
+    return;
+  }
 
 
   // calculates module summary, mandatory before writing

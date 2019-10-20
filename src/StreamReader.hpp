@@ -53,8 +53,7 @@ class StreamReader{
              do_quality_sequence,
              do_tile,
              do_adapter,
-             do_sequence_length,
-             do_nogroup;
+             do_sequence_length;
 
   bool continue_storing_sequences;
 

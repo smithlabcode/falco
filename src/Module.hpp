@@ -11,6 +11,13 @@
 #include <unordered_set>
 #include <utility>
 
+/* base groups for longer reads, copied from FastQC*/
+struct BaseGroup {
+  size_t start,end;
+  BaseGroup (size_t _start, size_t _end) : start(_start), end(_end) {}
+};
+
+
 class Module {
  private:
   // avoid writing things prior to summarizing
@@ -98,19 +105,24 @@ class ModuleBasicStatistics : public Module {
 
 class ModulePerBaseSequenceQuality : public Module {
  private:
-   std::vector<double> mean;
-   std::vector<size_t> ldecile,
-                  lquartile,
-                  median,
-                  uquartile,
-                  udecile;
+  // from FastQC: whether to group bases
+  bool do_group;
+  size_t num_bases;
+  size_t num_groups;
+  // grade criteria
+  size_t base_lower_warn,
+         base_lower_error,
+         base_median_warn,
+         base_median_error;
+   size_t num_warn, num_error;
+  std::vector<double> group_mean;
+  std::vector<size_t> group_ldecile,
+                      group_lquartile,
+                      group_median,
+                      group_uquartile,
+                      group_udecile;
+  std::vector<BaseGroup> base_groups;
 
-   size_t num_bases;
-   // grade criteria
-   size_t base_lower_warn,
-          base_lower_error,
-          base_median_warn,
-          base_median_error;
  public:
   ModulePerBaseSequenceQuality(const FalcoConfig &config);
   ~ModulePerBaseSequenceQuality() {}

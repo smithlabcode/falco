@@ -50,6 +50,41 @@ toupper(const string &s) {
 /*****************************************************************************/
 /******************* IMPLEMENTATION OF FASTQC FUNCTIONS **********************/
 /*****************************************************************************/
+void
+make_base_groups(vector<BaseGroup> &base_groups, 
+                 const size_t &num_bases) {
+  size_t starting_base = 0,
+         end_base,
+         interval = 1;
+
+  base_groups.clear();
+  for (; starting_base < num_bases;) {
+    end_base = starting_base + interval - 1;
+    if (end_base >= num_bases)
+      end_base = num_bases;
+
+    base_groups.push_back(BaseGroup(starting_base, end_base));
+    starting_base += interval;
+    if (starting_base == 9 && num_bases > 75)
+      interval = 5;
+    if (starting_base == 49 && num_bases > 200)
+      interval = 10;
+    if (starting_base == 99 && num_bases > 300)
+      interval = 50;
+    if (starting_base == 499 && num_bases > 1000)
+      interval = 100;
+    if (starting_base == 1000 && num_bases > 2000)
+      interval = 500;
+  }
+}
+
+void
+make_default_base_groups(vector<BaseGroup> &base_groups,
+                         const size_t &num_bases) {
+  base_groups.clear();
+  for (size_t i = 0; i < num_bases; ++i)
+    base_groups.push_back(BaseGroup(i,i));
+}
 
 // FastQC extrapolation of counts to the full file size
 double get_corrected_count(size_t count_at_limit,
@@ -366,12 +401,13 @@ ModulePerBaseSequenceQuality::ModulePerBaseSequenceQuality
   base_lower_error = (base_lower->second).find("error")->second;
   base_median_warn = (base_median->second).find("warn")->second;
   base_median_error = (base_median->second).find("error")->second;
+
+  do_group = !config.nogroup;
 }
 
 void
 ModulePerBaseSequenceQuality::summarize_module(const FastqStats &stats) {
   // Quality quantiles for base positions
-  size_t cur;  // for readability, get the quality x position count
   double ldecile_thresh,
          lquartile_thresh,
          median_thresh,
@@ -384,107 +420,123 @@ ModulePerBaseSequenceQuality::summarize_module(const FastqStats &stats) {
          cur_uquartile = 0,
          cur_udecile = 0;
 
+  size_t cur;
   size_t cur_sum;
+  size_t counts;
   double cur_mean;
   num_bases = stats.max_read_length;
 
+  // first, do the groups
+  if (do_group) make_base_groups(base_groups, num_bases);
+  else make_default_base_groups(base_groups, num_bases);
+  num_groups = base_groups.size();
+
   // Reserves space I know I will use
-  mean = vector<double>(num_bases, 0.0);
-  ldecile = vector<size_t>(num_bases, 0);
-  lquartile = vector<size_t>(num_bases, 0);
-  median = vector<size_t>(num_bases, 0);
-  uquartile = vector<size_t>(num_bases, 0);
-  udecile = vector<size_t>(num_bases, 0);
-  for (size_t i = 0; i < num_bases; ++i) {
-    cur_sum = 0;
-    size_t counts = 0;
+  group_mean = vector<double>(num_groups, 0.0);
+  group_ldecile = vector<size_t>(num_groups, 0);
+  group_lquartile = vector<size_t>(num_groups, 0);
+  group_median = vector<size_t>(num_groups, 0);
+  group_uquartile = vector<size_t>(num_groups, 0);
+  group_udecile = vector<size_t>(num_groups, 0);
 
-    // Number of counts I need to see to know in which bin each *ile is
-    if (i < FastqStats::kNumBases) {
-      ldecile_thresh = 0.1 * stats.cumulative_read_length_freq[i];
-      lquartile_thresh = 0.25 * stats.cumulative_read_length_freq[i];
-      median_thresh = 0.5 * stats.cumulative_read_length_freq[i];
-      uquartile_thresh = 0.75 * stats.cumulative_read_length_freq[i];
-      udecile_thresh = 0.9 * stats.cumulative_read_length_freq[i];
-    } else {
-      ldecile_thresh =
-        0.1 * stats.long_cumulative_read_length_freq[i - FastqStats::kNumBases];
-      lquartile_thresh =
-        0.25 * stats.long_cumulative_read_length_freq[i - FastqStats::kNumBases];
-      median_thresh =
-        0.5 * stats.long_cumulative_read_length_freq[i - FastqStats::kNumBases];
-      uquartile_thresh =
-        0.75 * stats.long_cumulative_read_length_freq[i - FastqStats::kNumBases];
-      udecile_thresh =
-        0.9 * stats.long_cumulative_read_length_freq[i - FastqStats::kNumBases];
-    }
+  // temp
+  vector<size_t>histogram(128, 0);
+  size_t bases_in_group = 0;
 
-    // Iterate through quality values to find quantiles in increasing order
-    for (size_t j = 0; j < FastqStats::kNumQualityValues; ++j) {
+  for (size_t group = 0; group < num_groups; ++group) {
+    // Find quantiles for each base group
+    for (size_t i = base_groups[group].start;
+              i  <= base_groups[group].end; ++i) {
+
+      // reset group values
+      bases_in_group = 0;
+      for (size_t j = 0; j < 128; ++j)
+        histogram[j] = 0;
+
+      for (size_t j = 0; j < FastqStats::kNumQualityValues; ++j) {
+        // get value
+        if (i < FastqStats::kNumBases) {
+          cur = stats.position_quality_count[
+            (i << FastqStats::kBitShiftQuality) | j];
+        }
+        else {
+          cur = stats.long_position_quality_count[
+            ((i - FastqStats::kNumBases) << FastqStats::kBitShiftQuality) | j];
+        }
+
+        // Add to Phred histogram
+        histogram[j] += cur;
+      }
+
+      // Number of bases seen in position i
       if (i < FastqStats::kNumBases) {
-        cur = stats.position_quality_count[
-          (i << FastqStats::kBitShiftQuality) | j];
+        bases_in_group += stats.cumulative_read_length_freq[i];
+      } else {
+        bases_in_group +=
+          stats.long_cumulative_read_length_freq[i - FastqStats::kNumBases];
       }
-      else {
-        cur = stats.long_position_quality_count[
-          ((i - FastqStats::kNumBases) << FastqStats::kBitShiftQuality) | j];
-      }
+    }
+    ldecile_thresh = 0.1 * bases_in_group;
+    lquartile_thresh = 0.25 * bases_in_group;
+    median_thresh = 0.5 * bases_in_group;
+    uquartile_thresh = 0.75 * bases_in_group;
+    udecile_thresh = 0.9 * bases_in_group;
 
+    // now go again through the counts in each quality value to find the
+    // quantiles
+    cur_sum = 0;
+    counts = 0;
+
+    for (size_t j = 0; j < FastqStats::kNumQualityValues; ++j) {
       // Finds in which bin of the histogram reads are
+      cur = histogram[j];
       if (counts < ldecile_thresh && counts + cur >= ldecile_thresh)
         cur_ldecile = j;
-
       if (counts < lquartile_thresh && counts + cur >= lquartile_thresh)
         cur_lquartile = j;
-
       if (counts < median_thresh && counts + cur >= median_thresh)
         cur_median = j;
-
       if (counts < uquartile_thresh && counts + cur >= uquartile_thresh)
         cur_uquartile = j;
-
       if (counts < udecile_thresh && counts + cur >= udecile_thresh)
         cur_udecile = j;
-
       cur_sum += cur*j;
       counts += cur;
     }
 
-    // Normalize mean
-    if (i < FastqStats::kNumBases) {
-      cur_mean = static_cast<double>(cur_sum) /
-                 static_cast<double>(stats.cumulative_read_length_freq[i]);
-    } else {
-      cur_mean = static_cast<double>(cur_sum) /
-                 static_cast<double>(stats.long_cumulative_read_length_freq[
-                     i - FastqStats::kNumBases]);
-    }
+    cur_mean = static_cast<double>(cur_sum) /
+               static_cast<double>(bases_in_group);
 
-    mean[i] = cur_mean;
-    ldecile[i] = cur_ldecile;
-    lquartile[i] = cur_lquartile;
-    median[i] = cur_median;
-    uquartile[i] = cur_uquartile;
-    udecile[i] = cur_udecile;
+    group_mean[group] = cur_mean;
+    group_ldecile[group] = cur_ldecile;
+    group_lquartile[group] = cur_lquartile;
+    group_median[group] = cur_median;
+    group_uquartile[group] = cur_uquartile;
+    group_udecile[group] = cur_udecile;
   }
 }
 
 void
 ModulePerBaseSequenceQuality::make_grade() {
-  // Pass warn fail criteria
-  for (size_t i = 0; i < num_bases; ++i) {
+  num_warn = 0;
+  num_error = 0;
+  for (size_t i = 0; i < num_groups; ++i) {
     if (grade != "fail") {
-      if (lquartile[i] < base_lower_error)
-        grade = "fail";
-      else if (lquartile[i] < base_lower_warn)
-        grade = "warn";
-
-      if (median[i] < base_median_error)
-        grade = "fail";
-      else if (median[i] < base_median_warn)
-        grade = "warn";
+      if (group_lquartile[i] < base_lower_error ||
+          group_median[i] < base_median_error) {
+        num_error++;
+      } else if (group_lquartile[i] < base_lower_warn ||
+                 group_median[i] < base_median_warn) {
+        num_warn++;
+      }
     }
   }
+
+  // bad bases greater than 25% of all bases
+  if (num_error > 0)
+    grade = "fail";
+  else if (num_warn > 0)
+    grade = "warn";
 }
 
 void
@@ -493,14 +545,18 @@ ModulePerBaseSequenceQuality::write_module(ostream &os) {
         "\t10th Percentile\t90th Percentile\n";
 
   // GS: TODO make base groups
-  for (size_t i = 0; i < num_bases; ++i) {
-      os << i + 1 << "\t"
-         << mean[i] << "\t"
-         << median[i] << ".0\t"
-         << lquartile[i] << ".0\t"
-         << uquartile[i] << ".0\t"
-         << ldecile[i] << ".0\t"
-         << udecile[i] << ".0\n";
+  for (size_t i = 0; i < num_groups; ++i) {
+      if(base_groups[i].start == base_groups[i].end)
+        os << base_groups[i].start + 1 << "\t";
+      else
+        os << base_groups[i].start + 1 << "-" << base_groups[i].end + 1 << "\t";
+
+      os << group_mean[i] << "\t"
+         << group_median[i] << ".0\t"
+         << group_lquartile[i] << ".0\t"
+         << group_uquartile[i] << ".0\t"
+         << group_ldecile[i] << ".0\t"
+         << group_udecile[i] << ".0\n";
   }
 }
 
@@ -508,21 +564,28 @@ ModulePerBaseSequenceQuality::write_module(ostream &os) {
 string
 ModulePerBaseSequenceQuality::make_html_data() {
   ostringstream data;
-  for (size_t i = 0; i < num_bases; ++i) {
+  for (size_t i = 0; i < num_groups; ++i) {
     data << "{y : [";
 
-      data << ldecile[i] << ", "
-           << lquartile[i] << ", "
-           << median[i] << ", "
-           << uquartile[i] << ", "
-           << udecile[i] << "], ";
-    data << "type : 'box', name : ' " << i << "', ";
+      data << group_ldecile[i] << ", "
+           << group_lquartile[i] << ", "
+           << group_median[i] << ", "
+           << group_uquartile[i] << ", "
+           << group_udecile[i] << "], ";
+    data << "type : 'box', name : ' ";
+    if (base_groups[i].start == base_groups[i].end)
+      data << base_groups[i].start + 1;
+    else
+      data << base_groups[i].start + 1 << "-" << base_groups[i].end + 1;
+    data << "bp', ";
     data << "marker : {color : '";
 
     // I will color the boxplot based on whether it passed or failed
-    if (median[i] < base_median_error || lquartile[i] < base_lower_error)
+    if (group_median[i] < base_median_error ||
+        group_lquartile[i] < base_lower_error)
       data << "red";
-    else if (median[i] < base_median_warn || lquartile[i] < base_median_error)
+    else if (group_median[i] < base_median_warn || 
+             group_lquartile[i] < base_lower_warn)
       data << "yellow";
     else
       data << "green";
@@ -580,6 +643,14 @@ ModulePerTileSequenceQuality::summarize_module(const FastqStats &stats) {
       v.second[i] -= mean_in_base[i];
     }
   }
+  // sorts tiles
+  tiles_sorted.clear();
+  for (auto v : tile_position_quality) {
+    tiles_sorted.push_back(v.first);
+  }
+
+  sort(tiles_sorted.begin(), tiles_sorted.end());
+
 }
 
 void
@@ -601,12 +672,6 @@ ModulePerTileSequenceQuality::make_grade() {
 
 void
 ModulePerTileSequenceQuality::write_module(ostream &os) {
-  tiles_sorted.clear();
-  for (auto v : tile_position_quality) {
-    tiles_sorted.push_back(v.first);
-  }
-
-  sort(tiles_sorted.begin(), tiles_sorted.end());
 
   // prints tiles sorted by value
   os << "#Tile\tBase\tMean\n";
@@ -1402,7 +1467,6 @@ ModuleAdapterContent::summarize_module(const FastqStats &stats) {
   if (stats.max_read_length < num_bases_counted)
     num_bases_counted = stats.max_read_length;
 
-  size_t which_adapter;
   size_t kmer_pos_index;
   size_t adapter_sevenmer;
 

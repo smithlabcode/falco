@@ -126,7 +126,7 @@ struct FastqStats {
   // Smallest power of two that comprises all possible Illumina quality values.
   // Illumina gives qualities from 0 to 40, therefore we set it as 64. Power of
   // is to avoid double pointer jumps and to get indices with bit shifts.
-  static const size_t kNumQualityValues = 64;
+  static const size_t kNumQualityValues = 128;
 
   // How many possible nucleotides (must be power of 2!)
   static const size_t kNumNucleotides = 4;  // A = 00,C = 01,T = 10,G = 11
