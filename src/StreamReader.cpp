@@ -64,8 +64,12 @@ StreamReader::StreamReader(FalcoConfig &config,
   // kmer init
   next_kmer_read = 0;
 
+
   // Subclasses will use this to deflate if necessary
   filename = config.filename;
+
+  // GS: test
+  leftover_ind = 0;
 }
 
 // Makes sure that any subclass deletes the buffer
@@ -80,7 +84,7 @@ StreamReader::~StreamReader() {
 inline void
 StreamReader::put_base_in_buffer() {
   base_from_buffer = *cur_char;
-  if (write_to_buffer) {
+  if (still_in_buffer) {
     buffer[read_pos] = base_from_buffer;
   }
   else {
@@ -94,7 +98,7 @@ StreamReader::put_base_in_buffer() {
 // Gets base from either buffer or leftover
 inline void
 StreamReader::get_base_from_buffer() {
-  if (read_from_buffer) {
+  if (still_in_buffer) {
     base_from_buffer = buffer[read_pos];
   }
   else {
@@ -187,7 +191,6 @@ StreamReader::read_tile_line(FastqStats &stats) {
     get_tile_value();
     // allocate vector for tile if it doesn't exist
     if (stats.tile_position_quality.count(tile_cur) == 0) {
-      stats.tile_count[tile_cur] = 0;
       stats.tile_position_quality[tile_cur] =
         vector<double> (stats.max_read_length, 0.0);
       stats.tile_position_count[tile_cur] =
@@ -218,11 +221,11 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
 
     // increments basic statistic counts
     cur_gc_count += (base_ind & 1);
-    stats.base_count[(read_pos << stats.kBitShiftNucleotide) | base_ind]++;
+    stats.base_count[
+      (read_pos << stats.kBitShiftNucleotide) | base_ind]++;
 
     if ((do_adapter) &&
-        (stats.num_reads == next_kmer_read)  &&
-        (read_pos < stats.kKmerMaxBases)) {
+        (stats.num_reads == next_kmer_read)) {
 
       // Update k-mer sequence
       cur_kmer = ((cur_kmer << stats.kBitShiftNucleotide) | base_ind);
@@ -271,9 +274,10 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
   // Updates basic statistics total GC
   stats.total_gc += cur_gc_count;
 
+
+  // read length frequency histogram
   if (do_sequence_length) {
-    // read length frequency histogram
-    if ((read_pos != 0) && (read_pos <= stats.kNumBases)) {
+    if (still_in_buffer) {
       stats.read_length_freq[read_pos - 1]++;
     } else {
       stats.long_read_length_freq[leftover_ind - 1]++;
@@ -288,7 +292,9 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
   // FastQC's gc model summarized, if requested
   if (do_gc_sequence) {
     // If we haven't passed the short base threshold, we use the cached models
-    if (write_to_buffer) {
+    if (still_in_buffer) {
+
+      // if we haven't passed the truncation point, use the current values
       if (next_truncation == 100) {
         truncated_length = read_pos;
         truncated_gc_count = cur_gc_count;
@@ -297,8 +303,9 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
           stats.gc_models[truncated_length].models[truncated_gc_count]) {
         stats.gc_count[v.percent] += v.increment;
       }
+
+    // if the read length is too large, we just use the discrete
     } else {
-      // if the read length is too large, we just use the ratio
       stats.gc_count[100 * cur_gc_count / read_pos]++;
     }
   }
@@ -312,46 +319,48 @@ StreamReader::read_sequence_line(FastqStats &stats) {
   cur_gc_count = 0;
   truncated_gc_count = 0;
   num_bases_after_n = 1;
-  write_to_buffer = true;
-  leftover_ind = 0;
+  still_in_buffer = true;
   next_truncation = 100;
 
   /*********************************************************/
   /********** THIS LOOP MUST BE ALWAYS OPTIMIZED ***********/
   /*********************************************************/
   for (; *cur_char != field_separator; ++cur_char) {
-    // puts base either on buffer or leftover
-    put_base_in_buffer();
+    // if we reached the buffer size, stop using it and start using leftover
+    if (read_pos == buffer_size) {
+      still_in_buffer = false;
+      leftover_ind = 0;
+    }
+
     // Make sure we have memory space to process new base
-    if (!write_to_buffer) {
+    if (!still_in_buffer) {
       if (leftover_ind == stats.num_extra_bases) {
         stats.allocate_new_base(tile_ignore);
       }
     }
 
+    // puts base either on buffer or leftover
+    put_base_in_buffer();
+
     // statistics updated base by base
     // use buffer
-    if (write_to_buffer) {
+    if (still_in_buffer) {
       process_sequence_base_from_buffer(stats);
     }
 
     // use dynamic allocation
     else {
       process_sequence_base_from_leftover(stats);
-    }
-    // increase leftover position if not writing to buffer anymore
-    if (!write_to_buffer) {
-      leftover_ind++;
+
+      // Increase leftover pos if no longer in buffer
+      ++leftover_ind;
     }
 
     // either way increase read position
     ++read_pos;
 
-    // if we reached the buffer size, stop
-    if (read_pos == buffer_size) {
-      write_to_buffer = false;
-    }
 
+    // Truncate GC counts to multiples of 100
     if (do_gc_sequence) {
       if (read_pos == next_truncation) {
         truncated_gc_count = cur_gc_count;
@@ -373,7 +382,7 @@ inline void
 StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
   // Average quality in position
   stats.position_quality_count[
-                               (read_pos << stats.kBitShiftQuality) | quality_value]++;
+     (read_pos << stats.kBitShiftQuality) | quality_value]++;
 
   // Tile processing
   if (!tile_ignore) {
@@ -390,12 +399,12 @@ inline void
 StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
   // Average quality in position
   stats.long_position_quality_count[
-        (leftover_ind << stats.kBitShiftQuality) | quality_value]++;
+    (leftover_ind << stats.kBitShiftQuality) | quality_value]++;
 
   // Tile processing
   if (!tile_ignore) {
     if ((stats.num_reads == next_tile_read) && tile_cur != 0) {
-      stats.tile_position_quality[tile_cur][leftover_ind + stats.kNumBases]
+      stats.tile_position_quality[tile_cur][read_pos]
         += quality_value;
       stats.tile_position_count[tile_cur][read_pos]++;
     }
@@ -408,47 +417,43 @@ StreamReader::read_quality_line(FastqStats &stats) {
   // reset quality counts
   read_pos = 0;
   cur_quality = 0;
-  read_from_buffer = true;
-  leftover_ind = 0;
+  still_in_buffer = true;
 
   // For quality, we do not look for the separator, but rather for an explicit
   // newline or EOF in case the file does not end with newline or we are getting
   // decompressed strings from a stream
   for (; (*cur_char != line_separator) && !is_eof(); ++cur_char) {
+    if (read_pos == buffer_size) {
+      still_in_buffer = false;
+      leftover_ind = 0;
+    }
+
     get_base_from_buffer();
 
     // Converts quality ascii to zero-based
     quality_value = *cur_char - stats.kBaseQuality;
 
     // Fast bases from buffer
-    if (read_from_buffer) {
+    if (still_in_buffer) {
       process_quality_base_from_buffer(stats);
     }
 
     // Slow bases from dynamic allocation
     else {
       process_quality_base_from_leftover(stats);
+      ++leftover_ind;
     }
 
     // Sums quality value so we can bin the average at the end
     cur_quality += quality_value;
 
-    if (!read_from_buffer) {
-      ++leftover_ind;
-    }
-
     // Flag to start reading and writing outside of buffer
     ++read_pos;
-    if (read_pos == buffer_size) {
-      read_from_buffer = false;
-    }
   }
 
   // Average quality approximated to the nearest integer. Used to make a
   // histogram in the end of the summary.
-  if (do_quality_sequence) {
-    stats.quality_count[cur_quality / read_pos]++;  // avg quality histogram
-  }
+  stats.quality_count[cur_quality / read_pos]++;  // avg quality histogram
 }
 
 /*******************************************************/
@@ -492,9 +497,6 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
   if (!tile_ignore) {
     if (stats.num_reads == next_tile_read) {
       next_tile_read += num_reads_for_tile;
-      if (tile_cur != 0) {
-        stats.tile_count[tile_cur]++;
-      }
     }
   }
 

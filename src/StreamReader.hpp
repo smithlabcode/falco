@@ -68,16 +68,14 @@ class StreamReader{
   const char line_separator;
 
   // keep track of reads for which to do kmer and tile count
-  const size_t num_reads_for_kmer = 50;
+  const size_t num_reads_for_kmer = 1;
   const size_t num_reads_for_tile = 10;
   size_t next_kmer_read;
   size_t next_tile_read;
 
-  // Whether or not to get bases from buffer when reading quality line
-  bool read_from_buffer;
-
-  // Whether or not to write bases to buffer when reading sequence
-  bool write_to_buffer;
+  // Whether or not we have passed the buffer while reading and need to allocate
+  // more space / use dynamically allocated space to process the base
+  bool still_in_buffer;
 
   // Whether to just ignore per tile sequence quality if tiles are not in the
   // name

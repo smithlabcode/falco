@@ -81,7 +81,6 @@ strip_path(string full_path) {
 // Sets magic numbers
 FalcoConfig::FalcoConfig() {
   kPoorQualityThreshold = 20;
-  kOverrepMinFrac = 0.001;
   casava = false;
   nanopore = false;
   nofilter = false;
@@ -314,35 +313,5 @@ FalcoConfig::read_contaminants_file() {
       line_by_space.clear();
     }
   }
-}
-
-// Find contaminant with highest overlap with sequence or return "No Hit" if
-// there is none
-string
-FalcoConfig::get_matching_contaminant(const string &seq) const {
-  size_t best = 0;
-  string ret;
-  for (auto v : contaminants) {
-    if (seq.size() > v.second.size()) {
-      // contaminant contained in sequence
-      if (seq.find(v.second) != string::npos) {
-        if (v.second.size() > best) {
-          best = v.second.size();
-          ret = v.first;
-        }
-      }
-    } else {
-      // sequence contained in contaminant
-      if (v.second.find(seq) != string::npos) {
-        // In this case this is the best possible match so return it
-        return v.first;
-      }
-    }
-  }
-
-  // If any sequence is a match, return the best one
-  if (best > 0)
-    return ret;
-  return "No Hit";
 }
 

@@ -27,8 +27,17 @@
 /*******************************************************/
 class HtmlMaker {
 public:
-  explicit HtmlMaker(std::string filepath);
-  void write(FastqStats &stats, FalcoConfig &fc);
+  explicit HtmlMaker(std::string html_template_path);
+  // Fill data from module
+  void put_data(const std::string &placeholder, const std::string &data);
+
+  // Comment or remove placeholders
+  void put_comment(std::string &comment_begin,
+                   std::string &comment_end,
+                   bool done);
+
+  // Put file details and date
+  void put_file_details(const FalcoConfig &falco_config);
   std::string html_boilerplate;
 };
 #endif

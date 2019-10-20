@@ -22,7 +22,6 @@
 #include <unordered_map>
 #include <array>
 #include "FalcoConfig.hpp"
-
 // log of a power of two, to use in bit shifting for fast index acces
 // returns the log2 of a number if it is a power of two, or zero
 // otherwise
@@ -90,9 +89,10 @@ struct GCModel {
       if (low_count > read_length) low_count = read_length;
 
       // Check the bins in which percentages must be put
-      int low_pct = (int)round((100 * low_count) / 
+      int low_pct = (int)round((100 * low_count) /
                       static_cast<double>(read_length));
-      int high_pct = (int)round((100 * high_count) / 
+
+      int high_pct = (int)round((100 * high_count) /
                       static_cast<double>(read_length));
 
       // Add a new vector of values
@@ -131,9 +131,6 @@ struct FastqStats {
   // How many possible nucleotides (must be power of 2!)
   static const size_t kNumNucleotides = 4;  // A = 00,C = 01,T = 10,G = 11
 
-  // Maximum number of bases for which to do kmer statistics
-  static const size_t kKmerMaxBases = 500;
-
   /************* DUPLICATION ESTIMATES *************/
   // Number of unique sequences to see before stopping counting sequences
   static const size_t kDupUniqueCutoff = 1e5;
@@ -152,6 +149,9 @@ struct FastqStats {
   static const size_t kBitShiftQuality = log2exact(kNumQualityValues);
   static const size_t kBitShiftKmer = 2 * kmer_size;  // two bits per base
 
+  // mask to get only the first 2*k bits of the sliding window
+  static const size_t kmer_mask = (1ll << (2*kmer_size)) - 1;;
+
  public:
   /*********** SINGLE NUMBERS FROM THE ENTIRE FASTQ ****************/
   // Number of unique sequences seen thus far
@@ -161,23 +161,12 @@ struct FastqStats {
   size_t count_at_limit;
 
   size_t total_bases;  // sum of all bases in all reads
-  size_t avg_read_length;  // average of all read lengths
   size_t num_reads;  // total number of lines read
   size_t min_read_length;  // minimum read length seen
   size_t max_read_length;  // total number of lines read
   size_t num_poor;  // reads whose average quality was <= poor
   size_t num_extra_bases;  // number of bases outside of buffer
-
-  // mask to get only the first 2*k bits of the sliding window
-  size_t kmer_mask;
-  size_t total_gc;
-
-  double avg_gc;  // (sum of g bases + c bases) / (num_reads)
-  double total_deduplicated_pct;  // number of reads left if deduplicated
-
-  // Basic statistics
-  std::string file_type;  // for now always conventional base calls
-  std::string file_encoding;  // for now always conventional base calls
+  size_t total_gc; // sum of all G+C bases in all reads
 
   // Pre-calculated GC model increments
   static const std::array<GCModel, kNumBases> gc_models;
@@ -201,7 +190,6 @@ struct FastqStats {
   /*********** PER GC VALUE METRICS ****************/
   // histogram of GC fraction in each read from 0 to 100%
   std::array<double, 101> gc_count;
-  std::array<double, 101> theoretical_gc_count;
 
     /*********** PER READ METRICS ***************/
   // Distribution of read lengths
@@ -213,98 +201,35 @@ struct FastqStats {
   std::unordered_map <size_t, std::vector<size_t> > tile_position_count;
   std::unordered_map <size_t, size_t> tile_count;
 
-  /*********** SUMMARY ARRAYS **************/
-  // Quantiles for the position_quality_count
-  std::array<size_t, kNumBases> ldecile, lquartile, median, uquartile, udecile;
-  std::array<double, kNumBases> mean;
-
-  // For sequence duplication levels
-  // 1 to 9, >10, >50, >100, >500, >1k, >5k, >10k+
-  std::array<double, 16> percentage_deduplicated;
-  std::array<double, 16> percentage_total;
-
-  // Percentages for per base sequence content
-  std::array<double, kNumBases> a_pct,
-                           c_pct,
-                           t_pct,
-                           g_pct,
-                           n_pct;
-
-  /*********** SLOW STUFF *******************/
+  /*********** SLOW DATA STRUCTURES FOR LONGER READS ************/
   // Leftover memory using dynamic allocation
   std::vector<size_t> long_base_count;
   std::vector<size_t> long_n_base_count;
   std::vector<size_t> long_position_quality_count;
   std::vector<size_t> long_read_length_freq;
   std::vector<size_t> long_cumulative_read_length_freq;
-  std::vector<size_t> long_ldecile, long_lquartile, long_median,
-                 long_uquartile, long_udecile;
-  std::vector<double> long_mean;
-  std::vector<double> long_a_pct,
-                 long_c_pct,
-                 long_t_pct,
-                 long_g_pct,
-                 long_n_pct;
-
 
   /********** KMER FREQUENCY ****************/
-  // A 2^K + 1 std::vector to count all possible kmers
+  // A 4^K + 1 std::vector to count all possible kmers
   std::vector<size_t> kmer_count;
 
   // How many kmers were counted in each position
   std::array<size_t, kNumBases> pos_kmer_count;
 
-  /********** ADAPTER COUNT *****************/
-  // Percentage of times we saw each adapter in each position
-  std::unordered_map <size_t, std::vector <double>> kmer_by_base;
   /*********** DUPLICATION ******************/
+  // First 100k unique sequences and how often they were seen
   std::unordered_map <std::string, size_t> sequence_count;
 
-  /*********** OVERREPRESENTED SERQUENCES ********/
-  std::vector <std::pair<std::string, size_t>> overrep_sequences;
-
-  /*********************************************************
-   *********** METRICS SUMMARIZED AFTER IO *****************
-   *********************************************************/
-
-  // I need this to know what to divide each base by
-  // when averaging content, bases, etc. It stores, for every element i, how
-  // many reads are of length >= i, ie, how many reads actually have a
-  // nucleotide at position i
-
-  /*********** PASS WARN FAIL MESSAGE FOR EACH METRIC **************/
-  std::string pass_basic_statistics,
-         pass_per_base_sequence_quality,
-         pass_per_tile_sequence_quality,
-         pass_per_sequence_quality_scores,
-         pass_per_base_sequence_content,
-         pass_per_sequence_gc_content,
-         pass_per_base_n_content,
-         pass_sequence_length_distribution,
-         pass_overrepresented_sequences,
-         pass_duplicate_sequences,
-         pass_adapter_content;
-
-    /**************** FUNCTIONS ****************************/
-
+  /**************** FUNCTIONS ****************************/
   // Default constructor that zeros everything
   FastqStats();
 
   // Allocation of more read positions
   void allocate_new_base(const bool ignore_tile);
 
+  void summarize();
+
   // Given an input fastqc_data.txt file, populate the statistics with it
   void read(std::istream &is);
-
-  // Summarize all statistics we need before writing
-  void summarize(FalcoConfig &config);
-
-  // Writes equivalent of fastqc_data.txt
-  void write(std::ostream &os, const FalcoConfig &config);
-
-  // Writes equivalent of fastqc's summary.txt
-  void write_summary(std::ostream &os, const FalcoConfig &config);
 };
-
-
 #endif

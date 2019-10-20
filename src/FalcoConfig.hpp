@@ -38,11 +38,6 @@ struct FalcoConfig {
   // threshold for a sequence to be considered  poor quality
   size_t kPoorQualityThreshold;
 
-  /************ OVERREPRESENTATION ESTIMTES **********/
-  // fraction of the number of slow reads a sequence needs to be seen to be
-  // considered a candiate for overrepresentation
-  double kOverrepMinFrac;
-
   /************************************************************
    *************** FASTQC OPTION PARSER************************
    ************************************************************/
@@ -104,6 +99,5 @@ struct FalcoConfig {
   void read_contaminants_file();
 
   void setup();
-  std::string get_matching_contaminant(const std::string &seq) const;
 };
 #endif

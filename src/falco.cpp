@@ -24,6 +24,7 @@
 #include "FastqStats.hpp"
 #include "StreamReader.hpp"
 #include "HtmlMaker.hpp"
+#include "Module.hpp"
 
 using std::string;
 using std::runtime_error;
@@ -31,6 +32,7 @@ using std::cerr;
 using std::endl;
 using std::vector;
 using std::ofstream;
+using std::ostream;
 using std::to_string;
 
 using std::chrono::system_clock;
@@ -65,9 +67,10 @@ static bool dir_exists(const string &path) {
 }
 
 // Read any file type until the end and logs progress
+// in is an StreamReader object type
 template <typename T> void
 read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
-
+  // open file
   in.load();
 
   // fast way to report # of reads without modulo arithmetics
@@ -75,8 +78,9 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
   size_t next_read = num_reads_to_log;
 
   // Read record by record
+  const bool quiet = falco_config.quiet;
   while (in >> stats) {
-    if (!falco_config.quiet) {
+    if (!quiet) {
       if (stats.num_reads == next_read) {
         log_process("Processed " +
                     to_string(stats.num_reads/num_reads_to_log) +
@@ -88,10 +92,206 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
 
   // if I could not get tile information from read names, I need to tell this to
   // config so it does not output tile data on the summary or html
-  if (in.tile_ignore)
+  if (in.tile_ignore) {
     falco_config.do_tile = false;
+  }
 }
 
+// Write module content into html maker if requested
+template <typename T> void
+write_if_requested(T module,
+                   const FastqStats &stats,
+                   bool requested,
+                   bool skip_text,
+                   bool skip_html,
+                   bool skip_short_summary,
+                   const string &filename,
+                   ostream &summary_txt,
+                   ostream &qc_data_txt,
+                   HtmlMaker &html_maker) {
+
+  html_maker.put_comment(module.placeholder_cs, module.placeholder_ce,
+                         requested);
+
+  // If module has not been requested all we do is take placeholders from html
+  if (!requested) return;
+
+
+  // calculates module summary, mandatory before writing
+  module.summarize(stats);
+
+  // writes what was requested
+  if (!skip_short_summary) module.write_short_summary(summary_txt, filename);
+  if (!skip_text) module.write(qc_data_txt);
+  if (!skip_html) {
+    // puts the module name 
+    html_maker.put_data(module.placeholder_name, module.module_name);
+
+    // puts the grade
+    html_maker.put_data(module.placeholder_grade, module.grade);
+
+    // puts the actual data (table, graph, etc)
+    html_maker.put_data(module.placeholder_data,
+                        module.html_data);
+  }
+}
+
+void
+write_results(const FalcoConfig &falco_config,
+              const FastqStats &stats,
+              bool skip_text,
+              bool skip_html,
+              bool skip_short_summary,
+              const string &outdir) {
+
+  // Here we open the short summary ofstream
+  ofstream summary_txt;
+  if (!skip_short_summary) {
+    string summary_file = falco_config.filename;
+    if (!outdir.empty())
+      summary_file = outdir + "/" + falco_config.filename_stripped;
+    summary_file += "_summary.txt";
+    summary_txt.open(summary_file.c_str(), std::ofstream::binary);
+  }
+
+  // Here we open the full text summary
+  ofstream qc_data_txt;
+  if (!skip_text) {
+    string qc_data_file = falco_config.filename;
+    if (!outdir.empty())
+      qc_data_file = outdir + "/" + falco_config.filename_stripped;
+    qc_data_file += "_qc_data.txt";
+    qc_data_txt.open(qc_data_file.c_str(), std::ofstream::binary);
+  }
+
+  // Here we open the html ostream and maker object
+  HtmlMaker html_maker(falco_config.html_file);
+  ofstream html;
+  if (!skip_html) {
+    // Decide html filename based on input
+    string html_file = falco_config.filename;
+    if (!outdir.empty())
+      html_file = outdir + "/" + falco_config.filename_stripped;
+    html_file += "_report.html";
+
+    if (!falco_config.quiet)
+      log_process("Writing HTML report to " + html_file);
+
+    html_maker.put_file_details(falco_config);
+    html.open(html_file.c_str(), std::ofstream::binary);
+  }
+
+  // Now we create modules if requested, summarize them and kill them
+  //  Basic Statistics
+  write_if_requested(ModuleBasicStatistics(falco_config),
+                     stats,
+                     true,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+
+
+  //  Per base sequence quality
+  write_if_requested(ModulePerBaseSequenceQuality(falco_config),
+                     stats,
+                     falco_config.do_quality_sequence,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+
+  //  Per tile sequence quality
+  write_if_requested(ModulePerTileSequenceQuality(falco_config),
+                     stats,
+                     falco_config.do_tile,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+
+  //  Per sequence quality scores
+  write_if_requested(ModulePerSequenceQualityScores(falco_config),
+                     stats,
+                     falco_config.do_quality_sequence,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+
+  //  Per base sequence content
+  write_if_requested(ModulePerBaseSequenceContent(falco_config),
+                     stats,
+                     falco_config.do_sequence,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+  //  Per sequence GC content
+  write_if_requested(ModulePerSequenceGCContent(falco_config),
+                     stats,
+                     falco_config.do_gc_sequence,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+
+  //  Per base N content
+  write_if_requested(ModulePerBaseNContent(falco_config),
+                     stats,
+                     falco_config.do_n_content,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+
+  //  Sequence Length Distribution
+  write_if_requested(ModuleSequenceLengthDistribution(falco_config),
+                     stats,
+                     falco_config.do_sequence_length,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+
+  //  Sequence Duplication Levels
+  write_if_requested(ModuleSequenceDuplicationLevels(falco_config),
+                     stats,
+                     falco_config.do_duplication,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+
+  //  Overrepresented sequences
+  write_if_requested(ModuleOverrepresentedSequences(falco_config),
+                     stats,
+                     falco_config.do_overrepresented,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+  //  Adapter Content
+  write_if_requested(ModuleAdapterContent(falco_config),
+                     stats,
+                     falco_config.do_adapter,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+  //  Kmer Content
+  write_if_requested(ModuleKmerContent(falco_config),
+                     stats,
+                     falco_config.do_kmer,
+                     skip_text, skip_html, skip_short_summary,
+                     falco_config.filename_stripped,
+                     summary_txt, qc_data_txt,
+                     html_maker);
+
+
+  if (!skip_html)
+    html << html_maker.html_boilerplate;
+}
 int main(int argc, const char **argv) {
 
   try {
@@ -189,6 +389,7 @@ int main(int argc, const char **argv) {
 
     /****************** END COMMAND LINE OPTIONS ********************/
     for (auto filename : all_seq_filenames) {
+
       const time_point file_start_time = system_clock::now();
 
       falco_config.filename = filename;
@@ -202,12 +403,12 @@ int main(int argc, const char **argv) {
       /****************** BEGIN PROCESSING CONFIG ******************/
       // define file type, read limits, adapters, contaminants and fail
       // early if any of the required files is not present
+      //
       falco_config.setup();
 
       /****************** END PROCESSING CONFIG *******************/
       if (!falco_config.quiet)
         log_process("Started reading file " + falco_config.filename);
-
       FastqStats stats; // allocate all space to summarize data
 
       // Initializes a reader given the file format
@@ -239,65 +440,16 @@ int main(int argc, const char **argv) {
                             + falco_config.filename);
       }
 
-      if (!falco_config.quiet)
+      if (!falco_config.quiet) {
         log_process("Finished reading file");
-
-      if (!falco_config.quiet)
-        log_process("Summarizing data");
-
-      // This function has to be called before writing to output. This is where
-      // we calculate all the summary statistics that will be written to output.
-      stats.summarize(falco_config);
-
-      /************************ WRITE TO SUMMARY ***************************/
-      if (!skip_short_summary) {
-        string summary_file = filename;
-        if (!outdir.empty())
-          summary_file = outdir + "/" + falco_config.filename_stripped;
-        summary_file += "_summary.txt";
-
-        ofstream summary_txt;
-        summary_txt.open(summary_file.c_str(), std::ofstream::binary);
-        stats.write_summary (summary_txt, falco_config);
       }
 
-      /************************ WRITE TO OUTPUT *****************************/
-      if (!skip_text) {
-        string outfile = filename;
-        if (!outdir.empty())
-          outfile = outdir + "/" + falco_config.filename_stripped;
-        outfile += "_qc_data.txt";
+      stats.summarize();
 
-        if (!falco_config.quiet)
-          log_process("Writing text data to " + outfile);
-
-        // define output
-        ofstream of(outfile);
-
-        // Write
-        stats.write(of, falco_config);
-      }
-
-      /************************ WRITE TO HTML *****************************/
-      if (!skip_html) {
-        // Take the html template and populate it with stats data.
-        // Use config to know which parts not to write
-        HtmlMaker html_maker(falco_config.html_file);
-        html_maker.write(stats, falco_config);
-
-        // Decide html filename based on input
-        string htmlfile = filename;
-        if (!outdir.empty())
-          htmlfile = outdir + "/" + falco_config.filename_stripped;
-        htmlfile += "_report.html";
-
-        if (!falco_config.quiet)
-          log_process("Writing HTML report to " + htmlfile);
-
-        // Start writing
-        ofstream html(htmlfile);
-        html << html_maker.html_boilerplate;
-      }
+      // Write results
+      log_process("Writing results");
+      write_results(falco_config, stats, skip_text, skip_html,
+                   skip_short_summary, outdir);
 
       /************************** TIME SUMMARY *****************************/
       if (!falco_config.quiet)

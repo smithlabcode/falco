@@ -205,147 +205,167 @@ p {
 </div>
 <div class="summary"><h2>Summary</h2>
 <ul>
-  <li><a class="{{passbasic}}" href="#basicstatistics">Basic Statistics</a></li>
+  {{basicstatisticscs}}
+  <li><a class="{{passbasicstatistics}}" href="#basicstatistics">
+    {{basicstatisticsname}}
+  </a></li>
+  {{basicstatisticsce}}
 
-  {{skipbasesequence_s}}
-	<li><a class="{{passbasesequence}}" href="#perbasesequencequality">Per base sequence quality</a></li>
-  {{skipbasesequence_e}}
+  {{perbasesequencequalitycs}}
+	<li><a class="{{passperbasesequencequality}}" href="#perbasesequencequality">
+    {{perbasesequencequalityname}}</a></li>
+  {{perbasesequencequalityce}}
 
-  {{skiptile_s}}
-	<li><a class="{{passpertile}}" href="#pertilesequencequality">Per tile sequence quality</a></li>
-  {{skiptile_e}}
+  {{pertilesequencequalitycs}}
+	<li><a class="{{passpertilesequencequality}}" href="#pertilesequencequality">{{pertilesequencequalityname}}</a></li>
+  {{pertilesequencequalityce}}
 
-  {{skipsequencequal_s}}
-	<li><a class="{{passpersequencequal}}" href="#persequencequalityscores">Per sequence quality scores</a></li>
-  {{skipsequencequal_e}}
+  {{persequencequalityscorescs}}
+	<li><a class="{{passpersequencequalityscores}}" href="#persequencequalityscores">{{persequencequalityscoresname}}</a></li>
+  {{persequencequalityscoresce}}
 
-  {{skipbasecontent_s}}
-	<li><a class="{{passperbasecontent}}" href="#perbasesequencecontent">Per base sequence content</a></li>
-  {{skipbasecontent_e}}
+  {{perbasesequencecontentcs}}
+	<li><a class="{{passperbasesequencecontent}}" href="#perbasesequencecontent">{{perbasesequencecontentname}}</a></li>
+  {{perbasesequencecontentce}}
 
-  {{skipsequencegc_s}}
-	<li><a class="{{passpersequencegc}}" href="#persequencegccontent">Per sequence GC content</a></li>
-  {{skipsequencegc_e}}
+  {{persequencegccontentcs}}
+	<li><a class="{{passpersequencegccontent}}" href="#persequencegccontent">{{persequencegccontentname}}</a></li>
+  {{persequencegccontentce}}
 
-  {{skipbasencontent_s}}
-	<li><a class="{{passperbasencontent}}" href="#perbasencontent">Per base N content</a></li>
-  {{skipbasencontent_e}}
+  {{perbasencontentcs}}
+	<li><a class="{{passperbasencontent}}" href="#perbasencontent">{{perbasencontentname}}</a></li>
+  {{perbasencontentce}}
 
-  {{skipseqlength_s}}
-	<li><a class="{{passseqlength}}" href="#sequencelengthdistribution">Sequence Length Distribution</a></li>
-  {{skipseqlength_e}}
+  {{sequencelengthdistributioncs}}
+	<li><a class="{{passsequencelengthdistribution}}" href="#sequencelengthdistribution">{{sequencelengthdistributionname}}</a></li>
+  {{sequencelengthdistributionce}}
 
-  {{skipseqdup_s}}
-	<li><a class="{{passseqdup}}" href="#sequenceduplicationlevels">Sequence Duplication Levels</a></li>
-  {{skipseqdup_e}}
+  {{sequenceduplicationlevelscs}}
+	<li><a class="{{passsequenceduplicationlevels}}" href="#sequenceduplicationlevels">{{sequenceduplicationlevelsname}}</a></li>
+  {{sequenceduplicationlevelsce}}
 
-  {{skipoverrep_s}}
-	<li><a class="{{passoverrep}}" href="#overrepresentedsequences">Overrepresented sequences</a></li>
-  {{skipoverrep_e}}
+  {{overrepresentedsequencescs}}
+	<li><a class="{{passoverrepresentedsequences}}" href="#overrepresentedsequences">{{overrepresentedsequencesname}}</a></li>
+  {{overrepresentedsequencesce}}
 
-  {{skipadapter_s}}
-	<li><a class="{{passadapter}}" href="#adaptercontent">Adapter Content</a></li>
-  {{skipadapter_e}}
+  {{adaptercontentcs}}
+	<li><a class="{{passadaptercontent}}" href="#adaptercontent">{{adaptercontentname}}</a></li>
+  {{adaptercontentce}}
+
+  {{kmercontentcs}}
+	<li><a class="{{passkmercontent}}" href="#adaptercontent">{{kmercontentname}}</a></li>
+  {{kmercontentce}}
+
 
 </ul>
 </div>
 <div class="main">
 <div class="module">
-  <h2 class="{{passbasic}}" id="basicstatistics">
-    Basic Statistics: {{passbasic}}
+  <h2 class="{{passbasicstatistics}}" id="basicstatistics">
+    {{basicstatisticsname}}: {{passbasicstatistics}}
   </h2>
-  {{BASICSTATSDATA}}
+  {{basicstatisticsdata}}
 </div>
 
-{{skipbasesequence_s}}
+{{perbasesequencequalitycs}}
 <div class="module">
-	<h2 class="{{passbasesequence}}" id="perbasesequencequality">
-    Per base sequence quality: {{passbasesequence}}</h2>
+	<h2 class="{{passperbasesequencequality}}" id="perbasesequencequality">
+    {{perbasesequencequalityname}}: {{passperbasesequencequality}}</h2>
  	<div id="seqbasequalityboxplot"></div>
 </div>
-{{skipbasesequence_e}}
+{{perbasesequencequalityce}}
 
 
-{{skiptile_s}}
+{{pertilesequencequalitycs}}
 <div class="module">
-	<h2 class="{{passpertile}}" id="pertilesequencequality">
-    Per tile sequence quality : {{passpertile}}
+	<h2 class="{{passpertilesequencequality}}" id="pertilesequencequality">
+    {{pertilesequencequalityname}} : {{passpertilesequencequality}}
   </h2>
  	<div id="tilequalityheatmap"></div>
 </div>
-{{skiptile_e}}
+{{pertilesequencequalityce}}
 
-{{skipsequencequal_s}}
+{{persequencequalityscorescs}}
 <div class="module">
-	<h2 class="{{passpersequencequal}}" id="persequencequalityscores">
-    Per sequence quality scores : {{passpersequencequal}}
+	<h2 class="{{passpersequencequalityscores}}" id="persequencequalityscores">
+    {{persequencequalityscoresname}} : {{passpersequencequalityscores}}
   </h2>
  	<div id="seqqualitylineplot"></div>
 </div>
-{{skipsequencequal_e}}
+{{persequencequalityscoresce}}
 
-{{skipbasecontent_s}}
+{{perbasesequencecontentcs}}
 <div class="module">
-	<h2 class="{{passperbasecontent}}" id="perbasesequencecontent">
-    Per base sequence content : {{passperbasecontent}}
+	<h2 class="{{passperbasesequencecontent}}" id="perbasesequencecontent">
+    {{perbasesequencecontentname}} : {{passperbasesequencecontent}}
   </h2>
  	<div id="basesequencecontentlineplot"></div>
 </div>
-{{skipbasecontent_e}}
+{{perbasesequencecontentce}}
 
-{{skipsequencegc_s}}
+{{persequencegccontentcs}}
 <div class="module">
-	<h2 class="{{passpersequencegc}}" id="persequencegccontent">
-    Per sequence gc content : {{passpersequencegc}}
+	<h2 class="{{passpersequencegccontent}}" id="persequencegccontent">
+    {{persequencegccontentname}}: {{passpersequencegccontent}}
   </h2>
  	<div id="sequencegccontentlineplot"></div>
 </div>
-{{skipsequencegc_e}}
+{{persequencegccontentce}}
 
 
-{{skipbasencontent_s}}
+{{perbasencontentcs}}
 <div class="module">
 	<h2 class="{{passperbasencontent}}" id="perbasencontent">
-    Per base N content : {{passperbasencontent}}
+    {{perbasencontentname}} : {{passperbasencontent}}
   </h2>
  	<div id="basencontentlineplot"></div>
 </div>
-{{skipbasencontent_e}}
+{{perbasencontentce}}
 
-{{skipseqlength_s}}
+{{sequencelengthdistributioncs}}
 <div class="module">
-	<h2 class="{{passseqlength}}" id="sequencelengthdistribution">
-    Sequence length distribution : {{passseqlength}}
+	<h2 class="{{passsequencelengthdistribution}}" id="sequencelengthdistribution">
+    {{sequencelengthdistributionname}} : {{passsequencelengthdistribution}}
   </h2>
  	<div id="sequencelengthdistributionlineplot"></div>
 </div>
-{{skipseqlength_e}}
+{{sequencelengthdistributionce}}
 
-{{skipseqdup_s}}
+{{sequenceduplicationlevelscs}}
 <div class="module">
-	<h2 class="{{passseqdup}}" id="sequenceduplicationlevels">
-    Sequence duplication levels : {{passseqdup}}
+	<h2 class="{{passsequenceduplicationlevels}}" id="sequenceduplicationlevels">
+    {{sequenceduplicationlevelsname}} : {{passsequenceduplicationlevels}}
   </h2>
  	<div id="seqduplevelslineplot"></div>
 </div>
-{{skipseqdup_e}}
+{{sequenceduplicationlevelsce}}
 
-{{skipoverrep_s}}
+{{overrepresentedsequencescs}}
 <div class="module">
-	<h2 class="{{passoverrep}}" id="overrepresentedsequences">
-    Overrepresented Sequences : {{passoverrep}}</h2>
-  {{OVERREPSEQDATA}}
+	<h2 class="{{passoverrepresentedsequences}}" id="overrepresentedsequences">
+    {{overrepresentedsequencesname}} : {{passoverrepresentedsequences}}</h2>
+  {{overrepresentedsequencesdata}}
 </div>
-{{skipoverrep_e}}
+{{overrepresentedsequencesce}}
 
-{{skipadapter_s}}
+{{adaptercontentcs}}
 <div class="module">
-  <h2 class="{{passadapter}}" id="adaptercontent">
-    Adapter content : {{passadapter}}
+  <h2 class="{{passadaptercontent}}" id="adaptercontent">
+    {{adaptercontentname}} : {{passadaptercontent}}
   </h2>
  	<div id="adapterlineplot"></div>
 </div>
-{{skipadapter_e}}
+{{adaptercontentce}}
+
+{{kmercontentcs}}
+<div class="module">
+  <h2 class="{{passkmercontent}}" id="adaptercontent">
+    {{kmercontentname}} : {{kmercontent}}
+  </h2>
+  {{kmercontentdata}}
+</div>
+{{kmercontentce}}
+
 
 </div>
 <div class="footer">Falco 0.1.0
@@ -367,7 +387,7 @@ crossorigin="anonymous"></script>
   
 if (document.getElementById('seqbasequalityboxplot') !== null) {
   Plotly.newPlot('seqbasequalityboxplot', [
-   {{SEQBASEQUALITYDATA}}
+   {{perbasesequencequalitydata}}
   ], {
     margin: { t: 0 }, showlegend: false,
     xaxis : {title : 'Base position'},
@@ -376,7 +396,7 @@ if (document.getElementById('seqbasequalityboxplot') !== null) {
 }
 if (document.getElementById('tilequalityheatmap') !== null) {
   Plotly.newPlot('tilequalityheatmap', [
-   {{TILEQUALITYDATA}}
+   {{pertilesequencequalitydata}}
   ], {
     margin: { t: 0 }, 
     showlegend: false,
@@ -387,7 +407,7 @@ if (document.getElementById('tilequalityheatmap') !== null) {
 
 if (document.getElementById('seqqualitylineplot') !== null) {
   Plotly.newPlot('seqqualitylineplot', [
-   {{SEQQUALITYDATA}}
+   {{persequencequalityscoresdata}}
   ], {
     margin: { t: 0 },
     showlegend: true,
@@ -397,7 +417,7 @@ if (document.getElementById('seqqualitylineplot') !== null) {
 }
 if (document.getElementById('basesequencecontentlineplot') !== null) {
   Plotly.newPlot('basesequencecontentlineplot', [
-   {{BASESEQCONTENTDATA}}
+   {{perbasesequencecontentdata}}
   ], {
     margin: { t: 0 },
     showlegend: true,
@@ -407,7 +427,7 @@ if (document.getElementById('basesequencecontentlineplot') !== null) {
 }
 if (document.getElementById('sequencegccontentlineplot') !== null) {
   Plotly.newPlot('sequencegccontentlineplot', [
-   {{SEQGCCONTENTDATA}}
+   {{persequencegccontentdata}}
   ], {
     margin: { t: 0 }, 
     showlegend: true,
@@ -417,7 +437,7 @@ if (document.getElementById('sequencegccontentlineplot') !== null) {
 }
 if (document.getElementById('basencontentlineplot') !== null) {
   Plotly.newPlot('basencontentlineplot', [
-   {{BASENCONTENTDATA}}
+   {{perbasencontentdata}}
   ], {
     margin: { t: 0 }, 
     showlegend: true,
@@ -428,7 +448,7 @@ if (document.getElementById('basencontentlineplot') !== null) {
 
 if (document.getElementById('sequencelengthdistributionlineplot') !== null) {
   Plotly.newPlot('sequencelengthdistributionlineplot', [
-   {{SEQLENDATA}}
+   {{sequencelengthdistributiondata}}
   ], {
     margin: { t: 0 }, 
     showlegend: true,
@@ -438,7 +458,7 @@ if (document.getElementById('sequencelengthdistributionlineplot') !== null) {
 }
 if (document.getElementById('seqduplevelslineplot') !== null) {
   Plotly.newPlot('seqduplevelslineplot', [
-   {{SEQDUPDATA}}
+   {{sequenceduplicationlevelsdata}}
   ], {
     margin: { t: 0 }, 
     showlegend: true,
@@ -451,7 +471,7 @@ if (document.getElementById('seqduplevelslineplot') !== null) {
 
 if (document.getElementById('adapterlineplot') !== null) {
   Plotly.newPlot('adapterlineplot', [
-   {{ADAPTERDATA}}
+   {{adaptercontentdata}}
   ], {
     margin: { t: 0 }, 
     showlegend: true,
