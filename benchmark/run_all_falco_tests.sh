@@ -1,9 +1,10 @@
 mkdir -p outs/falco
-for i in tests/fastq/test*.fastq
+for i in `ls tests/fastq`
 do
-  a=$(basename $i)
-  echo $a
-  time falco -o outs/falco $i \
-       1>outs/falco/output_${a} \
-       2>outs/falco/error_${a}
+  a=`echo $(basename $i) | sed 's/.fastq//g'`
+  echo "[$(date) - falco] $a"
+  mkdir -p outs/falco/${a}
+  time falco -o outs/falco/${a} tests/fastq/${a}.fastq \
+       1>outs/falco/${a}/${a}.output  \
+       2>outs/falco/${a}/${a}.error
 done
