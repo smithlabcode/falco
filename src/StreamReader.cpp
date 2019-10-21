@@ -58,11 +58,14 @@ StreamReader::StreamReader(FalcoConfig &config,
   tile_ignore = !do_tile;  // early ignore tile if asked to skip it
   tile_cur = 0;
   tile_split_point = 0;
+
+  // keep track of which reads to do tile
   next_tile_read = 0;
+  do_tile_read = true;
 
   // kmer init
   next_kmer_read = 0;
-
+  do_kmer_read = true;
 
   // Subclasses will use this to deflate if necessary
   filename = config.filename;
@@ -223,14 +226,13 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
     stats.base_count[
       (read_pos << stats.kBitShiftNucleotide) | base_ind]++;
 
-    if ((do_adapter) &&
-        (stats.num_reads == next_kmer_read)) {
-
+    if (do_kmer_read) {
       // Update k-mer sequence
       cur_kmer = ((cur_kmer << stats.kBitShiftNucleotide) | base_ind);
 
       // registers k-mer if seen at least k nucleotides since the last n
       if (num_bases_after_n == stats.kmer_size) {
+
         stats.kmer_count[(read_pos << stats.kBitShiftKmer)
                          | (cur_kmer & stats.kmer_mask)]++;
         stats.pos_kmer_count[read_pos]++;
@@ -385,7 +387,7 @@ StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
 
   // Tile processing
   if (!tile_ignore) {
-    if ((stats.num_reads == next_tile_read) && tile_cur != 0) {
+    if (do_tile_read && tile_cur != 0) {
       stats.tile_position_quality[tile_cur][read_pos]
         += quality_value;
       stats.tile_position_count[tile_cur][read_pos]++;
@@ -402,7 +404,7 @@ StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
 
   // Tile processing
   if (!tile_ignore) {
-    if ((stats.num_reads == next_tile_read) && tile_cur != 0) {
+    if (do_tile_read && tile_cur != 0) {
       stats.tile_position_quality[tile_cur][read_pos]
         += quality_value;
       stats.tile_position_count[tile_cur][read_pos]++;
@@ -471,7 +473,6 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
     }
 
     sequence_to_hash = string(buffer);
-
     // New sequence found
     if (stats.sequence_count.count(sequence_to_hash) == 0) {
       if (continue_storing_sequences) {
@@ -491,18 +492,24 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
         stats.count_at_limit++;
     }
   }
-
   // counts tile if applicable
   if (!tile_ignore) {
-    if (stats.num_reads == next_tile_read) {
+    if (do_tile_read) {
       next_tile_read += num_reads_for_tile;
+      do_tile_read = false;
+    }
+    else if (stats.num_reads == next_tile_read) {
+      do_tile_read = true;
     }
   }
-
   // I counted kmers here so register that I did so
-  if (do_adapter) {
-    if (stats.num_reads == next_kmer_read) {
+  if (do_adapter || do_kmer) {
+    if (do_kmer_read) {
       next_kmer_read += num_reads_for_kmer;
+      do_kmer_read = false;
+    }
+    else if (stats.num_reads == next_kmer_read) {
+      do_kmer_read = true;
     }
   }
 }

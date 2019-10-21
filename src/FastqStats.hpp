@@ -199,7 +199,6 @@ struct FastqStats {
   /*********** PER TILE SEQUENCE QUALITY OVERSERQUENCES ********/
   std::unordered_map <size_t, std::vector<double> > tile_position_quality;
   std::unordered_map <size_t, std::vector<size_t> > tile_position_count;
-  std::unordered_map <size_t, size_t> tile_count;
 
   /*********** SLOW DATA STRUCTURES FOR LONGER READS ************/
   // Leftover memory using dynamic allocation

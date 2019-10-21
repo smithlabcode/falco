@@ -56,6 +56,8 @@ class StreamReader{
              do_sequence_length;
 
   bool continue_storing_sequences;
+  bool do_kmer_read;
+  bool do_tile_read;
 
   // buffer size to store line 2 of each read statically
   const size_t buffer_size;
