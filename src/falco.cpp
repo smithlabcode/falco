@@ -164,7 +164,7 @@ write_results(const FalcoConfig &falco_config,
     qc_data_file = outdir + "/fastqc_data.txt";
     qc_data_txt.open(qc_data_file.c_str(), std::ofstream::binary);
     // put header
-    qc_data_txt << "##Falco\t0.11.8\n";
+    qc_data_txt << "##Falco\t0.1\n";
   }
 
   // Here we open the html ostream and maker object
