@@ -14,7 +14,7 @@ $ make install
 
 ### Required C++ dependencies
 
-[zlib](https://zlib.net) is required to read gzipped fastq files. It is
+[zlib](https://zlib.net) is required to read gzip compressed FASTQ files. It is
 usually installed by default in most UNIX computers and is part of the htslib
 setup, but it can also be installed with apt or brew. If not available,
 fastq.gz files will be considered unrecognized file formats.
@@ -30,7 +30,7 @@ $ sudo apt install zlib1g zlib1g-dev
 files. If not provided, bam files will be treated as unrecognized file
 formats.
 
-If htslib is installed, `falco` can be compiled with it by simply replacing the
+If htslib is installed, falco can be compiled with it by simply replacing the
 configure command above with the `--enable-hts` flag:
 
 ```
@@ -53,16 +53,16 @@ $ make CXXFLAGS="-O3"
 Running falco
 =============
 
-Run `falco` in a hypothetical fastq file `example.fastq` with the following
+Run falco in a hypothetical fastq file `example.fastq` with the following
 command:
 ```
 $ falco example.fastq
 ```
 
 This will generate three files in the same directory as the input fastq file:
- * ``example.fastq_qc_summary.txt`` is a text file with a summary of the QC
+ * ``fastqc_data.txt`` is a text file with a summary of the QC
    metrics
- * ``example.fastq_report.html`` is the visual HTML report showing plots of the
+ * ``fastqc_report.html`` is the visual HTML report showing plots of the
    QC metrics summarized in the text summary.
 * ``summary.txt``: A tab-separated file describing whether the pass/warn/fail
   result for each module. If multiple files are provided, only one summary file
