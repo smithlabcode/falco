@@ -43,16 +43,14 @@
 class StreamReader{
  public:
   // config on how to handle reads
-  const bool do_duplication,
+  const bool do_sequence_hash,
              do_kmer,
              do_n_content,
-             do_overrepresented,
              do_quality_base,
              do_sequence,
              do_gc_sequence,
              do_quality_sequence,
              do_tile,
-             do_adapter,
              do_sequence_length;
 
   bool continue_storing_sequences;

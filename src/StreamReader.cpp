@@ -30,16 +30,14 @@ StreamReader::StreamReader(FalcoConfig &config,
                            const char _field_separator,
                            const char _line_separator) :
   // I have to pass the config skips as const to read them fast
-  do_duplication(config.do_duplication),
-  do_kmer(config.do_kmer),
+  do_sequence_hash(config.do_duplication || config.do_overrepresented),
+  do_kmer(config.do_adapter || config.do_kmer),
   do_n_content(config.do_n_content),
-  do_overrepresented(config.do_overrepresented),
   do_quality_base(config.do_quality_base),
   do_sequence(config.do_sequence),
   do_gc_sequence(config.do_gc_sequence),
   do_quality_sequence(config.do_quality_sequence),
   do_tile(config.do_tile),
-  do_adapter(config.do_adapter),
   do_sequence_length(config.do_sequence_length),
 
   // Here are the usual stream reader configs
@@ -463,7 +461,7 @@ StreamReader::read_quality_line(FastqStats &stats) {
 /*************** THIS IS VERY SLOW ********************/
 inline void
 StreamReader::postprocess_fastq_record(FastqStats &stats) {
-  if (do_overrepresented || do_duplication) {
+  if (do_sequence_hash) {
     // if reads are >75pb, truncate to 50
     if (read_pos <= stats.kDupReadMaxSize) {
       buffer[read_pos] = '\0';
@@ -503,7 +501,7 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
     }
   }
   // I counted kmers here so register that I did so
-  if (do_adapter || do_kmer) {
+  if (do_kmer) {
     if (do_kmer_read) {
       next_kmer_read += num_reads_for_kmer;
       do_kmer_read = false;
