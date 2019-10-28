@@ -82,8 +82,16 @@ struct FalcoConfig {
   /*************** CONTAMINANTS *****************/
   // below: first = name, scond = seq
   std::vector<std::pair<std::string, std::string> > contaminants;
-  // kmer of the adapter prefix
-  std::vector<std::pair<std::string, size_t> > adapters;
+
+  /*************** ADAPTERS *********************/
+  // Name (eg: Illumina Small RNA adapter)
+  std::vector<std::string> adapter_names;
+
+  // Actual string sequence (eg: ATTGCCACA)
+  std::vector<std::string> adapter_seqs;
+
+  // two-bit hash of the sequence above
+  std::vector<size_t> adapter_hashes;
 
   /*************** DEFINE FILE TYPE ************/
 

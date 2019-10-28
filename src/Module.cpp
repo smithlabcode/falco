@@ -1452,70 +1452,128 @@ ModuleOverrepresentedSequences::make_html_data() {
 ModuleAdapterContent::
 ModuleAdapterContent(const FalcoConfig &config) :
 Module("Adapter Content") {
-  // pass the file read in config to adapters
-  adapters = config.adapters;
-  num_bases_counted = FastqStats::kNumBases;
+  // data parsed from config
+  adapter_names = config.adapter_names;
+  adapter_seqs = config.adapter_seqs;
+  adapter_hashes = config.adapter_hashes;
+
+  // check if they are all the same size
+  if (adapter_names.size() != adapter_seqs.size())
+    throw runtime_error("Adapter name and sequence vector sizes differ");
+
+  if (adapter_names.size() != adapter_hashes.size())
+    throw runtime_error("Adapter name and hash vector sizes differ");
+
+  num_adapters = adapter_names.size();
+
   // maximum adapter % before pass/warn/fail
   auto grade_adapter = config.limits.find("adapter")->second;
   grade_warn = grade_adapter.find("warn")->second;
   grade_error = grade_adapter.find("error")->second;
 }
 
+// Function to estimate number of adapter counts in a position, basically takes
+// the minimum of all adapter kmers in adjacent positions to the "pos" paramter
+// and return the minimum of them.
+double
+ModuleAdapterContent::count_adapter(
+    const vector<size_t> &kmer_count,
+    const size_t pos,
+    const size_t adapter_hash,
+    const size_t adapter_size,
+    const size_t kmer_size) {
+
+  // mask to just get the k bases from the adapter
+  size_t kmer_mask = (1ll << (2*kmer_size)) - 1;
+
+  size_t bit_shift_kmer = 2*kmer_size;
+
+  // minimum of all adapter kmers counted
+  size_t adapter_count = 0;
+
+  // minimum of all counts
+  size_t total_count = 0;
+
+  // temp variable to get the position in the flattened matrix of each kmer
+  size_t kmer_count_index;
+
+  // number of sliding window slides we need to do
+  size_t num_slides = adapter_size - kmer_size + 1;
+
+  // temp variable to get the sliding kmers in the adapter
+  size_t adapter_kmer;
+
+  size_t adapter_slide = adapter_hash;
+
+  // temp variable
+  size_t cur_pos;
+
+  // temp variable to get the adapter count
+  size_t cnt;
+  for (size_t i = 0; i < num_slides; ++i) {
+    cur_pos = pos + (kmer_size - 1) + (num_slides - i - 1);
+    adapter_kmer = adapter_slide & kmer_mask;
+    
+    // debug
+    kmer_count_index = (cur_pos << bit_shift_kmer) | adapter_kmer;
+    cnt = kmer_count[kmer_count_index];
+    if (adapter_count == 0)
+      adapter_count = cnt;
+    else if (cnt < adapter_count)
+      adapter_count = cnt;
+    
+    // slide the adapter hash by 2 bits
+    adapter_slide >>= 2;
+  }
+
+  return static_cast<double>(cnt);
+}
+
 void
 ModuleAdapterContent::summarize_module(const FastqStats &stats) {
-  // get matrices from stats
-  kmer_count = stats.kmer_count;
-  pos_kmer_count = stats.pos_kmer_count;
+  num_bases = stats.max_read_length;
+  // truncate number of reported reads if necessary
+  if (num_bases > FastqStats::kNumBases)
+    num_bases = FastqStats::kNumBases;
 
-  // do not bother with 500 bases if the max read length does not go as far
-  if (stats.max_read_length < num_bases_counted)
-    num_bases_counted = stats.max_read_length;
+  for (size_t i = 0; i < num_adapters; ++i)
+    adapter_pos_pct.push_back(vector<double>(num_bases, 0.0));
 
-  size_t kmer_pos_index;
-  size_t adapter_sevenmer;
-
-  // First we count cumulatively the sevenmer positions
-  for (size_t i = 0; i < num_bases_counted; ++i) {
-    // in the first position we just allocate
-    if (i == 0) kmer_by_base[i] = vector<double> (adapters.size(), 0.0);
-
-    // otherwise we make it cumulatie by copying the previous position
-    else kmer_by_base[i] = vector<double> (kmer_by_base[i-1].begin(),
-                                           kmer_by_base[i-1].end());
-
-    for (size_t which_adapter = 0; which_adapter < adapters.size(); 
-        ++which_adapter) {
-      adapter_sevenmer = adapters[which_adapter].second;
-
-      // get the index corresponding to the base position and adapter kmer
-      kmer_pos_index = (i << FastqStats::kBitShiftKmer) | adapter_sevenmer;
-      kmer_by_base[i][which_adapter] += kmer_count[kmer_pos_index];
+  size_t cnt;
+  for (size_t i = 0; i < num_adapters; ++i) {
+    for (size_t j = 0; j < num_bases; ++j) {
+      cnt = 0;
+      // check if position even makes sense
+      if (j + adapter_seqs[i].size() < num_bases)
+        cnt = count_adapter(stats.kmer_count,
+                            j,
+                            adapter_hashes[i],
+                            adapter_seqs[i].size(),
+                            stats.kmer_size);
+      if (j == 0)
+        adapter_pos_pct[i][j] = cnt;
+      else
+        adapter_pos_pct[i][j] = adapter_pos_pct[i][j-1] + cnt;
     }
   }
-  
-  // Now we turn the counts into percentages
-  for (size_t i = 0; i < num_bases_counted; ++i) {
-    for (size_t which_adapter = 0; which_adapter < adapters.size(); 
-        ++which_adapter) {
-      if (pos_kmer_count[i] > 0) {
-        kmer_by_base[i][which_adapter] *= 100.0;
-        kmer_by_base[i][which_adapter] /= static_cast<double>(pos_kmer_count[i]);
-      } else {
-        kmer_by_base[i][which_adapter] = 0;
-      }
+
+  // now convert the counts we got before to percentage
+  for (size_t i = 0; i < num_adapters; ++i) {
+    for (size_t j = 0; j < num_bases; ++j) {
+      adapter_pos_pct[i][j] *= 100.0;
+      adapter_pos_pct[i][j] /= static_cast<double>(stats.num_reads);
     }
   }
 }
 
 void
 ModuleAdapterContent::make_grade() {
-  for (size_t i = 0; i < num_bases_counted; ++i) {
-    for (size_t which_adapter = 0; which_adapter < adapters.size();
-        ++which_adapter) {
+  for (size_t i = 0; i < num_adapters; ++i) {
+    for (size_t j = 0; j < num_bases; ++j) {
       if (grade != "fail") {
-        if (kmer_by_base[i][which_adapter] > grade_error) {
+        if (adapter_pos_pct[i][j] > grade_error) {
           grade = "fail";
-        } else if (kmer_by_base[i][which_adapter] > grade_warn) {
+        } else if (adapter_pos_pct[i][j] > grade_warn) {
           grade = "warn";
         }
       }
@@ -1528,18 +1586,15 @@ ModuleAdapterContent::write_module(ostream &os) {
   os << "#Position";
 
   // adapter names
-  for (size_t which_adapter = 0; which_adapter < adapters.size();
-      ++which_adapter) {
-    os << "\t" << adapters[which_adapter].first;
-  }
+  for (size_t i = 0; i < num_adapters; ++i)
+    os << "\t" << adapter_names[i];
   os << "\n";
 
-  for (size_t i = 0; i < num_bases_counted; ++i) {
+  // matrix of percentages
+  for (size_t i = 0; i < num_bases; ++i) {
     os << i + 1;
-    for (size_t which_adapter = 0; which_adapter < adapters.size();
-        ++which_adapter) {
-      os << "\t" << kmer_by_base[i][which_adapter];
-    }
+    for (size_t j = 0; j < num_adapters; ++j)
+      os << "\t" << adapter_pos_pct[j][i];
     os << "\n";
   }
 }
@@ -1548,8 +1603,7 @@ string
 ModuleAdapterContent::make_html_data() {
   bool seen_first = false;
   ostringstream data;
-  for (size_t which_adapter = 0; which_adapter < adapters.size();
-      ++which_adapter) {
+  for (size_t i = 0; i < num_adapters; ++i) {
     if (!seen_first) {
       seen_first = true;
     }
@@ -1560,23 +1614,23 @@ ModuleAdapterContent::make_html_data() {
 
     // X values : read position
     data << "x : [";
-    for (size_t i = 0; i < num_bases_counted; ++i) {
-        data << i+1;
-        if (i < num_bases_counted - 1) data << ",";
+    for (size_t j = 0; j < num_bases; ++j) {
+        data << j+1;
+        if (j < num_bases - 1) data << ",";
     }
     data << "]";
 
     // Y values : cumulative adapter frequency
     data << ", y : [";
-    for (size_t i = 0; i < num_bases_counted; ++i) {
-      data << kmer_by_base[i][which_adapter];
-      if (i < num_bases_counted - 1)
+    for (size_t j = 0; j < num_bases; ++j) {
+      data << adapter_pos_pct[i][j];
+      if (i < num_bases - 1)
         data << ",";
     }
 
     data << "]";
     data << ", type : 'line', ";
-    data << "name : '" << adapters[which_adapter].first << "'}";
+    data << "name : \"" << adapter_names[i] << "\"}";
   }
   return data.str();
 }

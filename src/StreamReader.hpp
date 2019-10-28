@@ -67,9 +67,7 @@ class StreamReader{
   const char line_separator;
 
   // keep track of reads for which to do kmer and tile count
-  const size_t num_reads_for_kmer = 1;
   const size_t num_reads_for_tile = 10;
-  size_t next_kmer_read;
   size_t next_tile_read;
 
   // Whether or not we have passed the buffer while reading and need to allocate

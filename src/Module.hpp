@@ -296,25 +296,28 @@ class ModuleOverrepresentedSequences : public Module {
 
 class ModuleAdapterContent : public Module {
  private:
-   // the adapter vector, where pairs are the adapter name and the 7-mer
-   // sequence
-   std::vector<std::pair<std::string, size_t> > adapters;
+   // Number of adapters to test
+   size_t num_adapters;
 
-   // The number of bases in which adapters were counted
-   size_t num_bases_counted;
+   // number of bases to report
+   size_t num_bases;
 
-   // The number of kmers counted in each base position
-   std::array<size_t, FastqStats::kNumBases> pos_kmer_count;
+   // Information from config
+   std::vector<std::string> adapter_names;
+   std::vector<std::string> adapter_seqs;
+   std::vector<size_t> adapter_hashes;
 
-   // A flatenned matrix of all 4^7 kmer counts in all num_bases_counted
-   // positions
-   std::vector<size_t> kmer_count;
-
-   // The cumulative count of kmers in each base position
-   std::unordered_map <size_t, std::vector <double>> kmer_by_base;
-
+   // vector to be reported
+   std::vector<std::vector<double>> adapter_pos_pct;
    // minimum percentages for warn/fail
    double grade_warn, grade_error;
+
+   // Aux function to count adapter in a position
+   double count_adapter (const std::vector<size_t> &kmer_count,
+                         const size_t pos,
+                         const size_t adapter_hash,
+                         const size_t adapter_size,
+                         const size_t kmer_size);
  public:
   ModuleAdapterContent(const FalcoConfig &config);
   ~ModuleAdapterContent() {}

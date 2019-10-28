@@ -35,7 +35,7 @@ using std::istringstream;
 
 // Check if line is not a comment or newline
 inline bool
-is_limit_line (const string &line) {
+is_content_line (const string &line) {
   // comment
   if (line[0] == '#')
     return false;
@@ -192,7 +192,7 @@ FalcoConfig::read_limits() {
   double value;
   while (getline(in, line)) {
     // Checks if the line has something to be parsed
-    if (is_limit_line (line)) {
+    if (is_content_line (line)) {
       istringstream iss(line);
 
       // Every line is a limit, warn/error/ignore and the value
@@ -244,10 +244,10 @@ FalcoConfig::read_adapters() {
   string adapter_name, adapter_seq;
   size_t adapter_hash;
 
-  // The contaminants file has a space separated name, and the last instance is
+  // The adapters file has a space separated name, and the last instance is
   // the biological sequence
   while (getline(in, line)) {
-    if (line[0] != '#') {
+    if (is_content_line(line)) {
       adapter_name = "";
       adapter_seq = "";
       istringstream iss(line);
@@ -260,10 +260,9 @@ FalcoConfig::read_adapters() {
           adapter_name += line_by_space[i] + " ";
         adapter_seq = line_by_space.back();
 
-        if (adapter_seq.size() > kmer_size) {
-          adapter_seq = adapter_seq.substr(0, kmer_size);
-        }
-
+        if (adapter_seq.size() > 32)
+          throw runtime_error("adapter too long. Maximum adapter size is 32bp: "
+                              + adapter_seq);
         adapter_hash = 0;
         char c;
         for (size_t i = 0; i < adapter_seq.size(); ++i) {
@@ -274,9 +273,12 @@ FalcoConfig::read_adapters() {
 
           adapter_hash = (adapter_hash << 2) | actg_to_2bit(c);
         }
-        adapters.push_back(make_pair(adapter_name, adapter_hash));
       }
 
+      // store information
+      adapter_names.push_back(adapter_name);
+      adapter_seqs.push_back(adapter_seq);
+      adapter_hashes.push_back(adapter_hash);
       line_by_space.clear();
     }
   }
@@ -296,7 +298,7 @@ FalcoConfig::read_contaminants_file() {
   // instance is the biological sequence
   string line;
   while (getline(in, line)) {
-    if (line[0] != '#') {
+    if (is_content_line(line)) {
       string contaminant_seq = "";
       istringstream iss(line);
       string token;

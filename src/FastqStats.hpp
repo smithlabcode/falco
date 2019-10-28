@@ -150,7 +150,7 @@ struct FastqStats {
   static const size_t kBitShiftKmer = 2 * kmer_size;  // two bits per base
 
   // mask to get only the first 2*k bits of the sliding window
-  static const size_t kmer_mask = (1ll << (2*kmer_size)) - 1;;
+  static const size_t kmer_mask = (1ll << (2*kmer_size)) - 1;
 
  public:
   /*********** SINGLE NUMBERS FROM THE ENTIRE FASTQ ****************/
@@ -209,7 +209,7 @@ struct FastqStats {
   std::vector<size_t> long_cumulative_read_length_freq;
 
   /********** KMER FREQUENCY ****************/
-  // A 4^K + 1 std::vector to count all possible kmers
+  // A (4^K + 1)*kNumBases std::vector to count all possible kmers
   std::vector<size_t> kmer_count;
 
   // How many kmers were counted in each position

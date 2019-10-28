@@ -61,10 +61,6 @@ StreamReader::StreamReader(FalcoConfig &config,
   next_tile_read = 0;
   do_tile_read = true;
 
-  // kmer init
-  next_kmer_read = 0;
-  do_kmer_read = true;
-
   // Subclasses will use this to deflate if necessary
   filename = config.filename;
 
@@ -224,7 +220,7 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
     stats.base_count[
       (read_pos << stats.kBitShiftNucleotide) | base_ind]++;
 
-    if (do_kmer_read) {
+    if (do_kmer) {
       // Update k-mer sequence
       cur_kmer = ((cur_kmer << stats.kBitShiftNucleotide) | base_ind);
 
@@ -273,7 +269,6 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
   // Updates basic statistics total GC
   stats.total_gc += cur_gc_count;
 
-
   // read length frequency histogram
   if (do_sequence_length) {
     if (still_in_buffer) {
@@ -292,8 +287,8 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
   if (do_gc_sequence) {
     // If we haven't passed the short base threshold, we use the cached models
     if (still_in_buffer) {
-
-      // if we haven't passed the truncation point, use the current values
+      // if we haven't passed the truncation point, use the current values,
+      // otherwise we have truncated previously
       if (next_truncation == 100) {
         truncated_length = read_pos;
         truncated_gc_count = cur_gc_count;
@@ -303,7 +298,7 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
         stats.gc_count[v.percent] += v.increment;
       }
 
-    // if the read length is too large, we just use the discrete
+    // if the read length is too large, we just use the discrete percentage
     } else {
       stats.gc_count[100 * cur_gc_count / read_pos]++;
     }
@@ -498,16 +493,6 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
     }
     else if (stats.num_reads == next_tile_read) {
       do_tile_read = true;
-    }
-  }
-  // I counted kmers here so register that I did so
-  if (do_kmer) {
-    if (do_kmer_read) {
-      next_kmer_read += num_reads_for_kmer;
-      do_kmer_read = false;
-    }
-    else if (stats.num_reads == next_kmer_read) {
-      do_kmer_read = true;
     }
   }
 }
