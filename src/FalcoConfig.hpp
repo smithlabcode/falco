@@ -93,6 +93,11 @@ struct FalcoConfig {
   // two-bit hash of the sequence above
   std::vector<size_t> adapter_hashes;
 
+  /************************************************************
+   ******* ADDITIONAL INFORMATION ABOUT THE SAMPLE ************
+   ************************************************************/
+  bool is_bisulfite;
+ 
   /*************** DEFINE FILE TYPE ************/
 
   // IO

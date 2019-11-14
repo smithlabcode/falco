@@ -86,6 +86,7 @@ FalcoConfig::FalcoConfig() {
   nofilter = false;
   extract = false;
   nogroup = false;
+  is_bisulfite = false;
   min_length = 0;
   format = "";
   threads = 1;

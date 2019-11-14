@@ -188,6 +188,8 @@ class ModulePerBaseSequenceContent : public Module {
    double max_diff;
    size_t num_bases;
 
+   // flag as to whether or not dataset is WGBS
+   bool is_bisulfite;
    // for grade
    double sequence_error, sequence_warn;
  public:

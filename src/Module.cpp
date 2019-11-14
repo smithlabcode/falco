@@ -785,8 +785,7 @@ ModulePerSequenceQualityScores::make_html_data() {
         data << ",";
       else
         seen_first = true;
-
-        data << i;
+      data << i;
     }
   }
 
@@ -815,6 +814,7 @@ Module("Per base sequence content") {
   auto sequence_limits = config.limits.find("sequence")->second;
   sequence_warn = sequence_limits.find("warn")->second;
   sequence_error = sequence_limits.find("error")->second;
+  is_bisulfite = config.is_bisulfite;
 }
 
 void
@@ -864,12 +864,19 @@ ModulePerBaseSequenceContent::summarize_module(const FastqStats &stats) {
     t_pct[i] = t;
     c_pct[i] = c;
 
-    max_diff = max(max_diff, fabs(a-c));
-    max_diff = max(max_diff, fabs(a-t));
     max_diff = max(max_diff, fabs(a-g));
-    max_diff = max(max_diff, fabs(c-t));
-    max_diff = max(max_diff, fabs(c-g));
-    max_diff = max(max_diff, fabs(t-g));
+    if (!is_bisulfite) {
+      max_diff = max(max_diff, fabs(a-c));
+      max_diff = max(max_diff, fabs(a-t));
+      max_diff = max(max_diff, fabs(c-t));
+      max_diff = max(max_diff, fabs(c-g));
+      max_diff = max(max_diff, fabs(t-g));
+    }
+
+    // WGBS specific base content count
+    else {
+      max_diff = max(max_diff, fabs((c+t)-(a+g)));
+    }
   }
 }
 
@@ -885,13 +892,23 @@ ModulePerBaseSequenceContent::make_grade() {
 
 void
 ModulePerBaseSequenceContent::write_module(ostream &os) {
-  os << "#Base\tG\tA\tT\tC\n";
+  os << "#Base\tG\tA\tT\tC";
+  if (is_bisulfite)
+    os << "\tC+T\tA+G";
+
+  os << "\n";
   for (size_t i = 0; i < num_bases; ++i) {
     os << i+1 << "\t" <<
           g_pct[i] << "\t" <<
           a_pct[i] << "\t" <<
           t_pct[i] << "\t" <<
-          c_pct[i] << "\n";
+          c_pct[i];
+
+    if (is_bisulfite) {
+      os << c_pct[i]+t_pct[i] << "\t"
+         << a_pct[i]+g_pct[i];
+    }
+    os << "\n";
   }
 }
 
@@ -940,6 +957,52 @@ ModulePerBaseSequenceContent::make_html_data() {
     data << "}";
     if (base < 4)
       data << ", ";
+  }
+
+  // bisulfite dashed lines
+  if (is_bisulfite) {
+    for (size_t line = 0; line <= 1; ++line) {
+      data << "{";
+      data << "x : [";
+      for (size_t i = 0; i < num_bases; ++i) {
+        data << i+1;
+        if (i < num_bases - 1)
+          data << ", ";
+      }
+      // Y values: frequency with which they were seen
+      data << "], y : [";
+      for (size_t i = 0; i < num_bases; ++i) {
+        if (line == 0) 
+          data << a_pct[i] + g_pct[i];
+        else 
+          data << c_pct[i] + t_pct[i];
+
+        if (i < num_bases - 1)
+          data << ", ";
+      }
+      data << "], mode : 'lines', name : '";
+      if (line == 0) {
+        data << "A+G";
+      } else {
+        data << "C+T";
+      }
+      data <<  "', ";
+
+      // color and dash
+      data << "line :{ color : '";
+      if (line == 0)
+        data << "#CCCCCC";
+      else
+        data << "#999999";
+      data << "', dash : 'dash'}";
+      // end color
+
+      // end line
+      data << "}";
+      if (line == 0)
+        data << ", ";
+
+    }
   }
 
   return data.str();
@@ -1491,9 +1554,6 @@ ModuleAdapterContent::count_adapter(
   // minimum of all adapter kmers counted
   size_t adapter_count = 0;
 
-  // minimum of all counts
-  size_t total_count = 0;
-
   // temp variable to get the position in the flattened matrix of each kmer
   size_t kmer_count_index;
 
@@ -1526,7 +1586,7 @@ ModuleAdapterContent::count_adapter(
     adapter_slide >>= 2;
   }
 
-  return static_cast<double>(cnt);
+  return static_cast<double>(adapter_count);
 }
 
 void
@@ -1729,4 +1789,3 @@ string
 ModuleKmerContent::make_html_data() {
   return "";
 }
-

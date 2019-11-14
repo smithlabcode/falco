@@ -356,9 +356,15 @@ int main(int argc, const char **argv) {
                       "(Default = false)", false, skip_html);
     opt_parse.add_opt("-skip-short-summary", 'S', "Skip short summary"
                       "(Default = false)", false, skip_short_summary);
-    opt_parse.add_opt("-quiet", 'q', "print more run info", false, falco_config.quiet);
+    opt_parse.add_opt("-quiet", 'q', "print more run info", false,
+                      falco_config.quiet);
     opt_parse.add_opt("-dir", 'd', "directory in which to create temp files",
                       false, tmpdir);
+    opt_parse.add_opt("-bisulfite", 'B',
+                      "reads are whole genome bisulfite sequencing, and more "
+                      "Ts and fewer Cs are therefore expected and will be "
+                      "accounted for in base content", false,
+                      falco_config.is_bisulfite);
 
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
