@@ -1487,6 +1487,9 @@ ModuleOverrepresentedSequences::write_module(ostream &os) {
 
 string
 ModuleOverrepresentedSequences::make_html_data() {
+  if (overrep_sequences.size() == 0) {
+    return "No overrepresented sequences";
+  }
   ostringstream data;
   // Header
   data << "<table><thead><tr>";
