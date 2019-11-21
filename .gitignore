@@ -6,3 +6,23 @@ bin
 *.sam
 *.txt
 *.html
+benchmark
+# Autotools generated files
+Makefile
+Makefile.in
+a.awk
+aclocal.m4
+autom4te.cache
+build.sh
+config.h
+config.h.in
+config.log
+config.status
+configure
+depcomp
+install-sh
+meta.yaml
+missing
+src/.deps
+src/.dirstamp
+stamp-h1
