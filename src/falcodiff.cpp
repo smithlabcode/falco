@@ -99,7 +99,7 @@ get_module_name(const string &line) {
 }
 
 void
-compare_fastqcs(istream &lhs, istream &rhs) {
+compare_fastqcs(istream &lhs, istream &rhs, const FalcoConfig &config) {
   string line_lhs, line_rhs, module_name;
   while (!lhs.eof() && !rhs.eof()) {
     getline(lhs, line_lhs);
@@ -116,7 +116,23 @@ compare_fastqcs(istream &lhs, istream &rhs) {
 
         string module_name = get_module_name(line_lhs);
         if (module_name == ModuleBasicStatistics::module_name) {
+          ModuleBasicStatistics m1(config), m2(config);
           cerr << "parisng basic statistics\n";
+          while (getline(lhs, line_lhs) &&
+                 getline(rhs, line_rhs) &&
+                 !is_module_end(line_lhs) &&
+                 !is_module_end(line_rhs)) {
+
+            if (!is_skippable(line_lhs) &&
+                !is_skippable(line_rhs)) {
+              m1.read_data_line(line_lhs);
+              m2.read_data_line(line_rhs);
+            }
+          }
+          m1.summarized = true;
+          m2.summarized = true;
+          m1.write(cerr);
+          m2.write(cerr);
         }
       }
     }
@@ -142,6 +158,8 @@ int main(int argc, const char **argv) {
     bool skip_text = false;
     bool skip_html = false;
     bool skip_short_summary = false;
+
+    FalcoConfig config;
 
     string outdir;
     const string outdir_description =
@@ -205,7 +223,7 @@ int main(int argc, const char **argv) {
 
     /****************** END COMMAND LINE OPTIONS ********************/
 
-    compare_fastqcs(lhs, rhs);
+    compare_fastqcs(lhs, rhs, config);
     if (VERBOSE)
       cerr << "Elapsed time: "
            << get_seconds_since(file_start_time) << "s" << endl;

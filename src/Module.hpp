@@ -38,10 +38,11 @@ struct BaseGroup {
 
 class Module {
  private:
+  const std::string module_name;
+ public:
   // avoid writing things prior to summarizing
   bool summarized;
 
- public:
   // The module name displayed in outputs and html
   // GS TODO: automate placing it in html too
 
@@ -66,13 +67,12 @@ class Module {
   std::string grade;
 
   std::string html_data;
-  Module();
+  Module(const std::string &_module_name);
   virtual ~Module() = 0;
 
   /*********************************************/
   /*****Abstract functions to be implemented****/
   /*********************************************/
-  static const std::string module_name;
 
   // Summarize the module
   virtual void summarize_module(const FastqStats &stats) = 0;
@@ -120,6 +120,8 @@ class ModuleBasicStatistics : public Module {
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();
+
+  void read_data_line(const std::string &line);
 };
 
 class ModulePerBaseSequenceQuality : public Module {

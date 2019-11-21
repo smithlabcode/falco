@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <cmath>
 #include <sstream>
+#include <cstdlib>
 
 using std::string;
 using std::vector;
@@ -33,6 +34,8 @@ using std::setprecision;
 using std::runtime_error;
 using std::make_pair;
 using std::ostringstream;
+using std::istringstream;
+using std::getline;
 
 /*****************************************************************************/
 /******************* AUX FUNCTIONS *******************************************/
@@ -232,8 +235,7 @@ sum_deviation_from_normal(const array <double, 101> &gc_count,
 /***************************************************************/
 /********************* ABSTRACT MODULE *************************/
 /***************************************************************/
-const string Module::module_name = "ERROR_MODULE_NAME_UNDEFINED";
-Module::Module() {
+Module::Module(const string &_module_name) : module_name(_module_name) {
   // make placeholders
   placeholder = module_name;
 
@@ -298,7 +300,7 @@ Module::summarize(const FastqStats &stats) {
 const string ModuleBasicStatistics::module_name = "Basic Statistics";
 ModuleBasicStatistics::
 ModuleBasicStatistics(const FalcoConfig &config)
-: Module() {
+: Module(ModuleBasicStatistics::module_name) {
     filename_stripped = config.filename_stripped;
 }
 
@@ -393,13 +395,51 @@ ModuleBasicStatistics::make_html_data() {
   return data.str();
 }
 
+void 
+ModuleBasicStatistics::read_data_line(const std::string &line) {
+  string lhs,rhs;
+  istringstream iss(line);
+
+  // get text before and after tab
+  getline(iss, lhs, '\t');
+  getline(iss, rhs, '\t');
+
+  if (lhs ==  "Filename")
+    filename_stripped = rhs;
+  else if (lhs ==  "File type")
+    file_type = rhs;
+  else if (lhs ==  "Encoding")
+    file_encoding = rhs;
+  else if (lhs ==  "Total Sequences")
+    total_sequences = atoi(rhs.c_str());
+  else if (lhs ==  "Sequences flagged as poor quality")
+    num_poor = atoi(rhs.c_str());
+
+  else if (lhs ==  "Sequence length") {
+    // non-constant sequence length
+    if (rhs.find("-") != string::npos) {
+      istringstream seq_iss (rhs);
+      string min_l, max_l;
+      getline(seq_iss, min_l, '-');
+      getline(seq_iss, max_l, '-');
+      min_read_length = atoi(min_l.c_str());
+      max_read_length = atoi(max_l.c_str());
+    }
+  } 
+  else if (lhs == "%GC") 
+    avg_gc = atoi(rhs.c_str());
+  else {
+    throw runtime_error("malformed basic statistic" + lhs);
+  }
+}
 
 /******************* PER BASE SEQUENCE QUALITY **********************/
-const string 
+const string
 ModulePerBaseSequenceQuality::module_name = "Per base sequence quality";
 
 ModulePerBaseSequenceQuality::ModulePerBaseSequenceQuality
-(const FalcoConfig &config): Module(){
+(const FalcoConfig &config):
+Module(ModulePerBaseSequenceQuality::module_name){
   auto base_lower = config.limits.find("quality_base_lower");
   auto base_median = config.limits.find("quality_base_median");
 
@@ -609,7 +649,7 @@ const string
 ModulePerTileSequenceQuality::module_name = "Per tile sequence quality";
 ModulePerTileSequenceQuality::
 ModulePerTileSequenceQuality(const FalcoConfig &config) :
-Module() {
+Module(ModulePerTileSequenceQuality::module_name) {
   auto grade_tile = config.limits.find("tile")->second;
   grade_warn = grade_tile.find("warn")->second;
   grade_error = grade_tile.find("error")->second;
@@ -741,7 +781,7 @@ const string
 ModulePerSequenceQualityScores::module_name = "Per sequence quality scores";
 ModulePerSequenceQualityScores::
 ModulePerSequenceQualityScores(const FalcoConfig &config) :
-Module() {
+Module(ModulePerSequenceQualityScores::module_name) {
   mode_val = 0;
   mode_ind = 0;
 
@@ -818,11 +858,11 @@ ModulePerSequenceQualityScores::make_html_data() {
 }
 
 /******************* PER BASE SEQUENCE CONTENT **********************/
-const string 
+const string
 ModulePerBaseSequenceContent::module_name = "Per base sequence content";
 ModulePerBaseSequenceContent::
 ModulePerBaseSequenceContent(const FalcoConfig &config) :
-Module() {
+Module(ModulePerBaseSequenceContent::module_name) {
   auto sequence_limits = config.limits.find("sequence")->second;
   sequence_warn = sequence_limits.find("warn")->second;
   sequence_error = sequence_limits.find("error")->second;
@@ -1025,7 +1065,7 @@ const string
 ModulePerSequenceGCContent::module_name = "Per sequence GC content";
 ModulePerSequenceGCContent::
 ModulePerSequenceGCContent(const FalcoConfig &config) :
-Module() {
+Module(ModulePerSequenceGCContent::module_name) {
   auto gc_vars = config.limits.find("gc_sequence")->second;
   gc_warn = gc_vars.find("warn")->second;
   gc_error = gc_vars.find("error")->second;
@@ -1101,7 +1141,7 @@ const string
 ModulePerBaseNContent::module_name = "Per base N content";
 ModulePerBaseNContent::
 ModulePerBaseNContent(const FalcoConfig &config) :
-Module() {
+Module(ModulePerBaseNContent::module_name) {
   auto grade_n = config.limits.find("n_content")->second;
   grade_n_warn = grade_n.find("warn")->second;
   grade_n_error = grade_n.find("error")->second;
@@ -1178,7 +1218,7 @@ const string
 ModuleSequenceLengthDistribution::module_name = "Sequence Length Distribution";
 ModuleSequenceLengthDistribution::
 ModuleSequenceLengthDistribution(const FalcoConfig &config) :
-Module() {
+Module(ModuleSequenceLengthDistribution::module_name) {
   auto length_grade = config.limits.find("sequence_length")->second;
   do_grade_error = (length_grade.find("error")->second != 0);
   do_grade_warn = (length_grade.find("warn")->second != 0);
@@ -1286,7 +1326,7 @@ const string
 ModuleSequenceDuplicationLevels::module_name = "Sequence Duplication Levels";
 ModuleSequenceDuplicationLevels::
 ModuleSequenceDuplicationLevels(const FalcoConfig &config) :
-Module() {
+Module(ModuleSequenceDuplicationLevels::module_name) {
   percentage_deduplicated.fill(0);
   percentage_total.fill(0);
   auto grade_dup = config.limits.find("duplication")->second;
@@ -1427,7 +1467,7 @@ const string
 ModuleOverrepresentedSequences::module_name = "Overrepresented sequences";
 ModuleOverrepresentedSequences::
 ModuleOverrepresentedSequences(const FalcoConfig &config) :
-Module() {
+Module(ModuleOverrepresentedSequences::module_name) {
   auto grade_overrep = config.limits.find("overrepresented")->second;
   grade_warn = grade_overrep.find("warn")->second;
   grade_error = grade_overrep.find("error")->second;
@@ -1540,7 +1580,7 @@ const string
 ModuleAdapterContent::module_name = "Adapter Content";
 ModuleAdapterContent::
 ModuleAdapterContent(const FalcoConfig &config) :
-Module() {
+Module(ModuleAdapterContent::module_name) {
   // data parsed from config
   adapter_names = config.adapter_names;
   adapter_seqs = config.adapter_seqs;
@@ -1726,7 +1766,7 @@ const string
 ModuleKmerContent::module_name = "Kmer Content";
 ModuleKmerContent::
 ModuleKmerContent(const FalcoConfig &config) :
-Module() {
+Module(ModuleKmerContent::module_name) {
   auto grade_kmer = config.limits.find("kmer")->second;
   grade_warn = grade_kmer.find("warn")->second;
   grade_error = grade_kmer.find("error")->second;

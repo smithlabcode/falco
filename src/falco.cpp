@@ -110,7 +110,6 @@ write_if_requested(T module,
                    ostream &summary_txt,
                    ostream &qc_data_txt,
                    HtmlMaker &html_maker) {
-
   html_maker.put_comment(module.placeholder_cs, module.placeholder_ce,
                          requested);
 
@@ -131,7 +130,7 @@ write_if_requested(T module,
   if (!skip_text) module.write(qc_data_txt);
   if (!skip_html) {
     // puts the module name 
-    html_maker.put_data(module.placeholder_name, module.module_name);
+    html_maker.put_data(module.placeholder_name, T::module_name);
 
     // puts the grade
     html_maker.put_data(module.placeholder_grade, module.grade);
