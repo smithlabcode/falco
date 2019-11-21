@@ -44,7 +44,6 @@ class Module {
  public:
   // The module name displayed in outputs and html
   // GS TODO: automate placing it in html too
-  const std::string module_name;
 
   // the module name lowercased without spaces
   std::string placeholder;
@@ -67,12 +66,14 @@ class Module {
   std::string grade;
 
   std::string html_data;
-  Module(const std::string &_module_name);
+  Module();
   virtual ~Module() = 0;
 
   /*********************************************/
   /*****Abstract functions to be implemented****/
   /*********************************************/
+  static const std::string module_name;
+
   // Summarize the module
   virtual void summarize_module(const FastqStats &stats) = 0;
 
@@ -112,7 +113,7 @@ class ModuleBasicStatistics : public Module {
   size_t max_read_length;
   size_t total_sequences;
  public:
-
+  static const std::string module_name;
   ModuleBasicStatistics(const FalcoConfig &config);
   ~ModuleBasicStatistics() {}
   void summarize_module(const FastqStats &stats);
@@ -142,6 +143,7 @@ class ModulePerBaseSequenceQuality : public Module {
   std::vector<BaseGroup> base_groups;
 
  public:
+  static const std::string module_name;
   ModulePerBaseSequenceQuality(const FalcoConfig &config);
   ~ModulePerBaseSequenceQuality() {}
   void summarize_module(const FastqStats &stats);
@@ -157,6 +159,7 @@ class ModulePerTileSequenceQuality : public Module {
    std::unordered_map<size_t, std::vector<double>> tile_position_quality;
    std::vector<size_t> tiles_sorted;
  public:
+  static const std::string module_name;
   ModulePerTileSequenceQuality(const FalcoConfig &config);
   ~ModulePerTileSequenceQuality() {}
   void summarize_module(const FastqStats &stats);
@@ -174,6 +177,7 @@ class ModulePerSequenceQualityScores : public Module {
    size_t mode_warn;
    size_t mode_error;
  public:
+  static const std::string module_name;
   ModulePerSequenceQualityScores(const FalcoConfig &config);
   ~ModulePerSequenceQualityScores() {}
   void summarize_module(const FastqStats &stats);
@@ -193,6 +197,7 @@ class ModulePerBaseSequenceContent : public Module {
    // for grade
    double sequence_error, sequence_warn;
  public:
+  static const std::string module_name;
   ModulePerBaseSequenceContent(const FalcoConfig &config);
   ~ModulePerBaseSequenceContent() {}
   void summarize_module(const FastqStats &stats);
@@ -209,6 +214,7 @@ class ModulePerSequenceGCContent : public Module {
    std::array<double, 101> theoretical_gc_count;
 
  public:
+  static const std::string module_name;
   ModulePerSequenceGCContent(const FalcoConfig &config);
   ~ModulePerSequenceGCContent() {}
   void summarize_module(const FastqStats &stats);
@@ -231,6 +237,7 @@ class ModulePerBaseNContent : public Module {
    // grade vars
    size_t gc_warn, gc_error;
  public:
+  static const std::string module_name;
   ModulePerBaseNContent(const FalcoConfig &config);
   ~ModulePerBaseNContent() {}
   void summarize_module(const FastqStats &stats);
@@ -250,6 +257,7 @@ class ModuleSequenceLengthDistribution : public Module {
   bool has_empty_read;
   bool is_all_same_length;
  public:
+  static const std::string module_name;
   ModuleSequenceLengthDistribution(const FalcoConfig &config);
   ~ModuleSequenceLengthDistribution() {}
   void summarize_module(const FastqStats &stats);
@@ -269,6 +277,7 @@ class ModuleSequenceDuplicationLevels : public Module {
    std::array<double, 16> percentage_total;
    std::unordered_map<size_t,size_t> counts_by_freq;
  public:
+  static const std::string module_name;
   ModuleSequenceDuplicationLevels(const FalcoConfig &config);
   ~ModuleSequenceDuplicationLevels() {}
   void summarize_module(const FastqStats &stats);
@@ -288,6 +297,7 @@ class ModuleOverrepresentedSequences : public Module {
   // Function to find the matching contaminant within the list
   std::string get_matching_contaminant(const std::string &seq);
  public:
+  static const std::string module_name;
   ModuleOverrepresentedSequences(const FalcoConfig &config);
   ~ModuleOverrepresentedSequences() {}
   void summarize_module(const FastqStats &stats);
@@ -321,6 +331,7 @@ class ModuleAdapterContent : public Module {
                          const size_t adapter_size,
                          const size_t kmer_size);
  public:
+  static const std::string module_name;
   ModuleAdapterContent(const FalcoConfig &config);
   ~ModuleAdapterContent() {}
   void summarize_module(const FastqStats &stats);
@@ -343,6 +354,7 @@ class ModuleKmerContent : public Module {
    std::vector<size_t> where_obs_exp_is_max;
    std::vector<std::pair<size_t, double>> kmers_to_report;
  public:
+  static const std::string module_name;
   ModuleKmerContent(const FalcoConfig &config);
   ~ModuleKmerContent(){}
   void summarize_module(const FastqStats &stats);

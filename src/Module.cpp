@@ -232,7 +232,8 @@ sum_deviation_from_normal(const array <double, 101> &gc_count,
 /***************************************************************/
 /********************* ABSTRACT MODULE *************************/
 /***************************************************************/
-Module::Module(const string &_module_name) : module_name(_module_name) {
+const string Module::module_name = "ERROR_MODULE_NAME_UNDEFINED";
+Module::Module() {
   // make placeholders
   placeholder = module_name;
 
@@ -294,9 +295,10 @@ Module::summarize(const FastqStats &stats) {
 /***************************************************************/
 
 /******************* BASIC STATISTICS **************************/
+const string ModuleBasicStatistics::module_name = "Basic Statistics";
 ModuleBasicStatistics::
 ModuleBasicStatistics(const FalcoConfig &config)
-: Module("Basic Statistics") {
+: Module() {
     filename_stripped = config.filename_stripped;
 }
 
@@ -391,9 +393,13 @@ ModuleBasicStatistics::make_html_data() {
   return data.str();
 }
 
+
 /******************* PER BASE SEQUENCE QUALITY **********************/
+const string 
+ModulePerBaseSequenceQuality::module_name = "Per base sequence quality";
+
 ModulePerBaseSequenceQuality::ModulePerBaseSequenceQuality
-(const FalcoConfig &config): Module("Per base sequence quality") {
+(const FalcoConfig &config): Module(){
   auto base_lower = config.limits.find("quality_base_lower");
   auto base_median = config.limits.find("quality_base_median");
 
@@ -599,9 +605,11 @@ ModulePerBaseSequenceQuality::make_html_data() {
 }
 
 /************** PER TILE SEQUENCE QUALITY ********************/
+const string 
+ModulePerTileSequenceQuality::module_name = "Per tile sequence quality";
 ModulePerTileSequenceQuality::
 ModulePerTileSequenceQuality(const FalcoConfig &config) :
-Module("Per tile sequence quality") {
+Module() {
   auto grade_tile = config.limits.find("tile")->second;
   grade_warn = grade_tile.find("warn")->second;
   grade_error = grade_tile.find("error")->second;
@@ -729,9 +737,11 @@ ModulePerTileSequenceQuality::make_html_data() {
 }
 
 /******************* PER SEQUENCE QUALITY SCORE **********************/
+const string 
+ModulePerSequenceQualityScores::module_name = "Per sequence quality scores";
 ModulePerSequenceQualityScores::
 ModulePerSequenceQualityScores(const FalcoConfig &config) :
-Module("Per sequence quality scores") {
+Module() {
   mode_val = 0;
   mode_ind = 0;
 
@@ -808,9 +818,11 @@ ModulePerSequenceQualityScores::make_html_data() {
 }
 
 /******************* PER BASE SEQUENCE CONTENT **********************/
+const string 
+ModulePerBaseSequenceContent::module_name = "Per base sequence content";
 ModulePerBaseSequenceContent::
 ModulePerBaseSequenceContent(const FalcoConfig &config) :
-Module("Per base sequence content") {
+Module() {
   auto sequence_limits = config.limits.find("sequence")->second;
   sequence_warn = sequence_limits.find("warn")->second;
   sequence_error = sequence_limits.find("error")->second;
@@ -1009,9 +1021,11 @@ ModulePerBaseSequenceContent::make_html_data() {
 }
 
 /******************* PER SEQUENCE GC CONTENT *****************/
+const string 
+ModulePerSequenceGCContent::module_name = "Per sequence GC content";
 ModulePerSequenceGCContent::
 ModulePerSequenceGCContent(const FalcoConfig &config) :
-Module("Per sequence GC content") {
+Module() {
   auto gc_vars = config.limits.find("gc_sequence")->second;
   gc_warn = gc_vars.find("warn")->second;
   gc_error = gc_vars.find("error")->second;
@@ -1083,9 +1097,11 @@ ModulePerSequenceGCContent::make_html_data() {
 }
 
 /******************* PER BASE N CONTENT **********************/
+const string 
+ModulePerBaseNContent::module_name = "Per base N content";
 ModulePerBaseNContent::
 ModulePerBaseNContent(const FalcoConfig &config) :
-Module("Per base N content") {
+Module() {
   auto grade_n = config.limits.find("n_content")->second;
   grade_n_warn = grade_n.find("warn")->second;
   grade_n_error = grade_n.find("error")->second;
@@ -1158,9 +1174,11 @@ ModulePerBaseNContent::make_html_data() {
 }
 
 /************** SEQUENCE LENGTH DISTRIBUTION *****************/
+const string 
+ModuleSequenceLengthDistribution::module_name = "Sequence Length Distribution";
 ModuleSequenceLengthDistribution::
 ModuleSequenceLengthDistribution(const FalcoConfig &config) :
-Module("Sequence Length Distribution") {
+Module() {
   auto length_grade = config.limits.find("sequence_length")->second;
   do_grade_error = (length_grade.find("error")->second != 0);
   do_grade_warn = (length_grade.find("warn")->second != 0);
@@ -1264,9 +1282,11 @@ ModuleSequenceLengthDistribution::make_html_data() {
 }
 
 /************** DUPLICATE SEQUENCES **************************/
+const string 
+ModuleSequenceDuplicationLevels::module_name = "Sequence Duplication Levels";
 ModuleSequenceDuplicationLevels::
 ModuleSequenceDuplicationLevels(const FalcoConfig &config) :
-Module("Sequence Duplication Levels") {
+Module() {
   percentage_deduplicated.fill(0);
   percentage_total.fill(0);
   auto grade_dup = config.limits.find("duplication")->second;
@@ -1403,10 +1423,11 @@ ModuleSequenceDuplicationLevels::make_html_data() {
 
 
 /************** OVERREPRESENTED SEQUENCES ********************/
-
+const string 
+ModuleOverrepresentedSequences::module_name = "Overrepresented sequences";
 ModuleOverrepresentedSequences::
 ModuleOverrepresentedSequences(const FalcoConfig &config) :
-Module("Overrepresented sequences") {
+Module() {
   auto grade_overrep = config.limits.find("overrepresented")->second;
   grade_warn = grade_overrep.find("warn")->second;
   grade_error = grade_overrep.find("error")->second;
@@ -1515,9 +1536,11 @@ ModuleOverrepresentedSequences::make_html_data() {
 
 
 /************** ADAPTER CONTENT ***********/
+const string
+ModuleAdapterContent::module_name = "Adapter Content";
 ModuleAdapterContent::
 ModuleAdapterContent(const FalcoConfig &config) :
-Module("Adapter Content") {
+Module() {
   // data parsed from config
   adapter_names = config.adapter_names;
   adapter_seqs = config.adapter_seqs;
@@ -1699,9 +1722,11 @@ ModuleAdapterContent::make_html_data() {
 }
 
 /************** KMER CONTENT ******************************/
+const string
+ModuleKmerContent::module_name = "Kmer Content";
 ModuleKmerContent::
 ModuleKmerContent(const FalcoConfig &config) :
-Module("Kmer Content") {
+Module() {
   auto grade_kmer = config.limits.find("kmer")->second;
   grade_warn = grade_kmer.find("warn")->second;
   grade_error = grade_kmer.find("error")->second;

@@ -19,12 +19,18 @@ EXTRA_DIST = README.md LICENSE Configuration
 ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS = -I $(top_srcdir)/src
 
-bin_PROGRAMS = falco
+bin_PROGRAMS = falco falcodiff
 
 falco_CXXFLAGS = $(OPENMP_CXXFLAGS) $(AM_CXXFLAGS)
 falco_CPPFLAGS = -DPROGRAM_PATH=\"$(abspath $(top_srcdir))\"
 if ENABLE_HTS
 falco_CPPFLAGS += -DUSE_HTS
+endif
+
+falcodiff_CXXFLAGS = $(OPENMP_CXXFLAGS) $(AM_CXXFLAGS)
+falcodiff_CPPFLAGS = -DPROGRAM_PATH=\"$(abspath $(top_srcdir))\"
+if ENABLE_HTS
+falcodiff_CPPFLAGS += -DUSE_HTS
 endif
 
 falco_SOURCES = \
@@ -44,3 +50,14 @@ falco_SOURCES = \
 	src/OptionParser.hpp \
 	src/smithlab_utils.hpp \
 	src/aux.hpp
+
+falcodiff_SOURCES = \
+  src/falcodiff.cpp \
+	src/OptionParser.cpp \
+	src/FalcoConfig.cpp \
+	src/smithlab_utils.cpp \
+	src/Module.cpp \
+  src/OptionParser.hpp \
+	src/FalcoConfig.hpp \
+	src/smithlab_utils.hpp \
+	src/Module.hpp
