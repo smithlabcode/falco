@@ -302,25 +302,34 @@ int main(int argc, const char **argv) {
     bool skip_html = false;
     bool skip_short_summary = false;
 
+    // advanced mode, adds extra reports to text output
+    bool advanced_mode = false;
+
     FalcoConfig falco_config;
+
+    // if defined, read file as the file format specified by the user
     string forced_file_format;
 
-    string outdir, tmpdir;
-    const string outdir_description =
-      "Create all output files in the specified output directory. If not"
-      "provided, files will be created in the same directory as the input "
-      "file.";
+    // output directory in which to put files
+    string outdir;
 
-    static const string description =
-      "A high throughput sequence QC analysis tool";
+    // tmpdir is for fastqc compatibility, not really used
+    string tmpdir;
 
     /****************** COMMAND LINE OPTIONS ********************/
-    OptionParser opt_parse(argv[0], description, "<seqfile1> <seqfile2> ...");
+    OptionParser opt_parse(argv[0],
+                              "A high throughput sequence QC analysis tool",
+                              "<seqfile1> <seqfile2> ...");
     opt_parse.add_opt("-help", 'h', "print this help file and exit", false,
                         help);
     opt_parse.add_opt("-version", 'v', "print the program version and exit",
                       false, version);
-    opt_parse.add_opt("-outdir", 'o', outdir_description, false, outdir);
+    opt_parse.add_opt("-outdir", 'o',
+      "Create all output files in the specified output directory. If not"
+      "provided, files will be created in the same directory as the input "
+      "file."
+    , false, outdir);
+
     opt_parse.add_opt("-casava", 'C',
                       "Files come from raw casava output (currently ignored)",
                       false, falco_config.casava);
@@ -359,12 +368,19 @@ int main(int argc, const char **argv) {
                       falco_config.quiet);
     opt_parse.add_opt("-dir", 'd', "directory in which to create temp files",
                       false, tmpdir);
-    opt_parse.add_opt("-bisulfite", 'B',
+
+    // Falco-specific options
+    opt_parse.add_opt("-advanced-mode", 'A',
+                      "advanced mode: adds more information to the FastQC"
+                      " output depending on non-fastqc user flags", false,
+                      advanced_mode);
+
+     opt_parse.add_opt("-bisulfite", 'B',
                       "reads are whole genome bisulfite sequencing, and more "
                       "Ts and fewer Cs are therefore expected and will be "
-                      "accounted for in base content", false,
+                      "accounted for in base content (advanced mode)", false,
                       falco_config.is_bisulfite);
-
+                     
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {

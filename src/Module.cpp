@@ -957,7 +957,7 @@ ModulePerBaseSequenceContent::write_module(ostream &os) {
           c_pct[i];
 
     if (is_bisulfite) {
-      os << c_pct[i]+t_pct[i] << "\t"
+      os << "\t" << c_pct[i]+t_pct[i] << "\t"
          << a_pct[i]+g_pct[i];
     }
     os << "\n";
