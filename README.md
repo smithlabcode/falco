@@ -7,7 +7,7 @@ Installing falco
 ================
 Installation can be done with the standard autotools commands:
 ```
-$ bash configure
+$ ./configure CXXFLAGS="-O3 -Wall"
 $ make all
 $ make install
 ```
@@ -16,8 +16,8 @@ $ make install
 
 [zlib](https://zlib.net) is required to read gzip compressed FASTQ files. It is
 usually installed by default in most UNIX computers and is part of the htslib
-setup, but it can also be installed with apt or brew. If not available,
-fastq.gz files will be considered unrecognized file formats.
+setup, but it can also be installed with standard package managers like 
+apt, brew or conda.
 
 On Ubuntu, zlib C++ libraries can be installed with `apt`:
 ```
@@ -34,21 +34,11 @@ If htslib is installed, falco can be compiled with it by simply replacing the
 configure command above with the `--enable-hts` flag:
 
 ```
-$ bash configure --enable-hts
+$ ./configure CXXFLAGS="-O3 -Wall" --enable-hts
 ```
 
 If successfully compiled, `falco` can be used in bam files the same way as it is
 used with fastq and sam files.
-
-### Optional optimization
-The greatest speed benefit from falco can be obtained by compiling the program
-with the `-O3` flag. Autotools allows users to provide optional compiling flags
-thorugh the `CXXFLAGS` variable. To compile with O3, replace `make all` above by
-the following command:
-
-```
-$ make CXXFLAGS="-O3"
-```
 
 Running falco
 =============
