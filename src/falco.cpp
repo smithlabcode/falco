@@ -29,6 +29,7 @@
 using std::string;
 using std::runtime_error;
 using std::cerr;
+using std::cout;
 using std::endl;
 using std::vector;
 using std::ofstream;
@@ -380,12 +381,15 @@ int main(int argc, const char **argv) {
                       "Ts and fewer Cs are therefore expected and will be "
                       "accounted for in base content (advanced mode)", false,
                       falco_config.is_bisulfite);
-                     
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
       cerr << opt_parse.help_message() << endl
            << opt_parse.about_message() << endl;
+      return EXIT_SUCCESS;
+    }
+    if (version) {
+      cout << "Falco v0.1.1\n";
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
