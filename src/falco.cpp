@@ -406,9 +406,18 @@ int main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
 
-    if (!outdir.empty() && !dir_exists(outdir)) {
-      cerr << "output directory does not exist: " << outdir << endl;
-      return EXIT_FAILURE;
+    if (!outdir.empty()) {
+      if(!dir_exists(outdir)) {
+        if (!falco_config.quiet)
+          log_process("creating directory for output: " + outdir);
+
+        // makes directory with r and w permission
+        if(mkdir(outdir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
+          cerr << "failed to create directory: " << outdir
+               << ". Make sure you have write permissions on it!" << endl;
+          return EXIT_FAILURE;
+        }
+      }
     }
     const vector<string> all_seq_filenames(leftover_args);
 
