@@ -102,7 +102,7 @@ class Module {
 };
 
 class ModuleBasicStatistics : public Module {
- private:
+ public:
   std::string file_type;
   std::string file_encoding;
   std::string filename_stripped;
@@ -112,7 +112,6 @@ class ModuleBasicStatistics : public Module {
   size_t min_read_length;
   size_t max_read_length;
   size_t total_sequences;
- public:
   static const std::string module_name;
   ModuleBasicStatistics(const FalcoConfig &config);
   ~ModuleBasicStatistics() {}
@@ -151,6 +150,7 @@ class ModulePerBaseSequenceQuality : public Module {
   void summarize_module(const FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
+  void read_data_line(const std::string &line);
   std::string make_html_data();
 };
 

@@ -644,6 +644,11 @@ ModulePerBaseSequenceQuality::make_html_data() {
   return data.str();
 }
 
+void
+ModulePerBaseSequenceQuality::read_data_line(const string &line) {
+
+}
+
 /************** PER TILE SEQUENCE QUALITY ********************/
 const string 
 ModulePerTileSequenceQuality::module_name = "Per tile sequence quality";
