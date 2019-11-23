@@ -128,7 +128,7 @@ StreamReader::get_tile_split_position() {
 
   // Count colons to know the formatting pattern
   for (; *cur_char != field_separator; ++cur_char) {
-    if (*cur_char == ':') ++num_colon;
+    num_colon += (*cur_char == ':');
   }
 
   // Copied from fastqc
@@ -150,7 +150,7 @@ StreamReader::get_tile_value() {
   tile_cur = 0;
   num_colon = 0;
   for (; *cur_char != field_separator; ++cur_char) {
-    if (*cur_char == ':') ++num_colon;
+    num_colon += (*cur_char == ':');
     if (num_colon == tile_split_point) {
       ++cur_char;
 
@@ -166,6 +166,12 @@ StreamReader::get_tile_value() {
 // Gets the tile from the sequence name (if applicable)
 inline void
 StreamReader::read_tile_line(FastqStats &stats) {
+
+  do_tile_read = (stats.num_reads == next_tile_read);
+  if (!do_tile_read) {
+    read_fast_forward_line();
+    return;
+  }
   // if there is no tile information in the fastq header, fast
   // forward this line
   if (tile_ignore) {
@@ -376,7 +382,8 @@ inline void
 StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
   // Average quality in position
   stats.position_quality_count[
-     (read_pos << stats.kBitShiftQuality) | quality_value]++;
+    (read_pos << stats.kBitShiftQuality) | quality_value
+  ]++;
 
   // Tile processing
   if (!tile_ignore) {
@@ -481,18 +488,13 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
     }
     else {
       stats.sequence_count[sequence_to_hash]++;
-      if (continue_storing_sequences)
-        stats.count_at_limit++;
+      stats.count_at_limit += continue_storing_sequences;
     }
   }
   // counts tile if applicable
   if (!tile_ignore) {
     if (do_tile_read) {
       next_tile_read += num_reads_for_tile;
-      do_tile_read = false;
-    }
-    else if (stats.num_reads == next_tile_read) {
-      do_tile_read = true;
     }
   }
 }
