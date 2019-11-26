@@ -14,7 +14,7 @@ dnl  WITHOUT ANY WARRANTY; without even the implied warranty of
 dnl  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 dnl  General Public License for more details.
 
-AC_INIT([falco], [0.1], [desenabr@usc.edu],
+AC_INIT([falco], [0.1.1], [desenabr@usc.edu],
         [falco], [https://github.com/smithlabcode/falco])
 dnl the config.h is not currently #included in the source, and only
 dnl used to keep command lines short.
