@@ -65,6 +65,7 @@ FastqStats::FastqStats() {
   gc_count.fill(0);
   position_quality_count.fill(0);
   pos_kmer_count.fill(0);
+  pos_adapter_count.fill(0);
   kmer_count = vector<size_t>(kNumBases*(kmer_mask + 1), 0);
 }
 

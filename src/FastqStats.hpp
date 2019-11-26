@@ -141,16 +141,34 @@ struct FastqStats {
   // Prefix size to cut if read length exceeds the value above
   static const size_t kDupReadTruncateSize = 50;
 
+   // Bit shifts as instructions for the std::arrays
+  static const size_t kBitShiftNucleotide = log2exact(kNumNucleotides);
+  static const size_t kBitShiftQuality = log2exact(kNumQualityValues);
+
+  /************ KMER CONSTANTS **********/
   // Kmer size given as input
   static const size_t kmer_size = 7;
 
-  // Bit shifts as instructions for the std::arrays
-  static const size_t kBitShiftNucleotide = log2exact(kNumNucleotides);
-  static const size_t kBitShiftQuality = log2exact(kNumQualityValues);
-  static const size_t kBitShiftKmer = 2 * kmer_size;  // two bits per base
+  // we shift 14 bits when reading a kmer, two bits per base
+  static const size_t kBitShiftKmer = 2 * kmer_size;
 
   // mask to get only the first 2*k bits of the sliding window
   static const size_t kmer_mask = (1ll << (2*kmer_size)) - 1;
+
+  /************ ADAPTER CONSTANTS **********/
+  // Kmer size given as input
+  static const size_t adapter_size = 12;
+
+  // Maximum number of adapters
+  static const size_t max_adapters = 128;
+
+  // bit shift for adapters, log(100) = 7
+  static const size_t kBitShiftAdapter = log2exact(max_adapters);
+
+  // mask to get only the first 2*k bits of the sliding window
+  static const size_t adapter_mask = (1ll << (2*adapter_size)) - 1;
+
+
 
  public:
   /*********** SINGLE NUMBERS FROM THE ENTIRE FASTQ ****************/
@@ -214,6 +232,9 @@ struct FastqStats {
 
   // How many kmers were counted in each position
   std::array<size_t, kNumBases> pos_kmer_count;
+
+  // How many adapters were counted in each position
+  std::array<size_t, kNumBases> pos_adapter_count;
 
   /*********** DUPLICATION ******************/
   // First 100k unique sequences and how often they were seen

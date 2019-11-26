@@ -51,10 +51,22 @@ toupper(const string &s) {
 
 
 /*****************************************************************************/
-/******************* IMPLEMENTATION OF FASTQC FUNCTIONS **********************/
+/******************* BASEGROUPS COPIED FROM FASTQC ***************************/
 /*****************************************************************************/
+
+/************* NO BASE GROUP ****************/
 void
-make_base_groups(vector<BaseGroup> &base_groups, 
+make_default_base_groups(vector<BaseGroup> &base_groups,
+                         const size_t &num_bases) {
+  base_groups.clear();
+  for (size_t i = 0; i < num_bases; ++i)
+    base_groups.push_back(BaseGroup(i,i));
+}
+
+
+/************* EXP BASE GROUP **************/
+void
+make_exponential_base_groups(vector<BaseGroup> &base_groups,
                  const size_t &num_bases) {
   size_t starting_base = 0,
          end_base,
@@ -81,12 +93,73 @@ make_base_groups(vector<BaseGroup> &base_groups,
   }
 }
 
+
+/************* LINEAR BASE GROUP *************/
+// aux function to get linear interval
+size_t
+get_linear_interval(const size_t &num_bases) {
+  // The the first 9bp as individual residues since odd stuff
+  // can happen there, then we find a grouping value which gives
+  // us a total set of groups below 75.  We limit the intervals
+  // we try to sensible whole numbers.
+  vector<size_t> baseValues = {2,5,10};
+  size_t multiplier = 1;
+  while (true) {
+    for (size_t b = 0; b<baseValues.size(); b++) {
+      size_t interval = baseValues[b] * multiplier;
+      size_t group_count = 9 + ((num_bases-9)/interval);
+
+      if ((num_bases-9) % interval != 0)
+        group_count++;
+
+      if (group_count < 75)
+        return interval;
+    }
+    multiplier *= 10;
+    if (multiplier == 10000000)
+      throw runtime_error("Couldn't find a sensible interval grouping for len ="
+                      + std::to_string(num_bases));
+  }
+}
+
+
 void
-make_default_base_groups(vector<BaseGroup> &base_groups,
-                         const size_t &num_bases) {
-  base_groups.clear();
-  for (size_t i = 0; i < num_bases; ++i)
-    base_groups.push_back(BaseGroup(i,i));
+make_linear_base_groups(vector<BaseGroup> &base_groups,
+                        const size_t num_bases) {
+
+  // For lengths below 75bp we just return everything.
+  if (num_bases <= 75) {
+    make_default_base_groups(base_groups, num_bases);
+    return;
+  }
+
+  // We need to work out what interval we're going to use.
+  const size_t interval = get_linear_interval(num_bases);
+  size_t starting_base = 1;
+
+  while (starting_base <= num_bases) {
+    size_t end_base = starting_base + interval - 1;
+
+    if (starting_base < 10)
+      end_base = starting_base;
+
+    if (starting_base == 10 && interval > 10)
+      end_base = interval - 1;
+
+    if (end_base > num_bases)
+      end_base = num_bases;
+
+    BaseGroup bg = BaseGroup(starting_base - 1, end_base - 1);
+    base_groups.push_back(bg);
+
+    if (starting_base < 10)
+      starting_base++;
+    else if (starting_base == 10 && interval > 10)
+      starting_base = interval;
+    else
+      starting_base += interval;
+
+  }
 }
 
 // FastQC extrapolation of counts to the full file size
@@ -473,7 +546,10 @@ ModulePerBaseSequenceQuality::summarize_module(const FastqStats &stats) {
   num_bases = stats.max_read_length;
 
   // first, do the groups
-  if (do_group) make_base_groups(base_groups, num_bases);
+  if (do_group) {
+    make_linear_base_groups(base_groups, num_bases);
+  }
+
   else make_default_base_groups(base_groups, num_bases);
   num_groups = base_groups.size();
 
@@ -1644,7 +1720,7 @@ ModuleAdapterContent::count_adapter(
   for (size_t i = 0; i < num_slides; ++i) {
     cur_pos = pos + (kmer_size - 1) + (num_slides - i - 1);
     adapter_kmer = adapter_slide & kmer_mask;
-    
+
     // debug
     kmer_count_index = (cur_pos << bit_shift_kmer) | adapter_kmer;
     cnt = kmer_count[kmer_count_index];
@@ -1652,7 +1728,7 @@ ModuleAdapterContent::count_adapter(
       adapter_count = cnt;
     else if (cnt < adapter_count)
       adapter_count = cnt;
-    
+
     // slide the adapter hash by 2 bits
     adapter_slide >>= 2;
   }
@@ -1675,12 +1751,11 @@ ModuleAdapterContent::summarize_module(const FastqStats &stats) {
     for (size_t j = 0; j < num_bases; ++j) {
       cnt = 0;
       // check if position even makes sense
-      if (j + adapter_seqs[i].size() < num_bases)
-        cnt = count_adapter(stats.kmer_count,
-                            j,
-                            adapter_hashes[i],
-                            adapter_seqs[i].size(),
-                            stats.kmer_size);
+      if (j + adapter_seqs[i].size() - 1 < num_bases)
+        cnt = stats.pos_adapter_count[
+          ((j + adapter_seqs[i].size() - 1) << stats.kBitShiftAdapter) | i
+        ];
+
       if (j == 0)
         adapter_pos_pct[i][j] = cnt;
       else
@@ -1862,3 +1937,6 @@ string
 ModuleKmerContent::make_html_data() {
   return "";
 }
+
+
+

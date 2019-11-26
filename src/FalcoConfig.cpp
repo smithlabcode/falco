@@ -14,6 +14,7 @@
  */
 
 #include "FalcoConfig.hpp"
+#include "FastqStats.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -249,6 +250,9 @@ FalcoConfig::read_adapters() {
   // the biological sequence
   while (getline(in, line)) {
     if (is_content_line(line)) {
+      if (adapter_names.size() > FastqStats::max_adapters)
+        throw runtime_error("You are testing too many adapters. The maximum "
+                            "number is 128!");
       adapter_name = "";
       adapter_seq = "";
       istringstream iss(line);

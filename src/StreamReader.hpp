@@ -45,6 +45,7 @@ class StreamReader{
   // config on how to handle reads
   const bool do_sequence_hash,
              do_kmer,
+             do_adapter,
              do_n_content,
              do_quality_base,
              do_sequence,
@@ -53,6 +54,7 @@ class StreamReader{
              do_tile,
              do_sequence_length;
 
+  const bool do_sliding_window;
   bool continue_storing_sequences;
   bool do_kmer_read;
   bool do_tile_read;
@@ -107,6 +109,7 @@ class StreamReader{
   size_t cur_quality;  // Sum of quality values in read
   size_t num_bases_after_n;  // count of k-mers that reset at every N
   size_t cur_kmer;  // 32-mer hash as you pass through the sequence line
+  size_t i; // general iterator
 
   // variables for gc model
   GCModelValue value;
@@ -120,6 +123,9 @@ class StreamReader{
   std::string sequence_to_hash;  // sequence marked for duplication
   std::string filename;
 
+  /************ ADAPTER SEARCH ***********/
+  const size_t num_adapters;
+  std::array<size_t, FastqStats::max_adapters> adapters;
 
   /************ FUNCTIONS TO PROCESS READS AND BASES ***********/
   // gets and puts bases from and to buffer

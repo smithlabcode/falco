@@ -14,24 +14,41 @@
  */
 
 #include "StreamReader.hpp"
-
 #include <vector>
 #include <cstring>
 
 using std::string;
 using std::vector;
 using std::runtime_error;
-
+using std::array;
 /****************************************************/
 /***************** STREAMREADER *********************/
 /****************************************************/
+
+// function to turn a vector into array for adapter hashes and fast lookup
+array<size_t, FastqStats::max_adapters> 
+make_adapters(const vector<size_t> &adapter_hashes) {
+  if (adapter_hashes.size() > FastqStats::max_adapters)
+    throw runtime_error("Number of adapters is larger than 128, which hinders "
+                        "visualziation and speed of falco. Please keep it to "
+                        "under 128");
+
+  array<size_t, FastqStats::max_adapters> ans;
+  for (size_t i = 0; i < adapter_hashes.size(); ++i)
+    ans[i] = adapter_hashes[i];
+
+  return ans;
+}
+
 StreamReader::StreamReader(FalcoConfig &config,
                            const size_t _buffer_size,
                            const char _field_separator,
                            const char _line_separator) :
   // I have to pass the config skips as const to read them fast
   do_sequence_hash(config.do_duplication || config.do_overrepresented),
-  do_kmer(config.do_adapter || config.do_kmer),
+  do_kmer(config.do_kmer),
+  do_adapter(config.do_adapter),
+  do_sliding_window(do_adapter || do_kmer),
   do_n_content(config.do_n_content),
   do_quality_base(config.do_quality_base),
   do_sequence(config.do_sequence),
@@ -43,7 +60,12 @@ StreamReader::StreamReader(FalcoConfig &config,
   // Here are the usual stream reader configs
   buffer_size(_buffer_size),
   field_separator(_field_separator),
-  line_separator(_line_separator) {
+  line_separator(_line_separator),
+
+  // Here are the const adapters
+  num_adapters(config.adapter_hashes.size()),
+  adapters(make_adapters(config.adapter_hashes))
+  {
 
   // Allocates buffer to temporarily store reads
   buffer = new char[buffer_size + 1];
@@ -226,22 +248,29 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
     stats.base_count[
       (read_pos << stats.kBitShiftNucleotide) | base_ind]++;
 
-    if (do_kmer) {
+    if (do_sliding_window) {
       // Update k-mer sequence
       cur_kmer = ((cur_kmer << stats.kBitShiftNucleotide) | base_ind);
 
       // registers k-mer if seen at least k nucleotides since the last n
-      if (num_bases_after_n == stats.kmer_size) {
+      if (do_kmer && (num_bases_after_n == stats.kmer_size)) {
 
-        stats.kmer_count[(read_pos << stats.kBitShiftKmer)
-                         | (cur_kmer & stats.kmer_mask)]++;
-        stats.pos_kmer_count[read_pos]++;
+          stats.kmer_count[(read_pos << stats.kBitShiftKmer)
+                           | (cur_kmer & stats.kmer_mask)]++;
+          stats.pos_kmer_count[read_pos]++;
       }
 
-      // Otherwise register a new non-n base
-      else {
-        num_bases_after_n++;
+      // GS: slow, need to use fsm
+      if (do_adapter && (num_bases_after_n == stats.adapter_size)) {
+        cur_kmer &= stats.adapter_mask;
+        for (i = 0; i < num_adapters; ++i) {
+          if (cur_kmer == adapters[i]) {
+            stats.pos_adapter_count[(read_pos << stats.kBitShiftAdapter) | i]++;
+          }
+        }
       }
+
+      num_bases_after_n += (num_bases_after_n != stats.adapter_size);
     }
   }
 }
