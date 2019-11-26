@@ -19,6 +19,8 @@ EXTRA_DIST = README.md LICENSE Configuration
 ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS = -I $(top_srcdir)/src
 
+CXXFLAGS = -O3 # default has optimization on
+
 bin_PROGRAMS = falco falcodiff
 
 falco_CXXFLAGS = $(OPENMP_CXXFLAGS) $(AM_CXXFLAGS)
