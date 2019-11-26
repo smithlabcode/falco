@@ -1770,7 +1770,7 @@ ModuleAdapterContent::make_html_data() {
 
     // X values : read position
     data << "x : [";
-    for (size_t j = 0; j < num_bases; ++j) {
+    for (size_t j = 0; j < adapter_pos_pct[0].size(); ++j) {
         data << j+1;
         if (j < num_bases - 1) data << ",";
     }
@@ -1778,7 +1778,7 @@ ModuleAdapterContent::make_html_data() {
 
     // Y values : cumulative adapter frequency
     data << ", y : [";
-    for (size_t j = 0; j < num_bases; ++j) {
+    for (size_t j = 0; j < adapter_pos_pct[0].size(); ++j) {
       data << adapter_pos_pct[i][j];
       if (i < num_bases - 1)
         data << ",";
