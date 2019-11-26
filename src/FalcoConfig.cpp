@@ -248,6 +248,8 @@ FalcoConfig::read_adapters() {
 
   // The adapters file has a space separated name, and the last instance is
   // the biological sequence
+
+  adapter_size = 0;
   while (getline(in, line)) {
     if (is_content_line(line)) {
       if (adapter_names.size() > FastqStats::max_adapters)
@@ -284,6 +286,12 @@ FalcoConfig::read_adapters() {
       adapter_names.push_back(adapter_name);
       adapter_seqs.push_back(adapter_seq);
       adapter_hashes.push_back(adapter_hash);
+
+      if (adapter_size == 0)
+        adapter_size = adapter_seq.size();
+      else if (adapter_seq.size() != adapter_size)
+        throw runtime_error("adapters in config are not all of same size");
+
       line_by_space.clear();
     }
   }

@@ -93,6 +93,7 @@ struct FalcoConfig {
   // two-bit hash of the sequence above
   std::vector<size_t> adapter_hashes;
 
+  size_t adapter_size;
   /************************************************************
    ******* ADDITIONAL INFORMATION ABOUT THE SAMPLE ************
    ************************************************************/

@@ -64,7 +64,9 @@ StreamReader::StreamReader(FalcoConfig &config,
 
   // Here are the const adapters
   num_adapters(config.adapter_hashes.size()),
-  adapters(make_adapters(config.adapter_hashes))
+  adapters(make_adapters(config.adapter_hashes)),
+  adapter_size(config.adapter_size),
+  adapter_mask((1ll << (2*adapter_size)) - 1)
   {
 
   // Allocates buffer to temporarily store reads
@@ -261,16 +263,16 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
       }
 
       // GS: slow, need to use fsm
-      if (do_adapter && (num_bases_after_n == stats.adapter_size)) {
-        cur_kmer &= stats.adapter_mask;
-        for (i = 0; i < num_adapters; ++i) {
+      if (do_adapter && (num_bases_after_n == adapter_size)) {
+        cur_kmer &= adapter_mask;
+        for (i = 0; i != num_adapters; ++i) {
           if (cur_kmer == adapters[i]) {
             stats.pos_adapter_count[(read_pos << stats.kBitShiftAdapter) | i]++;
           }
         }
       }
 
-      num_bases_after_n += (num_bases_after_n != stats.adapter_size);
+      num_bases_after_n += (num_bases_after_n != adapter_size);
     }
   }
 }

@@ -316,6 +316,9 @@ class ModuleAdapterContent : public Module {
    // number of bases to report
    size_t num_bases;
 
+   // adapter size to know how many bases to report
+   size_t adapter_size;
+
    // Information from config
    std::vector<std::string> adapter_names;
    std::vector<std::string> adapter_seqs;

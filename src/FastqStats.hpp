@@ -156,18 +156,11 @@ struct FastqStats {
   static const size_t kmer_mask = (1ll << (2*kmer_size)) - 1;
 
   /************ ADAPTER CONSTANTS **********/
-  // Kmer size given as input
-  static const size_t adapter_size = 12;
-
   // Maximum number of adapters
   static const size_t max_adapters = 128;
 
   // bit shift for adapters, log(100) = 7
   static const size_t kBitShiftAdapter = log2exact(max_adapters);
-
-  // mask to get only the first 2*k bits of the sliding window
-  static const size_t adapter_mask = (1ll << (2*adapter_size)) - 1;
-
 
 
  public:
