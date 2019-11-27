@@ -295,6 +295,7 @@ write_results(const FalcoConfig &falco_config,
 int main(int argc, const char **argv) {
 
   try {
+    static const string FALCO_VERSION = "falco v0.2";
     bool help = false;
     bool version = false;
 
@@ -389,7 +390,7 @@ int main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
     if (version) {
-      cout << "Falco v0.1.1\n";
+      cout << FALCO_VERSION << "\n";
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
