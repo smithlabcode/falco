@@ -377,11 +377,15 @@ int main(int argc, const char **argv) {
                       " output depending on non-fastqc user flags", false,
                       advanced_mode);
 
-     opt_parse.add_opt("-bisulfite", 'B',
+    opt_parse.add_opt("-bisulfite", 'B',
                       "reads are whole genome bisulfite sequencing, and more "
                       "Ts and fewer Cs are therefore expected and will be "
                       "accounted for in base content (advanced mode)", false,
                       falco_config.is_bisulfite);
+    opt_parse.add_opt("-reverse-complement", 'R',
+                         "The input is a reverse-complement. All modules will "
+                         "be tested by swapping A/T and C/G", false,
+                      falco_config.is_reverse_complement);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {

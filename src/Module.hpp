@@ -196,6 +196,9 @@ class ModulePerBaseSequenceContent : public Module {
 
    // flag as to whether or not dataset is WGBS
    bool is_bisulfite;
+
+   // if so we have to test T vs C instead of A vs G
+   bool is_reverse_complement;
    // for grade
    double sequence_error, sequence_warn;
  public:

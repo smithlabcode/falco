@@ -948,6 +948,7 @@ Module(ModulePerBaseSequenceContent::module_name) {
   sequence_warn = sequence_limits.find("warn")->second;
   sequence_error = sequence_limits.find("error")->second;
   is_bisulfite = config.is_bisulfite;
+  is_reverse_complement = config.is_reverse_complement;
 }
 
 void
@@ -997,13 +998,23 @@ ModulePerBaseSequenceContent::summarize_module(const FastqStats &stats) {
     t_pct[i] = t;
     c_pct[i] = c;
 
-    max_diff = max(max_diff, fabs(a-g));
+    // for WGBS, we only test differences between bases
+    // not treated with bisulfite
+    if (!is_reverse_complement)
+      max_diff = max(max_diff, fabs(a-g));
+    else
+      max_diff = max(max_diff, fabs(c-t));
+
     if (!is_bisulfite) {
       max_diff = max(max_diff, fabs(a-c));
       max_diff = max(max_diff, fabs(a-t));
-      max_diff = max(max_diff, fabs(c-t));
       max_diff = max(max_diff, fabs(c-g));
       max_diff = max(max_diff, fabs(t-g));
+
+      if (!is_reverse_complement)
+        max_diff = max(max_diff, fabs(c-t));
+      else
+        max_diff = max(max_diff, fabs(a-g));
     }
 
     // WGBS specific base content count

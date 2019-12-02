@@ -98,6 +98,7 @@ struct FalcoConfig {
    ******* ADDITIONAL INFORMATION ABOUT THE SAMPLE ************
    ************************************************************/
   bool is_bisulfite;
+  bool is_reverse_complement;
  
   /*************** DEFINE FILE TYPE ************/
 
