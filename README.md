@@ -5,7 +5,16 @@ check large sequencing reads for common problems.
 
 Installing falco
 ================
-Installation can be done with the standard autotools commands:
+
+## Installing through conda
+If you use [anaconda](https://anaconda.org) to manage your packages, you can
+install the most recent release of `falco` by running:
+```
+conda install -c bioconda falco
+```
+
+## Installing from source
+Installation from source can be done with the standard autotools commands:
 ```
 $ ./configure CXXFLAGS="-O3 -Wall"
 $ make all
