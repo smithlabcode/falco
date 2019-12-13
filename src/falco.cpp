@@ -160,15 +160,20 @@ write_results(const FalcoConfig &falco_config,
   // Here we open the full text summary
   ofstream qc_data_txt;
   if (!skip_text) {
+
     string qc_data_file = falco_config.filename;
     qc_data_file = outdir + "/fastqc_data.txt";
     qc_data_txt.open(qc_data_file.c_str(), std::ofstream::binary);
+
+    if (!falco_config.quiet)
+      log_process("Writing text report to " + qc_data_file);
+
     // put header
     qc_data_txt << "##Falco\t0.1\n";
   }
 
   // Here we open the html ostream and maker object
-  HtmlMaker html_maker(falco_config.html_file);
+  HtmlMaker html_maker = HtmlMaker();
   ofstream html;
   if (!skip_html) {
     // Decide html filename based on input
@@ -358,8 +363,6 @@ int main(int argc, const char **argv) {
     opt_parse.add_opt("-limits", 'l',
                       "Non-default file with limits and warn/fail criteria",
                       false, falco_config.contaminants_file);
-    opt_parse.add_opt("-kmer", 'k', "k-mer size (default = 7, max = 10)", false,
-                      falco_config.kmer_size);
     opt_parse.add_opt("-skip-text", 'T', "Skip generating text file "
                       "(Default = false)", false, skip_text);
     opt_parse.add_opt("-skip-html", 'H', "Skip generating HTML file "
@@ -500,7 +503,6 @@ int main(int argc, const char **argv) {
       }
 
       // Write results
-      log_process("Writing results");
       write_results(falco_config, stats, skip_text, skip_html,
                    skip_short_summary, cur_outdir);
 

@@ -127,7 +127,7 @@ class StreamReader{
   const size_t num_adapters;
   const size_t adapter_size;
   const size_t adapter_mask;
-  const std::array<size_t, FastqStats::max_adapters> adapters;
+  const std::array<size_t, Constants::max_adapters> adapters;
 
   /************ FUNCTIONS TO PROCESS READS AND BASES ***********/
   // gets and puts bases from and to buffer

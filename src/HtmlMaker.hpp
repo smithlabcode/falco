@@ -27,7 +27,8 @@
 /*******************************************************/
 class HtmlMaker {
 public:
-  explicit HtmlMaker(std::string html_template_path);
+  std::string html_boilerplate;
+  HtmlMaker();
   // Fill data from module
   void put_data(const std::string &placeholder, const std::string &data);
 
@@ -38,6 +39,5 @@ public:
 
   // Put file details and date
   void put_file_details(const FalcoConfig &falco_config);
-  std::string html_boilerplate;
 };
 #endif

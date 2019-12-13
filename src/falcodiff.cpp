@@ -28,8 +28,10 @@
 using std::string;
 using std::runtime_error;
 using std::cerr;
+using std::cout;
 using std::endl;
 using std::vector;
+using std::ostream;
 using std::ofstream;
 using std::to_string;
 using std::chrono::system_clock;
@@ -56,7 +58,8 @@ log_process(const string &s) {
 }
 
 // Function to check existance of directory
-static bool dir_exists(const string &path) {
+static bool
+dir_exists(const string &path) {
   struct stat info;
   if (stat(path.c_str(), &info ) != 0)
     return false;
@@ -98,8 +101,38 @@ get_module_name(const string &line) {
   return ans;
 }
 
+// prints in tsv the value, a/b and
 void
-compare_fastqcs(istream &lhs, istream &rhs, const FalcoConfig &config) {
+print_measure_and_diff(ostream &os,
+                       const string measure,
+                       double v1,
+                       double v2) {
+  os << measure << "\t"
+     << v1 << ":"
+     << v2 << "\t"
+     << abs(v1 - v2) << "\n";
+}
+
+template <typename T> void
+parse_module(T m1, T m2, istream &lhs, istream &rhs) {
+  string line_lhs, line_rhs;
+  while (getline(lhs, line_lhs) &&
+         getline(rhs, line_rhs) &&
+         !is_module_end(line_lhs) &&
+         !is_module_end(line_rhs)) {
+
+    if (!is_skippable(line_lhs) &&
+        !is_skippable(line_rhs)) {
+      m1.read_data_line(line_lhs);
+      m2.read_data_line(line_rhs);
+    }
+  }
+}
+
+void
+compare_fastqcs(istream &lhs, istream &rhs,
+                ostream &os,
+                const FalcoConfig &config) {
   string line_lhs, line_rhs, module_name;
   while (!lhs.eof() && !rhs.eof()) {
     getline(lhs, line_lhs);
@@ -115,9 +148,36 @@ compare_fastqcs(istream &lhs, istream &rhs, const FalcoConfig &config) {
                               "rhs = " + line_rhs);
 
         string module_name = get_module_name(line_lhs);
+        // Basic statistics
         if (module_name == ModuleBasicStatistics::module_name) {
+          // define
           ModuleBasicStatistics m1(config), m2(config);
-          cerr << "parisng basic statistics\n";
+          // read
+          cerr << "parsing basic statistics\n";
+          parse_module(m1, m2, lhs, rhs);
+
+          // write
+          os << "#" << ModuleBasicStatistics::module_name << "\n";
+          os << "LHS file:\t" << m1.filename_stripped << "\n";
+          os << "RHS file:\t" << m2.filename_stripped << "\n";
+          os << "#measure\ta:b\tabs_diff\n";
+          print_measure_and_diff(os, "total_sequences",
+                                      m1.total_sequences,
+                                      m2.total_sequences);
+          print_measure_and_diff(os, "min_read_length",
+                                     m1.min_read_length,
+                                     m2.min_read_length);
+          print_measure_and_diff(os, "max_read_length",
+                                     m1.max_read_length,
+                                     m2.max_read_length);
+          print_measure_and_diff(os,"gc_percent", m1.avg_gc, m2.avg_gc);
+        }
+
+        // Per base sequence quality
+        if (module_name == ModulePerBaseSequenceQuality::module_name) {
+          ModulePerBaseSequenceQuality m1(config), m2(config);
+          cerr << "parsing per base sequence quality\n";
+          // read
           while (getline(lhs, line_lhs) &&
                  getline(rhs, line_rhs) &&
                  !is_module_end(line_lhs) &&
@@ -129,10 +189,6 @@ compare_fastqcs(istream &lhs, istream &rhs, const FalcoConfig &config) {
               m2.read_data_line(line_rhs);
             }
           }
-          m1.summarized = true;
-          m2.summarized = true;
-          m1.write(cerr);
-          m2.write(cerr);
         }
       }
     }
@@ -223,7 +279,7 @@ int main(int argc, const char **argv) {
 
     /****************** END COMMAND LINE OPTIONS ********************/
 
-    compare_fastqcs(lhs, rhs, config);
+    compare_fastqcs(lhs, rhs, cout, config);
     if (VERBOSE)
       cerr << "Elapsed time: "
            << get_seconds_since(file_start_time) << "s" << endl;

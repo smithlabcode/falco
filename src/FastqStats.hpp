@@ -146,21 +146,16 @@ struct FastqStats {
   static const size_t kBitShiftQuality = log2exact(kNumQualityValues);
 
   /************ KMER CONSTANTS **********/
-  // Kmer size given as input
-  static const size_t kmer_size = 7;
 
   // we shift 14 bits when reading a kmer, two bits per base
-  static const size_t kBitShiftKmer = 2 * kmer_size;
+  static const size_t kBitShiftKmer = 2 * Constants::kmer_size;
 
   // mask to get only the first 2*k bits of the sliding window
-  static const size_t kmer_mask = (1ll << (2*kmer_size)) - 1;
+  static const size_t kmer_mask = (1ll << (2*Constants::kmer_size)) - 1;
 
   /************ ADAPTER CONSTANTS **********/
-  // Maximum number of adapters
-  static const size_t max_adapters = 128;
-
   // bit shift for adapters, log(100) = 7
-  static const size_t kBitShiftAdapter = log2exact(max_adapters);
+  static const size_t kBitShiftAdapter = log2exact(Constants::max_adapters);
 
 
  public:

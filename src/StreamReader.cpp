@@ -26,14 +26,14 @@ using std::array;
 /****************************************************/
 
 // function to turn a vector into array for adapter hashes and fast lookup
-array<size_t, FastqStats::max_adapters> 
+array<size_t, Constants::max_adapters> 
 make_adapters(const vector<size_t> &adapter_hashes) {
-  if (adapter_hashes.size() > FastqStats::max_adapters)
+  if (adapter_hashes.size() > Constants::max_adapters)
     throw runtime_error("Number of adapters is larger than 128, which hinders "
                         "visualziation and speed of falco. Please keep it to "
                         "under 128");
 
-  array<size_t, FastqStats::max_adapters> ans;
+  array<size_t, Constants::max_adapters> ans;
   for (size_t i = 0; i < adapter_hashes.size(); ++i)
     ans[i] = adapter_hashes[i];
 
@@ -248,17 +248,17 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
     // increments basic statistic counts
     cur_gc_count += (base_ind & 1);
     stats.base_count[
-      (read_pos << stats.kBitShiftNucleotide) | base_ind]++;
+      (read_pos << Constants::bit_shift_base) | base_ind]++;
 
     if (do_sliding_window) {
       // Update k-mer sequence
-      cur_kmer = ((cur_kmer << stats.kBitShiftNucleotide) | base_ind);
+      cur_kmer = ((cur_kmer << Constants::bit_shift_base) | base_ind);
 
       // registers k-mer if seen at least k nucleotides since the last n
-      if (do_kmer && (num_bases_after_n == stats.kmer_size)) {
+      if (do_kmer && (num_bases_after_n == Constants::kmer_size)) {
 
-          stats.kmer_count[(read_pos << stats.kBitShiftKmer)
-                           | (cur_kmer & stats.kmer_mask)]++;
+          stats.kmer_count[(read_pos << Constants::bit_shift_kmer)
+                           | (cur_kmer & Constants::bit_shift_kmer)]++;
           stats.pos_kmer_count[read_pos]++;
       }
 
@@ -267,7 +267,8 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
         cur_kmer &= adapter_mask;
         for (i = 0; i != num_adapters; ++i) {
           if (cur_kmer == adapters[i]) {
-            stats.pos_adapter_count[(read_pos << stats.kBitShiftAdapter) | i]++;
+            stats.pos_adapter_count[(read_pos << Constants::bit_shift_adapter)
+                                    | i]++;
           }
         }
       }
@@ -293,7 +294,7 @@ StreamReader::process_sequence_base_from_leftover(FastqStats &stats) {
 
     // increments basic statistic counts
     cur_gc_count += (base_ind & 1);
-    stats.long_base_count[(leftover_ind << stats.kBitShiftNucleotide)
+    stats.long_base_count[(leftover_ind << Constants::bit_shift_base)
                           | base_ind]++;
 
     // WE WILL NOT DO KMER STATS OUTSIDE OF BUFFER
@@ -413,7 +414,7 @@ inline void
 StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
   // Average quality in position
   stats.position_quality_count[
-    (read_pos << stats.kBitShiftQuality) | quality_value
+    (read_pos << Constants::bit_shift_quality) | quality_value
   ]++;
 
   // Tile processing
@@ -431,7 +432,7 @@ inline void
 StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
   // Average quality in position
   stats.long_position_quality_count[
-    (leftover_ind << stats.kBitShiftQuality) | quality_value]++;
+    (leftover_ind << Constants::bit_shift_quality) | quality_value]++;
 
   // Tile processing
   if (!tile_ignore) {
@@ -463,7 +464,7 @@ StreamReader::read_quality_line(FastqStats &stats) {
     get_base_from_buffer();
 
     // Converts quality ascii to zero-based
-    quality_value = *cur_char - stats.kBaseQuality;
+    quality_value = *cur_char - Constants::quality_zero;
 
     // Fast bases from buffer
     if (still_in_buffer) {
@@ -496,11 +497,11 @@ inline void
 StreamReader::postprocess_fastq_record(FastqStats &stats) {
   if (do_sequence_hash) {
     // if reads are >75pb, truncate to 50
-    if (read_pos <= stats.kDupReadMaxSize) {
+    if (read_pos <= Constants::unique_reads_max_length) {
       buffer[read_pos] = '\0';
     }
     else {
-      buffer[stats.kDupReadTruncateSize] = '\0';
+      buffer[Constants::unique_reads_truncate] = '\0';
     }
 
     sequence_to_hash = string(buffer);
@@ -512,7 +513,7 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
         ++stats.num_unique_seen;
 
         // if we reached the cutoff of 100k, stop storing
-        if (stats.num_unique_seen == stats.kDupUniqueCutoff) {
+        if (stats.num_unique_seen == Constants::unique_reads_stop_counting) {
           continue_storing_sequences = false;
         }
       }

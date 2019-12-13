@@ -1815,7 +1815,7 @@ Module(ModuleKmerContent::module_name) {
 
 void
 ModuleKmerContent::summarize_module(const FastqStats &stats) {
-  kmer_size = stats.kmer_size;
+  kmer_size = Constants::kmer_size;
 
   // 4^kmer size
   num_kmers = (1 << (2 * kmer_size));

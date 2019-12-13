@@ -76,16 +76,7 @@ HtmlMaker::put_file_details(const FalcoConfig &falco_config) {
   put_data("{{date}}", time_fmt);
 }
 
-HtmlMaker::HtmlMaker(string html_template_path) {
-  html_boilerplate = "";
-  ifstream in(html_template_path);
-  if (!in) {
-    throw runtime_error("HTML layout not found: " + html_template_path);
-  }
-
-  // pass the whole source code template to a string
-  string line;
-  while (getline(in, line))
-    html_boilerplate += line + "\n";
+HtmlMaker::HtmlMaker() {
+  html_boilerplate = FalcoConfig::html_template;
 }
 

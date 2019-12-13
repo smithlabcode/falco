@@ -24,19 +24,74 @@
 #include "aux.hpp"
 
 /*************************************************************
+ ******************** ALL MAGIC NUMBERS **********************
+ *************************************************************/
+namespace Constants {
+  // log of a power of two, to use in bit shifting for fast index acces
+  // returns the log2 of a number if it is a power of two, or zero
+  // otherwise
+  constexpr size_t
+  log2exact(size_t v) {
+    return (63 -
+            ((v & 0x00000000FFFFFFFF) ? 32 : 0) -
+            ((v & 0x0000FFFF0000FFFF) ? 16 : 0) -
+            ((v & 0x00FF00FF00FF00FF) ?  8 : 0) -
+            ((v & 0x0F0F0F0F0F0F0F0F) ?  4 : 0) -
+            ((v & 0x3333333333333333) ?  2 : 0) -
+            ((v & 0x5555555555555555) ?  1 : 0));
+  }
+
+  static const size_t kmer_size = 7;
+  static const size_t max_adapters = 128;
+
+  // number of bases for static allocation.
+  static const size_t num_static_bases = 500;
+
+  // Value to subtract quality characters to get the actual quality value
+  static const size_t quality_zero = 33;  // The ascii for the lowest quality
+
+  // Smallest power of two that comprises all possible Illumina quality values.
+  // Illumina gives qualities from 0 to 40, therefore we set it as 64. Power of
+  // is to avoid double pointer jumps and to get indices with bit shifts.
+  static const size_t num_quality_values = 128;
+
+  // How many possible nucleotides (must be power of 2!)
+  static const size_t num_nucleotides = 4;  // A = 00,C = 01,T = 10,G = 11
+
+  /************* DUPLICATION ESTIMATES *************/
+  // Number of unique sequences to see before stopping counting sequences
+  static const size_t unique_reads_stop_counting = 1e5;
+
+  // Maximum read length to store the entire read in memory
+  static const size_t unique_reads_max_length = 75;
+
+  // Prefix size to cut if read length exceeds the value above
+  static const size_t unique_reads_truncate = 50;
+
+  /****Bit shifts as instructions for the std::arrays***/
+  // for matrices that count stats per nucleotide
+  static const size_t bit_shift_base = log2exact(num_nucleotides);
+
+  // for matrices that count stats for quality value
+  static const size_t bit_shift_quality = log2exact(num_quality_values);
+
+  // bit shift for adapters, log(128) = 7
+  static const size_t bit_shift_adapter = log2exact(max_adapters);
+
+  // we shift 14 bits when reading a kmer, two bits per base
+  static const size_t bit_shift_kmer = 2 * Constants::kmer_size;
+
+  // mask to get only the first 2*k bits of the sliding window
+  static const size_t kmer_mask = (1ll << (2*Constants::kmer_size)) - 1;
+};
+
+/*************************************************************
  ******************** CUSTOM CONFIGURATION *******************
  *************************************************************/
 
 // config from options, constants, magic numbers, etc
 struct FalcoConfig {
-
   FalcoConfig();  // set magic defaults
-
-  /************************************************************
-   *************** MY UNIVERSAL CONSTANTS *********************
-   ************************************************************/
-  // threshold for a sequence to be considered  poor quality
-  size_t kPoorQualityThreshold;
 
   /************************************************************
    *************** FASTQC OPTION PARSER************************
@@ -50,12 +105,11 @@ struct FalcoConfig {
   bool quiet;
   size_t min_length;  // lower limit in sequence length to be shown in report
   size_t threads;  // number of threads to read multiple files in parallel
-  size_t kmer_size;  // kmer size
   std::string format;  // force file format
   std::string contaminants_file;  // custom contaminants file
   std::string adapters_file;  // adapters file
   std::string limits_file;  // file with limits and options and custom analyses
-  std::string html_file;  // file with limits and options and custom analyses
+  static const std::string html_template; // the html for the template
   std::string tmpdir;  // dir for temp files when generating report images
 
   // config on how to handle reads
