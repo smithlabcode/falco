@@ -29,6 +29,227 @@ using std::make_pair;
 using std::ifstream;
 using std::runtime_error;
 using std::istringstream;
+using std::cerr;
+
+/*********************************************************/
+/************** DEFAULT VALUES FOR FILES *****************/
+/*********************************************************/
+
+namespace FileConstants {
+  // These will become const bools in the stream reader
+  static const std::unordered_map<std::string,
+               std::unordered_map<std::string, double> >
+  limits = {
+    {"quality_base",{{"ignore",0}}},
+    {"duplication",{{"ignore",0}, {"warn",70}, {"error",50}}},
+    {"kmer",{{"ignore", 1}, {"warn",2}, {"error",5}}},
+    {"n_content",{{"ignore", 0}, {"warn",5}, {"error",20}}},
+    {"overrepresented",{{"ignore", 0}, {"warn",0.1}, {"error",1}}},
+    {"quality_base_lower",{{"warn",10}, {"error",5}}},
+    {"quality_base_median",{{"warn",25}, {"error",20}}},
+    {"sequence",{{"ignore", 0}, {"warn",10}, {"error",20}}},
+    {"gc_sequence",{{"ignore", 0}, {"warn",15}, {"error",30}}},
+    {"quality_sequence",{{"ignore", 0}, {"warn",27}, {"error",20}}},
+    {"tile",{{"ignore", 0}, {"warn",5}, {"error",10}}},
+    {"sequence_length",{{"ignore", 0}, {"warn",1}, {"error",1}}},
+    {"adapter",{{"ignore", 0}, {"warn",5}, {"error",10}}}
+  };
+
+  /*************** CONTAMINANTS *****************/
+  static const std::vector<std::pair<std::string, std::string> >
+  contaminants = {
+    {"Illumina Single End Adapter 1","GATCGGAAGAGCTCGTATGCCGTCTTCTGCTTG"},
+    {"Illumina Single End Adapter 2","CAAGCAGAAGACGGCATACGAGCTCTTCCGATCT"},
+    {"Illumina Single End PCR Primer 1","AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT"},
+    {"Illumina Single End PCR Primer 2","CAAGCAGAAGACGGCATACGAGCTCTTCCGATCT"},
+    {"Illumina Single End Sequencing Primer","ACACTCTTTCCCTACACGACGCTCTTCCGATCT"},
+    {"Illumina Paired End Adapter 1","ACACTCTTTCCCTACACGACGCTCTTCCGATCT"},
+    {"Illumina Paired End Adapter 2","GATCGGAAGAGCGGTTCAGCAGGAATGCCGAG"},
+    {"Illumina Paried End PCR Primer 1","AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT"},
+    {"Illumina Paired End PCR Primer 2","CAAGCAGAAGACGGCATACGAGATCGGTCTCGGCATTCCTGCTGAACCGCTCTTCCGATCT"},
+    {"Illumina Paried End Sequencing Primer 1","ACACTCTTTCCCTACACGACGCTCTTCCGATCT"},
+    {"Illumina Paired End Sequencing Primer 2","CGGTCTCGGCATTCCTGCTGAACCGCTCTTCCGATCT"},
+    {"Illumina DpnII expression Adapter 1","ACAGGTTCAGAGTTCTACAGTCCGAC"},
+    {"Illumina DpnII expression Adapter 2","CAAGCAGAAGACGGCATACGA"},
+    {"Illumina DpnII expression PCR Primer 1","CAAGCAGAAGACGGCATACGA"},
+    {"Illumina DpnII expression PCR Primer 2","AATGATACGGCGACCACCGACAGGTTCAGAGTTCTACAGTCCGA"},
+    {"Illumina DpnII expression Sequencing Primer","CGACAGGTTCAGAGTTCTACAGTCCGACGATC"},
+    {"Illumina NlaIII expression Adapter 1","ACAGGTTCAGAGTTCTACAGTCCGACATG"},
+    {"Illumina NlaIII expression Adapter 2","CAAGCAGAAGACGGCATACGA"},
+    {"Illumina NlaIII expression PCR Primer 1","CAAGCAGAAGACGGCATACGA"},
+    {"Illumina NlaIII expression PCR Primer 2","AATGATACGGCGACCACCGACAGGTTCAGAGTTCTACAGTCCGA"},
+    {"Illumina NlaIII expression Sequencing Primer","CCGACAGGTTCAGAGTTCTACAGTCCGACATG"},
+    {"Illumina Small RNA Adapter 1","GTTCAGAGTTCTACAGTCCGACGATC"},
+    {"Illumina Small RNA Adapter 2","TGGAATTCTCGGGTGCCAAGG"},
+    {"Illumina Small RNA RT Primer","CAAGCAGAAGACGGCATACGA"},
+    {"Illumina Small RNA PCR Primer 2","AATGATACGGCGACCACCGACAGGTTCAGAGTTCTACAGTCCGA"},
+    {"Illumina Small RNA Sequencing Primer","CGACAGGTTCAGAGTTCTACAGTCCGACGATC"},
+    {"Illumina Multiplexing Adapter 1","GATCGGAAGAGCACACGTCT"},
+    {"Illumina Multiplexing Adapter 2","ACACTCTTTCCCTACACGACGCTCTTCCGATCT"},
+    {"Illumina Multiplexing PCR Primer 1.01","AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT"},
+    {"Illumina Multiplexing PCR Primer 2.01","GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT"},
+    {"Illumina Multiplexing Read1 Sequencing Primer","ACACTCTTTCCCTACACGACGCTCTTCCGATCT"},
+    {"Illumina Multiplexing Index Sequencing Primer","GATCGGAAGAGCACACGTCTGAACTCCAGTCAC"},
+    {"Illumina Multiplexing Read2 Sequencing Primer","GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT"},
+    {"Illumina PCR Primer Index 1","CAAGCAGAAGACGGCATACGAGATCGTGATGTGACTGGAGTTC"},
+    {"Illumina PCR Primer Index 2","CAAGCAGAAGACGGCATACGAGATACATCGGTGACTGGAGTTC"},
+    {"Illumina PCR Primer Index 3","CAAGCAGAAGACGGCATACGAGATGCCTAAGTGACTGGAGTTC"},
+    {"Illumina PCR Primer Index 4","CAAGCAGAAGACGGCATACGAGATTGGTCAGTGACTGGAGTTC"},
+    {"Illumina PCR Primer Index 5","CAAGCAGAAGACGGCATACGAGATCACTGTGTGACTGGAGTTC"},
+    {"Illumina PCR Primer Index 6","CAAGCAGAAGACGGCATACGAGATATTGGCGTGACTGGAGTTC"},
+    {"Illumina PCR Primer Index 7","CAAGCAGAAGACGGCATACGAGATGATCTGGTGACTGGAGTTC"},
+    {"Illumina PCR Primer Index 8","CAAGCAGAAGACGGCATACGAGATTCAAGTGTGACTGGAGTTC"},
+    {"Illumina PCR Primer Index 9","CAAGCAGAAGACGGCATACGAGATCTGATCGTGACTGGAGTTC"},
+    {"Illumina PCR Primer Index 10","CAAGCAGAAGACGGCATACGAGATAAGCTAGTGACTGGAGTTC"},
+    {"Illumina PCR Primer Index 11","CAAGCAGAAGACGGCATACGAGATGTAGCCGTGACTGGAGTTC"},
+    {"Illumina PCR Primer Index 12","CAAGCAGAAGACGGCATACGAGATTACAAGGTGACTGGAGTTC"},
+    {"Illumina DpnII Gex Adapter 1","GATCGTCGGACTGTAGAACTCTGAAC"},
+    {"Illumina DpnII Gex Adapter 1.01","ACAGGTTCAGAGTTCTACAGTCCGAC"},
+    {"Illumina DpnII Gex Adapter 2","CAAGCAGAAGACGGCATACGA"},
+    {"Illumina DpnII Gex Adapter 2.01","TCGTATGCCGTCTTCTGCTTG"},
+    {"Illumina DpnII Gex PCR Primer 1","CAAGCAGAAGACGGCATACGA"},
+    {"Illumina DpnII Gex PCR Primer 2","AATGATACGGCGACCACCGACAGGTTCAGAGTTCTACAGTCCGA"},
+    {"Illumina DpnII Gex Sequencing Primer","CGACAGGTTCAGAGTTCTACAGTCCGACGATC"},
+    {"Illumina NlaIII Gex Adapter 1.01","TCGGACTGTAGAACTCTGAAC"},
+    {"Illumina NlaIII Gex Adapter 1.02","ACAGGTTCAGAGTTCTACAGTCCGACATG"},
+    {"Illumina NlaIII Gex Adapter 2.01","CAAGCAGAAGACGGCATACGA"},
+    {"Illumina NlaIII Gex Adapter 2.02","TCGTATGCCGTCTTCTGCTTG"},
+    {"Illumina NlaIII Gex PCR Primer 1","CAAGCAGAAGACGGCATACGA"},
+    {"Illumina NlaIII Gex PCR Primer 2","AATGATACGGCGACCACCGACAGGTTCAGAGTTCTACAGTCCGA"},
+    {"Illumina NlaIII Gex Sequencing Primer","CCGACAGGTTCAGAGTTCTACAGTCCGACATG"},
+    {"Illumina 5p RNA Adapter","GTTCAGAGTTCTACAGTCCGACGATC"},
+    {"Illumina RNA Adapter1","TGGAATTCTCGGGTGCCAAGG"},
+    {"Illumina Small RNA 3p Adapter 1","ATCTCGTATGCCGTCTTCTGCTTG"},
+    {"Illumina Small RNA PCR Primer 1","CAAGCAGAAGACGGCATACGA"},
+    {"TruSeq Universal Adapter","AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT"},
+    {"TruSeq Adapter, Index 1","GATCGGAAGAGCACACGTCTGAACTCCAGTCACATCACGATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 2","GATCGGAAGAGCACACGTCTGAACTCCAGTCACCGATGTATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 3","GATCGGAAGAGCACACGTCTGAACTCCAGTCACTTAGGCATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 4","GATCGGAAGAGCACACGTCTGAACTCCAGTCACTGACCAATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 5","GATCGGAAGAGCACACGTCTGAACTCCAGTCACACAGTGATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 6","GATCGGAAGAGCACACGTCTGAACTCCAGTCACGCCAATATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 7","GATCGGAAGAGCACACGTCTGAACTCCAGTCACCAGATCATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 8","GATCGGAAGAGCACACGTCTGAACTCCAGTCACACTTGAATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 9","GATCGGAAGAGCACACGTCTGAACTCCAGTCACGATCAGATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 10","GATCGGAAGAGCACACGTCTGAACTCCAGTCACTAGCTTATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 11","GATCGGAAGAGCACACGTCTGAACTCCAGTCACGGCTACATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 12","GATCGGAAGAGCACACGTCTGAACTCCAGTCACCTTGTAATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 13","GATCGGAAGAGCACACGTCTGAACTCCAGTCACAGTCAACTCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 14","GATCGGAAGAGCACACGTCTGAACTCCAGTCACAGTTCCGTCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 15","GATCGGAAGAGCACACGTCTGAACTCCAGTCACATGTCAGTCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 16","GATCGGAAGAGCACACGTCTGAACTCCAGTCACCCGTCCCTCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 18","GATCGGAAGAGCACACGTCTGAACTCCAGTCACGTCCGCATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 19","GATCGGAAGAGCACACGTCTGAACTCCAGTCACGTGAAACTCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 20","GATCGGAAGAGCACACGTCTGAACTCCAGTCACGTGGCCTTCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 21","GATCGGAAGAGCACACGTCTGAACTCCAGTCACGTTTCGGTCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 22","GATCGGAAGAGCACACGTCTGAACTCCAGTCACCGTACGTTCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 23","GATCGGAAGAGCACACGTCTGAACTCCAGTCACCCACTCTTCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 25","GATCGGAAGAGCACACGTCTGAACTCCAGTCACACTGATATCTCGTATGCCGTCTTCTGCTTG"},
+    {"TruSeq Adapter, Index 27","GATCGGAAGAGCACACGTCTGAACTCCAGTCACATTCCTTTCTCGTATGCCGTCTTCTGCTTG"},
+    {"Illumina RNA RT Primer","GCCTTGGCACCCGAGAATTCCA"},
+    {"Illumina RNA PCR Primer","AATGATACGGCGACCACCGAGATCTACACGTTCAGAGTTCTACAGTCCGA"},
+    {"RNA PCR Primer, Index 1","CAAGCAGAAGACGGCATACGAGATCGTGATGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 2","CAAGCAGAAGACGGCATACGAGATACATCGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 3","CAAGCAGAAGACGGCATACGAGATGCCTAAGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 4","CAAGCAGAAGACGGCATACGAGATTGGTCAGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 5","CAAGCAGAAGACGGCATACGAGATCACTGTGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 6","CAAGCAGAAGACGGCATACGAGATATTGGCGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 7","CAAGCAGAAGACGGCATACGAGATGATCTGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 8","CAAGCAGAAGACGGCATACGAGATTCAAGTGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 9","CAAGCAGAAGACGGCATACGAGATCTGATCGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 10","CAAGCAGAAGACGGCATACGAGATAAGCTAGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 11","CAAGCAGAAGACGGCATACGAGATGTAGCCGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 12","CAAGCAGAAGACGGCATACGAGATTACAAGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 13","CAAGCAGAAGACGGCATACGAGATTTGACTGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 14","CAAGCAGAAGACGGCATACGAGATGGAACTGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 15","CAAGCAGAAGACGGCATACGAGATTGACATGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 16","CAAGCAGAAGACGGCATACGAGATGGACGGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 17","CAAGCAGAAGACGGCATACGAGATCTCTACGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 18","CAAGCAGAAGACGGCATACGAGATGCGGACGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 19","CAAGCAGAAGACGGCATACGAGATTTTCACGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 20","CAAGCAGAAGACGGCATACGAGATGGCCACGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 21","CAAGCAGAAGACGGCATACGAGATCGAAACGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 22","CAAGCAGAAGACGGCATACGAGATCGTACGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 23","CAAGCAGAAGACGGCATACGAGATCCACTCGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 24","CAAGCAGAAGACGGCATACGAGATGCTACCGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 25","CAAGCAGAAGACGGCATACGAGATATCAGTGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 26","CAAGCAGAAGACGGCATACGAGATGCTCATGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 27","CAAGCAGAAGACGGCATACGAGATAGGAATGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 28","CAAGCAGAAGACGGCATACGAGATCTTTTGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 29","CAAGCAGAAGACGGCATACGAGATTAGTTGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 30","CAAGCAGAAGACGGCATACGAGATCCGGTGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 31","CAAGCAGAAGACGGCATACGAGATATCGTGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 32","CAAGCAGAAGACGGCATACGAGATTGAGTGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 33","CAAGCAGAAGACGGCATACGAGATCGCCTGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 34","CAAGCAGAAGACGGCATACGAGATGCCATGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 35","CAAGCAGAAGACGGCATACGAGATAAAATGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 36","CAAGCAGAAGACGGCATACGAGATTGTTGGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 37","CAAGCAGAAGACGGCATACGAGATATTCCGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 38","CAAGCAGAAGACGGCATACGAGATAGCTAGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 39","CAAGCAGAAGACGGCATACGAGATGTATAGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 40","CAAGCAGAAGACGGCATACGAGATTCTGAGGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 41","CAAGCAGAAGACGGCATACGAGATGTCGTCGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 42","CAAGCAGAAGACGGCATACGAGATCGATTAGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 43","CAAGCAGAAGACGGCATACGAGATGCTGTAGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 44","CAAGCAGAAGACGGCATACGAGATATTATAGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 45","CAAGCAGAAGACGGCATACGAGATGAATGAGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 46","CAAGCAGAAGACGGCATACGAGATTCGGGAGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 47","CAAGCAGAAGACGGCATACGAGATCTTCGAGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"RNA PCR Primer, Index 48","CAAGCAGAAGACGGCATACGAGATTGCCGAGTGACTGGAGTTCCTTGGCACCCGAGAATTCCA"},
+    {"ABI Dynabead EcoP Oligo","CTGATCTAGAGGTACCGGATCCCAGCAGT"},
+    {"ABI Solid3 Adapter A","CTGCCCCGGGTTCCTCATTCTCTCAGCAGCATG"},
+    {"ABI Solid3 Adapter B","CCACTACGCCTCCGCTTTCCTCTCTATGGGCAGTCGGTGAT"},
+    {"ABI Solid3 5' AMP Primer","CCACTACGCCTCCGCTTTCCTCTCTATG"},
+    {"ABI Solid3 3' AMP Primer","CTGCCCCGGGTTCCTCATTCT"},
+    {"ABI Solid3 EF1 alpha Sense Primer","CATGTGTGTTGAGAGCTTC"},
+    {"ABI Solid3 EF1 alpha Antisense Primer","GAAAACCAAAGTGGTCCAC"},
+    {"ABI Solid3 GAPDH Forward Primer","TTAGCACCCCTGGCCAAGG"},
+    {"ABI Solid3 GAPDH Reverse Primer","CTTACTCCTTGGAGGCCATG"},
+    {"Clontech Universal Primer Mix Short","CTAATACGACTCACTATAGGGC"},
+    {"Clontech Universal Primer Mix Long","CTAATACGACTCACTATAGGGCAAGCAGTGGTATCAACGCAGAGT"},
+    {"Clontech SMARTer II A Oligonucleotide","AAGCAGTGGTATCAACGCAGAGTAC"},
+    {"Clontech SMART CDS Primer II A","AAGCAGTGGTATCAACGCAGAGTACT"},
+    {"Clontech_Universal_Primer_Mix_Short","CTAATACGACTCACTATAGGGC"},
+    {"Clontech_Universal_Primer_Mix_Long","CTAATACGACTCACTATAGGGCAAGCAGTGGTATCAACGCAGAGT"},
+    {"Clontech_SMARTer_II_A_Oligonucleotide","AAGCAGTGGTATCAACGCAGAGTAC"},
+    {"Clontech_SMART_CDS_Primer_II_A","AAGCAGTGGTATCAACGCAGAGTACT"},
+    {"Clontech_SMART_CDS_Primer_II_A","ACGTACTCTGCGTTGATACCACTGCTTCCGCGGACAGGCGTGTAGATCTCGGTGGTCGC"},
+    {"Clontech_SMART_CDS_Primer_II_A","GAGTACGTACTCTGCGTTGATACCACTGCTTCCGCGGACAGGCGTGTAGATCTCGGTGGT"}
+  };
+
+  /*************** ADAPTERS *********************/
+  // Name (eg: Illumina Small RNA adapter)
+  static std::vector<std::string>
+  adapter_names = {
+    "Illumina Universal Adapter",
+    "Illumina Small RNA 3 prime Adapter",
+    "Illumina Small RNA 5 prime Adapter",
+    "Nextera Transposase Sequence",
+    "SOLID Small RNA Adapter",
+  };
+
+  // Actual string sequence (eg: ATTGCCACA)
+  static const std::vector<std::string>
+  adapter_seqs = {
+    "AGATCGGAAGAG",
+    "TGGAATTCTCGG",
+    "GATCGTCGGACT",
+    "CTGTCTCTTATA",
+    "CGCCTTGGCCGT",
+  };
+
+  // two-bit hash of the sequence above
+  static const std::vector<size_t> adapter_hashes = {
+    3308595,
+    12331423,
+    13232070,
+    7235208,
+    7712606
+  };
+
+  static const size_t adapter_size = 12;
+};
+
 
 /********************************************************************/
 /**************************** AUX FUNCTIONS *************************/
@@ -79,7 +300,7 @@ strip_path(string full_path) {
 /********************************************************************/
 /******************** FALCOCONFIG FUNCTIONS *************************/
 /********************************************************************/
-// Sets magic numbers
+// Default config properties
 FalcoConfig::FalcoConfig() {
   casava = false;
   nanopore = false;
@@ -91,12 +312,19 @@ FalcoConfig::FalcoConfig() {
   min_length = 0;
   format = "";
   threads = 1;
-  contaminants_file = string(PROGRAM_PATH) +
-                      "/Configuration/contaminant_list.txt";
-  adapters_file = string(PROGRAM_PATH) +
-                      "/Configuration/adapter_list.txt";
-  limits_file = string(PROGRAM_PATH) +
-                      "/Configuration/limits.txt";
+  contaminants_file = string(PROGRAM_PATH) + "/Configuration/contaminant_list.txt";
+  adapters_file = string(PROGRAM_PATH) + "/Configuration/adapter_list.txt";
+  limits_file = string(PROGRAM_PATH) + "/Configuration/limits.txt";
+
+  if (!file_exists(adapters_file))
+    adapters_file = "";
+
+  if (!file_exists(contaminants_file))
+    contaminants_file = "";
+
+  if (!file_exists(limits_file))
+    limits_file = "";
+
   quiet = false;
   tmpdir = ".";
 
@@ -142,7 +370,6 @@ FalcoConfig::setup() {
 
   // read which modules to run and the cutoffs for pass/warn/fail
   read_limits();
-
   // Read files for appropriate modules
   if (limits["adapter"]["ignore"] == 0.0)
     read_adapters();
@@ -176,43 +403,49 @@ FalcoConfig::define_file_format() {
 
 void
 FalcoConfig::read_limits() {
+  if (limits_file == "") {
+    if (!quiet)
+      cerr << "[limits]\tusing default limit cutoffs (no file specified)\n";
+    limits = FileConstants::limits;
+  } else {
+    ifstream in(limits_file);
+    if (!in)
+      throw runtime_error("limits file does not exist: " + limits_file);
 
-  ifstream in(limits_file);
-  if (!in)
-    throw runtime_error("limits file does not exist: " + limits_file);
+    if (!quiet)
+      cerr << "[limitst]\tusing file " << limits_file << "\n"; 
 
-  // Variables to parse lines
-  string line, instruction;
-  double value;
-  while (getline(in, line)) {
-    // Checks if the line has something to be parsed
-    if (is_content_line (line)) {
-      istringstream iss(line);
+    // Variables to parse lines
+    string line, instruction;
+    double value;
+    while (getline(in, line)) {
+      // Checks if the line has something to be parsed
+      if (is_content_line (line)) {
+        istringstream iss(line);
 
-      // Every line is a limit, warn/error/ignore and the value
-      string limit;
-      if (!(iss >> limit >> instruction >> value))
-        throw runtime_error("malformed limits line: \"" + line + "\"");
+        // Every line is a limit, warn/error/ignore and the value
+        string limit;
+        if (!(iss >> limit >> instruction >> value))
+          throw runtime_error("malformed limits line: \"" + line + "\"");
 
-      if (find(begin(values_to_check), end(values_to_check), limit)
-          == end(values_to_check))
-        throw runtime_error("unknown limit option: " + limit);
+        if (find(begin(values_to_check), end(values_to_check), limit)
+            == end(values_to_check))
+          throw runtime_error("unknown limit option: " + limit);
 
-      if (instruction != "warn" &&
-          instruction != "error" &&
-          instruction != "ignore")
-        throw runtime_error("unknown instruction for limit " +
-                            limit + ": " + instruction);
+        if (instruction != "warn" &&
+            instruction != "error" &&
+            instruction != "ignore")
+          throw runtime_error("unknown instruction for limit " +
+                              limit + ": " + instruction);
 
-      limits[limit][instruction] = value;
+        limits[limit][instruction] = value;
+      }
     }
   }
-
   for (auto v : values_to_check)
     if (limits.count(v) == 0)
       throw runtime_error("instruction for limit " + v +
                           " not found in file " + limits_file);
-
   // Get useful data from config that tells us which analyses to skip
   do_duplication = (limits["duplication"]["ignore"] == 0.0);
   do_kmer = (limits["kmer"]["ignore"] == 0.0);
@@ -229,10 +462,20 @@ FalcoConfig::read_limits() {
 
 void
 FalcoConfig::read_adapters() {
+  if (adapters_file == "") {
+    if (!quiet)
+      cerr << "[adapters]\tusing default adapters (no file specified)\n";
+    adapter_names = FileConstants::adapter_names;
+    adapter_seqs = FileConstants::adapter_seqs;
+    adapter_hashes = FileConstants::adapter_hashes;
+    return;
+  }
   ifstream in(adapters_file);
   if (!in)
     throw runtime_error("adapter file not found: " + adapters_file);
 
+  if (!quiet)
+    cerr << "[adapters]\tusing file " << adapters_file << "\n";
   string line, _tmp;
   vector<string> line_by_space;
   string adapter_name, adapter_seq;
@@ -292,11 +535,18 @@ FalcoConfig::read_adapters() {
 
 void
 FalcoConfig::read_contaminants_file() {
-
+  if (contaminants_file == "") {
+    if (!quiet)
+      cerr << "[contaminants]\tusing default contaminant list (no file specified)\n";
+    contaminants = FileConstants::contaminants;
+    return;
+  }
   ifstream in(contaminants_file);
   if (!in)
     throw runtime_error("contaminants file not found: " + contaminants_file);
 
+  if (!quiet)
+    cerr << "[contaminants]\tusing file " << contaminants_file << "\n";
   vector<string> line_by_space;
 
   // The contaminants file has a space separated name, and the last
