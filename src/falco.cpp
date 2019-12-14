@@ -359,10 +359,10 @@ int main(int argc, const char **argv) {
                       false, falco_config.contaminants_file);
     opt_parse.add_opt("-adapters", 'a',
                       "Non-default file with a list of adapters",
-                      false, falco_config.contaminants_file);
+                      false, falco_config.adapters_file);
     opt_parse.add_opt("-limits", 'l',
                       "Non-default file with limits and warn/fail criteria",
-                      false, falco_config.contaminants_file);
+                      false, falco_config.limits_file);
     opt_parse.add_opt("-skip-text", 'T', "Skip generating text file "
                       "(Default = false)", false, skip_text);
     opt_parse.add_opt("-skip-html", 'H', "Skip generating HTML file "
