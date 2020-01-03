@@ -16,7 +16,8 @@ conda install -c bioconda falco
 ## Installing from source (code release)
 
 Compilation from source can be done by downloading a `falco` release from the
-**releases** link above. Upon downloading, inflating and moving to the source
+[releases](https://github.com/smithlabcode/falco/releases)
+section above. Upon downloading, inflating and moving to the source
 directory, installation can be done through the following commands:
 
 ```
