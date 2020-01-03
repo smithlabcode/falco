@@ -13,13 +13,26 @@ install the most recent release of `falco` by running:
 conda install -c bioconda falco
 ```
 
-## Installing from source
-Installation from source can be done with the standard autotools commands:
+## Installing from source (code release)
+
+Compilation from source can be done by downloading a `falco` release from the
+**releases** link above. Upon downloading, inflating and moving to the source
+directory, installation can be done through the following commands:
+
 ```
 $ ./configure CXXFLAGS="-O3 -Wall"
 $ make all
 $ make install
 ```
+
+## Installing from a cloned repository
+We strongly recommend using `falco` through stable releases as described above,
+as the latest commits might contain undocumented bugs. However, if users wish
+to test the most recent code, the
+[GNU autotools](https://www.gnu.org/software/automake) software is required
+for compilation. Simply run `autoreconf -i` to generate the `configure` file,
+then run the commands listed in the previous section to check for dependencies
+and compile the program.
 
 ### Required C++ dependencies
 
