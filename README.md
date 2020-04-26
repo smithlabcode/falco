@@ -25,6 +25,11 @@ $ ./configure CXXFLAGS="-O3 -Wall"
 $ make all
 $ make install
 ```
+if you wish to install the falco binaries on a specific directory, you can use the `--prefix` argument when running `./configure`, for instance:
+
+```
+$ ./configure CXXFLAGS="-O3 -Wall" --prefix=/path/to/installation/directory
+```
 
 ## Installing from a cloned repository
 We strongly recommend using `falco` through stable releases as described above,
@@ -82,6 +87,56 @@ This will generate three files in the same directory as the input fastq file:
   is generated, with one of the columns being the file name associated to each
   module result.
 
+the full list of arguments and options can be seen by running `falco` without any arguments, as well as `falco -?` or `falco --help`. This will print the following list:
+
+```
+Usage: falco [OPTIONS] <seqfile1> <seqfile2> ...
+
+Options:
+  -h, --help                print this help file and exit 
+  -v, --version             print the program version and exit 
+  -o, --outdir              Create all output files in the specified 
+                            output directory. If notprovided, files 
+                            will be created in the same directory as 
+                            the input file. 
+  -C, --casava              Files come from raw casava output 
+                            (currently ignored) 
+  -n, --nano                Files come from fast5 nanopore sequences 
+  -F, --nofilter            If running with --casava do not sequences 
+                            (currently ignored) 
+  -e, --noextract           If running with --casava do not remove poor 
+                            quality sequences (currently ignored) 
+  -g, --nogroup             Disable grouping of bases for reads >50bp 
+  -f, --format              Force file format 
+  -t, --threads             Specifies number of simultaneous files 
+  -c, --contaminants        Non-default filer with a list of 
+                            contaminants 
+  -a, --adapters            Non-default file with a list of adapters 
+  -l, --limits              Non-default file with limits and warn/fail 
+                            criteria 
+  -T, --skip-text           Skip generating text file (Default = false) 
+  -H, --skip-html           Skip generating HTML file (Default = false) 
+  -S, --skip-short-summary  Skip short summary(Default = false) 
+  -q, --quiet               print more run info 
+  -d, --dir                 directory in which to create temp files 
+  -A, --advanced-mode       advanced mode: adds more information to the 
+                            FastQC output depending on non-fastqc user 
+                            flags 
+  -B, --bisulfite           reads are whole genome bisulfite 
+                            sequencing, and more Ts and fewer Cs are 
+                            therefore expected and will be accounted 
+                            for in base content (advanced mode) 
+  -R, --reverse-complement  The input is a reverse-complement. All 
+                            modules will be tested by swapping A/T and 
+                            C/G 
+
+Help options:
+  -?, -help                 print this help message 
+      -about                print about message 
+
+PROGRAM: falco
+A high throughput sequence QC analysis tool
+```
 Copyright and License Information
 =================================
 
