@@ -1359,10 +1359,10 @@ ModuleSequenceLengthDistribution::make_grade() {
 
 void
 ModuleSequenceLengthDistribution::write_module(ostream &os) {
-  os << "Length\tCount\n";
+  os << "#Length\tCount\n";
   for (size_t i = 0; i < max_read_length; ++i) {
     if (sequence_lengths[i] > 0) {
-      os << i+1 << "\t" << sequence_lengths[i] << "\n";
+      os << i+1 << "\t" << sequence_lengths[i] << ".0\n";
     }
   }
 }
@@ -1630,7 +1630,8 @@ ModuleOverrepresentedSequences::make_grade() {
 
 void
 ModuleOverrepresentedSequences::write_module(ostream &os) {
-  os << "#Sequence\tCount\tPercentage\tPossible Source\n";
+  if (overrep_sequences.size() > 0)
+    os << "#Sequence\tCount\tPercentage\tPossible Source\n";
   for (auto seq : overrep_sequences) {
       os << seq.first << "\t" << seq.second <<  "\t" <<
         100.0 * seq.second / num_reads << "\t"
