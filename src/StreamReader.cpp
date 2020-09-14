@@ -16,11 +16,11 @@
 #include "StreamReader.hpp"
 #include <vector>
 #include <cstring>
-
 using std::string;
 using std::vector;
 using std::runtime_error;
 using std::array;
+using std::end;
 /****************************************************/
 /***************** STREAMREADER *********************/
 /****************************************************/
@@ -118,12 +118,8 @@ StreamReader::put_base_in_buffer() {
 // Gets base from either buffer or leftover
 inline void
 StreamReader::get_base_from_buffer() {
-  if (still_in_buffer) {
-    base_from_buffer = buffer[read_pos];
-  }
-  else {
-    base_from_buffer = leftover_buffer[leftover_ind];
-  }
+  base_from_buffer = still_in_buffer ?
+                     buffer[read_pos] : leftover_buffer[leftover_ind];
 }
 
 /*******************************************************/
@@ -210,15 +206,16 @@ StreamReader::read_tile_line(FastqStats &stats) {
   }
 
   // We haven't parsed the first line to know the split point
-  if (tile_split_point == 0)  {
+  if (tile_split_point == 0) {
     get_tile_split_position();
   }
   else {
     get_tile_value();
     // allocate vector for tile if it doesn't exist
-    if (stats.tile_position_quality.count(tile_cur) == 0) {
+    if (stats.tile_position_quality.find(tile_cur) ==
+        end(stats.tile_position_quality)) {
       stats.tile_position_quality[tile_cur] =
-        vector<double> (stats.max_read_length, 0.0);
+        vector<double> (stats.max_read_length , 0.0);
       stats.tile_position_count[tile_cur] =
         vector<size_t> (stats.max_read_length, 0);
     }
@@ -418,12 +415,15 @@ StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
   ]++;
 
   // Tile processing
-  if (!tile_ignore) {
-    if (do_tile_read && tile_cur != 0) {
-      stats.tile_position_quality[tile_cur][read_pos]
+  if (!tile_ignore && do_tile_read && tile_cur != 0) {
+    // allocate more base space if necessary
+    if (stats.tile_position_quality[tile_cur].size() == read_pos) {
+      stats.tile_position_quality[tile_cur].push_back(0.0);
+      stats.tile_position_count[tile_cur].push_back(0);
+    }
+    stats.tile_position_quality[tile_cur][read_pos]
         += quality_value;
       stats.tile_position_count[tile_cur][read_pos]++;
-    }
   }
 }
 
@@ -462,10 +462,8 @@ StreamReader::read_quality_line(FastqStats &stats) {
     }
 
     get_base_from_buffer();
-
     // Converts quality ascii to zero-based
     quality_value = *cur_char - Constants::quality_zero;
-
     // Fast bases from buffer
     if (still_in_buffer) {
       process_quality_base_from_buffer(stats);
