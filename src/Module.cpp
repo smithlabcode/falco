@@ -764,11 +764,12 @@ ModulePerTileSequenceQuality::summarize_module(const FastqStats &stats) {
   }
 
   for (auto &v : tile_position_quality) {
-    for (size_t i = 0; i < v.second.size(); ++i) {
+    const size_t lim = v.second.size();
+    for (size_t i = 0; i < lim; ++i) {
       // transform sum of all qualities in mean
-      v.second[i] = v.second[i] / 
+      v.second[i] = v.second[i] /
         stats.tile_position_count.find(v.first)->second[i];
-      
+
       // subtract the global mean
       v.second[i] -= mean_in_base[i];
     }
@@ -780,7 +781,6 @@ ModulePerTileSequenceQuality::summarize_module(const FastqStats &stats) {
   }
 
   sort(tiles_sorted.begin(), tiles_sorted.end());
-
 }
 
 void
@@ -819,6 +819,16 @@ ModulePerTileSequenceQuality::write_module(ostream &os) {
 
 string
 ModulePerTileSequenceQuality::make_html_data() {
+  // find quantiles based on data for a standardized color scale
+  const double z_min = -10;
+  const double z_median = 0;
+  const double z_max = 10;
+
+  double quantile_zero = 0;
+  double quantile_min = 0;
+  double quantile_max = 0;
+  double sum = 0;
+
   ostringstream data;
   data << "{x : [";
   for (size_t i = 0; i < max_read_length; ++i) {
@@ -846,13 +856,36 @@ ModulePerTileSequenceQuality::make_html_data() {
     // start new array with all counts
     data << "[";
     for (size_t j = 0; j < max_read_length; ++j) {
-      data << tile_position_quality[tiles_sorted[i]][j];
+      const double val =  tile_position_quality[tiles_sorted[i]][j];
+
+      data <<  val;
       if (j < max_read_length - 1) data << ",";
+
+      // update quantiles
+      quantile_zero += (val <= z_median);
+      quantile_min += (val <= z_min);
+      quantile_max += (val <= z_max);
+      sum += 1.0;
     }
     data << "]";
   }
   data << "]";
-  data << ", type : 'heatmap' }";
+  data << ", type : 'heatmap',";
+
+  // fixed color scale
+  data << "colorscale: [";
+
+  // - 10: red
+  data << "[" << quantile_min / sum << ", 'rgb(210,65,83)'],";
+
+  // 0: light blue
+  data << "[" << quantile_zero / sum << ", 'rgb(178,236,254)'],";
+
+  // + 10: dark blue
+  data << "[" << quantile_max / sum << ", 'rgb(34,57,212)']";
+  
+  data << "], showscale : true";
+  data << "}";
 
   return data.str();
 }
