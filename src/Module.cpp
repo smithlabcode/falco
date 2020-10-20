@@ -749,7 +749,7 @@ ModulePerTileSequenceQuality::summarize_module(const FastqStats &stats) {
         stats.tile_position_count.find(v.first)->second[i];
     }
   }
-   
+
   // Now I calculate the sum of all tile qualities in each position
   vector<double> mean_in_base(max_read_length, 0.0);
   for (auto v : tile_position_quality) {
@@ -759,16 +759,21 @@ ModulePerTileSequenceQuality::summarize_module(const FastqStats &stats) {
   }
 
   // Now transform sum into mean
-  for (size_t i = 0; i < max_read_length; ++i) {
-    mean_in_base[i] = mean_in_base[i] / position_counts[i];
-  }
+  for (size_t i = 0; i < max_read_length; ++i)
+    if (position_counts[i] > 0)
+      mean_in_base[i] = mean_in_base[i] / position_counts[i];
+    else
+      mean_in_base[i] = 0;
 
   for (auto &v : tile_position_quality) {
     const size_t lim = v.second.size();
     for (size_t i = 0; i < lim; ++i) {
       // transform sum of all qualities in mean
-      v.second[i] = v.second[i] /
+      const size_t count_at_pos =
         stats.tile_position_count.find(v.first)->second[i];
+
+      if (count_at_pos > 0)
+        v.second[i] = v.second[i] / count_at_pos;
 
       // subtract the global mean
       v.second[i] -= mean_in_base[i];
@@ -776,9 +781,8 @@ ModulePerTileSequenceQuality::summarize_module(const FastqStats &stats) {
   }
   // sorts tiles
   tiles_sorted.clear();
-  for (auto v : tile_position_quality) {
+  for (auto v : tile_position_quality)
     tiles_sorted.push_back(v.first);
-  }
 
   sort(tiles_sorted.begin(), tiles_sorted.end());
 }
@@ -883,7 +887,7 @@ ModulePerTileSequenceQuality::make_html_data() {
 
   // + 10: dark blue
   data << "[" << quantile_max / sum << ", 'rgb(34,57,212)']";
-  
+
   data << "], showscale : true";
   data << "}";
 
