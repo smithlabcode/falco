@@ -821,6 +821,11 @@ ModulePerTileSequenceQuality::write_module(ostream &os) {
   }
 }
 
+inline double
+round_quantile(const double val, const double num_quantiles) {
+  return static_cast<int>(val * num_quantiles) / num_quantiles;
+}
+
 string
 ModulePerTileSequenceQuality::make_html_data() {
   // find quantiles based on data for a standardized color scale
@@ -879,16 +884,23 @@ ModulePerTileSequenceQuality::make_html_data() {
   // fixed color scale
   data << "colorscale: [";
 
+  // We will now discretize the quantiles so plotly understands
+  // the color scheme
+  static const double num_quantiles = 10.0;
+  quantile_min = round_quantile(quantile_min / sum, num_quantiles);
+  quantile_zero = round_quantile(quantile_zero / sum, num_quantiles);
+  quantile_max = round_quantile(quantile_max / sum, num_quantiles);
+
   // - 10: red
-  data << "[" << quantile_min / sum << ", 'rgb(210,65,83)'],";
+  data << "[" << quantile_min << ", 'rgb(210,65,83)'],";
 
   // 0: light blue
-  data << "[" << quantile_zero / sum << ", 'rgb(178,236,254)'],";
+  data << "[" << quantile_zero << ", 'rgb(178,236,254)'],";
 
   // + 10: dark blue
-  data << "[" << quantile_max / sum << ", 'rgb(34,57,212)']";
-
-  data << "], showscale : true";
+  data << "[" << quantile_max << ", 'rgb(34,57,212)']";
+  data << "],";
+  data << "showscale : true";
   data << "}";
 
   return data.str();
