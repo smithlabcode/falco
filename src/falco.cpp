@@ -352,7 +352,10 @@ int main(int argc, const char **argv) {
                       "reads >50bp", false, falco_config.nogroup);
     opt_parse.add_opt("-format", 'f', "Force file format", false,
                       forced_file_format);
-    opt_parse.add_opt("-threads", 't', "Specifies number of simultaneous files",
+    opt_parse.add_opt("-threads", 't', "Specifies number of threads to process "
+                                        "simultaneos files in parallel "
+                                        "(currently set for compatibility "
+                                        "with fastqc. Not yet supported!)",
                       false, falco_config.threads);
     opt_parse.add_opt("-contaminants", 'c',
                       "Non-default filer with a list of contaminants",
