@@ -148,12 +148,13 @@ write_results(const FalcoConfig &falco_config,
               bool skip_text,
               bool skip_html,
               bool skip_short_summary,
+              const string &file_prefix,
               const string &outdir) {
 
   // Here we open the short summary ofstream
   ofstream summary_txt;
   if (!skip_short_summary) {
-    string summary_file = outdir + "/summary.txt";
+    string summary_file = outdir + "/" + file_prefix + "summary.txt";
     summary_txt.open(summary_file.c_str(), std::ofstream::binary);
   }
 
@@ -162,7 +163,7 @@ write_results(const FalcoConfig &falco_config,
   if (!skip_text) {
 
     string qc_data_file = falco_config.filename;
-    qc_data_file = outdir + "/fastqc_data.txt";
+    qc_data_file = outdir + "/" + file_prefix + "fastqc_data.txt";
     qc_data_txt.open(qc_data_file.c_str(), std::ofstream::binary);
 
     if (!falco_config.quiet)
@@ -177,7 +178,7 @@ write_results(const FalcoConfig &falco_config,
   ofstream html;
   if (!skip_html) {
     // Decide html filename based on input
-    string html_file = outdir + "/fastqc_report.html";
+    string html_file = outdir + "/" + file_prefix + "fastqc_report.html";
 
     if (!falco_config.quiet)
       log_process("Writing HTML report to " + html_file);
@@ -433,7 +434,7 @@ int main(int argc, const char **argv) {
     const vector<string> all_seq_filenames(leftover_args);
 
     /****************** END COMMAND LINE OPTIONS ********************/
-    for (auto filename : all_seq_filenames) {
+    for (const auto filename : all_seq_filenames) {
 
       const time_point file_start_time = system_clock::now();
 
@@ -506,8 +507,10 @@ int main(int argc, const char **argv) {
       }
 
       // Write results
+      const string file_prefix = (all_seq_filenames.size() == 1) ?
+                                 ("") : (filename + "_");
       write_results(falco_config, stats, skip_text, skip_html,
-                   skip_short_summary, cur_outdir);
+                   skip_short_summary, file_prefix, cur_outdir);
 
       /************************** TIME SUMMARY *****************************/
       if (!falco_config.quiet)
