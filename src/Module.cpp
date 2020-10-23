@@ -829,14 +829,8 @@ round_quantile(const double val, const double num_quantiles) {
 string
 ModulePerTileSequenceQuality::make_html_data() {
   // find quantiles based on data for a standardized color scale
-  const double z_min = -10;
-  const double z_median = 0;
-  const double z_max = 10;
-
-  double quantile_zero = 0;
-  double quantile_min = 0;
-  double quantile_max = 0;
-  double sum = 0;
+  double min_val = std::numeric_limits<double>::max();
+  double max_val = std::numeric_limits<double>::min();
 
   ostringstream data;
   data << "{x : [";
@@ -870,11 +864,8 @@ ModulePerTileSequenceQuality::make_html_data() {
       data <<  val;
       if (j < max_read_length - 1) data << ",";
 
-      // update quantiles
-      quantile_zero += (val <= z_median);
-      quantile_min += (val <= z_min);
-      quantile_max += (val <= z_max);
-      sum += 1.0;
+      max_val = max(max_val, val);
+      min_val = min(min_val, val);
     }
     data << "]";
   }
@@ -886,19 +877,17 @@ ModulePerTileSequenceQuality::make_html_data() {
 
   // We will now discretize the quantiles so plotly understands
   // the color scheme
-  static const double num_quantiles = 10.0;
-  quantile_min = round_quantile(quantile_min / sum, num_quantiles);
-  quantile_zero = round_quantile(quantile_zero / sum, num_quantiles);
-  quantile_max = round_quantile(quantile_max / sum, num_quantiles);
+  static const double num_quantiles = 20.0;
+  double mid_point = round_quantile(min_val/(min_val - max_val), num_quantiles);
 
   // - 10: red
-  data << "[" << quantile_min << ", 'rgb(210,65,83)'],";
+  data << "[0.0, 'rgb(210,65,83)'],";
 
   // 0: light blue
-  data << "[" << quantile_zero << ", 'rgb(178,236,254)'],";
+  data << "[" << mid_point << ", 'rgb(178,236,254)'],";
 
   // + 10: dark blue
-  data << "[" << quantile_max << ", 'rgb(34,57,212)']";
+  data << "[1.0, 'rgb(34,57,212)']";
   data << "],";
   data << "showscale : true";
   data << "}";
