@@ -31,6 +31,8 @@ using std::runtime_error;
 using std::istringstream;
 using std::cerr;
 
+const string FalcoConfig::FalcoVersion = "0.2.3";
+
 /*********************************************************/
 /************** DEFAULT VALUES FOR FILES *****************/
 /*********************************************************/
@@ -942,7 +944,7 @@ const string FalcoConfig::html_template =
 ""
 ""
 "</div>"
-"<div class=\"footer\">Falco 0.1.0"
+"<div class=\"footer\">Falco " + FalcoConfig::FalcoVersion +
 "</div>"
 "</body>"
 "<script src=\"https://code.jquery.com/jquery-3.3.1.slim.min.js\" "

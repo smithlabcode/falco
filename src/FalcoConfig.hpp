@@ -30,6 +30,7 @@
 
 // config from options, constants, magic numbers, etc
 struct FalcoConfig {
+  static const std::string FalcoVersion;
   FalcoConfig();  // set magic defaults
 
   /************************************************************

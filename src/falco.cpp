@@ -301,7 +301,7 @@ write_results(const FalcoConfig &falco_config,
 int main(int argc, const char **argv) {
 
   try {
-    static const string FALCO_VERSION = "falco v0.2.1";
+    static const string FALCO_VERSION = "falco " + FalcoConfig::FalcoVersion;
     bool help = false;
     bool version = false;
 
