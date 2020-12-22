@@ -23,6 +23,11 @@ LDLIBS = -lz
 OPTFLAGS = -O3
 DEBUGFLAGS = -g
 
+ifdef HAVE_HTSLIB
+CPPFLAGS += -DUSE_HTS
+LDLIBS += -lhts
+endif
+
 ifdef DEBUG
 CXXFLAGS += $(DEBUGFLAGS)
 else

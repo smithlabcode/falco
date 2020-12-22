@@ -57,6 +57,7 @@ $ make install
 
 This should create a `bin` directory inside the cloned repository
 containing `falco`.
+
 ### Required C++ dependencies
 
 [zlib](https://zlib.net) is required to read gzip compressed FASTQ files. It is
@@ -82,7 +83,15 @@ configure command above with the `--enable-hts` flag:
 $ ./configure CXXFLAGS="-O3 -Wall" --enable-hts
 ```
 
-If successfully compiled, `falco` can be used in bam files the same way as it is
+If `falco` was cloned from the repository, run the following commands
+to allow BAM file reading:
+
+```
+$ make HAVE_HTSLIB=1 all
+$ make HAVE_HTSLIB=1 install
+```
+
+If successfully compiled, `falco` can be used in BAM files the same way as it is
 used with fastq and sam files.
 
 Running falco
