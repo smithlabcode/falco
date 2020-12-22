@@ -13,6 +13,9 @@ install the most recent release of `falco` by running:
 conda install -c bioconda falco
 ```
 
+`falco` can be found inside the `bin` directory of your anaconda
+installer.
+
 ## Installing from source (code release)
 
 Compilation from source can be done by downloading a `falco` release from the
@@ -33,6 +36,9 @@ the `--prefix` argument when running `./configure`, for instance:
 $ ./configure CXXFLAGS="-O3 -Wall" --prefix=/path/to/installation/directory
 ```
 
+The `falco` binary will be found in the `bin` directory inside the
+specified prefix.
+
 ## Installing from a cloned repository
 We strongly recommend using `falco` through stable releases as described above,
 as the latest commits might contain undocumented bugs. For the more
@@ -49,7 +55,8 @@ $ make all
 $ make install
 ```
 
-This should create a `bin` directory
+This should create a `bin` directory inside the cloned repository
+containing `falco`.
 ### Required C++ dependencies
 
 [zlib](https://zlib.net) is required to read gzip compressed FASTQ files. It is
