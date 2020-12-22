@@ -1,56 +1,49 @@
-# falco: quality control for sequencing read files
+# Copyright (C) 2018-2019 Andrew D. Smith
 #
-# Copyright (C) 2019 Guilherme De Sena Brandine and
-#                    Andrew D. Smith
-# Authors: Guilherme De Sena Brandine, Andrew Smith
+# Authors: Andrew D. Smith
 #
-# This program is free software: you can redistribute it and/or
-# modify it under the terms of the GNU General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
+# This file is part of ABISMAL.
 #
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-# General Public License for more details.
+# ABISMAL is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# ABISMAL is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+# License for more details.
 
-PROGRAMS = falco
+PROGS = falco
+
 CXX = g++
-CXXFLAGS = -O3 -Wall -Wextra -std=c++11
+CXXFLAGS = -Wall -std=c++11
+CPPFLAGS = -DPROGRAM_PATH=\"$(SRC_ROOT)\"
+LDLIBS = -lz
+OPTFLAGS = -O3
+DEBUGFLAGS = -g
 
-# optional zlib and hts
-LIBS =
-ifndef NO_ZLIB
-LIBS += -lz
-CXXFLAGS += -DUSE_ZLIB
+ifdef DEBUG
+CXXFLAGS += $(DEBUGFLAGS)
+else
+CXXFLAGS += $(OPTFLAGS)
 endif
 
-ifndef NO_HTS
-LIBS += -lhts
-CXXFLAGS += -DUSE_HTS
-endif
-
-# get path to binary at compile time to look for files
-curr_makefile := $(abspath $(lastword $(MAKEFILE_LIST)))
-current_directory := $(dir $(curr_makefile))/..
-CXXFLAGS += -DPROGRAM_PATH=\"$(current_directory)\"
-
-all: $(PROGRAMS)
-
-install: $(PROGRAMS)
-	@mkdir -p bin
-	@install -m 755 $(PROGRAMS) bin
-	rm $(PROGRAMS)
-
-$(PROGRAMS): HtmlMaker.o FastqStats.o StreamReader.o FalcoConfig.o \
-	OptionParser.o smithlab_utils.o
+all: $(PROGS)
+install: $(PROGS)
+	@mkdir -p $(SRC_ROOT)/bin
+	@install -m 755 $(PROGS) $(SRC_ROOT)/bin
 
 %.o: %.cpp %.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $< $(CPPFLAGS)
+
+$(PROGS): FalcoConfig.o FastqStats.o HtmlMaker.o Module.o OptionParser.o \
+	        smithlab_utils.o StreamReader.o
 
 %: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(CPPFLAGS) $(LDLIBS)
 
 clean:
-	@-rm -f $(PROGRAMS) *.o
+	@-rm -f $(PROGS) *.o *.so *.a *~
 .PHONY: clean
+

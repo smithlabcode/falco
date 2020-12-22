@@ -8,7 +8,6 @@ bin
 *.html
 benchmark
 # Autotools generated files
-Makefile
 Makefile.in
 a.awk
 aclocal.m4

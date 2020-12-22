@@ -18,14 +18,16 @@ conda install -c bioconda falco
 Compilation from source can be done by downloading a `falco` release from the
 [releases](https://github.com/smithlabcode/falco/releases)
 section above. Upon downloading, inflating and moving to the source
-directory, installation can be done through the following commands:
+directory, installation can be done through the following commands,
+where `$` is your shell
 
 ```
 $ ./configure CXXFLAGS="-O3 -Wall"
 $ make all
 $ make install
 ```
-if you wish to install the falco binaries on a specific directory, you can use the `--prefix` argument when running `./configure`, for instance:
+if you wish to install the falco binaries on a specific directory, you can use
+the `--prefix` argument when running `./configure`, for instance:
 
 ```
 $ ./configure CXXFLAGS="-O3 -Wall" --prefix=/path/to/installation/directory
@@ -33,13 +35,21 @@ $ ./configure CXXFLAGS="-O3 -Wall" --prefix=/path/to/installation/directory
 
 ## Installing from a cloned repository
 We strongly recommend using `falco` through stable releases as described above,
-as the latest commits might contain undocumented bugs. However, if users wish
-to test the most recent code, the
-[GNU autotools](https://www.gnu.org/software/automake) software is required
-for compilation. Simply run `autoreconf -i` to generate the `configure` file,
-then run the commands listed in the previous section to check for dependencies
-and compile the program.
+as the latest commits might contain undocumented bugs. For the more
+advanced users who wish to test the most recent code, `falco` can be
+installed by first cloning the repository
 
+```
+$ git clone https://github.com/smithlabcode/falco.git
+```
+
+Once inside the generated repsotory directory, run
+```
+$ make all
+$ make install
+```
+
+This should create a `bin` directory
 ### Required C++ dependencies
 
 [zlib](https://zlib.net) is required to read gzip compressed FASTQ files. It is
