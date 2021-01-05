@@ -7,10 +7,10 @@ Installing falco
 ================
 
 ## Installing through conda
-If you use [anaconda](https://anaconda.org) to manage your packages, you can
-install the most recent release of `falco` by running:
+If you use [anaconda](https://anaconda.org) to manage your packages, and the `conda` binary
+is in your path, you can install the most recent release of `falco` by running
 ```
-conda install -c bioconda falco
+$ conda install -c bioconda falco
 ```
 
 `falco` can be found inside the `bin` directory of your anaconda
