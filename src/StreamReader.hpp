@@ -171,10 +171,9 @@ class StreamReader{
 /*******************************************************/
 class FastqReader : public StreamReader {
  private:
-  // for uncompressed
-  struct stat st;
-  char *last;
-  void *mmap_data;
+  static const size_t kChunkSize = (1<<20);
+  char filebuf[kChunkSize];
+  FILE *fileobj;
 
  public:
   FastqReader(FalcoConfig &fc, const size_t _buffer_size);
@@ -188,7 +187,7 @@ class FastqReader : public StreamReader {
 /*******************************************************/
 /*************** READ FASTQ GZ RCORD *******************/
 /*******************************************************/
-class GzFastqReader : public FastqReader {
+class GzFastqReader : public StreamReader {
  private:
   static const size_t kChunkSize = (1<<20);
   char gzbuf[kChunkSize];

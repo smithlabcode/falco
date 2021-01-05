@@ -539,45 +539,48 @@ FastqReader::FastqReader(FalcoConfig &_config,
   StreamReader(_config, _buffer_size, '\n', '\n') {
 }
 
-bool inline
-FastqReader::is_eof() {
-  return cur_char == (last + 1);
-}
-
-// Load uncompressed fastq through memory map
+// Load fastq with zlib
 void
 FastqReader::load() {
-  // uncompressed fastq = memorymap
-  int fd = open(filename.c_str(), O_RDONLY, 0);
-  if (fd == -1)
-    throw runtime_error("failed to open fastq file: " + filename);
-
-  // get the file size
-  fstat(fd, &st);
-
-  // execute mmap
-  mmap_data = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-  close(fd);
-  if (mmap_data == MAP_FAILED)
-    throw runtime_error("failed to mmap fastq file: " + filename);
-
-  // Initialize position pointer
-  cur_char = static_cast<char*>(mmap_data);
-  last = cur_char + st.st_size - 1;
+  fileobj = fopen(filename.c_str(), "r");
+  if (fileobj == NULL)
+    throw runtime_error("Cannot open file : " + filename);
+  cur_char = new char[1];
+  ++cur_char;
 }
 
-// Parses the particular fastq format
-bool inline
-FastqReader::operator>>(FastqStats &stats) {
+// straightforward
+inline bool
+FastqReader::is_eof() {
+  return feof(fileobj);
+}
+
+FastqReader::~FastqReader() {
+  fclose(fileobj);
+}
+
+// Parses fastq gz by reading line by line into the gzbuf
+inline bool
+FastqReader::operator >>(FastqStats &stats) {
+  cur_char = fgets(filebuf, kChunkSize, fileobj);
+
+  // need to check here if we did not hit eof
+  if (is_eof()) {
+    return false;
+  }
+
   read_tile_line(stats);
   skip_separator();
 
+  cur_char = fgets(filebuf, kChunkSize, fileobj);
   read_sequence_line(stats);
   skip_separator();
 
+  cur_char = fgets(filebuf, kChunkSize, fileobj);
   read_fast_forward_line();
   skip_separator();
 
+  cur_char = fgets(filebuf, kChunkSize, fileobj);
   read_quality_line(stats);
   skip_separator();
 
@@ -587,11 +590,7 @@ FastqReader::operator>>(FastqStats &stats) {
   stats.num_reads++;
 
   // Returns if file should keep being checked
-  return !is_eof();
-}
-
-FastqReader::~FastqReader()  {
-  munmap(mmap_data, st.st_size);
+  return (!is_eof() && cur_char != 0);
 }
 
 /*******************************************************/
@@ -600,7 +599,7 @@ FastqReader::~FastqReader()  {
 // the gz fastq constructor is the same as the fastq
 GzFastqReader::GzFastqReader(FalcoConfig &_config,
                              const size_t _buffer_size) :
-  FastqReader(_config, _buffer_size) {
+  StreamReader(_config, _buffer_size, '\n', '\n') {
 }
 
 // Load fastq with zlib
@@ -614,7 +613,7 @@ GzFastqReader::load() {
 }
 
 // straightforward
-bool inline
+inline bool
 GzFastqReader::is_eof() {
   return gzeof(fileobj);
 }
@@ -624,7 +623,7 @@ GzFastqReader::~GzFastqReader() {
 }
 
 // Parses fastq gz by reading line by line into the gzbuf
-bool inline
+inline bool
 GzFastqReader::operator >>(FastqStats &stats) {
   cur_char = gzgets(fileobj, gzbuf, kChunkSize);
 
@@ -692,12 +691,12 @@ SamReader::load() {
   }
 }
 
-bool inline
+inline bool
 SamReader::is_eof() {
-return (cur_char == last + 1);
+  return (cur_char == last + 1);
 }
 
-bool inline
+inline bool
 SamReader::operator >> (FastqStats &stats) {
   read_tile_line(stats);
   skip_separator();
@@ -756,7 +755,7 @@ BamReader::is_eof() {
   return (cur_char == last - 1);
 }
 
-bool inline
+inline bool
 BamReader::operator>>(FastqStats &stats) {
   if ((rd_ret = sam_read1(hts, hdr, b)) >= 0) {
     fmt_ret = 0;
