@@ -7,10 +7,10 @@ Installing falco
 ================
 
 ## Installing through conda
-If you use [anaconda](https://anaconda.org) to manage your packages, you can
-install the most recent release of `falco` by running:
+If you use [anaconda](https://anaconda.org) to manage your packages, and the `conda` binary
+is in your path, you can install the most recent release of `falco` by running
 ```
-conda install -c bioconda falco
+$ conda install -c bioconda falco
 ```
 
 `falco` can be found inside the `bin` directory of your anaconda
@@ -20,9 +20,10 @@ installer.
 
 Compilation from source can be done by downloading a `falco` release from the
 [releases](https://github.com/smithlabcode/falco/releases)
-section above. Upon downloading, inflating and moving to the source
-directory, installation can be done through the following commands,
-where `$` is your shell
+section above. Upon downloading the release (in `.tar.gz` or `.zip` format),
+and inflating the downloaded file to a directory (e.g. `falco`), move to the
+target directory the file was inflated (e.g. `cd falco`). You should see a
+`configure` file in it. In this directory, run
 
 ```
 $ ./configure CXXFLAGS="-O3 -Wall"
@@ -47,6 +48,7 @@ installed by first cloning the repository
 
 ```
 $ git clone https://github.com/smithlabcode/falco.git
+$ cd falco
 ```
 
 Once inside the generated repsotory directory, run
