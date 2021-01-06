@@ -459,25 +459,29 @@ int main(int argc, const char **argv) {
 
       // Initializes a reader given the file format
       if (falco_config.is_sam) {
-        log_process("reading file as sam format");
+        if (!falco_config.quiet)
+          log_process("reading file as sam format");
         SamReader in(falco_config, stats.kNumBases);
         read_stream_into_stats(in, stats, falco_config);
       }
 #ifdef USE_HTS
       else if (falco_config.is_bam) {
-        log_process("reading file as bam format");
+        if (!falco_config.quiet)
+          log_process("reading file as bam format");
         BamReader in(falco_config, stats.kNumBases);
         read_stream_into_stats(in, stats, falco_config);
       }
 #endif
 
       else if (falco_config.is_fastq_gz) {
-        log_process("reading file as gzipped fastq format");
+        if (!falco_config.quiet)
+          log_process("reading file as gzipped fastq format");
         GzFastqReader in(falco_config, stats.kNumBases);
         read_stream_into_stats(in,stats,falco_config);
       }
       else if (falco_config.is_fastq) {
-        log_process("reading file as uncompressed fastq format");
+        if (!falco_config.quiet)
+          log_process("reading file as uncompressed fastq format");
         FastqReader in(falco_config, stats.kNumBases);
         read_stream_into_stats(in, stats, falco_config);
       }
