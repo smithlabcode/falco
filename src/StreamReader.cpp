@@ -58,15 +58,15 @@ StreamReader::StreamReader(FalcoConfig &config,
   do_sequence_length(config.do_sequence_length),
 
   // Here are the usual stream reader configs
-  buffer_size(_buffer_size),
   field_separator(_field_separator),
   line_separator(_line_separator),
+  buffer_size(_buffer_size),
 
   // Here are the const adapters
   num_adapters(config.adapter_hashes.size()),
-  adapters(make_adapters(config.adapter_hashes)),
   adapter_size(config.adapter_size),
-  adapter_mask((1ll << (2*adapter_size)) - 1)
+  adapter_mask((1ll << (2*adapter_size)) - 1),
+  adapters(make_adapters(config.adapter_hashes))
   {
 
   // Allocates buffer to temporarily store reads

@@ -19,14 +19,14 @@
 #include <string>
 #include <cmath>
 
+// Optional zlib usage
+#include <zlib.h>
+
 // Memory map
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-
-// Optional zlib usage
-#include <zlib.h>
 
 #ifdef USE_HTS
 #include <htslib/sam.h>
@@ -46,6 +46,7 @@ class StreamReader{
   const bool do_sequence_hash,
              do_kmer,
              do_adapter,
+             do_sliding_window,
              do_n_content,
              do_quality_base,
              do_sequence,
@@ -54,22 +55,28 @@ class StreamReader{
              do_tile,
              do_sequence_length;
 
-  const bool do_sliding_window;
-  bool continue_storing_sequences;
-  bool do_kmer_read;
-  bool do_tile_read;
-
-  // buffer size to store line 2 of each read statically
-  const size_t buffer_size;
-
   // This will tell me which character to look for to go to the next field
   const char field_separator;
 
   // This will tell me which character to look for to finish processing a record
   const char line_separator;
 
-  // keep track of reads for which to do kmer and tile count
-  const size_t num_reads_for_tile = 10;
+  // buffer size to store line 2 of each read statically
+  const size_t buffer_size;
+
+  /************ ADAPTER SEARCH ***********/
+  const size_t num_adapters;
+  const size_t adapter_size;
+  const size_t adapter_mask;
+  const std::array<size_t, Constants::max_adapters> adapters;
+
+    // keep track of reads for which to do kmer and tile count
+  static const size_t num_reads_for_tile = 10;
+
+  bool continue_storing_sequences;
+  bool do_kmer_read;
+  bool do_tile_read;
+
   size_t next_tile_read;
 
   // Whether or not we have passed the buffer while reading and need to allocate
@@ -122,13 +129,6 @@ class StreamReader{
   std::string leftover_buffer;
   std::string sequence_to_hash;  // sequence marked for duplication
   std::string filename;
-
-  /************ ADAPTER SEARCH ***********/
-  const size_t num_adapters;
-  const size_t adapter_size;
-  const size_t adapter_mask;
-  const std::array<size_t, Constants::max_adapters> adapters;
-
   /************ FUNCTIONS TO PROCESS READS AND BASES ***********/
   // gets and puts bases from and to buffer
   inline void put_base_in_buffer();  // puts base in buffer or leftover
