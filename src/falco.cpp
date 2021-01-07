@@ -170,7 +170,7 @@ write_results(const FalcoConfig &falco_config,
       log_process("Writing text report to " + qc_data_file);
 
     // put header
-    qc_data_txt << "##Falco\t0.1\n";
+    qc_data_txt << "##Falco\t" + FalcoConfig::FalcoVersion + "\n";
   }
 
   // Here we open the html ostream and maker object
