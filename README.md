@@ -99,8 +99,9 @@ used with fastq and sam files.
 Running falco
 =============
 
-Run falco in a hypothetical with the following command, where
-the `example.fq` file provided can be replaced with any FASTQ file
+Run falco in with the following command, where the `example.fq` file
+provided can be replaced with the path to any FASTQ file you want to run
+`falco`
 ```
 $ falco example.fq
 ```
