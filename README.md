@@ -99,10 +99,10 @@ used with fastq and sam files.
 Running falco
 =============
 
-Run falco in a hypothetical fastq file `example.fastq` with the following
-command:
+Run falco in a hypothetical with the following command, where
+the `example.fq` file provided can be replaced with any FASTQ file
 ```
-$ falco example.fastq
+$ falco example.fq
 ```
 
 This will generate three files in the same directory as the input fastq file:
