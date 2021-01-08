@@ -222,7 +222,7 @@ struct FastqStats {
   std::array<size_t, kNumBases> pos_kmer_count;
 
   // How many adapters were counted in each position
-  std::array<size_t, kNumBases> pos_adapter_count;
+  std::array<size_t, Constants::max_adapters * kNumBases> pos_adapter_count;
 
   /*********** DUPLICATION ******************/
   // First 100k unique sequences and how often they were seen
