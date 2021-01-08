@@ -1,5 +1,4 @@
-/* falco-diff : compare outputs of two fastqc/falco runs
- *
+/* 
  * Copyright (C) 2019 Guilherme De Sena Brandine and
  *                    Andrew D. Smith
  * Authors: Guilherme De Sena Brandine, Andrew Smith
@@ -234,18 +233,22 @@ class ModulePerSequenceGCContent : public Module {
 };
 
 class ModulePerBaseNContent : public Module {
- private:
-   size_t num_bases;
-   // for grade
-   size_t grade_n_warn;
-   size_t grade_n_error;
+private:
+  size_t num_bases;
+  // for grade
+  size_t grade_n_warn;
+  size_t grade_n_error;
 
-   double gc_deviation;
-   std::array<size_t, 101> gc_count;
-   std::array<size_t, 101> theoretical_gc_count;
-   std::vector<double> n_pct;
-   // grade vars
-   size_t gc_warn, gc_error;
+  double max_n_pct;
+  std::array<size_t, 101> gc_count;
+  std::array<size_t, 101> theoretical_gc_count;
+  std::vector<double> n_pct;
+  // grade vars
+  size_t gc_warn, gc_error;
+
+  bool do_group;
+  size_t num_groups;
+  std::vector<BaseGroup> base_groups;
  public:
   static const std::string module_name;
   ModulePerBaseNContent(const FalcoConfig &config);
@@ -266,6 +269,10 @@ class ModuleSequenceLengthDistribution : public Module {
   // warn and fail criteria
   bool has_empty_read;
   bool is_all_same_length;
+
+  bool do_group;
+  size_t num_groups;
+  std::vector<BaseGroup> base_groups;
  public:
   static const std::string module_name;
   ModuleSequenceLengthDistribution(const FalcoConfig &config);

@@ -162,6 +162,13 @@ make_linear_base_groups(vector<BaseGroup> &base_groups,
   }
 }
 
+template<class T>
+T& operator << (T &out, const BaseGroup &group) {
+  if (group.start == group.end) out << group.start + 1;
+  else out << group.start + 1 << "-" << group.end + 1;
+  return out;
+}
+
 // FastQC extrapolation of counts to the full file size
 double get_corrected_count(size_t count_at_limit,
                            size_t num_reads,
@@ -669,12 +676,8 @@ ModulePerBaseSequenceQuality::write_module(ostream &os) {
 
   // GS: TODO make base groups
   for (size_t i = 0; i < num_groups; ++i) {
-      if(base_groups[i].start == base_groups[i].end)
-        os << base_groups[i].start + 1 << "\t";
-      else
-        os << base_groups[i].start + 1 << "-" << base_groups[i].end + 1 << "\t";
-
-      os << group_mean[i] << "\t"
+      os << base_groups[i] << "\t"
+         << group_mean[i] << "\t"
          << group_median[i] << ".0\t"
          << group_lquartile[i] << ".0\t"
          << group_uquartile[i] << ".0\t"
@@ -1100,12 +1103,8 @@ ModulePerBaseSequenceContent::write_module(ostream &os) {
 
   os << "\n";
   for (size_t i = 0; i < num_groups; ++i) {
-    if(base_groups[i].start == base_groups[i].end)
-      os << base_groups[i].start + 1 << "\t";
-    else
-      os << base_groups[i].start + 1 << "-" << base_groups[i].end + 1 << "\t";
-
-    os << g_pct[i] << "\t" <<
+    os << base_groups[i] << "\t" <<
+          g_pct[i] << "\t" <<
           a_pct[i] << "\t" <<
           t_pct[i] << "\t" <<
           c_pct[i];
@@ -1303,37 +1302,54 @@ Module(ModulePerBaseNContent::module_name) {
   auto grade_n = config.limits.find("n_content")->second;
   grade_n_warn = grade_n.find("warn")->second;
   grade_n_error = grade_n.find("error")->second;
+  do_group = !config.nogroup;
 }
 
 void
 ModulePerBaseNContent::summarize_module(const FastqStats &stats) {
   num_bases = stats.max_read_length;
-  n_pct = vector<double>(num_bases, 0.0);
-  for (size_t i = 0; i < num_bases; ++i) {
-    if (i < FastqStats::kNumBases) {
-      n_pct[i] = 100.0 * stats.n_base_count[i] /
-                         stats.cumulative_read_length_freq[i];
+
+  // first, do the groups
+  if (do_group) {
+    make_linear_base_groups(base_groups, num_bases);
+  }
+
+  else make_default_base_groups(base_groups, num_bases);
+  num_groups = base_groups.size();
+
+  n_pct = vector<double>(num_groups, 0.0);
+  size_t this_n_cnt = 0;
+  size_t this_n_total = 0;
+  double this_n_pct = 0.0;
+
+  max_n_pct = 0.0;
+  for (size_t group = 0; group < num_groups; ++group) {
+    size_t group_n_cnt = 0, group_n_total = 0;
+    for (size_t i = base_groups[group].start;
+                i <= base_groups[group].end; ++i) {
+      this_n_cnt = (i < FastqStats::kNumBases) ?
+        (stats.n_base_count[i]) : (stats.long_n_base_count[i - FastqStats::kNumBases]);
+
+      this_n_total = (i < FastqStats::kNumBases) ? (stats.cumulative_read_length_freq[i]) :
+                     (stats.long_cumulative_read_length_freq[i - FastqStats::kNumBases]);
+      this_n_pct = this_n_cnt / static_cast<double>(this_n_total);
+      max_n_pct = max(max_n_pct, this_n_pct);
+      group_n_cnt += this_n_cnt;
+      group_n_total += this_n_total;
     }
-    else {
-      n_pct[i] = 100.0 * stats.long_n_base_count[i - FastqStats::kNumBases] /
-                         stats.long_cumulative_read_length_freq[
-                           i - FastqStats::kNumBases
-                         ];
-    }
+    n_pct[group] = 100.0*group_n_cnt / static_cast<double>(group_n_total);
   }
 }
 
 void
 ModulePerBaseNContent::make_grade() {
-  for (size_t i = 0; i < num_bases; ++i) {
-    if(grade != "fail") {
-      if (n_pct[i] > grade_n_error) {
-        grade = "fail";
-      }
+  if(grade != "fail") {
+    if (max_n_pct > grade_n_error) {
+      grade = "fail";
+    }
 
-      else if (n_pct[i] > grade_n_warn) {
-        grade = "warn";
-      }
+    else if (max_n_pct > grade_n_warn) {
+      grade = "warn";
     }
   }
 }
@@ -1341,8 +1357,8 @@ ModulePerBaseNContent::make_grade() {
 void
 ModulePerBaseNContent::write_module(ostream &os) {
   os << "#Base\tN-Count\n";
-  for (size_t i = 0; i < num_bases; ++i) {
-      os << i+1 << "\t" << n_pct[i] << "\n";
+  for (size_t i = 0; i < num_groups; ++i) {
+    os << base_groups[i] << "\t" << n_pct[i] << "\n";
   }
 }
 
@@ -1351,18 +1367,22 @@ ModulePerBaseNContent::make_html_data() {
   ostringstream data;
   // base position
   data << "{x : [";
-  for (size_t i = 0; i < num_bases; ++i) {
-    data << i + 1;
-    if (i < num_bases - 1)
+  for (size_t i = 0; i < num_groups; ++i) {
+    if (base_groups[i].start == base_groups[i].end)
+      data << "\"" << base_groups[i].start + 1 << "\"";
+    else
+      data << "\"" << base_groups[i].start + 1 << "-" <<
+                      base_groups[i].end + 1 << "\"";
+    if (i < num_groups - 1)
       data << ", ";
   }
 
   // Y values: frequency with which they were seen
   data << "], y : [";
-  for (size_t i = 0; i < num_bases; ++i) {
+  for (size_t i = 0; i < num_groups; ++i) {
     data << n_pct[i];
 
-    if (i < num_bases - 1)
+    if (i < num_groups - 1)
       data << ", ";
   }
   data << "], type: 'line', line : {color : 'red'}, "
