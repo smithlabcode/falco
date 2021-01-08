@@ -987,78 +987,98 @@ Module(ModulePerBaseSequenceContent::module_name) {
   sequence_error = sequence_limits.find("error")->second;
   is_bisulfite = config.is_bisulfite;
   is_reverse_complement = config.is_reverse_complement;
+  do_group = !config.nogroup;
 }
 
 void
 ModulePerBaseSequenceContent::summarize_module(const FastqStats &stats) {
-  double a, t, g, c, n;
+  double a_group, t_group, g_group, c_group, n_group;
+  double a_pos, t_pos, g_pos, c_pos, n_pos;
   double total; //a+c+t+g+n
   max_diff = 0.0;
 
   num_bases = stats.max_read_length;
-  a_pct = vector<double>(num_bases, 0.0);
-  c_pct = vector<double>(num_bases, 0.0);
-  t_pct = vector<double>(num_bases, 0.0);
-  g_pct = vector<double>(num_bases, 0.0);
-  for (size_t i = 0; i < num_bases; ++i) {
-    if (i < FastqStats::kNumBases) {
-      a = stats.base_count[(i << FastqStats::kBitShiftNucleotide)];
-      c = stats.base_count[(i << FastqStats::kBitShiftNucleotide) | 1];
-      t = stats.base_count[(i << FastqStats::kBitShiftNucleotide) | 2];
-      g = stats.base_count[(i << FastqStats::kBitShiftNucleotide) | 3];
-      n = stats.n_base_count[i];
-    } else {
-      a = stats.long_base_count[
-            ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide)
-          ];
-      c = stats.long_base_count[
-            ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide) | 1
-          ];
-      t = stats.long_base_count[
-            ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide) | 2
-          ];
-      g = stats.long_base_count[
-            ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide) | 3
-          ];
-      n = stats.long_n_base_count[
-              i - FastqStats::kNumBases
-          ];
+
+  if (do_group) {
+    make_linear_base_groups(base_groups, num_bases);
+  }
+
+  else make_default_base_groups(base_groups, num_bases);
+  num_groups = base_groups.size();
+
+  a_pct = vector<double>(num_groups, 0.0);
+  c_pct = vector<double>(num_groups, 0.0);
+  g_pct = vector<double>(num_groups, 0.0);
+  t_pct = vector<double>(num_groups, 0.0);
+
+  for (size_t group = 0; group < num_groups; ++group) {
+    // Find quantiles for each base group
+    a_group = c_group = g_group = t_group = n_group = 0.0;
+    for (size_t i = base_groups[group].start;
+              i  <= base_groups[group].end; ++i) {
+      if (i < FastqStats::kNumBases) {
+        a_pos = stats.base_count[(i << FastqStats::kBitShiftNucleotide)];
+        c_pos = stats.base_count[(i << FastqStats::kBitShiftNucleotide) | 1];
+        t_pos = stats.base_count[(i << FastqStats::kBitShiftNucleotide) | 2];
+        g_pos = stats.base_count[(i << FastqStats::kBitShiftNucleotide) | 3];
+        n_pos = stats.n_base_count[i];
+      } else {
+        a_pos = stats.long_base_count[
+              ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide)
+            ];
+        c_pos = stats.long_base_count[
+              ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide) | 1
+            ];
+        t_pos = stats.long_base_count[
+              ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide) | 2
+            ];
+        g_pos = stats.long_base_count[
+              ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide) | 3
+            ];
+        n_pos = stats.long_n_base_count[
+                i - FastqStats::kNumBases
+            ];
+      }
+      a_group += a_pos; c_group += c_pos; g_group += g_pos; t_group += t_pos;
+      n_group += n_pos;
+
+      const double total_pos =
+        static_cast<double>(a_pos + c_pos + g_pos + t_pos + n_pos);
+      a_pos = 100.0 * a_pos / total_pos;
+      c_pos = 100.0 * c_pos / total_pos;
+      g_pos = 100.0 * g_pos / total_pos;
+      t_pos = 100.0 * t_pos / total_pos;
+
+      // for WGBS, we only test non-bisulfite treated bases
+      if (!is_reverse_complement)
+        max_diff = max(max_diff, fabs(a_pos - g_pos));
+      else
+        max_diff = max(max_diff, fabs(c_pos - t_pos));
+
+      if (!is_bisulfite) {
+        max_diff = max(max_diff, fabs(a_pos - c_pos));
+        max_diff = max(max_diff, fabs(a_pos - t_pos));
+        max_diff = max(max_diff, fabs(c_pos - g_pos));
+        max_diff = max(max_diff, fabs(t_pos - g_pos));
+
+        if (!is_reverse_complement)
+          max_diff = max(max_diff, fabs(c_pos - t_pos));
+        else
+          max_diff = max(max_diff, fabs(a_pos - g_pos));
+      }
+      // WGBS specific base content count
+      else {
+        max_diff = max(max_diff, fabs((c_pos + t_pos) - (a_pos + g_pos)));
+      }
     }
 
     // turns above values to percent
-    total = static_cast<double>(a + c + t + g + n);
-    a = 100.0*a / total;
-    c = 100.0*c / total;
-    t = 100.0*t / total;
-    g = 100.0*g / total;
-    g_pct[i] = g;
-    a_pct[i] = a;
-    t_pct[i] = t;
-    c_pct[i] = c;
+    total = static_cast<double>(a_group + c_group + t_group + g_group + n_group);
+    a_pct[group] = 100.0*a_group / total;
+    c_pct[group] = 100.0*c_group / total;
+    g_pct[group] = 100.0*g_group / total;
+    t_pct[group] = 100.0*t_group / total;
 
-    // for WGBS, we only test differences between bases
-    // not treated with bisulfite
-    if (!is_reverse_complement)
-      max_diff = max(max_diff, fabs(a-g));
-    else
-      max_diff = max(max_diff, fabs(c-t));
-
-    if (!is_bisulfite) {
-      max_diff = max(max_diff, fabs(a-c));
-      max_diff = max(max_diff, fabs(a-t));
-      max_diff = max(max_diff, fabs(c-g));
-      max_diff = max(max_diff, fabs(t-g));
-
-      if (!is_reverse_complement)
-        max_diff = max(max_diff, fabs(c-t));
-      else
-        max_diff = max(max_diff, fabs(a-g));
-    }
-
-    // WGBS specific base content count
-    else {
-      max_diff = max(max_diff, fabs((c+t)-(a+g)));
-    }
   }
 }
 
@@ -1079,9 +1099,13 @@ ModulePerBaseSequenceContent::write_module(ostream &os) {
     os << "\tC+T\tA+G";
 
   os << "\n";
-  for (size_t i = 0; i < num_bases; ++i) {
-    os << i+1 << "\t" <<
-          g_pct[i] << "\t" <<
+  for (size_t i = 0; i < num_groups; ++i) {
+    if(base_groups[i].start == base_groups[i].end)
+      os << base_groups[i].start + 1 << "\t";
+    else
+      os << base_groups[i].start + 1 << "-" << base_groups[i].end + 1 << "\t";
+
+    os << g_pct[i] << "\t" <<
           a_pct[i] << "\t" <<
           t_pct[i] << "\t" <<
           c_pct[i];
@@ -1104,20 +1128,24 @@ ModulePerBaseSequenceContent::make_html_data() {
 
     // X values : base position
     data << "x : [";
-    for (size_t i = 0; i < num_bases; ++i) {
-      data << i+1;
-      if (i < num_bases - 1)
+    for (size_t i = 0; i < num_groups; ++i) {
+      if (base_groups[i].start == base_groups[i].end)
+        data << base_groups[i].start + 1;
+      else
+        data << "\"" << base_groups[i].start + 1 << "-"
+                     << base_groups[i].end + 1 << "\"";
+      if (i < num_groups - 1)
         data << ", ";
     }
 
     // Y values: frequency with which they were seen
     data << "], y : [";
-    for (size_t i = 0; i < num_bases; ++i) {
+    for (size_t i = 0; i < num_groups; ++i) {
       if (base == 0) data << a_pct[i];
       if (base == 1) data << c_pct[i];
       if (base == 2) data << t_pct[i];
       if (base == 3) data << g_pct[i];
-      if (i < num_bases - 1)
+      if (i < num_groups - 1)
         data << ", ";
     }
     data << "], mode : 'lines', name : '" + size_t_to_seq(base, 1) + "', ";
@@ -1146,20 +1174,20 @@ ModulePerBaseSequenceContent::make_html_data() {
     for (size_t line = 0; line <= 1; ++line) {
       data << "{";
       data << "x : [";
-      for (size_t i = 0; i < num_bases; ++i) {
-        data << i+1;
-        if (i < num_bases - 1)
+      for (size_t i = 0; i < num_groups; ++i) {
+        data << base_groups[i].start + 1;
+        if (i < num_groups - 1)
           data << ", ";
       }
       // Y values: frequency with which they were seen
       data << "], y : [";
-      for (size_t i = 0; i < num_bases; ++i) {
+      for (size_t i = 0; i < num_groups; ++i) {
         if (line == 0) 
           data << a_pct[i] + g_pct[i];
         else 
           data << c_pct[i] + t_pct[i];
 
-        if (i < num_bases - 1)
+        if (i < num_groups - 1)
           data << ", ";
       }
       data << "], mode : 'lines', name : '";

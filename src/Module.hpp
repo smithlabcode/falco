@@ -134,7 +134,7 @@ class ModulePerBaseSequenceQuality : public Module {
          base_lower_error,
          base_median_warn,
          base_median_error;
-   size_t num_warn, num_error;
+  size_t num_warn, num_error;
   std::vector<double> group_mean;
   std::vector<size_t> group_ldecile,
                       group_lquartile,
@@ -189,18 +189,23 @@ class ModulePerSequenceQualityScores : public Module {
 };
 
 class ModulePerBaseSequenceContent : public Module {
- private:
-   std::vector<double> a_pct, c_pct, t_pct, g_pct;
-   double max_diff;
-   size_t num_bases;
+private:
+  bool do_group;
+  std::vector<double> a_pct, c_pct, t_pct, g_pct;
+  double max_diff;
+  size_t num_bases;
 
-   // flag as to whether or not dataset is WGBS
-   bool is_bisulfite;
+  // flag as to whether or not dataset is WGBS
+  bool is_bisulfite;
 
-   // if so we have to test T vs C instead of A vs G
-   bool is_reverse_complement;
-   // for grade
-   double sequence_error, sequence_warn;
+  // if so we have to test T vs C instead of A vs G
+  bool is_reverse_complement;
+
+  // for grade
+  double sequence_error, sequence_warn;
+
+  size_t num_groups;
+  std::vector<BaseGroup> base_groups;
  public:
   static const std::string module_name;
   ModulePerBaseSequenceContent(const FalcoConfig &config);
