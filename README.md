@@ -169,6 +169,15 @@ Help options:
 PROGRAM: ./bin/falco
 A high throughput sequence QC analysis tool
 ```
+
+Citing falco
+=============
+If `falco` was helpful for your research, you can cite us as follows:
+
+*de Sena Brandine G and Smith AD. Falco: high-speed FastQC emulation for
+quality control of sequencing data. F1000Research 2021, 8:1874
+(https://doi.org/10.12688/f1000research.21142.2)*
+
 Copyright and License Information
 =================================
 
