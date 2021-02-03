@@ -1174,10 +1174,15 @@ ModulePerBaseSequenceContent::make_html_data() {
       data << "{";
       data << "x : [";
       for (size_t i = 0; i < num_groups; ++i) {
-        data << base_groups[i].start + 1;
+        if (base_groups[i].start == base_groups[i].end)
+          data << base_groups[i].start + 1;
+        else
+          data << "\"" << base_groups[i].start + 1 << "-"
+                       << base_groups[i].end + 1 << "\"";
         if (i < num_groups - 1)
           data << ", ";
       }
+
       // Y values: frequency with which they were seen
       data << "], y : [";
       for (size_t i = 0; i < num_groups; ++i) {
