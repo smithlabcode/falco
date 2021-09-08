@@ -240,15 +240,6 @@ namespace FileConstants {
     "CGCCTTGGCCGT",
   };
 
-  // two-bit hash of the sequence above
-  static const std::vector<size_t> adapter_hashes = {
-    3308595,
-    12331423,
-    13232070,
-    7235208,
-    7712606
-  };
-
   static const size_t adapter_size = 12;
 };
 
@@ -462,6 +453,19 @@ FalcoConfig::read_limits() {
   do_sequence_length = (limits["sequence_length"]["ignore"] == 0.0);
 }
 
+size_t
+hash_adapter(const string &s) {
+  size_t ans = 0;
+  for (size_t i = 0; i < s.size(); ++i) {
+    if (s[i] != 'A' && s[i] != 'C' && s[i] != 'T' && s[i] != 'G')
+      throw runtime_error("Bad adapter (non-ATGC characters): " + s);
+
+    ans = (ans << 2) | actg_to_2bit(s[i]);
+  }
+
+  return ans;
+}
+
 void
 FalcoConfig::read_adapters() {
   if (adapters_file == "") {
@@ -469,7 +473,10 @@ FalcoConfig::read_adapters() {
       cerr << "[adapters]\tusing default adapters (no file specified)\n";
     adapter_names = FileConstants::adapter_names;
     adapter_seqs = FileConstants::adapter_seqs;
-    adapter_hashes = FileConstants::adapter_hashes;
+
+    adapter_hashes.clear();
+    for (size_t i = 0; i < adapter_seqs.size(); ++i)
+      adapter_hashes.push_back(hash_adapter(adapter_seqs[i]));
     return;
   }
   ifstream in(adapters_file);
@@ -481,7 +488,6 @@ FalcoConfig::read_adapters() {
   string line, _tmp;
   vector<string> line_by_space;
   string adapter_name, adapter_seq;
-  size_t adapter_hash;
 
   // The adapters file has a space separated name, and the last instance is
   // the biological sequence
@@ -507,22 +513,13 @@ FalcoConfig::read_adapters() {
         if (adapter_seq.size() > 32)
           throw runtime_error("adapter too long. Maximum adapter size is 32bp: "
                               + adapter_seq);
-        adapter_hash = 0;
-        char c;
-        for (size_t i = 0; i < adapter_seq.size(); ++i) {
-          c = adapter_seq[i];
-          if (c != 'A' && c != 'C' && c != 'T' && c != 'G')
-            throw runtime_error("Bad adapter (non-ATGC characters): "
-                                + adapter_seq);
 
-          adapter_hash = (adapter_hash << 2) | actg_to_2bit(c);
-        }
       }
 
       // store information
       adapter_names.push_back(adapter_name);
       adapter_seqs.push_back(adapter_seq);
-      adapter_hashes.push_back(adapter_hash);
+      adapter_hashes.push_back(hash_adapter(adapter_seq));
 
       if (adapter_size == 0)
         adapter_size = adapter_seq.size();
