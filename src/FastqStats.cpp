@@ -46,6 +46,9 @@ make_gc_models () {
 /****************************************************************/
 // Default constructor
 FastqStats::FastqStats() {
+  lowest_char = std::numeric_limits<char>::max();
+  encoding_offset = 0;
+
   total_bases = 0;
   num_extra_bases = 0;
   total_gc = 0;

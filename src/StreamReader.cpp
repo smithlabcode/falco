@@ -16,11 +16,15 @@
 #include "StreamReader.hpp"
 #include <vector>
 #include <cstring>
+#include <algorithm>
+
+using std::min;
 using std::string;
 using std::vector;
 using std::runtime_error;
 using std::array;
 using std::end;
+
 /****************************************************/
 /***************** STREAMREADER *********************/
 /****************************************************/
@@ -462,8 +466,14 @@ StreamReader::read_quality_line(FastqStats &stats) {
     }
 
     get_base_from_buffer();
+
+    // update lowest quality
+    stats.lowest_char = min(stats.lowest_char, *cur_char);
+
     // Converts quality ascii to zero-based
     quality_value = *cur_char - Constants::quality_zero;
+
+
     // Fast bases from buffer
     if (still_in_buffer) {
       process_quality_base_from_buffer(stats);

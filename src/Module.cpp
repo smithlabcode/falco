@@ -365,7 +365,7 @@ Module::write_short_summary(ostream &os, const string &filename) {
 // Guarantees the summarized flag is only set to true when module
 // data has been summarized
 void
-Module::summarize(const FastqStats &stats) {
+Module::summarize(FastqStats &stats) {
   summarize_module(stats);
   make_grade();
   html_data = make_html_data();
@@ -385,7 +385,7 @@ ModuleBasicStatistics(const FalcoConfig &config)
 }
 
 void
-ModuleBasicStatistics::summarize_module(const FastqStats &stats) {
+ModuleBasicStatistics::summarize_module(FastqStats &stats) {
   // Total sequences
   total_sequences = stats.num_reads;
 
@@ -398,7 +398,31 @@ ModuleBasicStatistics::summarize_module(const FastqStats &stats) {
   file_type = "Conventional base calls";
 
   // File encoding
-  file_encoding = "Sanger / Illumina 1.9";
+  const char lowest_char = stats.lowest_char;
+
+  //copied from FastQC:
+  static const size_t SANGER_ENCODING_OFFSET = 33; 
+  static const char ILLUMINA_1_3_ENCODING_OFFSET = 64; 
+  if (lowest_char < 33) {
+    throw runtime_error("No known encoding with chars < 33. Yours was " +
+                        std::to_string(lowest_char) + ")");
+  }
+  else if (lowest_char < 64) {
+    file_encoding = "Sanger / Illumina 1.9";
+    stats.encoding_offset = SANGER_ENCODING_OFFSET - Constants::quality_zero;
+  }
+  else if (lowest_char == ILLUMINA_1_3_ENCODING_OFFSET+1) {
+    file_encoding = "Illumina 1.3";
+    stats.encoding_offset = ILLUMINA_1_3_ENCODING_OFFSET - Constants::quality_zero;
+  }
+  else if (lowest_char <= 126) {
+    file_encoding = "Illumina 1.5";
+    stats.encoding_offset = ILLUMINA_1_3_ENCODING_OFFSET - Constants::quality_zero;
+  }
+  else {
+    throw runtime_error("No known encodings with chars > 126 (Yours was " + 
+                        std::to_string(lowest_char) + ")");
+  }
 
   // Poor quality reads
   num_poor = 0;
@@ -532,7 +556,7 @@ Module(ModulePerBaseSequenceQuality::module_name){
 }
 
 void
-ModulePerBaseSequenceQuality::summarize_module(const FastqStats &stats) {
+ModulePerBaseSequenceQuality::summarize_module(FastqStats &stats) {
   // Quality quantiles for base positions
   double ldecile_thresh,
          lquartile_thresh,
@@ -589,7 +613,7 @@ ModulePerBaseSequenceQuality::summarize_module(const FastqStats &stats) {
             (i << FastqStats::kBitShiftQuality) | j];
         }
         else {
-          cur = stats.long_position_quality_count[
+          cur = stats.long_position_quality_count [
             ((i - FastqStats::kNumBases) << FastqStats::kBitShiftQuality) | j];
         }
 
@@ -636,12 +660,13 @@ ModulePerBaseSequenceQuality::summarize_module(const FastqStats &stats) {
     cur_mean = static_cast<double>(cur_sum) /
                static_cast<double>(bases_in_group);
 
-    group_mean[group] = cur_mean;
-    group_ldecile[group] = cur_ldecile;
-    group_lquartile[group] = cur_lquartile;
-    group_median[group] = cur_median;
-    group_uquartile[group] = cur_uquartile;
-    group_udecile[group] = cur_udecile;
+    const size_t offset = stats.encoding_offset;
+    group_mean[group] = cur_mean - offset;
+    group_ldecile[group] = cur_ldecile - offset;
+    group_lquartile[group] = cur_lquartile - offset;
+    group_median[group] = cur_median - offset;
+    group_uquartile[group] = cur_uquartile - offset;
+    group_udecile[group] = cur_udecile - offset;
   }
 }
 
@@ -740,7 +765,7 @@ Module(ModulePerTileSequenceQuality::module_name) {
 }
 
 void
-ModulePerTileSequenceQuality::summarize_module(const FastqStats &stats) {
+ModulePerTileSequenceQuality::summarize_module(FastqStats &stats) {
   max_read_length = stats.max_read_length;
   tile_position_quality = stats.tile_position_quality;
   // First I calculate the number of counts for each position
@@ -906,6 +931,7 @@ ModulePerSequenceQualityScores(const FalcoConfig &config) :
 Module(ModulePerSequenceQualityScores::module_name) {
   mode_val = 0;
   mode_ind = 0;
+  offset = 0;
 
   auto mode_limits = config.limits.find("quality_sequence");
   mode_warn = (mode_limits->second).find("warn")->second;
@@ -913,15 +939,16 @@ Module(ModulePerSequenceQualityScores::module_name) {
 }
 
 void
-ModulePerSequenceQualityScores::summarize_module(const FastqStats &stats) {
+ModulePerSequenceQualityScores::summarize_module(FastqStats &stats) {
   // Need to copy this to write later
   quality_count = stats.quality_count;
+  offset = stats.encoding_offset;
 
   // get mode for grade
   for (size_t i = 0; i < FastqStats::kNumQualityValues; ++i) {
     if (stats.quality_count[i] > mode_val) {
       mode_val = stats.quality_count[i];
-      mode_ind = i;
+      mode_ind = i - offset;
     }
   }
 }
@@ -942,7 +969,7 @@ ModulePerSequenceQualityScores::write_module(ostream &os) {
   os << "#Quality\tCount\n";
   for (size_t i = 0; i < FastqStats::kNumQualityValues; ++i) {
     if (quality_count[i] > 0)
-      os << i << "\t" << quality_count[i] << "\n";
+      os << i - offset << "\t" << quality_count[i] << "\n";
   }
 }
 
@@ -951,20 +978,20 @@ ModulePerSequenceQualityScores::make_html_data() {
   ostringstream data;
   data << "{x : [";
   bool seen_first = false;
-  for (size_t i = 0; i < 41; ++i) {
+  for (size_t i = 0; i < FastqStats::kNumQualityValues; ++i) {
     if (quality_count[i] > 0){
       if (seen_first)
         data << ",";
       else
         seen_first = true;
-      data << i;
+      data << i - offset;
     }
   }
 
   // Y values: frequency with which they were seen
   data << "], y : [";
   seen_first = false;
-  for (size_t i = 0; i < 41; ++i) {
+  for (size_t i = 0; i < FastqStats::kNumQualityValues; ++i) {
     if (quality_count[i] > 0){
       if (seen_first)
         data << ",";
@@ -994,7 +1021,7 @@ Module(ModulePerBaseSequenceContent::module_name) {
 }
 
 void
-ModulePerBaseSequenceContent::summarize_module(const FastqStats &stats) {
+ModulePerBaseSequenceContent::summarize_module(FastqStats &stats) {
   double a_group, t_group, g_group, c_group, n_group;
   double a_pos, t_pos, g_pos, c_pos, n_pos;
   double total; //a+c+t+g+n
@@ -1234,7 +1261,7 @@ Module(ModulePerSequenceGCContent::module_name) {
 }
 
 void
-ModulePerSequenceGCContent::summarize_module(const FastqStats &stats) {
+ModulePerSequenceGCContent::summarize_module(FastqStats &stats) {
   gc_count = stats.gc_count;
   gc_deviation = sum_deviation_from_normal(gc_count,
                                            theoretical_gc_count);
@@ -1311,7 +1338,7 @@ Module(ModulePerBaseNContent::module_name) {
 }
 
 void
-ModulePerBaseNContent::summarize_module(const FastqStats &stats) {
+ModulePerBaseNContent::summarize_module(FastqStats &stats) {
   num_bases = stats.max_read_length;
 
   // first, do the groups
@@ -1408,7 +1435,7 @@ Module(ModuleSequenceLengthDistribution::module_name) {
 }
 
 void
-ModuleSequenceLengthDistribution::summarize_module(const FastqStats &stats) {
+ModuleSequenceLengthDistribution::summarize_module(FastqStats &stats) {
   max_read_length = stats.max_read_length;
 
   has_empty_read = (stats.min_read_length == 0);
@@ -1518,7 +1545,7 @@ Module(ModuleSequenceDuplicationLevels::module_name) {
 }
 
 void
-ModuleSequenceDuplicationLevels::summarize_module(const FastqStats &stats) {
+ModuleSequenceDuplicationLevels::summarize_module(FastqStats &stats) {
     seq_total = 0.0;
     seq_dedup = 0.0;
 
@@ -1656,26 +1683,45 @@ Module(ModuleOverrepresentedSequences::module_name) {
   grade_error = grade_overrep.find("error")->second;
 }
 
+// gets the largest suffix of left which is a prefix of right
+// returns 0 if none exist
+size_t
+get_overlap(const string &left, const string &right) {
+  const auto left_st(begin(left));
+  const auto left_end(end(left));
+
+  const auto right_st(begin(right));
+  const auto right_end(end(right));
+
+  const auto sz = left.size();
+
+  size_t best = 0;
+  for (size_t start = 0; start < sz; ++start) {
+    size_t cur = 0;
+    auto left_it(left_st + start);
+    auto right_it(right_st);
+    for (; (left_it != left_end) && (right_it != right_end) && (*left_it == *right_it);
+        ++left_it, ++right_it, ++cur);
+
+    // does not accept if overlap does not cover a suffix or the
+    // entirety of right
+    cur = (left_it == left_end || right_it == right_end) ? (cur) : 0;
+    best = max(best, cur);
+  }
+
+  return best;
+}
+
 string
 ModuleOverrepresentedSequences::get_matching_contaminant (const string &seq) {
   size_t best = 0;
   string ret;
   for (auto v : contaminants) {
-    if (seq.size() > v.second.size()) {
-      // contaminant contained in sequence
-      if (seq.find(v.second) != string::npos) {
-        if (v.second.size() > best) {
-          best = v.second.size();
-          ret = v.first;
-        }
-      }
-    } else {
-      // sequence contained in contaminant
-      if (v.second.find(seq) != string::npos) {
-        // In this case this is the best possible match so return it
-        return v.first;
-      }
-    }
+    const size_t cand = max(get_overlap(v.second, seq), get_overlap(seq, v.second));
+    if (cand > best) {
+      best = cand;
+      ret = v.second;
+    } 
   }
 
   // If any sequence is a match, return the best one
@@ -1685,7 +1731,7 @@ ModuleOverrepresentedSequences::get_matching_contaminant (const string &seq) {
 }
 
 void
-ModuleOverrepresentedSequences::summarize_module(const FastqStats &stats) {
+ModuleOverrepresentedSequences::summarize_module(FastqStats &stats) {
   // Keep only sequences that pass the input cutoff
   num_reads = stats.num_reads;
   for (auto it = stats.sequence_count.begin();
@@ -1788,7 +1834,7 @@ Module(ModuleAdapterContent::module_name) {
 }
 
 void
-ModuleAdapterContent::summarize_module(const FastqStats &stats) {
+ModuleAdapterContent::summarize_module(FastqStats &stats) {
   num_bases = stats.max_read_length;
   // truncate number of reported reads if necessary
   if (num_bases > FastqStats::kNumBases)
@@ -1906,7 +1952,7 @@ Module(ModuleKmerContent::module_name) {
 }
 
 void
-ModuleKmerContent::summarize_module(const FastqStats &stats) {
+ModuleKmerContent::summarize_module(FastqStats &stats) {
   kmer_size = Constants::kmer_size;
 
   // 4^kmer size
@@ -1990,6 +2036,3 @@ string
 ModuleKmerContent::make_html_data() {
   return "";
 }
-
-
-

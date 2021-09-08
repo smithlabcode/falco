@@ -74,7 +74,7 @@ class Module {
   /*********************************************/
 
   // Summarize the module
-  virtual void summarize_module(const FastqStats &stats) = 0;
+  virtual void summarize_module(FastqStats &stats) = 0;
 
   // Decide if it's a pass/warn/fail
   virtual void make_grade() = 0;
@@ -87,7 +87,7 @@ class Module {
   /**************Visible functions**************/
   /*********************************************/
   // Summarizes and registers that it summarized
-  void summarize(const FastqStats &stats);
+  void summarize(FastqStats &stats);
 
   // Write the module in the FastQC standard, starting with title,
   // pass/warn/fail and then ending with >>END_MODULE
@@ -114,7 +114,7 @@ class ModuleBasicStatistics : public Module {
   static const std::string module_name;
   ModuleBasicStatistics(const FalcoConfig &config);
   ~ModuleBasicStatistics() {}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();
@@ -146,7 +146,7 @@ class ModulePerBaseSequenceQuality : public Module {
   static const std::string module_name;
   ModulePerBaseSequenceQuality(const FalcoConfig &config);
   ~ModulePerBaseSequenceQuality() {}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   void read_data_line(const std::string &line);
@@ -163,7 +163,7 @@ class ModulePerTileSequenceQuality : public Module {
   static const std::string module_name;
   ModulePerTileSequenceQuality(const FalcoConfig &config);
   ~ModulePerTileSequenceQuality() {}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();
@@ -173,6 +173,7 @@ class ModulePerSequenceQualityScores : public Module {
  private:
    size_t mode_val;
    size_t mode_ind;
+   size_t offset;
    std::array<size_t, FastqStats::kNumQualityValues> quality_count;
    // grade criteria
    size_t mode_warn;
@@ -181,7 +182,7 @@ class ModulePerSequenceQualityScores : public Module {
   static const std::string module_name;
   ModulePerSequenceQualityScores(const FalcoConfig &config);
   ~ModulePerSequenceQualityScores() {}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();
@@ -209,7 +210,7 @@ private:
   static const std::string module_name;
   ModulePerBaseSequenceContent(const FalcoConfig &config);
   ~ModulePerBaseSequenceContent() {}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();
@@ -226,7 +227,7 @@ class ModulePerSequenceGCContent : public Module {
   static const std::string module_name;
   ModulePerSequenceGCContent(const FalcoConfig &config);
   ~ModulePerSequenceGCContent() {}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();
@@ -253,7 +254,7 @@ private:
   static const std::string module_name;
   ModulePerBaseNContent(const FalcoConfig &config);
   ~ModulePerBaseNContent() {}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();
@@ -277,7 +278,7 @@ class ModuleSequenceLengthDistribution : public Module {
   static const std::string module_name;
   ModuleSequenceLengthDistribution(const FalcoConfig &config);
   ~ModuleSequenceLengthDistribution() {}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();
@@ -297,7 +298,7 @@ class ModuleSequenceDuplicationLevels : public Module {
   static const std::string module_name;
   ModuleSequenceDuplicationLevels(const FalcoConfig &config);
   ~ModuleSequenceDuplicationLevels() {}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();
@@ -317,7 +318,7 @@ class ModuleOverrepresentedSequences : public Module {
   static const std::string module_name;
   ModuleOverrepresentedSequences(const FalcoConfig &config);
   ~ModuleOverrepresentedSequences() {}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();
@@ -354,7 +355,7 @@ class ModuleAdapterContent : public Module {
   static const std::string module_name;
   ModuleAdapterContent(const FalcoConfig &config);
   ~ModuleAdapterContent() {}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();
@@ -377,7 +378,7 @@ class ModuleKmerContent : public Module {
   static const std::string module_name;
   ModuleKmerContent(const FalcoConfig &config);
   ~ModuleKmerContent(){}
-  void summarize_module(const FastqStats &stats);
+  void summarize_module(FastqStats &stats);
   void make_grade();
   void write_module(std::ostream &os);
   std::string make_html_data();

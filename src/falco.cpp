@@ -102,7 +102,7 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
 // Write module content into html maker if requested
 template <typename T> void
 write_if_requested(T module,
-                   const FastqStats &stats,
+                   FastqStats &stats,
                    bool requested,
                    bool skip_text,
                    bool skip_html,
@@ -144,7 +144,7 @@ write_if_requested(T module,
 
 void
 write_results(const FalcoConfig &falco_config,
-              const FastqStats &stats,
+              FastqStats &stats,
               bool skip_text,
               bool skip_html,
               bool skip_short_summary,

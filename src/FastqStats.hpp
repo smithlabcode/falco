@@ -160,6 +160,10 @@ struct FastqStats {
 
  public:
   /*********** SINGLE NUMBERS FROM THE ENTIRE FASTQ ****************/
+  // lowest quality char to infer encoding
+  char lowest_char;
+  char encoding_offset;
+
   // Number of unique sequences seen thus far
   size_t num_unique_seen;
 
