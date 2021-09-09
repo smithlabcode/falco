@@ -87,6 +87,7 @@ StreamReader::StreamReader(FalcoConfig &config,
 
   // keep track of which reads to do tile
   next_tile_read = 0;
+  next_kmer_read = 0;
   do_tile_read = true;
 
   // Subclasses will use this to deflate if necessary
@@ -256,7 +257,7 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
       cur_kmer = ((cur_kmer << Constants::bit_shift_base) | base_ind);
 
       // registers k-mer if seen at least k nucleotides since the last n
-      if (do_kmer && (num_bases_after_n >= Constants::kmer_size)) {
+      if (do_kmer && do_kmer_read && (num_bases_after_n >= Constants::kmer_size)) {
 
           stats.kmer_count[(read_pos << Constants::bit_shift_kmer)
                            | (cur_kmer & Constants::kmer_mask)]++;
@@ -354,6 +355,7 @@ StreamReader::read_sequence_line(FastqStats &stats) {
   num_bases_after_n = 1;
   still_in_buffer = true;
   next_truncation = 100;
+  do_kmer_read = (stats.num_reads == next_kmer_read);
 
   /*********************************************************/
   /********** THIS LOOP MUST BE ALWAYS OPTIMIZED ***********/
@@ -537,6 +539,7 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
       next_tile_read += num_reads_for_tile;
     }
   }
+  next_kmer_read += do_kmer_read*num_reads_for_kmer;
 }
 
 /*******************************************************/

@@ -72,12 +72,14 @@ class StreamReader{
 
     // keep track of reads for which to do kmer and tile count
   static const size_t num_reads_for_tile = 10;
+  static const size_t num_reads_for_kmer = 50;
 
   bool continue_storing_sequences;
   bool do_kmer_read;
   bool do_tile_read;
 
   size_t next_tile_read;
+  size_t next_kmer_read;
 
   // Whether or not we have passed the buffer while reading and need to allocate
   // more space / use dynamically allocated space to process the base

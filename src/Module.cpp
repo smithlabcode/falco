@@ -1999,7 +1999,7 @@ ModuleKmerContent::summarize_module(FastqStats &stats) {
         stats.kmer_count[(i << Constants::bit_shift_kmer) | kmer];
 
       expected_count = pos_kmer_count[i] / dividend;
-      obs_exp_ratio = observed_count / expected_count;
+      obs_exp_ratio = (expected_count > 0) ? (observed_count / expected_count) : 0;
 
       if (i == 0 || obs_exp_ratio > obs_exp_max[kmer]) {
         obs_exp_max[kmer] = obs_exp_ratio;
@@ -2059,6 +2059,7 @@ ModuleKmerContent::make_html_data() {
   size_t xlim = 0;
   for (size_t i = 0; i < lim; ++i)
     xlim = max(xlim, where_obs_exp_is_max[kmers_to_report[i].first]);
+  xlim += kmer_size;
 
   for (size_t i = 0; i < lim; ++i) {
     const size_t kmer = kmers_to_report[i].first;
