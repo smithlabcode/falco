@@ -2033,5 +2033,5 @@ ModuleKmerContent::write_module(ostream &os) {
 
 string
 ModuleKmerContent::make_html_data() {
-  return "";
+  return "<b>K-mer content module currently not implemented!";
 }

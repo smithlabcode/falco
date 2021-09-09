@@ -933,7 +933,7 @@ const string FalcoConfig::html_template =
 "{{kmercontentcs}}"
 "<div class=\"module\">"
 "  <h2 class=\"{{passkmercontent}}\" id=\"adaptercontent\">"
-"    {{kmercontentname}} : {{kmercontent}}"
+"    {{kmercontentname}} : {{passkmercontent}}"
 "  </h2>"
 "  {{kmercontentdata}}"
 "</div>"
