@@ -381,7 +381,8 @@ const string ModuleBasicStatistics::module_name = "Basic Statistics";
 ModuleBasicStatistics::
 ModuleBasicStatistics(const FalcoConfig &config)
 : Module(ModuleBasicStatistics::module_name) {
-    filename_stripped = config.filename_stripped;
+  is_nanopore = config.nanopore;
+  filename_stripped = config.filename_stripped;
 }
 
 void
@@ -396,32 +397,37 @@ ModuleBasicStatistics::summarize_module(FastqStats &stats) {
   // These seem to always be the same on FastQC
   // File type
   file_type = "Conventional base calls";
-
-  // File encoding
-  const char lowest_char = stats.lowest_char;
-
-  //copied from FastQC:
-  static const size_t SANGER_ENCODING_OFFSET = 33; 
-  static const char ILLUMINA_1_3_ENCODING_OFFSET = 64; 
-  if (lowest_char < 33) {
-    throw runtime_error("No known encoding with chars < 33. Yours was " +
-                        std::to_string(lowest_char) + ")");
-  }
-  else if (lowest_char < 64) {
-    file_encoding = "Sanger / Illumina 1.9";
-    stats.encoding_offset = SANGER_ENCODING_OFFSET - Constants::quality_zero;
-  }
-  else if (lowest_char == ILLUMINA_1_3_ENCODING_OFFSET+1) {
-    file_encoding = "Illumina 1.3";
-    stats.encoding_offset = ILLUMINA_1_3_ENCODING_OFFSET - Constants::quality_zero;
-  }
-  else if (lowest_char <= 126) {
-    file_encoding = "Illumina 1.5";
-    stats.encoding_offset = ILLUMINA_1_3_ENCODING_OFFSET - Constants::quality_zero;
+  if (is_nanopore) {
+    file_encoding = "Oxford Nanopore";
+    //stats.encoding_offset = ?
   }
   else {
-    throw runtime_error("No known encodings with chars > 126 (Yours was " + 
-                        std::to_string(lowest_char) + ")");
+    // File encoding
+    const char lowest_char = stats.lowest_char;
+
+    //copied from FastQC:
+    static const size_t SANGER_ENCODING_OFFSET = 33; 
+    static const char ILLUMINA_1_3_ENCODING_OFFSET = 64; 
+    if (lowest_char < 33) {
+      throw runtime_error("No known encoding with chars < 33. Yours was " +
+                          std::to_string(lowest_char) + ")");
+    }
+    else if (lowest_char < 64) {
+      file_encoding = "Sanger / Illumina 1.9";
+      stats.encoding_offset = SANGER_ENCODING_OFFSET - Constants::quality_zero;
+    }
+    else if (lowest_char == ILLUMINA_1_3_ENCODING_OFFSET+1) {
+      file_encoding = "Illumina 1.3";
+      stats.encoding_offset = ILLUMINA_1_3_ENCODING_OFFSET - Constants::quality_zero;
+    }
+    else if (lowest_char <= 126) {
+      file_encoding = "Illumina 1.5";
+      stats.encoding_offset = ILLUMINA_1_3_ENCODING_OFFSET - Constants::quality_zero;
+    }
+    else {
+      throw runtime_error("No known encodings with chars > 126 (Yours was " + 
+                          std::to_string(lowest_char) + ")");
+    }
   }
 
   // Poor quality reads

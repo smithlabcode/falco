@@ -102,6 +102,7 @@ class Module {
 
 class ModuleBasicStatistics : public Module {
  public:
+  bool is_nanopore;
   std::string file_type;
   std::string file_encoding;
   std::string filename_stripped;
