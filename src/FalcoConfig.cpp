@@ -221,7 +221,7 @@ namespace FileConstants {
 
   /*************** ADAPTERS *********************/
   // Name (eg: Illumina Small RNA adapter)
-  static std::vector<std::string>
+  static const std::vector<std::string>
   adapter_names = {
     "Illumina Universal Adapter",
     "Illumina Small RNA 3 prime Adapter",
@@ -553,7 +553,6 @@ FalcoConfig::read_contaminants_file() {
   string line;
   while (getline(in, line)) {
     if (is_content_line(line)) {
-      string contaminant_seq = "";
       istringstream iss(line);
       string token;
       while (iss >> token)
@@ -563,8 +562,7 @@ FalcoConfig::read_contaminants_file() {
         string contaminant_name;
         for (size_t i = 0; i < line_by_space.size() - 1; ++i)
           contaminant_name += line_by_space[i] + " ";
-        const string contaminent_seq(line_by_space.back());
-        contaminants.push_back(make_pair(contaminant_name, contaminant_seq));
+        contaminants.push_back(make_pair(contaminant_name, line_by_space.back()));
       }
       line_by_space.clear();
     }

@@ -1678,6 +1678,7 @@ ModuleOverrepresentedSequences::module_name = "Overrepresented sequences";
 ModuleOverrepresentedSequences::
 ModuleOverrepresentedSequences(const FalcoConfig &config) :
 Module(ModuleOverrepresentedSequences::module_name) {
+  contaminants = config.contaminants;
   auto grade_overrep = config.limits.find("overrepresented")->second;
   grade_warn = grade_overrep.find("warn")->second;
   grade_error = grade_overrep.find("error")->second;
@@ -1693,9 +1694,8 @@ get_overlap(const string &left, const string &right) {
   const auto right_st(begin(right));
   const auto right_end(end(right));
 
-  const auto sz = left.size();
-
   size_t best = 0;
+  const auto sz = left.size();
   for (size_t start = 0; start < sz; ++start) {
     size_t cur = 0;
     auto left_it(left_st + start);
@@ -1708,7 +1708,6 @@ get_overlap(const string &left, const string &right) {
     cur = (left_it == left_end || right_it == right_end) ? (cur) : 0;
     best = max(best, cur);
   }
-
   return best;
 }
 
@@ -1720,12 +1719,12 @@ ModuleOverrepresentedSequences::get_matching_contaminant (const string &seq) {
     const size_t cand = max(get_overlap(v.second, seq), get_overlap(seq, v.second));
     if (cand > best) {
       best = cand;
-      ret = v.second;
+      ret = v.first;
     } 
   }
 
   // If any sequence is a match, return the best one
-  if (best > 0)
+  if (best >= min(ret.size(), seq.size())/2)
     return ret;
   return "No Hit";
 }
@@ -1957,11 +1956,10 @@ ModuleKmerContent::summarize_module(FastqStats &stats) {
 
   // 4^kmer size
   num_kmers = (1 << (2 * kmer_size));
-  if (stats.max_read_length < FastqStats::kNumBases) {
+  if (stats.max_read_length < FastqStats::kNumBases)
     num_kmer_bases = stats.max_read_length;
-  } else {
+  else
     num_kmer_bases = FastqStats::kNumBases;
-  }
 
   // copies counts of all kmers per base position from stats
   pos_kmer_count = stats.pos_kmer_count;
@@ -2012,6 +2010,7 @@ ModuleKmerContent::summarize_module(FastqStats &stats) {
         [](pair<size_t, double> &a, pair<size_t, double> &b) {
           return a.second > b.second;
         });
+
 }
 
 void
