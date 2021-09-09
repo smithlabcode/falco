@@ -1985,7 +1985,7 @@ ModuleKmerContent::summarize_module(FastqStats &stats) {
   for (size_t kmer = 0; kmer < num_kmers; ++kmer) {
     for (size_t i = kmer_size - 1; i < num_kmer_bases; ++i) {
       observed_count = stats.kmer_count[
-                          (i << FastqStats::kBitShiftKmer) | kmer
+                          (i << Constants::bit_shift_kmer) | kmer
                        ];
       total_kmer_counts[kmer] += observed_count;
     }
@@ -1995,40 +1995,51 @@ ModuleKmerContent::summarize_module(FastqStats &stats) {
   double dividend = static_cast<double>(num_seen_kmers);
   for (size_t kmer = 0; kmer < num_kmers; ++kmer) {
     for (size_t i = kmer_size - 1; i < num_kmer_bases; ++i) {
-      observed_count = stats.kmer_count[
-                          (i << FastqStats::kBitShiftKmer) | kmer
-                          ];
+      observed_count =
+        stats.kmer_count[(i << Constants::bit_shift_kmer) | kmer];
+
       expected_count = pos_kmer_count[i] / dividend;
       obs_exp_ratio = observed_count / expected_count;
 
       if (i == 0 || obs_exp_ratio > obs_exp_max[kmer]) {
         obs_exp_max[kmer] = obs_exp_ratio;
-        where_obs_exp_is_max[kmer] = i;
+        where_obs_exp_is_max[kmer] = i + 1 - kmer_size;
       }
     }
 
-    if (obs_exp_max[kmer] > 5) {
+    if (obs_exp_max[kmer] > MIN_OBS_EXP_TO_REPORT) {
       kmers_to_report.push_back(make_pair(kmer, obs_exp_max[kmer]));
     }
   }
 
   sort (begin(kmers_to_report), end(kmers_to_report),
-        [](pair<size_t, double> &a, pair<size_t, double> &b) {
+        [](const pair<size_t, double> &a, const pair<size_t, double> &b) {
           return a.second > b.second;
         });
-
 }
 
 void
 ModuleKmerContent::make_grade() {
-  grade = "fail";
+  const size_t lim = min(kmers_to_report.size(), MAX_KMERS_TO_REPORT);
+  grade = "pass";
+
+  // the worst kmer is at the top
+  if (lim > 0) {
+    const size_t kmer = kmers_to_report[0].first; 
+    const double obs_exp = obs_exp_max[kmer];
+    if (obs_exp >= grade_error)
+      grade = "fail";
+    else if (obs_exp >= grade_warn)
+      grade = "warn";
+  }
 }
 
 void
 ModuleKmerContent::write_module(ostream &os) {
   os << "#Sequence\tCount\tPValue\tObs/Exp Max\tMax Obs/Exp Position\n";
-  for (size_t i = 0; i < 20 && i < kmers_to_report.size(); ++i) {
-    size_t kmer = kmers_to_report[i].first;
+  const size_t lim = min(kmers_to_report.size(), MAX_KMERS_TO_REPORT);
+  for (size_t i = 0; i < lim; ++i) {
+    const size_t kmer = kmers_to_report[i].first;
     os << size_t_to_seq(kmer, kmer_size) << "\t"
        << total_kmer_counts[kmer] << "\t"
        << "0.0" << "\t"
@@ -2039,5 +2050,44 @@ ModuleKmerContent::write_module(ostream &os) {
 
 string
 ModuleKmerContent::make_html_data() {
-  return "<b>K-mer content module currently not implemented!";
+  bool seen_first = false;
+  ostringstream data;
+  const size_t lim = min(kmers_to_report.size(), MAX_KMERS_TO_PLOT);
+
+  // get xlim to plot: whatever the largest position with some
+  // reported k-mer is
+  size_t xlim = 0;
+  for (size_t i = 0; i < lim; ++i)
+    xlim = max(xlim, where_obs_exp_is_max[kmers_to_report[i].first]);
+
+  for (size_t i = 0; i < lim; ++i) {
+    const size_t kmer = kmers_to_report[i].first;
+    const double log_obs_exp = log(kmers_to_report[i].second)/log(2);
+    if (!seen_first)
+      seen_first = true;
+    else
+      data << ",";
+    data << "{";
+
+    // X values : read position
+    data << "x : [";
+    for (size_t j = 0; j < xlim; ++j) {
+      data << j+1;
+      if (j < xlim - 1) data << ",";
+    }
+    data << "]";
+
+    // Y values : A peak wherever the k-mer is seen the most
+    data << ", y : [";
+    for (size_t j = 0; j < xlim; ++j) {
+      data << ((j == (where_obs_exp_is_max[kmer])) ? (log_obs_exp) : 0);
+      if (i < xlim - 1)
+        data << ",";
+    }
+
+    data << "]";
+    data << ", type : 'line', ";
+    data << "name : \"" << size_t_to_seq(kmer, Constants::kmer_size) << "\"}";
+  }
+  return data.str();
 }

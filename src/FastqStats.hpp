@@ -145,13 +145,6 @@ struct FastqStats {
   static const size_t kBitShiftNucleotide = log2exact(kNumNucleotides);
   static const size_t kBitShiftQuality = log2exact(kNumQualityValues);
 
-  /************ KMER CONSTANTS **********/
-
-  // we shift 14 bits when reading a kmer, two bits per base
-  static const size_t kBitShiftKmer = 2 * Constants::kmer_size;
-
-  // mask to get only the first 2*k bits of the sliding window
-  static const size_t kmer_mask = (1ll << (2*Constants::kmer_size)) - 1;
 
   /************ ADAPTER CONSTANTS **********/
   // bit shift for adapters, log(100) = 7

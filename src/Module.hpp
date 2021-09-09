@@ -377,6 +377,9 @@ class ModuleKmerContent : public Module {
    std::vector<std::pair<size_t, double>> kmers_to_report;
  public:
   static const std::string module_name;
+  static const size_t MIN_OBS_EXP_TO_REPORT = 5;
+  static const size_t MAX_KMERS_TO_REPORT = 20;
+  static const size_t MAX_KMERS_TO_PLOT = 10;
   ModuleKmerContent(const FalcoConfig &config);
   ~ModuleKmerContent(){}
   void summarize_module(FastqStats &stats);

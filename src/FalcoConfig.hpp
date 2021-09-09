@@ -166,10 +166,10 @@ namespace Constants {
   const size_t bit_shift_adapter = log2exact(max_adapters);
 
   // we shift 14 bits when reading a kmer, two bits per base
-  const size_t bit_shift_kmer = 2 * Constants::kmer_size;
+  const size_t bit_shift_kmer = bit_shift_base*kmer_size;
 
   // mask to get only the first 2*k bits of the sliding window
-  const size_t kmer_mask = (1ll << (2*Constants::kmer_size)) - 1;
+  const size_t kmer_mask = (1ull << (bit_shift_kmer)) - 1;
 };
 
 #endif

@@ -256,10 +256,10 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
       cur_kmer = ((cur_kmer << Constants::bit_shift_base) | base_ind);
 
       // registers k-mer if seen at least k nucleotides since the last n
-      if (do_kmer && (num_bases_after_n == Constants::kmer_size)) {
+      if (do_kmer && (num_bases_after_n >= Constants::kmer_size)) {
 
           stats.kmer_count[(read_pos << Constants::bit_shift_kmer)
-                           | (cur_kmer & Constants::bit_shift_kmer)]++;
+                           | (cur_kmer & Constants::kmer_mask)]++;
           stats.pos_kmer_count[read_pos]++;
       }
 
