@@ -495,6 +495,9 @@ FalcoConfig::read_adapters() {
   // the biological sequence
 
   adapter_size = 0;
+  adapter_names.clear();
+  adapter_seqs.clear();
+  adapter_hashes.clear();
   while (getline(in, line)) {
     if (is_content_line(line)) {
       if (adapter_names.size() > Constants::max_adapters)
@@ -553,6 +556,7 @@ FalcoConfig::read_contaminants_file() {
   // The contaminants file has a space separated name, and the last
   // instance is the biological sequence
   string line;
+  contaminants.clear();
   while (getline(in, line)) {
     if (is_content_line(line)) {
       istringstream iss(line);
