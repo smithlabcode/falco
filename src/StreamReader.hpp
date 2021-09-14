@@ -161,8 +161,8 @@ class StreamReader{
                const char _field_separator, const char _line_separator);
 
   /************ FUNCTIONS TO IMPLEMENT BASED ON FILE FORMAT  ***********/
-  virtual void load() = 0;
-  virtual bool operator >> (FastqStats &stats) = 0;
+  virtual size_t load() = 0;
+  virtual bool read_entry (FastqStats &stats, size_t &num_bytes_read) = 0;
   virtual bool is_eof() = 0;  // whether file has ended, for each file type
   virtual ~StreamReader() = 0;
 };
@@ -180,9 +180,9 @@ class FastqReader : public StreamReader {
  public:
   FastqReader(FalcoConfig &fc, const size_t _buffer_size);
 
-  void load();
+  size_t load();
   bool is_eof();
-  bool operator >> (FastqStats &stats);
+  bool read_entry(FastqStats &stats, size_t &num_bytes_read);
   ~FastqReader();
 };
 
@@ -197,9 +197,9 @@ class GzFastqReader : public StreamReader {
 
  public:
   GzFastqReader(FalcoConfig &fc, const size_t _buffer_size);
-  void load();
+  size_t load();
   bool is_eof();
-  bool operator >> (FastqStats &stats);
+  bool read_entry(FastqStats &stats, size_t &num_bytes_read);
   ~GzFastqReader();
 };
 
@@ -213,11 +213,12 @@ class SamReader : public StreamReader {
   struct stat st;
   void *mmap_data;
   char *last;
+  char *first;
  public:
   SamReader(FalcoConfig &fc, const size_t _buffer_size);
-  void load();
+  size_t load();
   bool is_eof();
-  bool operator >> (FastqStats &stats);
+  bool read_entry(FastqStats &stats, size_t &num_bytes_read);
   ~SamReader();
 };
 
@@ -235,9 +236,9 @@ class BamReader : public StreamReader {
   char *last;
  public:
   BamReader(FalcoConfig &fc, const size_t _buffer_size);
-  void load();
+  size_t load();
   bool is_eof();
-  bool operator >> (FastqStats &stats);
+  bool read_entry(FastqStats &stats, size_t &num_bytes_read);
   ~BamReader();
 };
 #endif

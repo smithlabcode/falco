@@ -73,23 +73,17 @@ static bool dir_exists(const string &path) {
 template <typename T> void
 read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
   // open file
-  in.load();
-
-  // fast way to report # of reads without modulo arithmetics
-  const size_t num_reads_to_log = 1000000; // million
-  size_t next_read = num_reads_to_log;
+  size_t file_size = in.load();
+  size_t tot_bytes_read = 0;
 
   // Read record by record
   const bool quiet = falco_config.quiet;
-  while (in >> stats) {
-    if (!quiet) {
-      if (stats.num_reads == next_read) {
-        log_process("Processed " +
-                    to_string(stats.num_reads/num_reads_to_log) +
-                    "M reads");
-        next_read += num_reads_to_log;
-      }
-    }
+  ProgressBar progress(file_size, "running falco");
+  if (!quiet)
+    progress.report(cerr, 0);
+  while (in.read_entry(stats, tot_bytes_read)) {
+    if (!quiet && progress.time_to_report(tot_bytes_read))
+      progress.report(cerr, tot_bytes_read);
   }
 
   // if I could not get tile information from read names, I need to tell this to
@@ -97,6 +91,9 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
   if (in.tile_ignore) {
     falco_config.do_tile = false;
   }
+
+  if (tot_bytes_read < file_size)
+    progress.report(cerr, file_size);
 }
 
 // Write module content into html maker if requested
@@ -460,14 +457,14 @@ int main(int argc, const char **argv) {
       // Initializes a reader given the file format
       if (falco_config.is_sam) {
         if (!falco_config.quiet)
-          log_process("reading file as sam format");
+          log_process("reading file as SAM format");
         SamReader in(falco_config, stats.kNumBases);
         read_stream_into_stats(in, stats, falco_config);
       }
 #ifdef USE_HTS
       else if (falco_config.is_bam) {
         if (!falco_config.quiet)
-          log_process("reading file as bam format");
+          log_process("reading file as BAM format");
         BamReader in(falco_config, stats.kNumBases);
         read_stream_into_stats(in, stats, falco_config);
       }
@@ -475,13 +472,13 @@ int main(int argc, const char **argv) {
 
       else if (falco_config.is_fastq_gz) {
         if (!falco_config.quiet)
-          log_process("reading file as gzipped fastq format");
+          log_process("reading file as gzipped FASTQ format");
         GzFastqReader in(falco_config, stats.kNumBases);
         read_stream_into_stats(in,stats,falco_config);
       }
       else if (falco_config.is_fastq) {
         if (!falco_config.quiet)
-          log_process("reading file as uncompressed fastq format");
+          log_process("reading file as uncompressed FASTQ format");
         FastqReader in(falco_config, stats.kNumBases);
         read_stream_into_stats(in, stats, falco_config);
       }

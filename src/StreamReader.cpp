@@ -238,7 +238,7 @@ inline void
 StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
   // I will count the Ns even if asked to ignore, as checking ifs take time
   if (base_from_buffer == 'N') {
-    stats.n_base_count[read_pos]++;
+    ++stats.n_base_count[read_pos];
     num_bases_after_n = 1;  // start over the current kmer
   }
 
@@ -249,8 +249,8 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
 
     // increments basic statistic counts
     cur_gc_count += (base_ind & 1);
-    stats.base_count[
-      (read_pos << Constants::bit_shift_base) | base_ind]++;
+    ++stats.base_count[
+      (read_pos << Constants::bit_shift_base) | base_ind];
 
     if (do_sliding_window) {
       // Update k-mer sequence
@@ -259,9 +259,9 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
       // registers k-mer if seen at least k nucleotides since the last n
       if (do_kmer && do_kmer_read && (num_bases_after_n >= Constants::kmer_size)) {
 
-          stats.kmer_count[(read_pos << Constants::bit_shift_kmer)
-                           | (cur_kmer & Constants::kmer_mask)]++;
-          stats.pos_kmer_count[read_pos]++;
+          ++stats.kmer_count[(read_pos << Constants::bit_shift_kmer)
+                           | (cur_kmer & Constants::kmer_mask)];
+          ++stats.pos_kmer_count[read_pos];
       }
 
       // GS: slow, need to use fsm
@@ -269,8 +269,8 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
         cur_kmer &= adapter_mask;
         for (i = 0; i != num_adapters; ++i) {
           if (cur_kmer == adapters[i]) {
-            stats.pos_adapter_count[(read_pos << Constants::bit_shift_adapter)
-                                    | i]++;
+            ++stats.pos_adapter_count[(read_pos << Constants::bit_shift_adapter)
+                                    | i];
           }
         }
       }
@@ -285,7 +285,7 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
 inline void
 StreamReader::process_sequence_base_from_leftover(FastqStats &stats) {
   if (base_from_buffer == 'N') {
-    stats.long_n_base_count[leftover_ind]++;
+    ++stats.long_n_base_count[leftover_ind];
     num_bases_after_n = 1;  // start over the current kmer
   }
 
@@ -296,8 +296,8 @@ StreamReader::process_sequence_base_from_leftover(FastqStats &stats) {
 
     // increments basic statistic counts
     cur_gc_count += (base_ind & 1);
-    stats.long_base_count[(leftover_ind << Constants::bit_shift_base)
-                          | base_ind]++;
+    ++stats.long_base_count[(leftover_ind << Constants::bit_shift_base)
+                          | base_ind];
 
     // WE WILL NOT DO KMER STATS OUTSIDE OF BUFFER
   }
@@ -311,11 +311,10 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
 
   // read length frequency histogram
   if (do_sequence_length) {
-    if (still_in_buffer) {
-      stats.read_length_freq[read_pos - 1]++;
-    } else {
-      stats.long_read_length_freq[leftover_ind - 1]++;
-    }
+    if (still_in_buffer)
+      ++stats.read_length_freq[read_pos - 1];
+    else
+      ++stats.long_read_length_freq[leftover_ind - 1];
   }
 
   // Updates maximum read length if applicable
@@ -340,7 +339,7 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
 
     // if the read length is too large, we just use the discrete percentage
     } else {
-      stats.gc_count[100 * cur_gc_count / read_pos]++;
+      ++stats.gc_count[100 * cur_gc_count / read_pos];
     }
   }
 }
@@ -416,9 +415,9 @@ StreamReader::read_sequence_line(FastqStats &stats) {
 inline void
 StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
   // Average quality in position
-  stats.position_quality_count[
+  ++stats.position_quality_count[
     (read_pos << Constants::bit_shift_quality) | quality_value
-  ]++;
+  ];
 
   // Tile processing
   if (!tile_ignore && do_tile_read && tile_cur != 0) {
@@ -429,7 +428,7 @@ StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
     }
     stats.tile_position_quality[tile_cur][read_pos]
         += quality_value;
-      stats.tile_position_count[tile_cur][read_pos]++;
+    ++stats.tile_position_count[tile_cur][read_pos];
   }
 }
 
@@ -437,15 +436,15 @@ StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
 inline void
 StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
   // Average quality in position
-  stats.long_position_quality_count[
-    (leftover_ind << Constants::bit_shift_quality) | quality_value]++;
+  ++stats.long_position_quality_count[
+    (leftover_ind << Constants::bit_shift_quality) | quality_value];
 
   // Tile processing
   if (!tile_ignore) {
     if (do_tile_read && tile_cur != 0) {
       stats.tile_position_quality[tile_cur][read_pos]
         += quality_value;
-      stats.tile_position_count[tile_cur][read_pos]++;
+      ++stats.tile_position_count[tile_cur][read_pos];
     }
   }
 }
@@ -470,11 +469,10 @@ StreamReader::read_quality_line(FastqStats &stats) {
     get_base_from_buffer();
 
     // update lowest quality
-    stats.lowest_char = min(stats.lowest_char, *cur_char);
+    stats.lowest_char = min(stats.lowest_char, ((*cur_char == 9) ? (static_cast<char>(127)) : (*cur_char)));
 
     // Converts quality ascii to zero-based
     quality_value = *cur_char - Constants::quality_zero;
-
 
     // Fast bases from buffer
     if (still_in_buffer) {
@@ -496,7 +494,7 @@ StreamReader::read_quality_line(FastqStats &stats) {
 
   // Average quality approximated to the nearest integer. Used to make a
   // histogram in the end of the summary.
-  stats.quality_count[cur_quality / read_pos]++;  // avg quality histogram
+  ++stats.quality_count[cur_quality / read_pos];  // avg quality histogram
 }
 
 /*******************************************************/
@@ -529,7 +527,7 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
       }
     }
     else {
-      stats.sequence_count[sequence_to_hash]++;
+      ++stats.sequence_count[sequence_to_hash];
       stats.count_at_limit += continue_storing_sequences;
     }
   }
@@ -552,14 +550,29 @@ FastqReader::FastqReader(FalcoConfig &_config,
   StreamReader(_config, _buffer_size, '\n', '\n') {
 }
 
+size_t
+get_file_size(const string &filename) {
+  FILE* fp = fopen(filename.c_str(), "r");
+  if (fp == NULL)
+    throw runtime_error("bad input file: " + filename);
+
+  fseek(fp, 0L, SEEK_END);
+  const size_t ret = static_cast<size_t>(ftell(fp));
+  fclose(fp);
+
+  return ret;
+}
+
 // Load fastq with zlib
-void
+size_t
 FastqReader::load() {
   fileobj = fopen(filename.c_str(), "r");
   if (fileobj == NULL)
     throw runtime_error("Cannot open file : " + filename);
   cur_char = new char[1];
   ++cur_char;
+
+  return get_file_size(filename);
 }
 
 // straightforward
@@ -574,7 +587,7 @@ FastqReader::~FastqReader() {
 
 // Parses fastq gz by reading line by line into the gzbuf
 inline bool
-FastqReader::operator >>(FastqStats &stats) {
+FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   cur_char = fgets(filebuf, kChunkSize, fileobj);
 
   // need to check here if we did not hit eof
@@ -600,9 +613,10 @@ FastqReader::operator >>(FastqStats &stats) {
   postprocess_fastq_record(stats);
 
   // Successful read, increment number in stats
-  stats.num_reads++;
+  ++stats.num_reads;
 
   // Returns if file should keep being checked
+  num_bytes_read = ftell(fileobj);
   return (!is_eof() && cur_char != 0);
 }
 
@@ -616,13 +630,15 @@ GzFastqReader::GzFastqReader(FalcoConfig &_config,
 }
 
 // Load fastq with zlib
-void
+size_t
 GzFastqReader::load() {
   fileobj = gzopen(filename.c_str(), "r");
   if (fileobj == Z_NULL)
     throw runtime_error("Cannot open gzip file : " + filename);
   cur_char = new char[1];
   ++cur_char;
+
+  return get_file_size(filename);
 }
 
 // straightforward
@@ -637,7 +653,7 @@ GzFastqReader::~GzFastqReader() {
 
 // Parses fastq gz by reading line by line into the gzbuf
 inline bool
-GzFastqReader::operator >>(FastqStats &stats) {
+GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   cur_char = gzgets(fileobj, gzbuf, kChunkSize);
 
   // need to check here if we did not hit eof
@@ -663,9 +679,10 @@ GzFastqReader::operator >>(FastqStats &stats) {
   postprocess_fastq_record(stats);
 
   // Successful read, increment number in stats
-  stats.num_reads++;
+  ++stats.num_reads;
 
   // Returns if file should keep being checked
+  num_bytes_read = gzoffset(fileobj);
   return !is_eof();
 }
 
@@ -677,9 +694,8 @@ SamReader::SamReader(FalcoConfig &_config,
                      const size_t _buffer_size) :
   StreamReader(_config, _buffer_size, '\t', '\n') {}
 
-void
+size_t
 SamReader::load() {
-  // uncompressed fastq = memorymap
   int fd = open(filename.c_str(), O_RDONLY, 0);
   if (fd == -1)
     throw runtime_error("failed to open fastq file: " + filename);
@@ -694,7 +710,8 @@ SamReader::load() {
     throw runtime_error("failed to mmap fastq file: " + filename);
 
   // Initialize position pointer
-  cur_char = static_cast<char*>(mmap_data);
+  first = static_cast<char*>(mmap_data);
+  cur_char = first;
   last = cur_char + st.st_size - 1;
 
   // Skip sam header
@@ -702,6 +719,8 @@ SamReader::load() {
     for (; *cur_char != line_separator; ++cur_char) {}
     ++cur_char;
   }
+
+  return st.st_size;
 }
 
 inline bool
@@ -710,7 +729,7 @@ SamReader::is_eof() {
 }
 
 inline bool
-SamReader::operator >> (FastqStats &stats) {
+SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   read_tile_line(stats);
   skip_separator();
   for (size_t i = 0; i < 8; ++i) {
@@ -729,8 +748,9 @@ SamReader::operator >> (FastqStats &stats) {
   // skip \n
   ++cur_char;
   postprocess_fastq_record(stats);
-  stats.num_reads++;
+  ++stats.num_reads;
 
+  num_bytes_read = static_cast<size_t>(cur_char -first);
   // Returns if file should keep being checked
   return !is_eof();
 }
@@ -750,7 +770,7 @@ BamReader::BamReader(FalcoConfig &_config, const size_t _buffer_size) :
   rd_ret = 0;
 }
 
-void
+size_t
 BamReader::load() {
   if (!(hts = hts_open(filename.c_str(), "r")))
     throw runtime_error("cannot load bam file : " + filename);
@@ -760,6 +780,9 @@ BamReader::load() {
 
   if (!(b = bam_init1()))
     throw runtime_error("failed to read record from file: " + filename);
+
+  // GS TODO: implement this properly
+  return 1;
 }
 
 // We will check eof on the >> operator
@@ -769,9 +792,12 @@ BamReader::is_eof() {
 }
 
 inline bool
-BamReader::operator>>(FastqStats &stats) {
+BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   if ((rd_ret = sam_read1(hts, hdr, b)) >= 0) {
     fmt_ret = 0;
+
+    // GS TODO: implement this properly
+    num_bytes_read = 0;
     if ((fmt_ret = sam_format1(hdr, b, &hts->line)) > 0) {
       // define char* values for processing lines char by char
       cur_char = hts->line.s;
@@ -789,7 +815,7 @@ BamReader::operator>>(FastqStats &stats) {
       read_quality_line(stats);
 
       postprocess_fastq_record(stats);
-      stats.num_reads++;
+      ++stats.num_reads;
       return true;
     }
     else throw runtime_error("failed reading record from: " + filename);
