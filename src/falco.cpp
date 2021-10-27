@@ -438,10 +438,7 @@ int main(int argc, const char **argv) {
       falco_config.filename = filename;
 
       // if format was not provided, we have to guess it by the filename
-      if (!forced_file_format.empty())
-        falco_config.format = forced_file_format;
-      else
-        falco_config.format = "";
+      falco_config.format = forced_file_format;
 
       /****************** BEGIN PROCESSING CONFIG ******************/
       // define file type, read limits, adapters, contaminants and fail

@@ -20,7 +20,9 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <algorithm>
 
+using std::transform;
 using std::string;
 using std::vector;
 using std::unordered_map;
@@ -372,25 +374,39 @@ FalcoConfig::setup() {
 
 void
 FalcoConfig::define_file_format() {
+  transform(begin(format), end(format), begin(format), tolower);
+  string tmp_filename = filename;
+  transform(begin(tmp_filename), end(tmp_filename), begin(tmp_filename), tolower);
   if (format == "") {
-    if (endswith(filename, "sam")) {
+    if (endswith(tmp_filename, "sam")) {
       is_sam = true;
     }
-    if (endswith(filename, "bam")) {
+#ifdef USE_HTS
+    if (endswith(tmp_filename, "bam")) {
       is_bam = true;
     }
-    if (endswith(filename, "fastq.gz")) {
+#endif
+    if (endswith(tmp_filename, "fastq.gz")) {
       is_fastq_gz = true;
     }
-    if (endswith(filename, "fq.gz")) {
+    if (endswith(tmp_filename, "fq.gz")) {
       is_fastq_gz = true;
     }
-    if (endswith(filename, "fastq")) {
+    if (endswith(tmp_filename, "fastq")) {
       is_fastq = true;
     }
-    if (endswith(filename, "fq")) {
+    if (endswith(tmp_filename, "fq")) {
       is_fastq = true;
     }
+  }
+  else {
+    if (format == "sam") is_sam = true;
+#ifdef USE_HTS
+    else if (format == "bam") is_bam = true;
+#endif
+    else if (format == "fq.gz" || format == "fastq.gz") is_fastq_gz = true;
+    else if (format == "fq" || format == "fastq") is_fastq_gz = true;
+    else throw runtime_error("unrecognized file format: " + format);
   }
 }
 
