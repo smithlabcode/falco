@@ -690,11 +690,11 @@ ModulePerBaseSequenceQuality::summarize_module(FastqStats &stats) {
 
     const size_t base_positions = base_groups[group].end - base_groups[group].start + 1;
     group_mean[group] = mean_group_sum / base_positions;
-    group_ldecile[group] = (double) ldecile_group_sum / base_positions;
-    group_lquartile[group] = (double) lquartile_group_sum / base_positions;
-    group_median[group] = (double) median_group_sum / base_positions;
-    group_uquartile[group] = (double) uquartile_group_sum / base_positions;
-    group_udecile[group] = (double) udecile_group_sum / base_positions;
+    group_ldecile[group] = static_cast<double>(ldecile_group_sum) / base_positions;
+    group_lquartile[group] = static_cast<double>(lquartile_group_sum) / base_positions;
+    group_median[group] = static_cast<double>(median_group_sum) / base_positions;
+    group_uquartile[group] = static_cast<double>(uquartile_group_sum) / base_positions;
+    group_udecile[group] = static_cast<double>(udecile_group_sum) / base_positions;
   }
 }
 
