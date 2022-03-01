@@ -531,10 +531,10 @@ FalcoConfig::read_adapters() {
           adapter_name += line_by_space[i] + " ";
         adapter_seq = line_by_space.back();
 
-        if (adapter_seq.size() > 32)
-          throw runtime_error("adapter too long. Maximum adapter size is 32bp: "
-                              + adapter_seq);
-
+        if (adapter_seq.size() > 32) {
+          cerr << "adapter size is more then 32. Use slow adapters search" << "\n";
+          adapters_search_slow = true;
+        }
       }
 
       // store information
@@ -542,10 +542,17 @@ FalcoConfig::read_adapters() {
       adapter_seqs.push_back(adapter_seq);
       adapter_hashes.push_back(hash_adapter(adapter_seq));
 
-      if (adapter_size == 0)
+      if (adapter_size == 0) {
         adapter_size = adapter_seq.size();
-      else if (adapter_seq.size() != adapter_size)
-        throw runtime_error("adapters in config are not all of same size");
+        longest_adapter_size = adapter_size;
+      }
+      else if (adapter_seq.size() != adapter_size) {
+        cerr << "adapters has different size. Use slow adapters search" << "\n";
+        adapters_search_slow = true;
+        if(adapter_seq.size() > longest_adapter_size){
+          longest_adapter_size = adapter_seq.size();
+        }
+      }
 
       line_by_space.clear();
     }

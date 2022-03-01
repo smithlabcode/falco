@@ -65,6 +65,9 @@ class StreamReader{
   const size_t buffer_size;
 
   /************ ADAPTER SEARCH ***********/
+  const bool adapters_search_slow;
+  const std::vector<std::string> adapter_seqs;
+
   const size_t num_adapters;
   const size_t adapter_size;
   const size_t adapter_mask;
