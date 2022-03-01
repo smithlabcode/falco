@@ -136,7 +136,7 @@ class ModulePerBaseSequenceQuality : public Module {
          base_median_error;
   size_t num_warn, num_error;
   std::vector<double> group_mean;
-  std::vector<size_t> group_ldecile,
+  std::vector<double> group_ldecile,
                       group_lquartile,
                       group_median,
                       group_uquartile,

@@ -576,6 +576,13 @@ ModulePerBaseSequenceQuality::summarize_module(FastqStats &stats) {
          cur_uquartile = 0,
          cur_udecile = 0;
 
+  size_t ldecile_group_sum = 0,
+         lquartile_group_sum = 0,
+         median_group_sum = 0,
+         uquartile_group_sum = 0,
+         udecile_group_sum = 0;
+  double mean_group_sum;
+
   size_t cur;
   size_t cur_sum;
   size_t counts;
@@ -592,17 +599,24 @@ ModulePerBaseSequenceQuality::summarize_module(FastqStats &stats) {
 
   // Reserves space I know I will use
   group_mean = vector<double>(num_groups, 0.0);
-  group_ldecile = vector<size_t>(num_groups, 0);
-  group_lquartile = vector<size_t>(num_groups, 0);
-  group_median = vector<size_t>(num_groups, 0);
-  group_uquartile = vector<size_t>(num_groups, 0);
-  group_udecile = vector<size_t>(num_groups, 0);
+  group_ldecile = vector<double>(num_groups, 0.0);
+  group_lquartile = vector<double>(num_groups, 0.0);
+  group_median = vector<double>(num_groups, 0.0);
+  group_uquartile = vector<double>(num_groups, 0.0);
+  group_udecile = vector<double>(num_groups, 0.0);
 
   // temp
-  vector<size_t>histogram(128, 0);
+  vector <size_t> histogram(128, 0);
   size_t bases_in_group = 0;
 
   for (size_t group = 0; group < num_groups; ++group) {
+    mean_group_sum = 0;
+    ldecile_group_sum = 0;
+    lquartile_group_sum = 0;
+    median_group_sum = 0;
+    uquartile_group_sum = 0;
+    udecile_group_sum = 0;
+
     // Find quantiles for each base group
     for (size_t i = base_groups[group].start;
               i  <= base_groups[group].end; ++i) {
@@ -634,45 +648,53 @@ ModulePerBaseSequenceQuality::summarize_module(FastqStats &stats) {
         bases_in_group +=
           stats.long_cumulative_read_length_freq[i - FastqStats::kNumBases];
       }
+
+      ldecile_thresh = 0.1 * bases_in_group;
+      lquartile_thresh = 0.25 * bases_in_group;
+      median_thresh = 0.5 * bases_in_group;
+      uquartile_thresh = 0.75 * bases_in_group;
+      udecile_thresh = 0.9 * bases_in_group;
+
+      // now go again through the counts in each quality value to find the
+      // quantiles
+      cur_sum = 0;
+      counts = 0;
+
+      for (size_t j = 0; j < FastqStats::kNumQualityValues; ++j) {
+        // Finds in which bin of the histogram reads are
+        cur = histogram[j];
+        if (counts < ldecile_thresh && counts + cur >= ldecile_thresh)
+          cur_ldecile = j;
+        if (counts < lquartile_thresh && counts + cur >= lquartile_thresh)
+          cur_lquartile = j;
+        if (counts < median_thresh && counts + cur >= median_thresh)
+          cur_median = j;
+        if (counts < uquartile_thresh && counts + cur >= uquartile_thresh)
+          cur_uquartile = j;
+        if (counts < udecile_thresh && counts + cur >= udecile_thresh)
+          cur_udecile = j;
+        cur_sum += cur * j;
+        counts += cur;
+      }
+
+      cur_mean = static_cast<double>(cur_sum) /
+                 static_cast<double>(bases_in_group);
+      const size_t offset = stats.encoding_offset;
+      mean_group_sum += cur_mean - offset;
+      ldecile_group_sum += cur_ldecile - offset;
+      lquartile_group_sum += cur_lquartile - offset;
+      median_group_sum += cur_median - offset;
+      uquartile_group_sum += cur_uquartile - offset;
+      udecile_group_sum += cur_udecile - offset;
     }
-    ldecile_thresh = 0.1 * bases_in_group;
-    lquartile_thresh = 0.25 * bases_in_group;
-    median_thresh = 0.5 * bases_in_group;
-    uquartile_thresh = 0.75 * bases_in_group;
-    udecile_thresh = 0.9 * bases_in_group;
 
-    // now go again through the counts in each quality value to find the
-    // quantiles
-    cur_sum = 0;
-    counts = 0;
-
-    for (size_t j = 0; j < FastqStats::kNumQualityValues; ++j) {
-      // Finds in which bin of the histogram reads are
-      cur = histogram[j];
-      if (counts < ldecile_thresh && counts + cur >= ldecile_thresh)
-        cur_ldecile = j;
-      if (counts < lquartile_thresh && counts + cur >= lquartile_thresh)
-        cur_lquartile = j;
-      if (counts < median_thresh && counts + cur >= median_thresh)
-        cur_median = j;
-      if (counts < uquartile_thresh && counts + cur >= uquartile_thresh)
-        cur_uquartile = j;
-      if (counts < udecile_thresh && counts + cur >= udecile_thresh)
-        cur_udecile = j;
-      cur_sum += cur*j;
-      counts += cur;
-    }
-
-    cur_mean = static_cast<double>(cur_sum) /
-               static_cast<double>(bases_in_group);
-
-    const size_t offset = stats.encoding_offset;
-    group_mean[group] = cur_mean - offset;
-    group_ldecile[group] = cur_ldecile - offset;
-    group_lquartile[group] = cur_lquartile - offset;
-    group_median[group] = cur_median - offset;
-    group_uquartile[group] = cur_uquartile - offset;
-    group_udecile[group] = cur_udecile - offset;
+    const size_t base_positions = base_groups[group].end - base_groups[group].start + 1;
+    group_mean[group] = mean_group_sum / base_positions;
+    group_ldecile[group] = static_cast<double>(ldecile_group_sum) / base_positions;
+    group_lquartile[group] = static_cast<double>(lquartile_group_sum) / base_positions;
+    group_median[group] = static_cast<double>(median_group_sum) / base_positions;
+    group_uquartile[group] = static_cast<double>(uquartile_group_sum) / base_positions;
+    group_udecile[group] = static_cast<double>(udecile_group_sum) / base_positions;
   }
 }
 
@@ -707,13 +729,13 @@ ModulePerBaseSequenceQuality::write_module(ostream &os) {
 
   // GS: TODO make base groups
   for (size_t i = 0; i < num_groups; ++i) {
-      os << base_groups[i] << "\t"
-         << group_mean[i] << "\t"
-         << group_median[i] << ".0\t"
-         << group_lquartile[i] << ".0\t"
-         << group_uquartile[i] << ".0\t"
-         << group_ldecile[i] << ".0\t"
-         << group_udecile[i] << ".0\n";
+    os << base_groups[i] << "\t"
+       << group_mean[i] << "\t"
+       << group_median[i] << "\t"
+       << group_lquartile[i] << "\t"
+       << group_uquartile[i] << "\t"
+       << group_ldecile[i] << "\t"
+       << group_udecile[i] << "\n";
   }
 }
 
