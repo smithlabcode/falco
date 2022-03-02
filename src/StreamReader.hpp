@@ -46,6 +46,7 @@ class StreamReader{
   const bool do_sequence_hash,
              do_kmer,
              do_adapter,
+             do_adapter_optimized,
              do_sliding_window,
              do_n_content,
              do_quality_base,
@@ -65,7 +66,7 @@ class StreamReader{
   const size_t buffer_size;
 
   /************ ADAPTER SEARCH ***********/
-  const bool adapters_search_slow;
+  const bool do_adapters_slow;
   const std::vector<std::string> adapter_seqs;
 
   const size_t num_adapters;

@@ -52,7 +52,8 @@ StreamReader::StreamReader(FalcoConfig &config,
   do_sequence_hash(config.do_duplication || config.do_overrepresented),
   do_kmer(config.do_kmer),
   do_adapter(config.do_adapter),
-  do_sliding_window(do_adapter || do_kmer),
+  do_adapter_optimized(config.do_adapter_optimized),
+  do_sliding_window(do_adapter_optimized || do_kmer),
   do_n_content(config.do_n_content),
   do_quality_base(config.do_quality_base),
   do_sequence(config.do_sequence),
@@ -67,7 +68,7 @@ StreamReader::StreamReader(FalcoConfig &config,
   buffer_size(_buffer_size),
 
   // Here are the const adapters
-  adapters_search_slow(config.adapters_search_slow),
+  do_adapters_slow(config.do_adapter && !config.do_adapter_optimized),
   adapter_seqs(config.adapter_seqs),
   
   num_adapters(config.adapter_hashes.size()),
@@ -269,7 +270,7 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
       }
 
       // GS: slow, need to use fsm
-      if (do_adapter && !adapters_search_slow && (num_bases_after_n == adapter_size)) {
+      if (do_adapter_optimized && (num_bases_after_n == adapter_size)) {
         cur_kmer &= adapter_mask;
         for (i = 0; i != num_adapters; ++i) {
           if (cur_kmer == adapters[i]) {
@@ -360,11 +361,11 @@ StreamReader::read_sequence_line(FastqStats &stats) {
   next_truncation = 100;
   do_kmer_read = (stats.num_reads == next_kmer_read);
 
-  if (adapters_search_slow) {
+  if (do_adapters_slow) {
     string seq_line_str = cur_char;
     for (i = 0; i != num_adapters; ++i) {
       size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
-      if (adapt_index != string::npos) {
+      if (adapt_index < stats.kNumBases) {
         ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) << Constants::bit_shift_adapter)
                                   | i];
       }

@@ -63,6 +63,7 @@ struct FalcoConfig {
        do_quality_sequence,
        do_tile,
        do_adapter,
+       do_adapter_optimized,
        do_sequence_length;
 
   /************************************************************
@@ -89,7 +90,6 @@ struct FalcoConfig {
 
   size_t adapter_size;
   size_t longest_adapter_size;
-  bool adapters_search_slow;
   /************************************************************
    ******* ADDITIONAL INFORMATION ABOUT THE SAMPLE ************
    ************************************************************/
