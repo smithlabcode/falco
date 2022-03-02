@@ -44,6 +44,9 @@ make_adapters(const vector<size_t> &adapter_hashes) {
   return ans;
 }
 
+StreamReader::StreamReader(FalcoConfig &config, const size_t _buffer_size) :
+        StreamReader(config, _buffer_size, 0, 0) {}
+                           
 StreamReader::StreamReader(FalcoConfig &config,
                            const size_t _buffer_size,
                            const char _field_separator,
@@ -563,7 +566,27 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
 // Set fastq separator as \n
 FastqReader::FastqReader(FalcoConfig &_config,
                          const size_t _buffer_size) :
-  StreamReader(_config, _buffer_size, '\n', '\n') {
+  StreamReader(_config, _buffer_size) {
+}
+
+char
+get_line_separator(const string &filename) {
+  FILE *fp = fopen(filename.c_str(), "r");
+  if (fp == NULL)
+    throw runtime_error("bad input file: " + filename);
+
+  char line_separator = '\n';
+  char c;
+  while (!feof(fp)) {
+    c = fgetc(fp);
+    if (c == '\r' || c == '\n') {
+      line_separator = c;
+      break;
+    }
+  }
+  fclose(fp);
+
+  return line_separator;
 }
 
 size_t
@@ -588,6 +611,7 @@ FastqReader::load() {
   cur_char = new char[1];
   ++cur_char;
 
+  line_separator = field_separator = get_line_separator(filename);
   return get_file_size(filename);
 }
 
@@ -642,7 +666,7 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 // the gz fastq constructor is the same as the fastq
 GzFastqReader::GzFastqReader(FalcoConfig &_config,
                              const size_t _buffer_size) :
-  StreamReader(_config, _buffer_size, '\n', '\n') {
+  StreamReader(_config, _buffer_size) {
 }
 
 // Load fastq with zlib
@@ -654,6 +678,7 @@ GzFastqReader::load() {
   cur_char = new char[1];
   ++cur_char;
 
+  line_separator = field_separator = get_line_separator(filename);
   return get_file_size(filename);
 }
 

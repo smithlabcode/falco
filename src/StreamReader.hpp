@@ -57,10 +57,10 @@ class StreamReader{
              do_sequence_length;
 
   // This will tell me which character to look for to go to the next field
-  const char field_separator;
+  char field_separator;
 
   // This will tell me which character to look for to finish processing a record
-  const char line_separator;
+  char line_separator;
 
   // buffer size to store line 2 of each read statically
   const size_t buffer_size;
@@ -160,6 +160,8 @@ class StreamReader{
   inline void read_tile_line(FastqStats &stats);  // get tile from read name
   inline void read_sequence_line(FastqStats &stats);  // parse sequence
   inline void read_quality_line(FastqStats &stats);  // parse quality
+
+  StreamReader(FalcoConfig &config, const size_t buffer_size);
 
   StreamReader(FalcoConfig &config, const size_t buffer_size,
                const char _field_separator, const char _line_separator);
