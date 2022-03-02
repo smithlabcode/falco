@@ -52,7 +52,8 @@ StreamReader::StreamReader(FalcoConfig &config,
   do_sequence_hash(config.do_duplication || config.do_overrepresented),
   do_kmer(config.do_kmer),
   do_adapter(config.do_adapter),
-  do_sliding_window(do_adapter || do_kmer),
+  do_adapter_optimized(config.do_adapter_optimized),
+  do_sliding_window(do_adapter_optimized || do_kmer),
   do_n_content(config.do_n_content),
   do_quality_base(config.do_quality_base),
   do_sequence(config.do_sequence),
@@ -67,9 +68,13 @@ StreamReader::StreamReader(FalcoConfig &config,
   buffer_size(_buffer_size),
 
   // Here are the const adapters
+  do_adapters_slow(config.do_adapter && !config.do_adapter_optimized),
+  adapter_seqs(config.adapter_seqs),
+  
   num_adapters(config.adapter_hashes.size()),
   adapter_size(config.adapter_size),
-  adapter_mask((1ll << (2*adapter_size)) - 1),
+  //for case size == 32 expr (1ll << 64) -1 gives 0. We need to set mask as all 64 bits 1 => use SIZE_MAX in this case
+  adapter_mask(adapter_size == 32? SIZE_MAX: (1ll << (2*adapter_size)) - 1),
   adapters(make_adapters(config.adapter_hashes))
   {
 
@@ -265,7 +270,7 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
       }
 
       // GS: slow, need to use fsm
-      if (do_adapter && (num_bases_after_n == adapter_size)) {
+      if (do_adapter_optimized && (num_bases_after_n == adapter_size)) {
         cur_kmer &= adapter_mask;
         for (i = 0; i != num_adapters; ++i) {
           if (cur_kmer == adapters[i]) {
@@ -355,6 +360,17 @@ StreamReader::read_sequence_line(FastqStats &stats) {
   still_in_buffer = true;
   next_truncation = 100;
   do_kmer_read = (stats.num_reads == next_kmer_read);
+
+  if (do_adapters_slow) {
+    string seq_line_str = cur_char;
+    for (i = 0; i != num_adapters; ++i) {
+      size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
+      if (adapt_index < stats.kNumBases) {
+        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) << Constants::bit_shift_adapter)
+                                  | i];
+      }
+    }
+  }
 
   /*********************************************************/
   /********** THIS LOOP MUST BE ALWAYS OPTIMIZED ***********/

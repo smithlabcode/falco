@@ -514,6 +514,8 @@ FalcoConfig::read_adapters() {
   adapter_names.clear();
   adapter_seqs.clear();
   adapter_hashes.clear();
+  do_adapter_optimized = true;
+  
   while (getline(in, line)) {
     if (is_content_line(line)) {
       if (adapter_names.size() > Constants::max_adapters)
@@ -531,10 +533,10 @@ FalcoConfig::read_adapters() {
           adapter_name += line_by_space[i] + " ";
         adapter_seq = line_by_space.back();
 
-        if (adapter_seq.size() > 32)
-          throw runtime_error("adapter too long. Maximum adapter size is 32bp: "
-                              + adapter_seq);
-
+        if (adapter_seq.size() > 32) {
+          cerr << "[adapters]\tadapter size is more then 32. Use slow adapters search" << "\n";
+          do_adapter_optimized = false;
+        }
       }
 
       // store information
@@ -542,10 +544,17 @@ FalcoConfig::read_adapters() {
       adapter_seqs.push_back(adapter_seq);
       adapter_hashes.push_back(hash_adapter(adapter_seq));
 
-      if (adapter_size == 0)
+      if (adapter_size == 0) {
         adapter_size = adapter_seq.size();
-      else if (adapter_seq.size() != adapter_size)
-        throw runtime_error("adapters in config are not all of same size");
+        longest_adapter_size = adapter_size;
+      }
+      else if (adapter_seq.size() != adapter_size) {
+        cerr << "[adapters]\tadapters have different size. Use slow adapters search" << "\n";
+        do_adapter_optimized = false;
+        if(adapter_seq.size() > longest_adapter_size){
+          longest_adapter_size = adapter_seq.size();
+        }
+      }
 
       line_by_space.clear();
     }

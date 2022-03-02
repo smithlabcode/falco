@@ -63,6 +63,7 @@ struct FalcoConfig {
        do_quality_sequence,
        do_tile,
        do_adapter,
+       do_adapter_optimized,
        do_sequence_length;
 
   /************************************************************
@@ -88,6 +89,7 @@ struct FalcoConfig {
   std::vector<size_t> adapter_hashes;
 
   size_t adapter_size;
+  size_t longest_adapter_size;
   /************************************************************
    ******* ADDITIONAL INFORMATION ABOUT THE SAMPLE ************
    ************************************************************/
