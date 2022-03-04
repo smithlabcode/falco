@@ -44,9 +44,6 @@ make_adapters(const vector<size_t> &adapter_hashes) {
   return ans;
 }
 
-StreamReader::StreamReader(FalcoConfig &config, const size_t _buffer_size) :
-        StreamReader(config, _buffer_size, 0, 0) {}
-                           
 StreamReader::StreamReader(FalcoConfig &config,
                            const size_t _buffer_size,
                            const char _field_separator,
@@ -562,13 +559,6 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
 /*******************************************************/
 /*************** READ FASTQ RECORD *********************/
 /*******************************************************/
-
-// Set fastq separator as \n
-FastqReader::FastqReader(FalcoConfig &_config,
-                         const size_t _buffer_size) :
-  StreamReader(_config, _buffer_size) {
-}
-
 char
 get_line_separator(const string &filename) {
   FILE *fp = fopen(filename.c_str(), "r");
@@ -587,6 +577,13 @@ get_line_separator(const string &filename) {
   fclose(fp);
 
   return line_separator;
+}
+
+// Set fastq field_separator as line_separator
+FastqReader::FastqReader(FalcoConfig &_config,
+                         const size_t _buffer_size) :
+  StreamReader(_config, _buffer_size, 
+               get_line_separator(_config.filename), get_line_separator(_config.filename)) {
 }
 
 size_t
@@ -611,7 +608,6 @@ FastqReader::load() {
   cur_char = new char[1];
   ++cur_char;
 
-  line_separator = field_separator = get_line_separator(filename);
   return get_file_size(filename);
 }
 
@@ -666,7 +662,8 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 // the gz fastq constructor is the same as the fastq
 GzFastqReader::GzFastqReader(FalcoConfig &_config,
                              const size_t _buffer_size) :
-  StreamReader(_config, _buffer_size) {
+  StreamReader(_config, _buffer_size,
+               get_line_separator(_config.filename), get_line_separator(_config.filename)) {
 }
 
 // Load fastq with zlib
@@ -678,7 +675,6 @@ GzFastqReader::load() {
   cur_char = new char[1];
   ++cur_char;
 
-  line_separator = field_separator = get_line_separator(filename);
   return get_file_size(filename);
 }
 
@@ -733,7 +729,8 @@ GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 // set sam separator as tab
 SamReader::SamReader(FalcoConfig &_config,
                      const size_t _buffer_size) :
-  StreamReader(_config, _buffer_size, '\t', '\n') {}
+  StreamReader(_config, _buffer_size, 
+               '\t', get_line_separator(_config.filename)) {}
 
 size_t
 SamReader::load() {
