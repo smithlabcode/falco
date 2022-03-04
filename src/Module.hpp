@@ -340,7 +340,7 @@ class ModuleAdapterContent : public Module {
    std::vector<std::string> adapter_names;
    std::vector<std::string> adapter_seqs;
    std::vector<size_t> adapter_hashes;
-   size_t longest_adapter_size;
+   size_t shortest_adapter_size;
 
    // vector to be reported
    std::vector<std::vector<double>> adapter_pos_pct;
