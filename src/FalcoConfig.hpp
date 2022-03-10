@@ -89,7 +89,7 @@ struct FalcoConfig {
   std::vector<size_t> adapter_hashes;
 
   size_t adapter_size;
-  size_t longest_adapter_size;
+  size_t shortest_adapter_size;
   /************************************************************
    ******* ADDITIONAL INFORMATION ABOUT THE SAMPLE ************
    ************************************************************/

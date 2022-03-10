@@ -546,13 +546,13 @@ FalcoConfig::read_adapters() {
 
       if (adapter_size == 0) {
         adapter_size = adapter_seq.size();
-        longest_adapter_size = adapter_size;
+        shortest_adapter_size = adapter_size;
       }
       else if (adapter_seq.size() != adapter_size) {
         cerr << "[adapters]\tadapters have different size. Use slow adapters search" << "\n";
         do_adapter_optimized = false;
-        if(adapter_seq.size() > longest_adapter_size){
-          longest_adapter_size = adapter_seq.size();
+        if(adapter_seq.size() < shortest_adapter_size){
+          shortest_adapter_size = adapter_seq.size();
         }
       }
 

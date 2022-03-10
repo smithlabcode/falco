@@ -1842,7 +1842,7 @@ Module(ModuleAdapterContent::module_name) {
   adapter_names = config.adapter_names;
   adapter_seqs = config.adapter_seqs;
   adapter_hashes = config.adapter_hashes;
-  longest_adapter_size = config.longest_adapter_size; 
+  shortest_adapter_size = config.shortest_adapter_size; 
   
   // check if they are all the same size
   if (adapter_names.size() != adapter_seqs.size())
@@ -1870,7 +1870,7 @@ ModuleAdapterContent::summarize_module(FastqStats &stats) {
 
   for (size_t i = 0; i < num_adapters; ++i)
     adapter_pos_pct.push_back(
-        vector<double>(num_bases - longest_adapter_size + 1, 0.0)
+        vector<double>(num_bases - shortest_adapter_size + 1, 0.0)
     );
 
   size_t cnt;
