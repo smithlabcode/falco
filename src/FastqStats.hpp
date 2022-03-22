@@ -153,6 +153,8 @@ struct FastqStats {
 
  public:
   /*********** SINGLE NUMBERS FROM THE ENTIRE FASTQ ****************/
+  bool has_empty_read;
+
   // lowest quality char to infer encoding
   char lowest_char;
   char encoding_offset;

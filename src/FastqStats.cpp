@@ -46,6 +46,7 @@ make_gc_models () {
 /****************************************************************/
 // Default constructor
 FastqStats::FastqStats() {
+  has_empty_read = false;
   lowest_char = std::numeric_limits<char>::max();
   encoding_offset = 0;
 

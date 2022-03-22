@@ -406,8 +406,8 @@ ModuleBasicStatistics::summarize_module(FastqStats &stats) {
     const char lowest_char = stats.lowest_char;
 
     //copied from FastQC:
-    static const size_t SANGER_ENCODING_OFFSET = 33; 
-    static const char ILLUMINA_1_3_ENCODING_OFFSET = 64; 
+    static const size_t SANGER_ENCODING_OFFSET = 33;
+    static const char ILLUMINA_1_3_ENCODING_OFFSET = 64;
     if (lowest_char < 33) {
       throw runtime_error("No known encoding with chars < 33. Yours was " +
                           std::to_string(lowest_char) + ")");
@@ -424,8 +424,10 @@ ModuleBasicStatistics::summarize_module(FastqStats &stats) {
       file_encoding = "Illumina 1.5";
       stats.encoding_offset = ILLUMINA_1_3_ENCODING_OFFSET - Constants::quality_zero;
     }
-    else {
-      throw runtime_error("No known encodings with chars > 126 (Yours was " + 
+
+    // found a char but it's not the default one
+    else if (lowest_char != stats.lowest_char) {
+      throw runtime_error("No known encodings with chars > 126 (Yours was " +
                           std::to_string(lowest_char) + ")");
     }
   }
@@ -1466,7 +1468,7 @@ void
 ModuleSequenceLengthDistribution::summarize_module(FastqStats &stats) {
   max_read_length = stats.max_read_length;
 
-  has_empty_read = (stats.min_read_length == 0);
+  has_empty_read = stats.has_empty_read;
   is_all_same_length = true;
   // store the read lengths
   sequence_lengths = vector<size_t>(max_read_length, 0);

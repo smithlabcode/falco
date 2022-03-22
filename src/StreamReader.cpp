@@ -18,6 +18,8 @@
 #include <cstring>
 #include <algorithm>
 
+using std::cerr;
+
 using std::min;
 using std::string;
 using std::vector;
@@ -139,7 +141,8 @@ StreamReader::get_base_from_buffer() {
 // Keeps going forward while the current character is a separator
 inline void
 StreamReader::skip_separator() {
-  for (; *cur_char == field_separator; ++cur_char) {}
+  ++cur_char;
+  //for (; *cur_char == field_separator; ++cur_char) {}
 }
 
 // Skips lines that are not relevant
@@ -316,19 +319,23 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
 
   // read length frequency histogram
   if (do_sequence_length) {
-    if (still_in_buffer)
-      ++stats.read_length_freq[read_pos - 1];
+    if (still_in_buffer) {
+      if (read_pos == 0)
+        stats.has_empty_read = true;
+      else
+        ++stats.read_length_freq[read_pos - 1];
+    }
     else
       ++stats.long_read_length_freq[leftover_ind - 1];
   }
 
   // Updates maximum read length if applicable
-  if (read_pos > stats.max_read_length) {
-    stats.max_read_length = read_pos;
-  }
+  stats.max_read_length =
+    ((read_pos > stats.max_read_length) ?
+     (read_pos) : (stats.max_read_length));
 
   // FastQC's gc model summarized, if requested
-  if (do_gc_sequence) {
+  if (do_gc_sequence && read_pos != 0) {
     // If we haven't passed the short base threshold, we use the cached models
     if (still_in_buffer) {
       // if we haven't passed the truncation point, use the current values,
@@ -343,7 +350,8 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
       }
 
     // if the read length is too large, we just use the discrete percentage
-    } else {
+    }
+    else {
       ++stats.gc_count[100 * cur_gc_count / read_pos];
     }
   }
@@ -362,9 +370,9 @@ StreamReader::read_sequence_line(FastqStats &stats) {
   do_kmer_read = (stats.num_reads == next_kmer_read);
 
   if (do_adapters_slow) {
-    string seq_line_str = cur_char;
+    const string seq_line_str = cur_char;
     for (i = 0; i != num_adapters; ++i) {
-      size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
+      const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
       if (adapt_index < stats.kNumBases) {
         ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) << Constants::bit_shift_adapter)
                                   | i];
@@ -409,14 +417,11 @@ StreamReader::read_sequence_line(FastqStats &stats) {
     // either way increase read position
     ++read_pos;
 
-
     // Truncate GC counts to multiples of 100
-    if (do_gc_sequence) {
-      if (read_pos == next_truncation) {
-        truncated_gc_count = cur_gc_count;
-        truncated_length= read_pos;
-        next_truncation += 100;
-      }
+    if (do_gc_sequence && read_pos == next_truncation) {
+      truncated_gc_count = cur_gc_count;
+      truncated_length= read_pos;
+      next_truncation += 100;
     }
   }
 
@@ -485,7 +490,8 @@ StreamReader::read_quality_line(FastqStats &stats) {
     get_base_from_buffer();
 
     // update lowest quality
-    stats.lowest_char = min(stats.lowest_char, ((*cur_char == 9) ? (static_cast<char>(127)) : (*cur_char)));
+    stats.lowest_char = min(stats.lowest_char,
+        ((*cur_char == 9) ? (std::numeric_limits<char>::max()) : (*cur_char)));
 
     // Converts quality ascii to zero-based
     quality_value = *cur_char - Constants::quality_zero;
@@ -510,7 +516,8 @@ StreamReader::read_quality_line(FastqStats &stats) {
 
   // Average quality approximated to the nearest integer. Used to make a
   // histogram in the end of the summary.
-  ++stats.quality_count[cur_quality / read_pos];  // avg quality histogram
+  if (read_pos != 0)
+    ++stats.quality_count[cur_quality / read_pos];  // avg quality histogram
 }
 
 /*******************************************************/
