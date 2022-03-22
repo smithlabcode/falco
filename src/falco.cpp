@@ -32,6 +32,7 @@ using std::cerr;
 using std::cout;
 using std::endl;
 using std::vector;
+using std::ifstream;
 using std::ofstream;
 using std::ostream;
 using std::to_string;
@@ -295,6 +296,12 @@ write_results(const FalcoConfig &falco_config,
   if (!skip_html)
     html << html_maker.html_boilerplate;
 }
+
+inline bool
+file_exists(const string &file_name) {
+  return (access(file_name.c_str(), F_OK) == 0);
+}
+
 int main(int argc, const char **argv) {
 
   try {
@@ -429,6 +436,21 @@ int main(int argc, const char **argv) {
       }
     }
     const vector<string> all_seq_filenames(leftover_args);
+
+    // check if all filenames exist
+    bool all_files_exist = true;
+    for (size_t i = 0; i < all_seq_filenames.size(); ++i) {
+      if (!file_exists(all_seq_filenames[i])) {
+        cerr << "ERROR! File does not exist: " << all_seq_filenames[i] << endl;
+        all_files_exist = false;
+      }
+    }
+
+    if (!all_files_exist) {
+      throw runtime_error("not all input files exist. Check stderr for detailed list"
+                          " of files that were not found");
+    }
+
 
     /****************** END COMMAND LINE OPTIONS ********************/
     for (const auto filename : all_seq_filenames) {
