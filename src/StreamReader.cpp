@@ -30,7 +30,7 @@ using std::end;
 /****************************************************/
 
 // function to turn a vector into array for adapter hashes and fast lookup
-array<size_t, Constants::max_adapters> 
+array<size_t, Constants::max_adapters>
 make_adapters(const vector<size_t> &adapter_hashes) {
   if (adapter_hashes.size() > Constants::max_adapters)
     throw runtime_error("Number of adapters is larger than 128, which hinders "
@@ -565,24 +565,21 @@ get_line_separator(const string &filename) {
   if (fp == NULL)
     throw runtime_error("bad input file: " + filename);
 
-  char line_separator = '\n';
-  char c;
   while (!feof(fp)) {
-    c = fgetc(fp);
-    if (c == '\r' || c == '\n') {
-      line_separator = c;
-      break;
+    const char c = fgetc(fp);
+    if (c == '\n' || c == '\r') {
+      fclose(fp);
+      return c;
     }
   }
   fclose(fp);
-
-  return line_separator;
+  return '\n';
 }
 
 // Set fastq field_separator as line_separator
 FastqReader::FastqReader(FalcoConfig &_config,
                          const size_t _buffer_size) :
-  StreamReader(_config, _buffer_size, 
+  StreamReader(_config, _buffer_size,
                get_line_separator(_config.filename), get_line_separator(_config.filename)) {
 }
 
@@ -662,8 +659,7 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 // the gz fastq constructor is the same as the fastq
 GzFastqReader::GzFastqReader(FalcoConfig &_config,
                              const size_t _buffer_size) :
-  StreamReader(_config, _buffer_size,
-               get_line_separator(_config.filename), get_line_separator(_config.filename)) {
+  StreamReader(_config, _buffer_size, '\n', '\n') {
 }
 
 // Load fastq with zlib
