@@ -725,7 +725,7 @@ GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 // set sam separator as tab
 SamReader::SamReader(FalcoConfig &_config,
                      const size_t _buffer_size) :
-  StreamReader(_config, _buffer_size, 
+  StreamReader(_config, _buffer_size,
                '\t', get_line_separator(_config.filename)) {}
 
 size_t
