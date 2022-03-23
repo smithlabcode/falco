@@ -153,7 +153,6 @@ struct FastqStats {
 
  public:
   /*********** SINGLE NUMBERS FROM THE ENTIRE FASTQ ****************/
-  bool has_empty_read;
 
   // lowest quality char to infer encoding
   char lowest_char;
@@ -167,6 +166,7 @@ struct FastqStats {
 
   size_t total_bases;  // sum of all bases in all reads
   size_t num_reads;  // total number of lines read
+  size_t empty_reads;
   size_t min_read_length;  // minimum read length seen
   size_t max_read_length;  // total number of lines read
   size_t num_poor;  // reads whose average quality was <= poor

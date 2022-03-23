@@ -320,9 +320,8 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
   // read length frequency histogram
   if (do_sequence_length) {
     if (still_in_buffer) {
-      if (read_pos == 0)
-        stats.has_empty_read = true;
-      else
+      stats.empty_reads += (read_pos == 0);
+      if (read_pos != 0)
         ++stats.read_length_freq[read_pos - 1];
     }
     else

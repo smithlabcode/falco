@@ -269,8 +269,8 @@ class ModuleSequenceLengthDistribution : public Module {
   std::vector<size_t> sequence_lengths;
 
   // warn and fail criteria
-  bool has_empty_read;
   bool is_all_same_length;
+  size_t empty_reads;
 
   bool do_group;
   size_t num_groups;

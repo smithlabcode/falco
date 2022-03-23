@@ -1454,7 +1454,7 @@ ModulePerBaseNContent::make_html_data() {
 }
 
 /************** SEQUENCE LENGTH DISTRIBUTION *****************/
-const string 
+const string
 ModuleSequenceLengthDistribution::module_name = "Sequence Length Distribution";
 ModuleSequenceLengthDistribution::
 ModuleSequenceLengthDistribution(const FalcoConfig &config) :
@@ -1468,7 +1468,7 @@ void
 ModuleSequenceLengthDistribution::summarize_module(FastqStats &stats) {
   max_read_length = stats.max_read_length;
 
-  has_empty_read = stats.has_empty_read;
+  empty_reads = stats.empty_reads;
   is_all_same_length = true;
   // store the read lengths
   sequence_lengths = vector<size_t>(max_read_length, 0);
@@ -1499,7 +1499,7 @@ ModuleSequenceLengthDistribution::make_grade() {
     }
   }
   if (do_grade_error) {
-    if (has_empty_read) {
+    if (empty_reads > 0) {
       grade = "fail";
     }
   }
@@ -1508,6 +1508,8 @@ ModuleSequenceLengthDistribution::make_grade() {
 void
 ModuleSequenceLengthDistribution::write_module(ostream &os) {
   os << "#Length\tCount\n";
+  if (empty_reads > 0)
+    os << "0\t" << empty_reads << ".0\n";
   for (size_t i = 0; i < max_read_length; ++i) {
     if (sequence_lengths[i] > 0) {
       os << i+1 << "\t" << sequence_lengths[i] << ".0\n";
@@ -1521,6 +1523,11 @@ ModuleSequenceLengthDistribution::make_html_data() {
   // X values : avg quality phred scores
   data << "{x : [";
   bool first_seen = false;
+
+  if (empty_reads > 0) {
+    first_seen = true;
+    data << "\"0 bp\"";
+  }
   for (size_t i = 0; i < max_read_length; ++i) {
     if (sequence_lengths[i] > 0) {
       if (first_seen)
@@ -1533,6 +1540,11 @@ ModuleSequenceLengthDistribution::make_html_data() {
   // Y values: frequency with which they were seen
   data << "], y : [";
   first_seen = false;
+
+  if (empty_reads > 0) {
+    first_seen = true;
+    data << empty_reads;
+  }
   for (size_t i = 0; i < max_read_length; ++i) {
     if (sequence_lengths[i] > 0) {
       if (first_seen)
