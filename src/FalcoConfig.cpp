@@ -21,7 +21,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
+#include <sstream>
 
+using std::ostringstream;
 using std::transform;
 using std::string;
 using std::vector;
@@ -33,7 +35,7 @@ using std::runtime_error;
 using std::istringstream;
 using std::cerr;
 
-const string FalcoConfig::FalcoVersion = "0.3.0";
+const string FalcoConfig::FalcoVersion = "1.0.0";
 
 /*********************************************************/
 /************** DEFAULT VALUES FOR FILES *****************/
@@ -296,7 +298,7 @@ strip_path(string full_path) {
 /******************** FALCOCONFIG FUNCTIONS *************************/
 /********************************************************************/
 // Default config properties
-FalcoConfig::FalcoConfig() {
+FalcoConfig::FalcoConfig(const int argc, const char **argv) {
   casava = false;
   nanopore = false;
   nofilter = false;
@@ -327,6 +329,15 @@ FalcoConfig::FalcoConfig() {
   is_bam = false;
   is_fastq = false;
   is_fastq_gz = false;
+
+  ostringstream ost;
+  for (int i = 0; i < argc; ++i) {
+    if (i != 0)
+      ost << " " ;
+    ost << string(argv[i]);
+  }
+  call = ost.str();
+  cerr << "DEBUG: " << call << "\n";
 }
 
 const vector<string> FalcoConfig::values_to_check({
@@ -515,7 +526,7 @@ FalcoConfig::read_adapters() {
   adapter_seqs.clear();
   adapter_hashes.clear();
   do_adapter_optimized = true;
-  
+
   while (getline(in, line)) {
     if (is_content_line(line)) {
       if (adapter_names.size() > Constants::max_adapters)

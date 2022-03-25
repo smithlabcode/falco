@@ -31,7 +31,7 @@
 // config from options, constants, magic numbers, etc
 struct FalcoConfig {
   static const std::string FalcoVersion;
-  FalcoConfig();  // set magic defaults
+  FalcoConfig(const int argc, const char **argv);
 
   /************************************************************
    *************** FASTQC OPTION PARSER************************
@@ -45,6 +45,7 @@ struct FalcoConfig {
   bool quiet;
   size_t min_length;  // lower limit in sequence length to be shown in report
   size_t threads;  // number of threads to read multiple files in parallel
+  std::string call; // the function call
   std::string format;  // force file format
   std::string contaminants_file;  // custom contaminants file
   std::string adapters_file;  // adapters file
@@ -95,7 +96,7 @@ struct FalcoConfig {
    ************************************************************/
   bool is_bisulfite;
   bool is_reverse_complement;
- 
+
   /*************** DEFINE FILE TYPE ************/
 
   // IO

@@ -101,10 +101,10 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
 template <typename T> void
 write_if_requested(T module,
                    FastqStats &stats,
-                   bool requested,
-                   bool skip_text,
-                   bool skip_html,
-                   bool skip_short_summary,
+                   const bool requested,
+                   const bool skip_text,
+                   const bool skip_html,
+                   const bool skip_short_summary,
                    const string &filename,
                    ostream &summary_txt,
                    ostream &qc_data_txt,
@@ -143,9 +143,10 @@ write_if_requested(T module,
 void
 write_results(const FalcoConfig &falco_config,
               FastqStats &stats,
-              bool skip_text,
-              bool skip_html,
-              bool skip_short_summary,
+              const bool skip_text,
+              const bool skip_html,
+              const bool skip_short_summary,
+              const bool do_call,
               const string &file_prefix,
               const string &outdir) {
 
@@ -169,6 +170,8 @@ write_results(const FalcoConfig &falco_config,
 
     // put header
     qc_data_txt << "##Falco\t" + FalcoConfig::FalcoVersion + "\n";
+    if (do_call)
+      qc_data_txt << "##Call\t" << falco_config.call << "\n";
   }
 
   // Here we open the html ostream and maker object
@@ -313,11 +316,9 @@ int main(int argc, const char **argv) {
     bool skip_text = false;
     bool skip_html = false;
     bool skip_short_summary = false;
+    bool do_call = false;
 
-    // advanced mode, adds extra reports to text output
-    bool advanced_mode = false;
-
-    FalcoConfig falco_config;
+    FalcoConfig falco_config(argc, argv);
 
     // if defined, read file as the file format specified by the user
     string forced_file_format;
@@ -383,11 +384,6 @@ int main(int argc, const char **argv) {
                       false, tmpdir);
 
     // Falco-specific options
-    opt_parse.add_opt("-advanced-mode", 'A',
-                      "advanced mode: adds more information to the FastQC"
-                      " output depending on non-fastqc user flags", false,
-                      advanced_mode);
-
     opt_parse.add_opt("-bisulfite", 'B',
                       "reads are whole genome bisulfite sequencing, and more "
                       "Ts and fewer Cs are therefore expected and will be "
@@ -397,6 +393,12 @@ int main(int argc, const char **argv) {
                          "The input is a reverse-complement. All modules will "
                          "be tested by swapping A/T and C/G", false,
                       falco_config.is_reverse_complement);
+    opt_parse.add_opt("-add-call", 'K', "add the function call to"
+                      " fastqc_data.txt and fastqc-report.html (this"
+                      " may break the parse of fastqc_data.txt"
+                      " in programs that require rigorous"
+                      " FastQC format", false,
+                      do_call);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -423,12 +425,12 @@ int main(int argc, const char **argv) {
     }
 
     if (!outdir.empty()) {
-      if(!dir_exists(outdir)) {
+      if (!dir_exists(outdir)) {
         if (!falco_config.quiet)
           log_process("creating directory for output: " + outdir);
 
         // makes directory with r and w permission
-        if(mkdir(outdir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
+        if (mkdir(outdir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
           cerr << "failed to create directory: " << outdir
                << ". Make sure you have write permissions on it!" << endl;
           return EXIT_FAILURE;
@@ -450,7 +452,6 @@ int main(int argc, const char **argv) {
       throw runtime_error("not all input files exist. Check stderr for detailed list"
                           " of files that were not found");
     }
-
 
     /****************** END COMMAND LINE OPTIONS ********************/
     for (const auto filename : all_seq_filenames) {
@@ -530,7 +531,7 @@ int main(int argc, const char **argv) {
       const string file_prefix = (all_seq_filenames.size() == 1) ?
                                  ("") : (filename + "_");
       write_results(falco_config, stats, skip_text, skip_html,
-                   skip_short_summary, file_prefix, cur_outdir);
+                   skip_short_summary, do_call, file_prefix, cur_outdir);
 
       /************************** TIME SUMMARY *****************************/
       if (!falco_config.quiet)
@@ -544,5 +545,3 @@ int main(int argc, const char **argv) {
   }
   return EXIT_SUCCESS;
 }
-
-
