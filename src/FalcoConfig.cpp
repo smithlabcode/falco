@@ -337,7 +337,6 @@ FalcoConfig::FalcoConfig(const int argc, const char **argv) {
     ost << string(argv[i]);
   }
   call = ost.str();
-  cerr << "DEBUG: " << call << "\n";
 }
 
 const vector<string> FalcoConfig::values_to_check({
