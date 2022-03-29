@@ -58,8 +58,7 @@ log_process(const string &s) {
   cerr << "[" << time_fmt << "] " << s << endl;
 }
 
-// Function to check existance of directort size_t last_slash_idx =
-// filename.rfind('\\');
+// Function to check existance of directory
 static bool dir_exists(const string &path) {
   struct stat info;
   if (stat(path.c_str(), &info ) != 0)
@@ -128,7 +127,7 @@ write_if_requested(T module,
   if (!skip_short_summary) module.write_short_summary(summary_txt, filename);
   if (!skip_text) module.write(qc_data_txt);
   if (!skip_html) {
-    // puts the module name 
+    // puts the module name
     html_maker.put_data(module.placeholder_name, T::module_name);
 
     // puts the grade
