@@ -213,11 +213,10 @@ class GzFastqReader : public StreamReader {
 
 class SamReader : public StreamReader {
  private:
-  // for uncompressed
-  struct stat st;
-  void *mmap_data;
-  char *last;
-  char *first;
+  static const size_t kChunkSize = (1<<20);
+  char filebuf[kChunkSize];
+  FILE *fileobj;
+
  public:
   SamReader(FalcoConfig &fc, const size_t _buffer_size);
   size_t load();

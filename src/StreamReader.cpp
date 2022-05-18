@@ -27,6 +27,11 @@ using std::runtime_error;
 using std::array;
 using std::end;
 
+// this is faster than std::min
+template<class T>
+inline T min8(const T a, const T b) {
+  return (a < b) ? a : b;
+}
 /****************************************************/
 /***************** STREAMREADER *********************/
 /****************************************************/
@@ -72,7 +77,7 @@ StreamReader::StreamReader(FalcoConfig &config,
   // Here are the const adapters
   do_adapters_slow(config.do_adapter && !config.do_adapter_optimized),
   adapter_seqs(config.adapter_seqs),
-  
+
   num_adapters(config.adapter_hashes.size()),
   adapter_size(config.adapter_size),
   //for case size == 32 expr (1ll << 64) -1 gives 0. We need to set mask as all 64 bits 1 => use SIZE_MAX in this case
@@ -141,8 +146,8 @@ StreamReader::get_base_from_buffer() {
 // Keeps going forward while the current character is a separator
 inline void
 StreamReader::skip_separator() {
-  ++cur_char;
-  //for (; *cur_char == field_separator; ++cur_char) {}
+  //++cur_char;
+  for (; *cur_char == field_separator; ++cur_char) {}
 }
 
 // Skips lines that are not relevant
@@ -343,7 +348,7 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
         truncated_length = read_pos;
         truncated_gc_count = cur_gc_count;
       }
-      for (auto v :
+      for (const auto &v :
           stats.gc_models[truncated_length].models[truncated_gc_count]) {
         stats.gc_count[v.percent] += v.increment;
       }
@@ -480,7 +485,10 @@ StreamReader::read_quality_line(FastqStats &stats) {
   // For quality, we do not look for the separator, but rather for an explicit
   // newline or EOF in case the file does not end with newline or we are getting
   // decompressed strings from a stream
-  for (; (*cur_char != line_separator) && !is_eof(); ++cur_char) {
+  for (; (*cur_char != field_separator) &&
+         (*cur_char != line_separator) &&
+         !is_eof(); ++cur_char) {
+
     if (read_pos == buffer_size) {
       still_in_buffer = false;
       leftover_ind = 0;
@@ -489,7 +497,7 @@ StreamReader::read_quality_line(FastqStats &stats) {
     get_base_from_buffer();
 
     // update lowest quality
-    stats.lowest_char = min(stats.lowest_char,
+    stats.lowest_char = min8(stats.lowest_char,
         ((*cur_char == 9) ? (std::numeric_limits<char>::max()) : (*cur_char)));
 
     // Converts quality ascii to zero-based
@@ -523,17 +531,16 @@ StreamReader::read_quality_line(FastqStats &stats) {
 /*************** POST LINE PROCESSING ******************/
 /*******************************************************/
 /*************** THIS IS VERY SLOW ********************/
+// if reads are >75pb, truncate to 50 akin to FastQC
+inline size_t
+get_truncate_point(const size_t read_pos) {
+  return (read_pos <= Constants::unique_reads_max_length) ?
+    read_pos : Constants::unique_reads_truncate;
+}
 inline void
 StreamReader::postprocess_fastq_record(FastqStats &stats) {
   if (do_sequence_hash) {
-    // if reads are >75pb, truncate to 50
-    if (read_pos <= Constants::unique_reads_max_length) {
-      buffer[read_pos] = '\0';
-    }
-    else {
-      buffer[Constants::unique_reads_truncate] = '\0';
-    }
-
+    buffer[get_truncate_point(read_pos)] = '\0';
     sequence_to_hash = string(buffer);
     // New sequence found
     if (stats.sequence_count.count(sequence_to_hash) == 0) {
@@ -543,9 +550,8 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
         ++stats.num_unique_seen;
 
         // if we reached the cutoff of 100k, stop storing
-        if (stats.num_unique_seen == Constants::unique_reads_stop_counting) {
+        if (stats.num_unique_seen == Constants::unique_reads_stop_counting)
           continue_storing_sequences = false;
-        }
       }
     }
     else {
@@ -607,7 +613,7 @@ size_t
 FastqReader::load() {
   fileobj = fopen(filename.c_str(), "r");
   if (fileobj == NULL)
-    throw runtime_error("Cannot open file : " + filename);
+    throw runtime_error("Cannot open FASTQ file : " + filename);
   cur_char = new char[1];
   ++cur_char;
 
@@ -630,9 +636,8 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   cur_char = fgets(filebuf, kChunkSize, fileobj);
 
   // need to check here if we did not hit eof
-  if (is_eof()) {
+  if (is_eof())
     return false;
-  }
 
   read_tile_line(stats);
   skip_separator();
@@ -673,7 +678,7 @@ size_t
 GzFastqReader::load() {
   fileobj = gzopen(filename.c_str(), "r");
   if (fileobj == Z_NULL)
-    throw runtime_error("Cannot open gzip file : " + filename);
+    throw runtime_error("Cannot open gzip FASTQ file : " + filename);
   cur_char = new char[1];
   ++cur_char;
 
@@ -736,67 +741,59 @@ SamReader::SamReader(FalcoConfig &_config,
 
 size_t
 SamReader::load() {
-  int fd = open(filename.c_str(), O_RDONLY, 0);
-  if (fd == -1)
-    throw runtime_error("failed to open SAM file: " + filename);
+  fileobj = fopen(filename.c_str(), "r");
+  if (fileobj == NULL)
+    throw runtime_error("Cannot open SAM file : " + filename);
+  cur_char = new char[1];
+  ++cur_char;
 
-  // get the file size
-  fstat(fd, &st);
-
-  // execute mmap
-  mmap_data = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-  close(fd);
-  if (mmap_data == MAP_FAILED)
-    throw runtime_error("failed to mmap SAM file: " + filename);
-
-  // Initialize position pointer
-  first = static_cast<char*>(mmap_data);
-  cur_char = first;
-  last = cur_char + st.st_size - 1;
-
-  // Skip sam header
-  while (*cur_char == '@') {
-    for (; *cur_char != line_separator; ++cur_char) {}
-    ++cur_char;
+  // skip sam header
+  while (!is_eof() && ((*cur_char = fgetc(fileobj)) == '@')) {
+    ungetc(*cur_char, fileobj);
+    cur_char = fgets(filebuf, kChunkSize, fileobj);
   }
-
-  return st.st_size;
+  return get_file_size(filename);
 }
 
 inline bool
 SamReader::is_eof() {
-  return (cur_char == last + 1);
+  return feof(fileobj);
 }
 
 inline bool
 SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
+  cur_char = fgets(filebuf, kChunkSize, fileobj);
+
+  if (is_eof()) return false;
+
   read_tile_line(stats);
   skip_separator();
+
   for (size_t i = 0; i < 8; ++i) {
     read_fast_forward_line();
     skip_separator();
   }
+
+  // field 10
   read_sequence_line(stats);
+  skip_separator();
+
+  // field 11
   read_quality_line(stats);
-
-  // skips all tags after quality until newline
-  while (*cur_char != line_separator) {
-    read_fast_forward_line();
-    skip_separator();
-  }
-
-  // skip \n
-  ++cur_char;
   postprocess_fastq_record(stats);
   ++stats.num_reads;
 
-  num_bytes_read = static_cast<size_t>(cur_char -first);
+  // skips all tags after quality until newline
+  for (; *cur_char != line_separator && !is_eof(); ++cur_char)
+
+  num_bytes_read = ftell(fileobj);
+
   // Returns if file should keep being checked
-  return !is_eof();
+  return (!is_eof() && cur_char != 0);
 }
 
 SamReader::~SamReader() {
-  munmap(mmap_data, st.st_size);
+  fclose(fileobj);
 }
 
 #ifdef USE_HTS
@@ -852,9 +849,11 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
       }
 
       read_sequence_line(stats);
+      skip_separator();
       read_quality_line(stats);
 
       postprocess_fastq_record(stats);
+
       ++stats.num_reads;
       return true;
     }
