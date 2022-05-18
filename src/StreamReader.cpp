@@ -738,7 +738,7 @@ size_t
 SamReader::load() {
   int fd = open(filename.c_str(), O_RDONLY, 0);
   if (fd == -1)
-    throw runtime_error("failed to open fastq file: " + filename);
+    throw runtime_error("failed to open SAM file: " + filename);
 
   // get the file size
   fstat(fd, &st);
@@ -747,7 +747,7 @@ SamReader::load() {
   mmap_data = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
   close(fd);
   if (mmap_data == MAP_FAILED)
-    throw runtime_error("failed to mmap fastq file: " + filename);
+    throw runtime_error("failed to mmap SAM file: " + filename);
 
   // Initialize position pointer
   first = static_cast<char*>(mmap_data);
