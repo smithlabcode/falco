@@ -94,6 +94,7 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
 
   if (tot_bytes_read < file_size)
     progress.report(cerr, file_size);
+
 }
 
 // Write module content into html maker if requested
@@ -519,10 +520,12 @@ int main(int argc, const char **argv) {
         // if file was given with relative path in the current dir, we set a dot
         if (last_slash_idx == string::npos) {
           cur_outdir = ".";
-        } else {
+        }
+        else {
           cur_outdir = falco_config.filename.substr(0, last_slash_idx);
         }
-      } else {
+      }
+      else {
         cur_outdir = outdir;
       }
 
