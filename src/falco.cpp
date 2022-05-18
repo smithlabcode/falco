@@ -453,7 +453,7 @@ int main(int argc, const char **argv) {
     }
 
     /****************** END COMMAND LINE OPTIONS ********************/
-    for (const auto filename : all_seq_filenames) {
+    for (const auto &filename : all_seq_filenames) {
 
       const time_point file_start_time = system_clock::now();
 
