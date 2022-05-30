@@ -186,6 +186,8 @@ If `falco` was helpful for your research, you can cite us as follows:
 quality control of sequencing data. F1000Research 2021, 8:1874
 (https://doi.org/10.12688/f1000research.21142.2)*
 
+**Please do not cite this manuscript if you used FastQC directly and not falco!**
+
 Copyright and License Information
 =================================
 
