@@ -6,11 +6,11 @@ Under construction...
 Contacts and bug reports
 ========================
 
-Andrew D. Smith
-andrewds@usc.edu
-
 Guilherme de Sena Brandine
 desenabr@usc.edu
+
+Andrew D. Smith
+andrewds@usc.edu
 
 Copyright and License Information
 =================================
