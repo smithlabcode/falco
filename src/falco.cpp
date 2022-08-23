@@ -333,6 +333,7 @@ int main(int argc, const char **argv) {
     OptionParser opt_parse(argv[0],
                               "A high throughput sequence QC analysis tool",
                               "<seqfile1> <seqfile2> ...");
+    opt_parse.set_show_defaults();
     opt_parse.add_opt("-help", 'h', "print this help file and exit", false,
                         help);
     opt_parse.add_opt("-version", 'v', "print the program version and exit",
