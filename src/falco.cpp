@@ -44,8 +44,8 @@ using time_point = std::chrono::time_point<std::chrono::system_clock>;
 // Function to get seconds elapsed in program
 static size_t
 get_seconds_since(const time_point &start_time) {
-  auto current_time = system_clock::now();
-  auto time_difference = current_time - start_time;
+  const auto current_time = system_clock::now();
+  const auto time_difference = current_time - start_time;
   return duration_cast<std::chrono::seconds>(time_difference).count();
 }
 
