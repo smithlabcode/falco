@@ -1784,7 +1784,7 @@ ModuleOverrepresentedSequences::summarize_module(FastqStats &stats) {
 
   // Sort strings by frequency
   sort(begin(overrep_sequences), end(overrep_sequences),
-       [](pair<string, size_t> &a, pair<string, size_t> &b){
+       [](const pair<string, size_t> &a, const pair<string, size_t> &b){
          return a.second > b.second;
        });
 }
