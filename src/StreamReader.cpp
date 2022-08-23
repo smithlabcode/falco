@@ -537,6 +537,7 @@ get_truncate_point(const size_t read_pos) {
   return (read_pos <= Constants::unique_reads_max_length) ?
     read_pos : Constants::unique_reads_truncate;
 }
+
 inline void
 StreamReader::postprocess_fastq_record(FastqStats &stats) {
   if (do_sequence_hash) {
@@ -566,6 +567,11 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
     }
   }
   next_kmer_read += do_kmer_read*num_reads_for_kmer;
+}
+
+inline bool
+StreamReader::check_bytes_read(const size_t read_num) {
+  return ((read_num&check_bytes_read_mask) == 0);
 }
 
 /*******************************************************/
@@ -660,7 +666,8 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   ++stats.num_reads;
 
   // Returns if file should keep being checked
-  num_bytes_read = ftell(fileobj);
+  if (check_bytes_read(stats.num_reads))
+    num_bytes_read = ftell(fileobj);
   return (!is_eof() && cur_char != 0);
 }
 
@@ -726,7 +733,8 @@ GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   ++stats.num_reads;
 
   // Returns if file should keep being checked
-  num_bytes_read = gzoffset(fileobj);
+  if (check_bytes_read(stats.num_reads))
+    num_bytes_read = gzoffset(fileobj);
   return !is_eof();
 }
 
@@ -786,7 +794,8 @@ SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   // skips all tags after quality until newline
   for (; *cur_char != line_separator && !is_eof(); ++cur_char)
 
-  num_bytes_read = ftell(fileobj);
+  if (check_bytes_read(stats.num_reads))
+    num_bytes_read = ftell(fileobj);
 
   // Returns if file should keep being checked
   return (!is_eof() && cur_char != 0);

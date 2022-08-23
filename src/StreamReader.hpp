@@ -77,6 +77,7 @@ class StreamReader{
     // keep track of reads for which to do kmer and tile count
   static const size_t num_reads_for_tile = 10;
   static const size_t num_reads_for_kmer = 50;
+  static const size_t check_bytes_read_mask = 65535;
 
   bool continue_storing_sequences;
   bool do_kmer_read;
@@ -160,6 +161,9 @@ class StreamReader{
   inline void read_tile_line(FastqStats &stats);  // get tile from read name
   inline void read_sequence_line(FastqStats &stats);  // parse sequence
   inline void read_quality_line(FastqStats &stats);  // parse quality
+
+  /************ FUNCTIONS FOR PROGRESS BAR ***********/
+  inline bool check_bytes_read(const size_t line_num);
 
   StreamReader(FalcoConfig &config, const size_t buffer_size,
                const char _field_separator, const char _line_separator);
