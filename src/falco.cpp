@@ -92,7 +92,7 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
     falco_config.do_tile = false;
   }
 
-  if (tot_bytes_read < file_size)
+  if (tot_bytes_read < file_size && !quiet)
     progress.report(cerr, file_size);
 
 }
