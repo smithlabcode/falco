@@ -43,7 +43,7 @@ struct FalcoConfig {
   bool nogroup;  // disable grouping of bases for reads >50bp
   bool compressed;  // whether or not to inflate file
   bool quiet;
-  size_t min_length;  // lower limit in sequence length to be shown in report
+  size_t read_step;  // only process reads that are multiple of read_step
   size_t threads;  // number of threads to read multiple files in parallel
   std::string call; // the function call
   std::string format;  // force file format

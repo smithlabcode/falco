@@ -73,6 +73,7 @@ StreamReader::StreamReader(FalcoConfig &config,
   field_separator(_field_separator),
   line_separator(_line_separator),
   buffer_size(_buffer_size),
+  read_step(config.read_step),
 
   // Here are the const adapters
   do_adapters_slow(config.do_adapter && !config.do_adapter_optimized),
@@ -98,6 +99,7 @@ StreamReader::StreamReader(FalcoConfig &config,
   tile_split_point = 0;
 
   // keep track of which reads to do tile
+  next_read = 0;
   next_tile_read = 0;
   next_kmer_read = 0;
   do_tile_read = true;
@@ -156,6 +158,15 @@ StreamReader::read_fast_forward_line() {
   for (; *cur_char != field_separator; ++cur_char) {}
 }
 
+inline void
+StreamReader::read_fast_forward_line_eof() {
+  for (; (*cur_char != field_separator) &&
+         (*cur_char != line_separator) &&
+         !is_eof(); ++cur_char) {}
+}
+
+
+
 /*******************************************************/
 /*************** TILE PROCESSING ***********************/
 /*******************************************************/
@@ -205,7 +216,7 @@ StreamReader::get_tile_value() {
 inline void
 StreamReader::read_tile_line(FastqStats &stats) {
 
-  do_tile_read = (stats.num_reads == next_tile_read);
+  do_tile_read = (do_read && stats.num_reads == next_tile_read);
   if (!do_tile_read) {
     read_fast_forward_line();
     return;
@@ -364,6 +375,10 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
 // Reads the line that has the biological sequence
 inline void
 StreamReader::read_sequence_line(FastqStats &stats) {
+  if (!do_read) {
+    read_fast_forward_line();
+    return;
+  }
   // restart line counters
   read_pos = 0;
   cur_gc_count = 0;
@@ -477,6 +492,10 @@ StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
 // Reads the quality line of each base.
 inline void
 StreamReader::read_quality_line(FastqStats &stats) {
+  if (!do_read) {
+    read_fast_forward_line_eof();
+    return;
+  }
   // reset quality counts
   read_pos = 0;
   cur_quality = 0;
@@ -645,6 +664,8 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   if (is_eof())
     return false;
 
+  do_read = (stats.num_reads == next_read);
+
   read_tile_line(stats);
   skip_separator();
 
@@ -660,7 +681,10 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   read_quality_line(stats);
   skip_separator();
 
-  postprocess_fastq_record(stats);
+  if (do_read)
+    postprocess_fastq_record(stats);
+
+  next_read += do_read*read_step;
 
   // Successful read, increment number in stats
   ++stats.num_reads;
@@ -711,6 +735,7 @@ GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   if (is_eof()) {
     return false;
   }
+  do_read = (stats.num_reads == next_read);
 
   read_tile_line(stats);
   skip_separator();
@@ -727,7 +752,10 @@ GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   read_quality_line(stats);
   skip_separator();
 
-  postprocess_fastq_record(stats);
+  if (do_read)
+    postprocess_fastq_record(stats);
+
+  next_read += do_read*read_step;
 
   // Successful read, increment number in stats
   ++stats.num_reads;
@@ -773,6 +801,7 @@ SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   cur_char = fgets(filebuf, kChunkSize, fileobj);
 
   if (is_eof()) return false;
+  do_read = (stats.num_reads == next_read);
 
   read_tile_line(stats);
   skip_separator();
@@ -788,7 +817,10 @@ SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 
   // field 11
   read_quality_line(stats);
-  postprocess_fastq_record(stats);
+  if (do_read)
+    postprocess_fastq_record(stats);
+
+  next_read += do_read*read_step;
   ++stats.num_reads;
 
   // skips all tags after quality until newline
@@ -849,6 +881,8 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
       cur_char = hts->line.s;
       last = cur_char + strlen(hts->line.s) - 1;
 
+      do_read = (stats.num_reads == next_read);
+
       // Now read it as regular sam
       read_tile_line(stats);
       skip_separator();
@@ -860,9 +894,11 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
       read_sequence_line(stats);
       skip_separator();
       read_quality_line(stats);
+      
+      if (do_read)
+        postprocess_fastq_record(stats);
 
-      postprocess_fastq_record(stats);
-
+      next_read += do_read*read_step;
       ++stats.num_reads;
       return true;
     }

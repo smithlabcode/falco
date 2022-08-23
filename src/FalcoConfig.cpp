@@ -306,7 +306,7 @@ FalcoConfig::FalcoConfig(const int argc, const char **argv) {
   nogroup = false;
   is_bisulfite = false;
   is_reverse_complement = false;
-  min_length = 0;
+  read_step = 1;
   format = "";
   threads = 1;
   contaminants_file = string(PROGRAM_PATH) + "/Configuration/contaminant_list.txt";

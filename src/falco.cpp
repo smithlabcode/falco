@@ -384,6 +384,9 @@ int main(int argc, const char **argv) {
                       false, tmpdir);
 
     // Falco-specific options
+    opt_parse.add_opt("-step", 's', "makes falco faster "
+        "(but possibly less accurate) by only processing reads that are multiple "
+        "of this value", false, falco_config.read_step);
     opt_parse.add_opt("-bisulfite", 'B',
                       "reads are whole genome bisulfite sequencing, and more "
                       "Ts and fewer Cs are therefore expected and will be "
