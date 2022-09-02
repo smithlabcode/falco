@@ -377,7 +377,7 @@ int main(int argc, const char **argv) {
                       "(Default = false)", false, skip_text);
     opt_parse.add_opt("-skip-html", 'H', "Skip generating HTML file "
                       "(Default = false)", false, skip_html);
-    opt_parse.add_opt("-skip-short-summary", 'S', "Skip short summary"
+    opt_parse.add_opt("-skip-short-summary", 'S', "Skip short summary "
                       "(Default = false)", false, skip_short_summary);
     opt_parse.add_opt("-quiet", 'q', "print more run info", false,
                       falco_config.quiet);
@@ -519,14 +519,17 @@ int main(int argc, const char **argv) {
 
       // if oudir is empty we will set it as the filename path
       string cur_outdir;
+      string file_basename;
       if (outdir.empty()) {
         const size_t last_slash_idx = filename.rfind('/');
         // if file was given with relative path in the current dir, we set a dot
         if (last_slash_idx == string::npos) {
           cur_outdir = ".";
+          file_basename = filename;
         }
         else {
           cur_outdir = falco_config.filename.substr(0, last_slash_idx);
+          file_basename = falco_config.filename.substr(last_slash_idx + 1);
         }
       }
       else {
@@ -535,7 +538,7 @@ int main(int argc, const char **argv) {
 
       // Write results
       const string file_prefix = (all_seq_filenames.size() == 1) ?
-                                 ("") : (filename + "_");
+                                 ("") : (file_basename + "_");
       write_results(falco_config, stats, skip_text, skip_html,
                    skip_short_summary, do_call, file_prefix, cur_outdir);
 
