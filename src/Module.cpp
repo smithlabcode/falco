@@ -294,6 +294,7 @@ sum_deviation_from_normal(const array <double, 101> &gc_count,
   // = stdev to the mode from the sampled gc content from the data
   double ans = 0.0, theoretical_sum = 0.0, z;
   theoretical.fill(0);
+  // ADS: lonely magic below; what is the 100?
   for (size_t i = 0; i <= 100; ++i) {
     z = i - mode;
     theoretical[i] = exp(- (z*z)/ (2.0 * stdev *stdev));
@@ -507,7 +508,7 @@ ModuleBasicStatistics::make_html_data() {
   return data.str();
 }
 
-void 
+void
 ModuleBasicStatistics::read_data_line(const std::string &line) {
   string lhs,rhs;
   istringstream iss(line);
@@ -537,8 +538,8 @@ ModuleBasicStatistics::read_data_line(const std::string &line) {
       min_read_length = atoi(min_l.c_str());
       max_read_length = atoi(max_l.c_str());
     }
-  } 
-  else if (lhs == "%GC") 
+  }
+  else if (lhs == "%GC")
     avg_gc = atoi(rhs.c_str());
   else {
     throw runtime_error("malformed basic statistic" + lhs);
@@ -765,7 +766,7 @@ ModulePerBaseSequenceQuality::make_html_data() {
     if (group_median[i] < base_median_error ||
         group_lquartile[i] < base_lower_error)
       data << "red";
-    else if (group_median[i] < base_median_warn || 
+    else if (group_median[i] < base_median_warn ||
              group_lquartile[i] < base_lower_warn)
       data << "yellow";
     else
@@ -784,7 +785,7 @@ ModulePerBaseSequenceQuality::read_data_line(const string &line) {
 }
 
 /************** PER TILE SEQUENCE QUALITY ********************/
-const string 
+const string
 ModulePerTileSequenceQuality::module_name = "Per tile sequence quality";
 ModulePerTileSequenceQuality::
 ModulePerTileSequenceQuality(const FalcoConfig &config) :
@@ -954,7 +955,7 @@ ModulePerTileSequenceQuality::make_html_data() {
 }
 
 /******************* PER SEQUENCE QUALITY SCORE **********************/
-const string 
+const string
 ModulePerSequenceQualityScores::module_name = "Per sequence quality scores";
 ModulePerSequenceQualityScores::
 ModulePerSequenceQualityScores(const FalcoConfig &config) :
@@ -1243,9 +1244,9 @@ ModulePerBaseSequenceContent::make_html_data() {
       // Y values: frequency with which they were seen
       data << "], y : [";
       for (size_t i = 0; i < num_groups; ++i) {
-        if (line == 0) 
+        if (line == 0)
           data << a_pct[i] + g_pct[i];
-        else 
+        else
           data << c_pct[i] + t_pct[i];
 
         if (i < num_groups - 1)
@@ -1280,7 +1281,7 @@ ModulePerBaseSequenceContent::make_html_data() {
 }
 
 /******************* PER SEQUENCE GC CONTENT *****************/
-const string 
+const string
 ModulePerSequenceGCContent::module_name = "Per sequence GC content";
 ModulePerSequenceGCContent::
 ModulePerSequenceGCContent(const FalcoConfig &config) :
@@ -1310,7 +1311,7 @@ ModulePerSequenceGCContent::make_grade() {
 void
 ModulePerSequenceGCContent::write_module(ostream &os) {
   os << "#GC Content\tCount\n";
-  for (size_t i = 0; i <= 100; ++i) 
+  for (size_t i = 0; i <= 100; ++i)
     os << i << "\t" << gc_count[i] << "\n";
 }
 
@@ -1356,7 +1357,7 @@ ModulePerSequenceGCContent::make_html_data() {
 }
 
 /******************* PER BASE N CONTENT **********************/
-const string 
+const string
 ModulePerBaseNContent::module_name = "Per base N content";
 ModulePerBaseNContent::
 ModulePerBaseNContent(const FalcoConfig &config) :
@@ -1559,7 +1560,7 @@ ModuleSequenceLengthDistribution::make_html_data() {
   first_seen = false;
   for (size_t i = 0; i < max_read_length; ++i) {
     if (sequence_lengths[i] > 0) {
-      if (first_seen) 
+      if (first_seen)
         data << ",";
       data << i+1;
       first_seen = true;
@@ -1574,7 +1575,7 @@ ModuleSequenceLengthDistribution::make_html_data() {
 }
 
 /************** DUPLICATE SEQUENCES **************************/
-const string 
+const string
 ModuleSequenceDuplicationLevels::module_name = "Sequence Duplication Levels";
 ModuleSequenceDuplicationLevels::
 ModuleSequenceDuplicationLevels(const FalcoConfig &config) :
@@ -1715,7 +1716,7 @@ ModuleSequenceDuplicationLevels::make_html_data() {
 
 
 /************** OVERREPRESENTED SEQUENCES ********************/
-const string 
+const string
 ModuleOverrepresentedSequences::module_name = "Overrepresented sequences";
 ModuleOverrepresentedSequences::
 ModuleOverrepresentedSequences(const FalcoConfig &config) :
@@ -1762,7 +1763,7 @@ ModuleOverrepresentedSequences::get_matching_contaminant (const string &seq) {
     if (cand > best) {
       best = cand;
       ret = v.first;
-    } 
+    }
   }
 
   // If any sequence is a match, return the best one
@@ -1877,7 +1878,8 @@ Module(ModuleAdapterContent::module_name) {
 
 void
 ModuleAdapterContent::summarize_module(FastqStats &stats) {
-  num_bases = max(max(stats.max_read_length, FastqStats::kNumBases),
+
+  num_bases = max(min(stats.max_read_length, FastqStats::kNumBases),
                   shortest_adapter_size - 1);
   for (size_t i = 0; i < num_adapters; ++i)
     adapter_pos_pct.push_back(
@@ -1927,6 +1929,9 @@ ModuleAdapterContent::make_grade() {
 
 void
 ModuleAdapterContent::write_module(ostream &os) {
+
+  // ADS: number of positions with data calculated
+  const size_t n_pos_calc = adapter_pos_pct[0].size();
   os << "#Position";
 
   // adapter names
@@ -1935,10 +1940,18 @@ ModuleAdapterContent::write_module(ostream &os) {
   os << "\n";
 
   // matrix of percentages
-  for (size_t i = 0; i < adapter_pos_pct[0].size(); ++i) {
+  for (size_t i = 0; i < n_pos_calc; ++i) {
     os << i + 1;
-    for (size_t j = 0; j < adapter_pos_pct.size(); ++j)
+    for (size_t j = 0; j < num_adapters; ++j)
       os << "\t" << adapter_pos_pct[j][i];
+    os << "\n";
+  }
+  // ADS: now be sure to print the full read length
+  for (size_t i = n_pos_calc; i < num_bases; ++i) {
+    os << i + 1;
+    for (size_t j = 0; j < num_adapters; ++j)
+      // ADS: since this is cumulative, pad with final entry
+      os << "\t" << adapter_pos_pct[j].back();
     os << "\n";
   }
 }
@@ -1947,6 +1960,10 @@ string
 ModuleAdapterContent::make_html_data() {
   bool seen_first = false;
   ostringstream data;
+
+  // ADS: number of positions with data calculated
+  const size_t n_pos_calc = adapter_pos_pct[0].size();
+
   for (size_t i = 0; i < num_adapters; ++i) {
     if (!seen_first) {
       seen_first = true;
@@ -1958,17 +1975,26 @@ ModuleAdapterContent::make_html_data() {
 
     // X values : read position
     data << "x : [";
-    for (size_t j = 0; j < adapter_pos_pct[0].size(); ++j) {
-        data << j+1;
-        if (j < num_bases - 1) data << ",";
+    for (size_t j = 0; j < n_pos_calc; ++j) {
+      data << j+1;
+      if (j < num_bases - 1) data << ",";
+    }
+    for (size_t j = n_pos_calc; j < num_bases; ++j) {
+      data << j+1;
+      if (j < num_bases - 1) data << ",";
     }
     data << "]";
 
     // Y values : cumulative adapter frequency
     data << ", y : [";
-    for (size_t j = 0; j < adapter_pos_pct[0].size(); ++j) {
+    for (size_t j = 0; j < n_pos_calc; ++j) {
       data << adapter_pos_pct[i][j];
-      if (i < num_bases - 1)
+      if (j < num_bases - 1)
+        data << ",";
+    }
+    for (size_t j = n_pos_calc; j < num_bases; ++j) {
+      data << adapter_pos_pct[i].back();
+      if (j < num_bases - 1)
         data << ",";
     }
 
@@ -2059,7 +2085,7 @@ ModuleKmerContent::make_grade() {
 
   // the worst kmer is at the top
   if (lim > 0) {
-    const size_t kmer = kmers_to_report[0].first; 
+    const size_t kmer = kmers_to_report[0].first;
     const double obs_exp = obs_exp_max[kmer];
     if (obs_exp >= grade_error)
       grade = "fail";
@@ -2070,7 +2096,11 @@ ModuleKmerContent::make_grade() {
 
 void
 ModuleKmerContent::write_module(ostream &os) {
-  os << "#Sequence\tCount\tPValue\tObs/Exp Max\tMax Obs/Exp Position\n";
+  os << "#Sequence" << '\t'
+     << "Count" << '\t'
+     << "PValue" << '\t'
+     << "Obs/Exp Max" << '\t'
+     << "Max Obs/Exp Position" << '\n';
   const size_t lim = min(kmers_to_report.size(), MAX_KMERS_TO_REPORT);
   for (size_t i = 0; i < lim; ++i) {
     const size_t kmer = kmers_to_report[i].first;
@@ -2116,7 +2146,7 @@ ModuleKmerContent::make_html_data() {
     data << ", y : [";
     for (size_t j = 0; j < xlim; ++j) {
       data << ((j == (where_obs_exp_is_max[kmer])) ? (log_obs_exp) : 0);
-      if (i < xlim - 1)
+      if (j < xlim - 1)
         data << ",";
     }
 
