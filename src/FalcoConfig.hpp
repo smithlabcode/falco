@@ -43,7 +43,7 @@ struct FalcoConfig {
   bool nogroup;  // disable grouping of bases for reads >50bp
   bool compressed;  // whether or not to inflate file
   bool quiet;
-  size_t min_length;  // lower limit in sequence length to be shown in report
+  size_t read_step;  // only process reads that are multiple of read_step
   size_t threads;  // number of threads to read multiple files in parallel
   std::string call; // the function call
   std::string format;  // force file format
@@ -131,48 +131,48 @@ namespace Constants {
             ((v & 0x5555555555555555) ?  1 : 0));
   }
 
-  const size_t kmer_size = 7;
-  const size_t max_adapters = 128;
+  static const size_t kmer_size = 7;
+  static const size_t max_adapters = 128;
 
   // number of bases for static allocation.
-  const size_t num_static_bases = 500;
+  static const size_t num_static_bases = 500;
 
   // Value to subtract quality characters to get the actual quality value
-  const size_t quality_zero = 33;  // The ascii for the lowest quality
+  static const size_t quality_zero = 33;  // The ascii for the lowest quality
 
   // Smallest power of two that comprises all possible Illumina quality values.
   // Illumina gives qualities from 0 to 40, therefore we set it as 64. Power of
   // is to avoid double pointer jumps and to get indices with bit shifts.
-  const size_t num_quality_values = 128;
+  static const size_t num_quality_values = 128;
 
   // How many possible nucleotides (must be power of 2!)
-  const size_t num_nucleotides = 4;  // A = 00,C = 01,T = 10,G = 11
+  static const size_t num_nucleotides = 4;  // A = 00,C = 01,T = 10,G = 11
 
   /************* DUPLICATION ESTIMATES *************/
   // Number of unique sequences to see before stopping counting sequences
-  const size_t unique_reads_stop_counting = 1e5;
+  static const size_t unique_reads_stop_counting = 1e5;
 
   // Maximum read length to store the entire read in memory
-  const size_t unique_reads_max_length = 75;
+  static const size_t unique_reads_max_length = 75;
 
   // Prefix size to cut if read length exceeds the value above
-  const size_t unique_reads_truncate = 50;
+  static const size_t unique_reads_truncate = 50;
 
   /****Bit shifts as instructions for the std::arrays***/
   // for matrices that count stats per nucleotide
-  const size_t bit_shift_base = log2exact(num_nucleotides);
+  static const size_t bit_shift_base = log2exact(num_nucleotides);
 
   // for matrices that count stats for quality value
-  const size_t bit_shift_quality = log2exact(num_quality_values);
+  static const size_t bit_shift_quality = log2exact(num_quality_values);
 
   // bit shift for adapters, log(128) = 7
-  const size_t bit_shift_adapter = log2exact(max_adapters);
+  static const size_t bit_shift_adapter = log2exact(max_adapters);
 
   // we shift 14 bits when reading a kmer, two bits per base
-  const size_t bit_shift_kmer = bit_shift_base*kmer_size;
+  static const size_t bit_shift_kmer = bit_shift_base*kmer_size;
 
   // mask to get only the first 2*k bits of the sliding window
-  const size_t kmer_mask = (1ull << (bit_shift_kmer)) - 1;
+  static const size_t kmer_mask = (1ull << (bit_shift_kmer)) - 1;
 };
 
 #endif

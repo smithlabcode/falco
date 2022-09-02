@@ -44,8 +44,8 @@ using time_point = std::chrono::time_point<std::chrono::system_clock>;
 // Function to get seconds elapsed in program
 static size_t
 get_seconds_since(const time_point &start_time) {
-  auto current_time = system_clock::now();
-  auto time_difference = current_time - start_time;
+  const auto current_time = system_clock::now();
+  const auto time_difference = current_time - start_time;
   return duration_cast<std::chrono::seconds>(time_difference).count();
 }
 
@@ -92,7 +92,7 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
     falco_config.do_tile = false;
   }
 
-  if (tot_bytes_read < file_size)
+  if (tot_bytes_read < file_size && !quiet)
     progress.report(cerr, file_size);
 
 }
@@ -333,6 +333,7 @@ int main(int argc, const char **argv) {
     OptionParser opt_parse(argv[0],
                               "A high throughput sequence QC analysis tool",
                               "<seqfile1> <seqfile2> ...");
+    opt_parse.set_show_defaults();
     opt_parse.add_opt("-help", 'h', "print this help file and exit", false,
                         help);
     opt_parse.add_opt("-version", 'v', "print the program version and exit",
@@ -376,7 +377,7 @@ int main(int argc, const char **argv) {
                       "(Default = false)", false, skip_text);
     opt_parse.add_opt("-skip-html", 'H', "Skip generating HTML file "
                       "(Default = false)", false, skip_html);
-    opt_parse.add_opt("-skip-short-summary", 'S', "Skip short summary"
+    opt_parse.add_opt("-skip-short-summary", 'S', "Skip short summary "
                       "(Default = false)", false, skip_short_summary);
     opt_parse.add_opt("-quiet", 'q', "print more run info", false,
                       falco_config.quiet);
@@ -384,6 +385,9 @@ int main(int argc, const char **argv) {
                       false, tmpdir);
 
     // Falco-specific options
+    opt_parse.add_opt("-subsample", 's', "makes falco faster "
+        "(but possibly less accurate) by only processing reads that are multiple "
+        "of this value", false, falco_config.read_step);
     opt_parse.add_opt("-bisulfite", 'B',
                       "reads are whole genome bisulfite sequencing, and more "
                       "Ts and fewer Cs are therefore expected and will be "
@@ -515,14 +519,17 @@ int main(int argc, const char **argv) {
 
       // if oudir is empty we will set it as the filename path
       string cur_outdir;
+      string file_basename;
       if (outdir.empty()) {
         const size_t last_slash_idx = filename.rfind('/');
         // if file was given with relative path in the current dir, we set a dot
         if (last_slash_idx == string::npos) {
           cur_outdir = ".";
+          file_basename = filename;
         }
         else {
           cur_outdir = falco_config.filename.substr(0, last_slash_idx);
+          file_basename = falco_config.filename.substr(last_slash_idx + 1);
         }
       }
       else {
@@ -531,7 +538,7 @@ int main(int argc, const char **argv) {
 
       // Write results
       const string file_prefix = (all_seq_filenames.size() == 1) ?
-                                 ("") : (filename + "_");
+                                 ("") : (file_basename + "_");
       write_results(falco_config, stats, skip_text, skip_html,
                    skip_short_summary, do_call, file_prefix, cur_outdir);
 

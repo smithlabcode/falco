@@ -32,7 +32,6 @@
 #include <cstring>
 #include <cctype>
 #include <functional>
-#include <regex>
 #include <iterator>
 
 #include "smithlab_utils.hpp"
@@ -41,7 +40,6 @@ using std::vector;
 using std::string;
 using std::endl;
 using std::runtime_error;
-using std::regex;
 using std::begin;
 using std::end;
 
@@ -347,6 +345,18 @@ bool valid_option_char(char ch) {
 }
 
 static void
+fix_whitespace(string &s) {
+  std::istringstream iss(s);
+  string token;
+  s.clear();
+  while (iss >> token) {
+    if (!s.empty())
+      s += ' ';
+    s += token;
+  }
+}
+
+static void
 read_config_file(const string &config_filename,
                  vector<string> &config_file_options) {
   static const char comment_character = '#';
@@ -368,8 +378,7 @@ read_config_file(const string &config_filename,
       throw runtime_error("failed to config line from " + config_filename);
 
     // remove leading and trailing space
-    line = regex_replace(line, regex(outer_space), "");
-    line = regex_replace(line, regex(inner_space), " ");
+    fix_whitespace(line);
 
     if (!line.empty() && line.front() != comment_character) {
 
@@ -386,7 +395,7 @@ read_config_file(const string &config_filename,
 
       string option_value(line.substr(sep_pos + 1));
       // remove leading space
-      option_value = regex_replace(line, regex(outer_space), "");
+      fix_whitespace(option_value);
 
       if (!all_of(begin(option_value), end(option_value), valid_option_char))
         throw runtime_error("bad option label: " + line);
