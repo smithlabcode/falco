@@ -1,7 +1,7 @@
 /* falco: quality control for sequencing read files
  *
- * Copyright (C) 2019 Guilherme De Sena Brandine and
- *                    Andrew D. Smith
+ * Copyright (C) 2019-2022 Guilherme De Sena Brandine and
+ *                         Andrew D. Smith
  * Authors: Guilherme De Sena Brandine, Andrew Smith
  *
  * This program is free software: you can redistribute it and/or
