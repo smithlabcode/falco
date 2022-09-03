@@ -6,18 +6,17 @@
 [![Install on conda](https://anaconda.org/bioconda/falco/badges/license.svg)](https://anaconda.org/bioconda/falco)
 [![Install on conda](https://anaconda.org/bioconda/falco/badges/downloads.svg)](https://anaconda.org/bioconda/falco)
 
-
-
 This program is an emulation of the popular
-[FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc) software to
-check large sequencing reads for common problems.
+[FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc)
+software to check large sequencing reads for common problems.
 
 Installing falco
 ================
 
 ## Installing through conda
-If you use [anaconda](https://anaconda.org) to manage your packages, and the `conda` binary
-is in your path, you can install the most recent release of `falco` by running
+If you use [anaconda](https://anaconda.org) to manage your packages,
+and the `conda` binary is in your path, you can install the most
+recent release of `falco` by running
 ```
 $ conda install -c bioconda falco
 ```
@@ -27,12 +26,13 @@ installer.
 
 ## Installing from source (code release)
 
-Compilation from source can be done by downloading a `falco` release from the
-[releases](https://github.com/smithlabcode/falco/releases)
-section above. Upon downloading the release (in `.tar.gz` or `.zip` format),
-and inflating the downloaded file to a directory (e.g. `falco`), move to the
-target directory the file was inflated (e.g. `cd falco`). You should see a
-`configure` file in it. In this directory, run
+Compilation from source can be done by downloading a `falco` release
+from the [releases](https://github.com/smithlabcode/falco/releases)
+section above. Upon downloading the release (in `.tar.gz` or `.zip`
+format), and inflating the downloaded file to a directory
+(e.g. `falco`), move to the target directory the file was inflated
+(e.g. `cd falco`). You should see a `configure` file in it. In this
+directory, run
 
 ```
 $ ./configure CXXFLAGS="-O3 -Wall"
@@ -50,10 +50,11 @@ The `falco` binary will be found in the `bin` directory inside the
 specified prefix.
 
 ## Installing from a cloned repository
-We strongly recommend using `falco` through stable releases as described above,
-as the latest commits might contain undocumented bugs. For the more
-advanced users who wish to test the most recent code, `falco` can be
-installed by first cloning the repository
+
+We strongly recommend using `falco` through stable releases as
+described above, as the latest commits might contain undocumented
+bugs. For the more advanced users who wish to test the most recent
+code, `falco` can be installed by first cloning the repository
 
 ```
 $ git clone https://github.com/smithlabcode/falco.git
@@ -71,10 +72,10 @@ containing `falco`.
 
 ### Required C++ dependencies
 
-[zlib](https://zlib.net) is required to read gzip compressed FASTQ files. It is
-usually installed by default in most UNIX computers and is part of the htslib
-setup, but it can also be installed with standard package managers like
-apt, brew or conda.
+[zlib](https://zlib.net) is required to read gzip compressed FASTQ
+files. It is usually installed by default in most UNIX computers and
+is part of the htslib setup, but it can also be installed with
+standard package managers like apt, brew or conda.
 
 On Ubuntu, zlib C++ libraries can be installed with `apt`:
 ```
@@ -83,9 +84,9 @@ $ sudo apt install zlib1g zlib1g-dev
 
 ### Optional C++ dependencies
 
-[htslib](https://github.com/samtools/htslib) is required to process bam
-files. If not provided, bam files will be treated as unrecognized file
-formats.
+[htslib](https://github.com/samtools/htslib) is required to process
+bam files. If not provided, bam files will be treated as unrecognized
+file formats.
 
 If htslib is installed, falco can be compiled with it by simply replacing the
 configure command above with the `--enable-hts` flag:
@@ -116,19 +117,23 @@ $ falco example.fq
 ```
 
 This will generate three files in the same directory as the input fastq file:
- * ``fastqc_data.txt`` is a text file with a summary of the QC
-   metrics
- * ``fastqc_report.html`` is the visual HTML report showing plots of the
-   QC metrics summarized in the text summary.
-* ``summary.txt``: A tab-separated file describing whether the pass/warn/fail
-  result for each module. If multiple files are provided, only one summary file
-  is generated, with one of the columns being the file name associated to each
-  module result.
 
-the full list of arguments and options can be seen by running `falco` without any arguments, as well as `falco -?` or `falco --help`. This will print the following list:
+* `fastqc_data.txt` is a text file with a summary of the QC metrics
+
+* `fastqc_report.html` is the visual HTML report showing plots of the
+   QC metrics summarized in the text summary.
+
+* `summary.txt`: A tab-separated file describing whether the
+  pass/warn/fail result for each module. If multiple files are
+  provided, only one summary file is generated, with one of the
+  columns being the file name associated to each module result.
+
+The full list of arguments and options can be seen by running `falco`
+without any arguments, as well as `falco -?` or `falco --help`. This
+will print the following list:
 
 ```
-Usage: ./bin/falco [OPTIONS] <seqfile1> <seqfile2> ...
+Usage: falco [OPTIONS] <seqfile1> <seqfile2> ...
 
 Options:
   -h, --help                print this help file and exit
@@ -149,20 +154,25 @@ Options:
   -t, --threads             Specifies number of threads to process
                             simultaneos files in parallel (currently
                             set for compatibility with fastqc. Not yet
-                            supported!)
+                            supported!) [1]
   -c, --contaminants        Non-default filer with a list of
                             contaminants
+                            /path/to/falco/Configuration/contaminant_list.txt
   -a, --adapters            Non-default file with a list of adapters
+                            /path/to/falco/Configuration/adapter_list.txt
   -l, --limits              Non-default file with limits and warn/fail
                             criteria
+                            /path/to/falco/Configuration/limits.txt
   -T, --skip-text           Skip generating text file (Default = false)
+
   -H, --skip-html           Skip generating HTML file (Default = false)
-  -S, --skip-short-summary  Skip short summary(Default = false)
+
+  -S, --skip-short-summary  Skip short summary (Default = false)
   -q, --quiet               print more run info
   -d, --dir                 directory in which to create temp files
-  -A, --advanced-mode       advanced mode: adds more information to the
-                            FastQC output depending on non-fastqc user
-                            flags
+  -s, --subsample           makes falco faster (but possibly less
+                            accurate) by only processing reads that are
+                            multiple of this value [1]
   -B, --bisulfite           reads are whole genome bisulfite
                             sequencing, and more Ts and fewer Cs are
                             therefore expected and will be accounted
@@ -170,17 +180,22 @@ Options:
   -R, --reverse-complement  The input is a reverse-complement. All
                             modules will be tested by swapping A/T and
                             C/G
+  -K, --add-call            add the function call to fastqc_data.txt
+                            and fastqc-report.html (this may break the
+                            parse of fastqc_data.txt in programs that
+                            require rigorous FastQC format
 
 Help options:
   -?, -help                 print this help message
       -about                print about message
 
-PROGRAM: ./bin/falco
+PROGRAM: ./falco
 A high throughput sequence QC analysis tool
 ```
 
 Citing falco
-=============
+============
+
 If `falco` was helpful for your research, you can cite us as follows:
 
 *de Sena Brandine G and Smith AD. Falco: high-speed FastQC emulation for
@@ -192,10 +207,10 @@ quality control of sequencing data. F1000Research 2021, 8:1874
 Copyright and License Information
 =================================
 
-Copyright (C) 2019
-University of Southern California,
+Copyright (C) 2019-2022 Guilherme de Sena Brandine and
+                        Andrew D. Smith
 
-Current Authors: Guilherme de Sena Brandine, Andrew D. Smith
+Authors: Guilherme de Sena Brandine and Andrew D. Smith
 
 This is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free
