@@ -17,9 +17,10 @@
 #include <vector>
 #include <cstring>
 #include <algorithm>
+#include <fstream>
 
 using std::cerr;
-
+using std::ifstream;
 using std::min;
 using std::string;
 using std::vector;
@@ -35,6 +36,27 @@ inline T min8(const T a, const T b) {
 /****************************************************/
 /***************** STREAMREADER *********************/
 /****************************************************/
+size_t
+get_tile_split_position(const string &filename) {
+  ifstream in(filename);
+  if (!in.good())
+    throw runtime_error("problem reading input file: " +filename);
+
+  string first_line;
+  getline(in, first_line);
+  in.close();
+
+  // Count colons to know the formatting pattern
+  size_t num_colon = 0;
+  const auto lim(end(first_line));
+  for (auto itr(begin(first_line)); itr != lim; ++itr)
+    num_colon += (*itr == ':');
+
+  // Copied from fastqc
+  if (num_colon >= 6) return 4;
+  else if (num_colon >=4) return 2;
+  return 0; // no tile information on read name
+}
 
 // function to turn a vector into array for adapter hashes and fast lookup
 array<size_t, Constants::max_adapters>
@@ -74,6 +96,8 @@ StreamReader::StreamReader(FalcoConfig &config,
   line_separator(_line_separator),
   buffer_size(_buffer_size),
   read_step(config.read_step),
+  tile_split_point(get_tile_split_position(config.filename)),
+  tile_ignore(!do_tile || tile_split_point == 0),
 
   // Here are the const adapters
   do_adapters_slow(config.do_adapter && !config.do_adapter_optimized),
@@ -81,8 +105,9 @@ StreamReader::StreamReader(FalcoConfig &config,
 
   num_adapters(config.adapter_hashes.size()),
   adapter_size(config.adapter_size),
-  //for case size == 32 expr (1ll << 64) -1 gives 0. We need to set mask as all 64 bits 1 => use SIZE_MAX in this case
-  adapter_mask(adapter_size == 32? SIZE_MAX: (1ll << (2*adapter_size)) - 1),
+  //for case size == 32 expr (1ull << 64) -1 gives 0.
+  //We need to set mask as all 64 bits 1 => use SIZE_MAX in this case
+  adapter_mask(adapter_size == 32? SIZE_MAX: (1ull << (2*adapter_size)) - 1),
   adapters(make_adapters(config.adapter_hashes))
   {
 
@@ -94,9 +119,7 @@ StreamReader::StreamReader(FalcoConfig &config,
   continue_storing_sequences = true;
 
   // Tile init
-  tile_ignore = !do_tile;  // early ignore tile if asked to skip it
   tile_cur = 0;
-  tile_split_point = 0;
 
   // keep track of which reads to do tile
   next_read = 0;
@@ -165,34 +188,11 @@ StreamReader::read_fast_forward_line_eof() {
          !is_eof(); ++cur_char) {}
 }
 
-
-
 /*******************************************************/
 /*************** TILE PROCESSING ***********************/
 /*******************************************************/
 // Parse the comment
-inline void
-StreamReader::get_tile_split_position() {
-  num_colon = 0;
 
-  // Count colons to know the formatting pattern
-  for (; *cur_char != field_separator; ++cur_char) {
-    num_colon += (*cur_char == ':');
-  }
-
-  // Copied from fastqc
-  if (num_colon >= 6) {
-    tile_split_point = 4;
-  }
-  else if (num_colon >=4) {
-    tile_split_point = 2;
-  }
-
-  // We will not get a tile out of this
-  else {
-    tile_ignore = true;
-  }
-}
 
 inline void
 StreamReader::get_tile_value() {
@@ -234,20 +234,14 @@ StreamReader::read_tile_line(FastqStats &stats) {
     return;
   }
 
-  // We haven't parsed the first line to know the split point
-  if (tile_split_point == 0) {
-    get_tile_split_position();
-  }
-  else {
-    get_tile_value();
-    // allocate vector for tile if it doesn't exist
-    if (stats.tile_position_quality.find(tile_cur) ==
-        end(stats.tile_position_quality)) {
-      stats.tile_position_quality[tile_cur] =
-        vector<double> (stats.max_read_length , 0.0);
-      stats.tile_position_count[tile_cur] =
-        vector<size_t> (stats.max_read_length, 0);
-    }
+  get_tile_value();
+  // allocate vector for tile if it doesn't exist
+  if (stats.tile_position_quality.find(tile_cur) ==
+      end(stats.tile_position_quality)) {
+    stats.tile_position_quality[tile_cur] =
+      vector<double> (stats.max_read_length , 0.0);
+    stats.tile_position_count[tile_cur] =
+      vector<size_t> (stats.max_read_length, 0);
   }
 }
 

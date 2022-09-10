@@ -65,6 +65,12 @@ class StreamReader{
   // buffer size to store line 2 of each read statically
   const size_t buffer_size;
   const size_t read_step;
+  // the number of colons (:) needed to be seen until we know we are in a tile
+  const size_t tile_split_point;
+
+  // Whether to just ignore per tile sequence quality if tiles are not in the
+  // name
+  const bool tile_ignore;
 
   /************ ADAPTER SEARCH ***********/
   const bool do_adapters_slow;
@@ -93,9 +99,6 @@ class StreamReader{
   // more space / use dynamically allocated space to process the base
   bool still_in_buffer;
 
-  // Whether to just ignore per tile sequence quality if tiles are not in the
-  // name
-  bool tile_ignore;
 
   // Get a base from the sequence line
   char base_from_buffer;
@@ -114,9 +117,6 @@ class StreamReader{
   size_t num_colon;
   // tile value parsed from line 1 of each record
   size_t tile_cur;
-
-  // the number of colons (:) needed to be seen until we know we are in a tile
-  size_t tile_split_point;
 
   // Temp variables to be updated as you pass through the file
   size_t base_ind;  // 0,1,2 or 3
@@ -146,7 +146,6 @@ class StreamReader{
 
   // on the first tile-processed read, we will try to figure out how tiles
   // should be parsed
-  inline void get_tile_split_position();
   inline void get_tile_value();
 
   inline void process_sequence_base_from_buffer(FastqStats &stats);
