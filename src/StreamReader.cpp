@@ -108,7 +108,8 @@ StreamReader::StreamReader(FalcoConfig &config,
   //for case size == 32 expr (1ull << 64) -1 gives 0.
   //We need to set mask as all 64 bits 1 => use SIZE_MAX in this case
   adapter_mask(adapter_size == 32? SIZE_MAX: (1ull << (2*adapter_size)) - 1),
-  adapters(make_adapters(config.adapter_hashes))
+  adapters(make_adapters(config.adapter_hashes)),
+  filename(config.filename)
   {
 
   // Allocates buffer to temporarily store reads
@@ -127,8 +128,6 @@ StreamReader::StreamReader(FalcoConfig &config,
   next_kmer_read = 0;
   do_tile_read = true;
 
-  // Subclasses will use this to deflate if necessary
-  filename = config.filename;
 
   // GS: test
   leftover_ind = 0;
@@ -197,7 +196,7 @@ StreamReader::read_fast_forward_line_eof() {
 inline void
 StreamReader::get_tile_value() {
   tile_cur = 0;
-  num_colon = 0;
+  size_t num_colon = 0;
   for (; *cur_char != field_separator; ++cur_char) {
     num_colon += (*cur_char == ':');
     if (num_colon == tile_split_point) {
@@ -262,17 +261,16 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
 
   // ATGC bases
   else {
-    // two bit base index
-    base_ind = actg_to_2bit(base_from_buffer);
-
     // increments basic statistic counts
-    cur_gc_count += (base_ind & 1);
+    cur_gc_count += (actg_to_2bit(base_from_buffer) & 1);
     ++stats.base_count[
-      (read_pos << Constants::bit_shift_base) | base_ind];
+      (read_pos << Constants::bit_shift_base) |
+      actg_to_2bit(base_from_buffer)];
 
     if (do_sliding_window) {
       // Update k-mer sequence
-      cur_kmer = ((cur_kmer << Constants::bit_shift_base) | base_ind);
+      cur_kmer = ((cur_kmer << Constants::bit_shift_base) |
+                  actg_to_2bit(base_from_buffer));
 
       // registers k-mer if seen at least k nucleotides since the last n
       if (do_kmer && do_kmer_read && (num_bases_after_n >= Constants::kmer_size)) {
@@ -285,7 +283,7 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
       // GS: slow, need to use fsm
       if (do_adapter_optimized && (num_bases_after_n == adapter_size)) {
         cur_kmer &= adapter_mask;
-        for (i = 0; i != num_adapters; ++i) {
+        for (size_t i = 0; i != num_adapters; ++i) {
           if (cur_kmer == adapters[i]) {
             ++stats.pos_adapter_count[(read_pos << Constants::bit_shift_adapter)
                                     | i];
@@ -309,13 +307,10 @@ StreamReader::process_sequence_base_from_leftover(FastqStats &stats) {
 
   // ATGC bases
   else {
-    // two bit base index
-    base_ind = actg_to_2bit(base_from_buffer);
-
     // increments basic statistic counts
-    cur_gc_count += (base_ind & 1);
+    cur_gc_count += (actg_to_2bit(base_from_buffer) & 1);
     ++stats.long_base_count[(leftover_ind << Constants::bit_shift_base)
-                          | base_ind];
+                          | actg_to_2bit(base_from_buffer)];
 
     // WE WILL NOT DO KMER STATS OUTSIDE OF BUFFER
   }
@@ -384,7 +379,7 @@ StreamReader::read_sequence_line(FastqStats &stats) {
 
   if (do_adapters_slow) {
     const string seq_line_str = cur_char;
-    for (i = 0; i != num_adapters; ++i) {
+    for (size_t i = 0; i != num_adapters; ++i) {
       const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
       if (adapt_index < stats.kNumBases) {
         ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) << Constants::bit_shift_adapter)

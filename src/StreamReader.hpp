@@ -81,6 +81,8 @@ class StreamReader{
   const size_t adapter_mask;
   const std::array<size_t, Constants::max_adapters> adapters;
 
+  const std::string filename;
+
     // keep track of reads for which to do kmer and tile count
   static const size_t num_reads_for_tile = 10;
   static const size_t num_reads_for_kmer = 50;
@@ -114,19 +116,16 @@ class StreamReader{
   size_t leftover_ind;
 
   /********* TILE PARSING ********/
-  size_t num_colon;
   // tile value parsed from line 1 of each record
   size_t tile_cur;
 
   // Temp variables to be updated as you pass through the file
-  size_t base_ind;  // 0,1,2 or 3
   size_t read_pos;  // which base we are at in the read
   size_t quality_value;  // to convert from ascii to number
   size_t cur_gc_count;  // Number of gc bases in read
   size_t cur_quality;  // Sum of quality values in read
   size_t num_bases_after_n;  // count of k-mers that reset at every N
   size_t cur_kmer;  // 32-mer hash as you pass through the sequence line
-  size_t i; // general iterator
 
   // variables for gc model
   GCModelValue value;
@@ -138,7 +137,6 @@ class StreamReader{
   // quality characters are associated
   std::string leftover_buffer;
   std::string sequence_to_hash;  // sequence marked for duplication
-  std::string filename;
   /************ FUNCTIONS TO PROCESS READS AND BASES ***********/
   // gets and puts bases from and to buffer
   inline void put_base_in_buffer();  // puts base in buffer or leftover
