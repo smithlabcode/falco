@@ -185,8 +185,8 @@ class StreamReader{
 /*******************************************************/
 class FastqReader : public StreamReader {
  private:
-  static const size_t kChunkSize = (1<<20);
-  char filebuf[kChunkSize];
+  static const size_t RESERVE_SIZE = (1<<26);
+  char *filebuf;
   FILE *fileobj;
 
  public:
@@ -203,8 +203,8 @@ class FastqReader : public StreamReader {
 /*******************************************************/
 class GzFastqReader : public StreamReader {
  private:
-  static const size_t kChunkSize = (1<<20);
-  char gzbuf[kChunkSize];
+  static const size_t RESERVE_SIZE = (1<<26);
+  char *gzbuf;
   gzFile fileobj;
 
  public:
@@ -221,8 +221,8 @@ class GzFastqReader : public StreamReader {
 
 class SamReader : public StreamReader {
  private:
-  static const size_t kChunkSize = (1<<20);
-  char filebuf[kChunkSize];
+  static const size_t RESERVE_SIZE = (1<<26);
+  char *filebuf;
   FILE *fileobj;
 
  public:

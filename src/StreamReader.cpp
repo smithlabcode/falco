@@ -618,6 +618,7 @@ FastqReader::FastqReader(FalcoConfig &_config,
                          const size_t _buffer_size) :
   StreamReader(_config, _buffer_size,
                get_line_separator(_config.filename), get_line_separator(_config.filename)) {
+  filebuf = (char*)malloc(RESERVE_SIZE);
 }
 
 size_t
@@ -658,7 +659,7 @@ FastqReader::~FastqReader() {
 // Parses fastq gz by reading line by line into the gzbuf
 inline bool
 FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
-  cur_char = fgets(filebuf, kChunkSize, fileobj);
+  cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
 
   // need to check here if we did not hit eof
   if (is_eof())
@@ -669,15 +670,15 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   read_tile_line(stats);
   skip_separator();
 
-  cur_char = fgets(filebuf, kChunkSize, fileobj);
+  cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
   read_sequence_line(stats);
   skip_separator();
 
-  cur_char = fgets(filebuf, kChunkSize, fileobj);
+  cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
   read_fast_forward_line();
   skip_separator();
 
-  cur_char = fgets(filebuf, kChunkSize, fileobj);
+  cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
   read_quality_line(stats);
   skip_separator();
 
@@ -702,6 +703,7 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 GzFastqReader::GzFastqReader(FalcoConfig &_config,
                              const size_t _buffer_size) :
   StreamReader(_config, _buffer_size, '\n', '\n') {
+  gzbuf = (char*)malloc(RESERVE_SIZE);
 }
 
 // Load fastq with zlib
@@ -729,7 +731,7 @@ GzFastqReader::~GzFastqReader() {
 // Parses fastq gz by reading line by line into the gzbuf
 inline bool
 GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
-  cur_char = gzgets(fileobj, gzbuf, kChunkSize);
+  cur_char = gzgets(fileobj, gzbuf, RESERVE_SIZE);
 
   // need to check here if we did not hit eof
   if (is_eof()) {
@@ -740,15 +742,15 @@ GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   read_tile_line(stats);
   skip_separator();
 
-  cur_char = gzgets(fileobj, gzbuf, kChunkSize);
+  cur_char = gzgets(fileobj, gzbuf, RESERVE_SIZE);
   read_sequence_line(stats);
   skip_separator();
 
-  cur_char = gzgets(fileobj, gzbuf, kChunkSize);
+  cur_char = gzgets(fileobj, gzbuf, RESERVE_SIZE);
   read_fast_forward_line();
   skip_separator();
 
-  cur_char = gzgets(fileobj, gzbuf, kChunkSize);
+  cur_char = gzgets(fileobj, gzbuf, RESERVE_SIZE);
   read_quality_line(stats);
   skip_separator();
 
@@ -773,7 +775,9 @@ GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 SamReader::SamReader(FalcoConfig &_config,
                      const size_t _buffer_size) :
   StreamReader(_config, _buffer_size,
-               '\t', get_line_separator(_config.filename)) {}
+               '\t', get_line_separator(_config.filename)) {
+  filebuf = (char*)malloc(RESERVE_SIZE);
+}
 
 size_t
 SamReader::load() {
@@ -786,7 +790,7 @@ SamReader::load() {
   // skip sam header
   while (!is_eof() && ((*cur_char = fgetc(fileobj)) == '@')) {
     ungetc(*cur_char, fileobj);
-    cur_char = fgets(filebuf, kChunkSize, fileobj);
+    cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
   }
   return get_file_size(filename);
 }
@@ -798,7 +802,7 @@ SamReader::is_eof() {
 
 inline bool
 SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
-  cur_char = fgets(filebuf, kChunkSize, fileobj);
+  cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
 
   if (is_eof()) return false;
   do_read = (stats.num_reads == next_read);
