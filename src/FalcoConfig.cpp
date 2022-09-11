@@ -35,7 +35,7 @@ using std::runtime_error;
 using std::istringstream;
 using std::cerr;
 
-const string FalcoConfig::FalcoVersion = "1.1.0";
+const string FalcoConfig::FalcoVersion = "1.2.0";
 
 /*********************************************************/
 /************** DEFAULT VALUES FOR FILES *****************/
