@@ -134,62 +134,161 @@ will print the following list:
 
 ```
 Usage: falco [OPTIONS] <seqfile1> <seqfile2> ...
-
 Options:
-  -h, --help                print this help file and exit
-  -v, --version             print the program version and exit
-  -o, --outdir              Create all output files in the specified
-                            output directory. If notprovided, files
-                            will be created in the same directory as
-                            the input file.
-  -C, --casava              Files come from raw casava output
-                            (currently ignored)
-  -n, --nano                Files come from fast5 nanopore sequences
-  -F, --nofilter            If running with --casava do not sequences
-                            (currently ignored)
-  -e, --noextract           If running with --casava do not remove poor
-                            quality sequences (currently ignored)
-  -g, --nogroup             Disable grouping of bases for reads >50bp
-  -f, --format              Force file format
-  -t, --threads             Specifies number of threads to process
-                            simultaneos files in parallel (currently
-                            set for compatibility with fastqc. Not yet
-                            supported!) [1]
-  -c, --contaminants        Non-default filer with a list of
-                            contaminants
-                            /path/to/falco/Configuration/contaminant_list.txt
-  -a, --adapters            Non-default file with a list of adapters
-                            /path/to/falco/Configuration/adapter_list.txt
-  -l, --limits              Non-default file with limits and warn/fail
-                            criteria
-                            /path/to/falco/Configuration/limits.txt
-  -T, --skip-text           Skip generating text file (Default = false)
-
-  -H, --skip-html           Skip generating HTML file (Default = false)
-
-  -S, --skip-short-summary  Skip short summary (Default = false)
-  -q, --quiet               print more run info
-  -d, --dir                 directory in which to create temp files
-  -s, --subsample           makes falco faster (but possibly less
-                            accurate) by only processing reads that are
-                            multiple of this value [1]
-  -B, --bisulfite           reads are whole genome bisulfite
-                            sequencing, and more Ts and fewer Cs are
-                            therefore expected and will be accounted
-                            for in base content (advanced mode)
-  -R, --reverse-complement  The input is a reverse-complement. All
-                            modules will be tested by swapping A/T and
-                            C/G
-  -K, --add-call            add the function call to fastqc_data.txt
-                            and fastqc-report.html (this may break the
-                            parse of fastqc_data.txt in programs that
-                            require rigorous FastQC format
+  -h, --help               Print this help file and exit  
+  -v, --version            Print the version of the program and exit  
+  -o, --outdir             Create all output files in the specified 
+                           output directory. FALCO-SPECIFIC: If the 
+                           directory does not exists, the program will 
+                           create it. If this option is not set then 
+                           the output file for each sequence file is 
+                           created in the same directory as the 
+                           sequence file which was processed.  
+      --casava             [IGNORED BY FALCO] Files come from raw 
+                           casava output. Files in the same sample 
+                           group (differing only by the group number) 
+                           will be analysed as a set rather than 
+                           individually. Sequences with the filter flag 
+                           set in the header will be excluded from the 
+                           analysis. Files must have the same names 
+                           given to them by casava (including being 
+                           gzipped and ending with .gz) otherwise they 
+                           won't be grouped together correctly.  
+      --nano               [IGNORED BY FALCO] Files come from nanopore 
+                           sequences and are in fast5 format. In this 
+                           mode you can pass in directories to process 
+                           and the program will take in all fast5 files 
+                           within those directories and produce a 
+                           single output file from the sequences found 
+                           in all files.  
+      --nofilter           [IGNORED BY FALCO] If running with --casava 
+                           then don't remove read flagged by casava as 
+                           poor quality when performing the QC 
+                           analysis.  
+      --extract            [ALWAYS ON IN FALCO] If set then the zipped 
+                           output file will be uncompressed in the same 
+                           directory after it has been created. By 
+                           default this option will be set if fastqc is 
+                           run in non-interactive mode.  
+  -j, --java               [IGNORED BY FALCO] Provides the full path to 
+                           the java binary you want to use to launch 
+                           fastqc. If not supplied then java is assumed 
+                           to be in your path.  
+      --noextract          [IGNORED BY FALCO] Do not uncompress the 
+                           output file after creating it. You should 
+                           set this option if you do not wish to 
+                           uncompress the output when running in 
+                           non-interactive mode.  
+      --nogroup            Disable grouping of bases for reads >50bp. 
+                           All reports will show data for every base in 
+                           the read. WARNING: When using this option, 
+                           your plots may end up a ridiculous size. You 
+                           have been warned!  
+      --min_length         [NOT YET IMPLEMENTED IN FALCO] Sets an 
+                           artificial lower limit on the length of the 
+                           sequence to be shown in the report. As long 
+                           as you set this to a value greater or equal 
+                           to your longest read length then this will 
+                           be the sequence length used to create your 
+                           read groups. This can be useful for making 
+                           directly comaparable statistics from 
+                           datasets with somewhat variable read 
+                           lengths.  
+  -f, --format             Bypasses the normal sequence file format 
+                           detection and forces the program to use the 
+                           specified format. Validformats are bam, sam, 
+                           bam_mapped, sam_mapped, fastq, fq, fastq.gz 
+                           or fq.gz.  
+  -t, --threads            [NOT YET IMPLEMENTED IN FALCO] Specifies the 
+                           number of files which can be processed 
+                           simultaneously. Each thread will be 
+                           allocated 250MB of memory so you shouldn't 
+                           run more threads than your available memory 
+                           will cope with, and not more than 6 threads 
+                           on a 32 bit machine [1] 
+  -c, --contaminants       Specifies a non-default file which contains 
+                           the list of contaminants to screen 
+                           overrepresented sequences against. The file 
+                           must contain sets of named contaminants in 
+                           the form name[tab]sequence. Lines prefixed 
+                           with a hash will be ignored. Default: 
+                           /home/sena/code/falco/Configuration/contaminant_list.txt 
+  -a, --adapters           Specifies a non-default file which contains 
+                           the list of adapter sequences which will be 
+                           explicity searched against the library. The 
+                           file must contain sets of named adapters in 
+                           the form name[tab]sequence. Lines prefixed 
+                           with a hash will be ignored. Default: 
+                           /home/sena/code/falco/Configuration/adapter_list.txt 
+  -l, --limits             Specifies a non-default file which contains 
+                           a set of criteria which will be used to 
+                           determine the warn/error limits for the 
+                           various modules. This file can also be used 
+                           to selectively remove some modules from the 
+                           output all together. The format needs to 
+                           mirror the default limits.txt file found in 
+                           the Configuration folder. Default: 
+                           /home/sena/code/falco/Configuration/limits.txt 
+  -k, --kmers              [IGNORED BY FALCO AND ALWAYS SET TO 7] 
+                           Specifies the length of Kmer to look for in 
+                           the Kmer content module. Specified Kmer 
+                           length must be between 2 and 10. Default 
+                           length is 7 if not specified.  
+  -q, --quiet              Supress all progress messages on stdout and 
+                           only report errors.  
+  -d, --dir                [IGNORED: FALCO DOES NOT CREATE TMP FILES] 
+                           Selects a directory to be used for temporary 
+                           files written when generating report images. 
+                           Defaults to system temp directory if not 
+                           specified.  
+  -s, -subsample           [Falco only] makes falco faster (but 
+                           possibly less accurate) by only processing 
+                           reads that are multiple of this value (using 
+                           0-based indexing to number reads). [1] 
+  -b, -bisulfite           [Falco only] reads are whole genome 
+                           bisulfite sequencing, and more Ts and fewer 
+                           Cs are therefore expected and will be 
+                           accounted for in base content.  
+  -r, -reverse-complement  [Falco only] The input is a 
+                           reverse-complement. All modules will be 
+                           tested by swapping A/T and C/G  
+      -skip-data           [Falco only] Do not create FastQC data text 
+                           file.  
+      -skip-report         [Falco only] Do not create FastQC report 
+                           HTML file.  
+      -skip-summary        [Falco only] Do not create FastQC summary 
+                           file  
+  -D, -data-filename       [Falco only] Specify filename for FastQC 
+                           data output (TXT). If not specified, it will 
+                           be called fastq_data.txt in either the input 
+                           file's directory or the one specified in the 
+                           --output flag. Only available when running 
+                           falco with a single input.  
+  -R, -report-filename     [Falco only] Specify filename for FastQC 
+                           report output (HTML). If not specified, it 
+                           will be called fastq_report.html in either 
+                           the input file's directory or the one 
+                           specified in the --output flag. Only 
+                           available when running falco with a single 
+                           input.  
+  -S, -summary-filename    [Falco only] Specify filename for the short 
+                           summary output (TXT). If not specified, it 
+                           will be called fastq_report.html in either 
+                           the input file's directory or the one 
+                           specified in the --output flag. Only 
+                           available when running falco with a single 
+                           input.  
+  -K, -add-call            [Falco only] add the command call call to 
+                           FastQC data output and FastQC report HTML 
+                           (this may break the parse of fastqc_data.txt 
+                           in programs that are very strict about the 
+                           FastQC output format).  
 
 Help options:
-  -?, -help                 print this help message
-      -about                print about message
+  -?, -help                print this help message  
+      -about               print about message  
 
-PROGRAM: ./falco
+PROGRAM: falco
 A high throughput sequence QC analysis tool
 ```
 
