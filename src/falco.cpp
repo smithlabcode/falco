@@ -148,22 +148,34 @@ write_results(const FalcoConfig &falco_config,
               const bool skip_short_summary,
               const bool do_call,
               const string &file_prefix,
-              const string &outdir) {
+              const string &outdir,
+              const string &summary_filename,
+              const string &data_filename,
+              const string &report_filename) {
 
   // Here we open the short summary ofstream
   ofstream summary_txt;
   if (!skip_short_summary) {
-    string summary_file = outdir + "/" + file_prefix + "summary.txt";
+    const string summary_file =
+      (summary_filename.empty() ?
+      (outdir + "/" + file_prefix + "summary.txt") : (summary_filename));
     summary_txt.open(summary_file.c_str(), std::ofstream::binary);
+
+    if (!summary_txt.good())
+      throw runtime_error("Failed to create output summary file: " + summary_file);
   }
 
   // Here we open the full text summary
   ofstream qc_data_txt;
   if (!skip_text) {
-
-    string qc_data_file = falco_config.filename;
-    qc_data_file = outdir + "/" + file_prefix + "fastqc_data.txt";
+    const string qc_data_file =
+      (data_filename.empty() ?
+       (outdir + "/" + file_prefix + "fastqc_data.txt") :
+       (data_filename));
     qc_data_txt.open(qc_data_file.c_str(), std::ofstream::binary);
+
+    if (!qc_data_txt.good())
+      throw runtime_error("Failed to create output data file: " + qc_data_file);
 
     if (!falco_config.quiet)
       log_process("Writing text report to " + qc_data_file);
@@ -179,13 +191,19 @@ write_results(const FalcoConfig &falco_config,
   ofstream html;
   if (!skip_html) {
     // Decide html filename based on input
-    string html_file = outdir + "/" + file_prefix + "fastqc_report.html";
+    const string html_file =
+      (report_filename.empty() ? 
+       (outdir + "/" + file_prefix + "fastqc_report.html") :
+       (report_filename));
 
     if (!falco_config.quiet)
       log_process("Writing HTML report to " + html_file);
 
-    html_maker.put_file_details(falco_config);
     html.open(html_file.c_str(), std::ofstream::binary);
+    if (!html.good())
+      throw runtime_error("Failed to create output HTML report file: " + html_file);
+
+    html_maker.put_file_details(falco_config);
   }
 
   // Now we create modules if requested, summarize them and kill them
@@ -318,6 +336,10 @@ int main(int argc, const char **argv) {
     bool skip_short_summary = false;
     bool do_call = false;
 
+    // a tmp boolean to keep compatibility with FastQC
+    bool tmp_compatibility_only = false;
+    string tmp_compatibility_only_str;
+
     FalcoConfig falco_config(argc, argv);
 
     // if defined, read file as the file format specified by the user
@@ -326,83 +348,226 @@ int main(int argc, const char **argv) {
     // output directory in which to put files
     string outdir;
 
-    // tmpdir is for fastqc compatibility, not really used
-    string tmpdir;
+    // custom output filenames (if provided)
+    string data_filename = "";
+    string report_filename = "";
+    string summary_filename = "";
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(argv[0],
                               "A high throughput sequence QC analysis tool",
                               "<seqfile1> <seqfile2> ...");
     opt_parse.set_show_defaults();
-    opt_parse.add_opt("-help", 'h', "print this help file and exit", false,
-                        help);
-    opt_parse.add_opt("-version", 'v', "print the program version and exit",
-                      false, version);
+
+
+    /***************** FASTQC PARAMETERS ********************/
+    opt_parse.add_opt("-help", 'h',
+        "Print this help file and exit",
+        false, help);
+
+    opt_parse.add_opt("-version", 'v',
+        "Print the version of the program and exit",
+         false, version);
+
     opt_parse.add_opt("-outdir", 'o',
-      "Create all output files in the specified output directory. If not"
-      "provided, files will be created in the same directory as the input "
-      "file."
+        "Create all output files in the specified output directory."
+        "FALCO-SPECIFIC: If the directory does not exists, the "
+        "program will create it. "
+        "If this option is not set then the output file for each "
+        "sequence file is created in the same directory as the "
+        "sequence file which was processed."
     , false, outdir);
 
-    opt_parse.add_opt("-casava", 'C',
-                      "Files come from raw casava output (currently ignored)",
-                      false, falco_config.casava);
-    opt_parse.add_opt("-nano", 'n', "Files come from fast5 nanopore sequences",
-                      false, falco_config.nanopore);
-    opt_parse.add_opt("-nofilter", 'F', "If running with --casava do not "
-                      "sequences (currently ignored)", false,
-                      falco_config.nofilter);
-    opt_parse.add_opt("-noextract", 'e', "If running with --casava do not "
-                      "remove poor quality sequences (currently ignored)",
-                      false, falco_config.casava);
-    opt_parse.add_opt("-nogroup", 'g', "Disable grouping of bases for "
-                      "reads >50bp", false, falco_config.nogroup);
-    opt_parse.add_opt("-format", 'f', "Force file format", false,
-                      forced_file_format);
-    opt_parse.add_opt("-threads", 't', "Specifies number of threads to process "
-                                        "simultaneos files in parallel "
-                                        "(currently set for compatibility "
-                                        "with fastqc. Not yet supported!)",
-                      false, falco_config.threads);
-    opt_parse.add_opt("-contaminants", 'c',
-                      "Non-default filer with a list of contaminants",
-                      false, falco_config.contaminants_file);
-    opt_parse.add_opt("-adapters", 'a',
-                      "Non-default file with a list of adapters",
-                      false, falco_config.adapters_file);
-    opt_parse.add_opt("-limits", 'l',
-                      "Non-default file with limits and warn/fail criteria",
-                      false, falco_config.limits_file);
-    opt_parse.add_opt("-skip-text", 'T', "Skip generating text file "
-                      "(Default = false)", false, skip_text);
-    opt_parse.add_opt("-skip-html", 'H', "Skip generating HTML file "
-                      "(Default = false)", false, skip_html);
-    opt_parse.add_opt("-skip-short-summary", 'S', "Skip short summary "
-                      "(Default = false)", false, skip_short_summary);
-    opt_parse.add_opt("-quiet", 'q', "print more run info", false,
-                      falco_config.quiet);
-    opt_parse.add_opt("-dir", 'd', "directory in which to create temp files",
-                      false, tmpdir);
+    opt_parse.add_opt("-casava", '\0',
+        "[IGNORED BY FALCO] "
+        "Files come from raw casava output. Files in the same sample "
+        "group (differing only by the group number) will be analysed "
+        "as a set rather than individually. Sequences with the filter "
+        "flag set in the header will be excluded from the analysis. "
+        "Files must have the same names given to them by casava "
+        "(including being gzipped and ending with .gz) otherwise they "
+        "won't be grouped together correctly."
+         , false, falco_config.casava);
 
-    // Falco-specific options
-    opt_parse.add_opt("-subsample", 's', "makes falco faster "
-        "(but possibly less accurate) by only processing reads that are multiple "
-        "of this value", false, falco_config.read_step);
-    opt_parse.add_opt("-bisulfite", 'B',
-                      "reads are whole genome bisulfite sequencing, and more "
-                      "Ts and fewer Cs are therefore expected and will be "
-                      "accounted for in base content (advanced mode)", false,
-                      falco_config.is_bisulfite);
-    opt_parse.add_opt("-reverse-complement", 'R',
-                         "The input is a reverse-complement. All modules will "
-                         "be tested by swapping A/T and C/G", false,
-                      falco_config.is_reverse_complement);
-    opt_parse.add_opt("-add-call", 'K', "add the function call to"
-                      " fastqc_data.txt and fastqc-report.html (this"
-                      " may break the parse of fastqc_data.txt"
-                      " in programs that require rigorous"
-                      " FastQC format", false,
-                      do_call);
+    opt_parse.add_opt("-nano", '\0',
+        "[IGNORED BY FALCO] "
+        "Files come from nanopore sequences and are in fast5 format. In "
+        "this mode you can pass in directories to process and the program "
+        "will take in all fast5 files within those directories and produce "
+        " a single output file from the sequences found in all files."
+        , false, falco_config.nanopore);
+
+    opt_parse.add_opt("-nofilter", '\0',
+        "[IGNORED BY FALCO] "
+        "If running with --casava then don't remove read flagged by "
+        "casava as poor quality when performing the QC analysis. "
+        , false, falco_config.nofilter);
+
+    opt_parse.add_opt("-extract", '\0',
+        "[ALWAYS ON IN FALCO] "
+        "If set then the zipped output file will be uncompressed in "
+        "the same directory after it has been created.  By default "
+        "this option will be set if fastqc is run in non-interactive "
+        "mode."
+        , false, tmp_compatibility_only);
+
+    opt_parse.add_opt("-java", 'j',
+        "[IGNORED BY FALCO] "
+        "Provides the full path to the java binary you want to use to "
+        "launch fastqc. If not supplied then java is assumed to be in "
+        "your path."
+        , false, tmp_compatibility_only_str);
+
+    opt_parse.add_opt("-noextract", '\0',
+        "[IGNORED BY FALCO] "
+        "Do not uncompress the output file after creating it.  You "
+        "should set this option if you do not wish to uncompress "
+        "the output when running in non-interactive mode."
+        , false, falco_config.casava);
+
+    opt_parse.add_opt("-nogroup", '\0',
+        "Disable grouping of bases for reads >50bp. All reports will "
+        "show data for every base in the read.  WARNING: When using this "
+        "option, your plots may end up a ridiculous size. "
+        "You have been warned!"
+        , false, falco_config.nogroup);
+
+    opt_parse.add_opt("-min_length", '\0',
+        "[NOT YET IMPLEMENTED IN FALCO] "
+        "Sets an artificial lower limit on the length of the sequence "
+        "to be shown in the report.  As long as you set this to a value "
+        "greater or equal to your longest read length then this will be "
+        "the sequence length used to create your read groups.  This can "
+        "be useful for making directly comaparable statistics from "
+        "datasets with somewhat variable read lengths. "
+        , false, tmp_compatibility_only_str);
+
+    opt_parse.add_opt("-format", 'f',
+        "Bypasses the normal sequence file format detection and "
+        "forces the program to use the specified format.  Valid"
+        "formats are bam, sam, bam_mapped, sam_mapped, fastq, "
+        "fq, fastq.gz or fq.gz."
+        , false, forced_file_format);
+
+    opt_parse.add_opt("-threads", 't',
+        "[NOT YET IMPLEMENTED IN FALCO] "
+        "Specifies the number of files which can be processed "
+        "simultaneously.  Each thread will be allocated 250MB of "
+        "memory so you shouldn't run more threads than your "
+        "available memory will cope with, and not more than "
+        "6 threads on a 32 bit machine"
+        , false, falco_config.threads);
+
+    opt_parse.add_opt("-contaminants", 'c',
+        "Specifies a non-default file which contains the list of "
+        "contaminants to screen overrepresented sequences against. "
+        "The file must contain sets of named contaminants in the "
+        "form name[tab]sequence.  Lines prefixed with a hash will "
+        "be ignored. Default: "
+        , false, falco_config.contaminants_file);
+
+    opt_parse.add_opt("-adapters", 'a',
+        "Specifies a non-default file which contains the list of "
+        "adapter sequences which will be explicity searched against "
+        "the library. The file must contain sets of named adapters "
+        "in the form name[tab]sequence.  Lines prefixed with a hash "
+        "will be ignored. Default: "
+        , false, falco_config.adapters_file);
+
+    opt_parse.add_opt("-limits", 'l',
+        "Specifies a non-default file which contains a set of criteria "
+        "which will be used to determine the warn/error limits for the "
+        "various modules.  This file can also be used to selectively "
+        "remove some modules from the output all together.  The format "
+        "needs to mirror the default limits.txt file found in the "
+        "Configuration folder. Default: "
+         , false, falco_config.limits_file);
+
+    opt_parse.add_opt("-kmers", 'k',
+        "[IGNORED BY FALCO AND ALWAYS SET TO 7] "
+        "Specifies the length of Kmer to look for in the Kmer content "
+        "module. Specified Kmer length must be between 2 and 10. Default "
+        "length is 7 if not specified."
+        , false, tmp_compatibility_only_str);
+
+
+    opt_parse.add_opt("-quiet", 'q',
+        "Supress all progress messages on stdout and only report errors."
+        , false, falco_config.quiet);
+
+    opt_parse.add_opt("-dir", 'd',
+        "[IGNORED: FALCO DOES NOT CREATE TMP FILES] "
+        "Selects a directory to be used for temporary files written when "
+        "generating report images. Defaults to system temp directory if "
+        "not specified. "
+        , false, tmp_compatibility_only_str);
+
+    /***************** FALCO ONLY ********************/
+    // falco-only options use a single dash as long argument
+    // e.g. -skip-text instead of --skip-text. They also
+    // use single-characters that do not overlap with the
+    // ones used in FastQC, so cannot use:
+    // h, v, o, j, f, t, c, a, l, k, q, d
+
+
+    opt_parse.add_opt("subsample", 's',
+        "[Falco only] makes falco faster "
+        "(but possibly less accurate) by only processing "
+        "reads that are multiple of this value (using 0-based "
+        "indexing to number reads)."
+        , false, falco_config.read_step);
+
+    opt_parse.add_opt("bisulfite", 'b',
+        "[Falco only] reads are whole genome bisulfite sequencing, and more "
+        "Ts and fewer Cs are therefore expected and will be "
+        "accounted for in base content."
+        , false, falco_config.is_bisulfite);
+
+    opt_parse.add_opt("reverse-complement", 'r',
+        "[Falco only] The input is a reverse-complement. All modules will "
+        "be tested by swapping A/T and C/G",
+        false, falco_config.is_reverse_complement);
+
+    opt_parse.add_opt("skip-data", '\0',
+        "[Falco only] Do not create FastQC data text file."
+        , false, skip_text);
+
+    opt_parse.add_opt("skip-report", '\0',
+        "[Falco only] Do not create FastQC report HTML file."
+         , false, skip_html);
+
+    opt_parse.add_opt("skip-summary", '\0',
+        "[Falco only] Do not create FastQC summary file"
+        , false, skip_short_summary);
+
+    opt_parse.add_opt("data-filename", 'D',
+        "[Falco only] Specify filename for FastQC data output (TXT). "
+        "If not specified, it will be called fastq_data.txt in either "
+        "the input file's directory or the one specified in the --output "
+        "flag. Only available when running falco with a single input. "
+        , false, data_filename);
+
+    opt_parse.add_opt("report-filename", 'R',
+        "[Falco only] Specify filename for FastQC report output (HTML). "
+        "If not specified, it will be called fastq_report.html in either "
+        "the input file's directory or the one specified in the --output "
+        "flag. Only available when running falco with a single input."
+        , false, report_filename);
+
+    opt_parse.add_opt("summary-filename", 'S',
+        "[Falco only] Specify filename for the short summary output (TXT). "
+        "If not specified, it will be called fastq_report.html in either "
+        "the input file's directory or the one specified in the --output "
+        "flag. Only available when running falco with a single input."
+        , false, summary_filename);
+
+    opt_parse.add_opt("add-call", 'K',
+        "[Falco only] add the command call call to"
+        " FastQC data output and FastQC report HTML (this"
+        " may break the parse of fastqc_data.txt"
+        " in programs that are very strict about the "
+        " FastQC output format)."
+        , false, do_call);
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -428,7 +593,37 @@ int main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
 
+    if (leftover_args.size() > 1 &&
+        (!summary_filename.empty() ||
+         !report_filename.empty() ||
+         !data_filename.empty())) {
+      cerr << "ERROR: summary, report or data filename provided, but"
+        << " you are running falco with " << leftover_args.size()
+        << " inputs. We cannot allow this because multiple inputs"
+        << " require multiple outputs, so they will be resolved by"
+        << " the input filenames instead" << endl;
+      return EXIT_FAILURE;
+    }
+
     if (!outdir.empty()) {
+      if (!summary_filename.empty())
+        cerr << "[WARNING] specifying custom output directory but also "
+             << "custom summary filename. Output " << outdir
+             << " will be disregarded and summary file will be saved to "
+             << summary_filename << endl;
+
+      if (!data_filename.empty())
+        cerr << "[WARNING] specifying custom output directory but also "
+             << "custom data filename. Output " << outdir
+             << " will be disregarded and data file will be saved to "
+             << data_filename << endl;
+
+      if (!report_filename.empty())
+        cerr << "[WARNING] specifying custom output directory but also "
+             << "custom HTML Report filename. Output " << outdir
+             << " will be disregarded and HTML report file will be saved to "
+             << report_filename << endl;
+
       if (!dir_exists(outdir)) {
         if (!falco_config.quiet)
           log_process("creating directory for output: " + outdir);
@@ -540,7 +735,8 @@ int main(int argc, const char **argv) {
       const string file_prefix = (all_seq_filenames.size() == 1) ?
                                  ("") : (file_basename + "_");
       write_results(falco_config, stats, skip_text, skip_html,
-                   skip_short_summary, do_call, file_prefix, cur_outdir);
+                   skip_short_summary, do_call, file_prefix, cur_outdir,
+                   summary_filename, data_filename, report_filename);
 
       /************************** TIME SUMMARY *****************************/
       if (!falco_config.quiet)
