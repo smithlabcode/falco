@@ -196,7 +196,7 @@ Options:
                            lengths.  
   -f, --format             Bypasses the normal sequence file format 
                            detection and forces the program to use the 
-                           specified format. Validformats are bam, sam, 
+                           specified format. Valid formats are bam, sam, 
                            bam_mapped, sam_mapped, fastq, fq, fastq.gz 
                            or fq.gz.  
   -t, --threads            [NOT YET IMPLEMENTED IN FALCO] Specifies the 
@@ -212,14 +212,14 @@ Options:
                            must contain sets of named contaminants in 
                            the form name[tab]sequence. Lines prefixed 
                            with a hash will be ignored. Default: 
-                           /home/sena/code/falco/Configuration/contaminant_list.txt 
+                           Configuration/contaminant_list.txt 
   -a, --adapters           Specifies a non-default file which contains 
                            the list of adapter sequences which will be 
                            explicity searched against the library. The 
                            file must contain sets of named adapters in 
                            the form name[tab]sequence. Lines prefixed 
                            with a hash will be ignored. Default: 
-                           /home/sena/code/falco/Configuration/adapter_list.txt 
+                           Configuration/adapter_list.txt 
   -l, --limits             Specifies a non-default file which contains 
                            a set of criteria which will be used to 
                            determine the warn/error limits for the 
@@ -228,7 +228,7 @@ Options:
                            output all together. The format needs to 
                            mirror the default limits.txt file found in 
                            the Configuration folder. Default: 
-                           /home/sena/code/falco/Configuration/limits.txt 
+                           Configuration/limits.txt 
   -k, --kmers              [IGNORED BY FALCO AND ALWAYS SET TO 7] 
                            Specifies the length of Kmer to look for in 
                            the Kmer content module. Specified Kmer 
