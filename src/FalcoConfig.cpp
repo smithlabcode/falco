@@ -388,11 +388,13 @@ FalcoConfig::define_file_format() {
   string tmp_filename = filename;
   transform(begin(tmp_filename), end(tmp_filename), begin(tmp_filename), tolower);
   if (format == "") {
-    if (endswith(tmp_filename, "sam")) {
+    if (endswith(tmp_filename, "sam") ||
+        endswith(tmp_filename, "sam_mapped")) {
       is_sam = true;
     }
 #ifdef USE_HTS
-    if (endswith(tmp_filename, "bam")) {
+    if (endswith(tmp_filename, "bam") ||
+        endswith(tmp_filename, "bam_mapped")) {
       is_bam = true;
     }
 #endif
