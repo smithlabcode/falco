@@ -4,7 +4,7 @@
 [![DOI](https://zenodo.org/badge/214499063.svg)](https://zenodo.org/badge/latestdoi/214499063)
 [![Install on conda](https://anaconda.org/bioconda/falco/badges/platforms.svg)](https://anaconda.org/bioconda/falco)
 [![Install on conda](https://anaconda.org/bioconda/falco/badges/license.svg)](https://anaconda.org/bioconda/falco)
-[![Install on conda](https://anaconda.org/bioconda/falco/badges/downloads.svg)](https://anaconda.org/bioconda/falco)
+[![Install on conda](https://img.shields.io/conda/dn/bioconda/falco?color=red&label=conda%20downloads&style=flat-square)](https://anaconda.org/bioconda/falco)
 
 This program is an emulation of the popular
 [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc)
