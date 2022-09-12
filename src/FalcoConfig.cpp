@@ -387,27 +387,28 @@ FalcoConfig::define_file_format() {
   transform(begin(format), end(format), begin(format), tolower);
   string tmp_filename = filename;
   transform(begin(tmp_filename), end(tmp_filename), begin(tmp_filename), tolower);
+  is_sam = is_bam = is_fastq_gz = is_fastq = false;
   if (format == "") {
     if (endswith(tmp_filename, "sam") ||
         endswith(tmp_filename, "sam_mapped")) {
       is_sam = true;
     }
 #ifdef USE_HTS
-    if (endswith(tmp_filename, "bam") ||
+    else  if (endswith(tmp_filename, "bam") ||
         endswith(tmp_filename, "bam_mapped")) {
       is_bam = true;
     }
 #endif
-    if (endswith(tmp_filename, "fastq.gz")) {
+    else if (endswith(tmp_filename, "fastq.gz")) {
       is_fastq_gz = true;
     }
-    if (endswith(tmp_filename, "fq.gz")) {
+    else if (endswith(tmp_filename, "fq.gz")) {
       is_fastq_gz = true;
     }
-    if (endswith(tmp_filename, "fastq")) {
+    else if (endswith(tmp_filename, "fastq")) {
       is_fastq = true;
     }
-    if (endswith(tmp_filename, "fq")) {
+    else if (endswith(tmp_filename, "fq")) {
       is_fastq = true;
     }
   }
