@@ -507,7 +507,7 @@ FalcoConfig::read_adapters() {
     for (size_t i = 0; i < adapter_seqs.size(); ++i)
       adapter_hashes.push_back(hash_adapter(adapter_seqs[i]));
 
-    adapter_size = adapter_seqs[0].size();
+    shortest_adapter_size = adapter_size = adapter_seqs[0].size();
     return;
   }
   ifstream in(adapters_file);

@@ -1880,7 +1880,7 @@ void
 ModuleAdapterContent::summarize_module(FastqStats &stats) {
 
   num_bases = max(min(stats.max_read_length, FastqStats::kNumBases),
-                  shortest_adapter_size - 1);
+                  ((shortest_adapter_size >= 1) ? (shortest_adapter_size - 1) : 0));
   for (size_t i = 0; i < num_adapters; ++i)
     adapter_pos_pct.push_back(
         vector<double>(num_bases - shortest_adapter_size + 1, 0.0)
