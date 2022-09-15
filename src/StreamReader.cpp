@@ -642,6 +642,7 @@ FastqReader::is_eof() {
 }
 
 FastqReader::~FastqReader() {
+  free(filebuf);
   fclose(fileobj);
 }
 
@@ -714,6 +715,7 @@ GzFastqReader::is_eof() {
 }
 
 GzFastqReader::~GzFastqReader() {
+  free(gzbuf);
   gzclose_r(fileobj);
 }
 
@@ -827,6 +829,7 @@ SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 }
 
 SamReader::~SamReader() {
+  free(filebuf);
   fclose(fileobj);
 }
 
