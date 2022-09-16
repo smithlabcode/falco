@@ -418,7 +418,7 @@ FalcoConfig::define_file_format() {
     else if (format == "bam") is_bam = true;
 #endif
     else if (format == "fq.gz" || format == "fastq.gz") is_fastq_gz = true;
-    else if (format == "fq" || format == "fastq") is_fastq_gz = true;
+    else if (format == "fq" || format == "fastq") is_fastq = true;
     else throw runtime_error("unrecognized file format: " + format);
   }
 }
