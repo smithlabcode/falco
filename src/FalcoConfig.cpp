@@ -429,7 +429,8 @@ FalcoConfig::read_limits() {
     if (!quiet)
       cerr << "[limits]\tusing default limit cutoffs (no file specified)\n";
     limits = FileConstants::limits;
-  } else {
+  }
+  else {
     ifstream in(limits_file);
     if (!in)
       throw runtime_error("limits file does not exist: " + limits_file);
@@ -463,12 +464,14 @@ FalcoConfig::read_limits() {
         limits[limit][instruction] = value;
       }
     }
+    in.close();
   }
-  for (auto v : values_to_check)
+  for (const auto &v : values_to_check)
     if (limits.count(v) == 0)
       throw runtime_error("instruction for limit " + v +
                           " not found in file " + limits_file);
-  // Get useful data from config that tells us which analyses to skip
+
+  // Get data from config that tells us which analyses to skip
   do_duplication = (limits["duplication"]["ignore"] == 0.0);
   do_kmer = (limits["kmer"]["ignore"] == 0.0);
   do_n_content = (limits["n_content"]["ignore"] == 0.0);
