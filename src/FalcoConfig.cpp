@@ -435,7 +435,7 @@ FalcoConfig::read_limits() {
       throw runtime_error("limits file does not exist: " + limits_file);
 
     if (!quiet)
-      cerr << "[limitst]\tusing file " << limits_file << "\n"; 
+      cerr << "[limits]\tusing file " << limits_file << "\n"; 
 
     // Variables to parse lines
     string line, instruction;
