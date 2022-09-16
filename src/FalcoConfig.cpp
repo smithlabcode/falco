@@ -378,7 +378,7 @@ FalcoConfig::setup() {
   // Read files for appropriate modules
   if (limits["adapter"]["ignore"] == 0.0)
     read_adapters();
-  if (limits["adapter"]["ignore"] == 0.0)
+  if (limits["overrepresented"]["ignore"] == 0.0)
     read_contaminants_file();
 }
 
@@ -443,7 +443,7 @@ FalcoConfig::read_limits() {
     double value;
     while (getline(in, line)) {
       // Checks if the line has something to be parsed
-      if (is_content_line (line)) {
+      if (is_content_line(line)) {
         istringstream iss(line);
 
         // Every line is a limit, warn/error/ignore and the value
@@ -466,7 +466,7 @@ FalcoConfig::read_limits() {
     }
     in.close();
   }
-  for (const auto &v : values_to_check)
+  for (const string &v : values_to_check)
     if (limits.count(v) == 0)
       throw runtime_error("instruction for limit " + v +
                           " not found in file " + limits_file);
