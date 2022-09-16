@@ -614,6 +614,7 @@ FalcoConfig::read_contaminants_file() {
       line_by_space.clear();
     }
   }
+  in.close();
 }
 
 const string FalcoConfig::html_template =
