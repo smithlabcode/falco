@@ -269,8 +269,7 @@ is_content_line (const string &line) {
 // Check existance of config files
 inline bool
 file_exists(const std::string& name) {
-  struct stat buffer;
-  return (stat (name.c_str(), &buffer) == 0);
+  return ifstream(name).good();
 }
 
 // Check if a std::string ends with another,
@@ -312,15 +311,6 @@ FalcoConfig::FalcoConfig(const int argc, const char **argv) {
   contaminants_file = string(PROGRAM_PATH) + "/Configuration/contaminant_list.txt";
   adapters_file = string(PROGRAM_PATH) + "/Configuration/adapter_list.txt";
   limits_file = string(PROGRAM_PATH) + "/Configuration/limits.txt";
-
-  if (!file_exists(adapters_file))
-    adapters_file = "";
-
-  if (!file_exists(contaminants_file))
-    contaminants_file = "";
-
-  if (!file_exists(limits_file))
-    limits_file = "";
 
   quiet = false;
   tmpdir = ".";
@@ -425,15 +415,16 @@ FalcoConfig::define_file_format() {
 
 void
 FalcoConfig::read_limits() {
-  if (limits_file == "") {
+  limits = FileConstants::limits;
+  if (!file_exists(limits_file)) {
     if (!quiet)
-      cerr << "[limits]\tusing default limit cutoffs (no file specified)\n";
-    limits = FileConstants::limits;
+      cerr << "[limits]\tWARNING: using default limits because "
+           << "limits file does not exist: " << limits_file << "\n";
   }
   else {
     ifstream in(limits_file);
     if (!in)
-      throw runtime_error("limits file does not exist: " + limits_file);
+      throw runtime_error("problem opening file: " + limits_file);
 
     if (!quiet)
       cerr << "[limits]\tusing file " << limits_file << "\n"; 
@@ -466,12 +457,9 @@ FalcoConfig::read_limits() {
     }
     in.close();
   }
-  for (const string &v : values_to_check)
-    if (limits.count(v) == 0)
-      throw runtime_error("instruction for limit " + v +
-                          " not found in file " + limits_file);
 
   // Get data from config that tells us which analyses to skip
+
   do_duplication = (limits["duplication"]["ignore"] == 0.0);
   do_kmer = (limits["kmer"]["ignore"] == 0.0);
   do_n_content = (limits["n_content"]["ignore"] == 0.0);
@@ -500,9 +488,11 @@ hash_adapter(const string &s) {
 
 void
 FalcoConfig::read_adapters() {
-  if (adapters_file == "") {
+  if (!file_exists(adapters_file)) {
     if (!quiet)
-      cerr << "[adapters]\tusing default adapters (no file specified)\n";
+      cerr << "[adapters]\tWARNING: using default adapters because "
+           << "adapters file does not exist: " << adapters_file << "\n";
+
     adapter_names = FileConstants::adapter_names;
     adapter_seqs = FileConstants::adapter_seqs;
 
@@ -514,8 +504,8 @@ FalcoConfig::read_adapters() {
     return;
   }
   ifstream in(adapters_file);
-  if (!in)
-    throw runtime_error("adapter file not found: " + adapters_file);
+  if (!in.good())
+    throw runtime_error("adapters file not found: " + adapters_file);
 
   if (!quiet)
     cerr << "[adapters]\tusing file " << adapters_file << "\n";
@@ -580,9 +570,10 @@ FalcoConfig::read_adapters() {
 
 void
 FalcoConfig::read_contaminants_file() {
-  if (contaminants_file == "") {
+  if (!file_exists(contaminants_file)) {
     if (!quiet)
-      cerr << "[contaminants]\tusing default contaminant list (no file specified)\n";
+      cerr << "[contaminants]\tWARNING: using default contaminants because "
+           << "contaminants file does not exist: " << contaminants_file << "\n";
     contaminants = FileConstants::contaminants;
     return;
   }
