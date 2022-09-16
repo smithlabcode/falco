@@ -370,7 +370,7 @@ int main(int argc, const char **argv) {
          false, version);
 
     opt_parse.add_opt("-outdir", 'o',
-        "Create all output files in the specified output directory."
+        "Create all output files in the specified output directory. "
         "FALCO-SPECIFIC: If the directory does not exists, the "
         "program will create it. "
         "If this option is not set then the output file for each "
