@@ -471,6 +471,7 @@ FalcoConfig::read_limits() {
   do_tile = (limits["tile"]["ignore"] == 0.0);
   do_adapter = (limits["adapter"]["ignore"] == 0.0);
   do_sequence_length = (limits["sequence_length"]["ignore"] == 0.0);
+  do_adapter_optimized = false;
 }
 
 size_t
