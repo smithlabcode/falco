@@ -523,12 +523,14 @@ FalcoConfig::read_adapters() {
     shortest_adapter_size = adapter_size = adapter_seqs[0].size();
     return;
   }
+
   ifstream in(adapters_file);
   if (!in.good())
     throw runtime_error("adapters file not found: " + adapters_file);
 
   if (!quiet)
     cerr << "[adapters]\tusing file " << adapters_file << "\n";
+
   string line, _tmp;
   vector<string> line_by_space;
   string adapter_name, adapter_seq;
@@ -544,19 +546,25 @@ FalcoConfig::read_adapters() {
 
   while (getline(in, line)) {
     if (is_content_line(line)) {
-      if (adapter_names.size() > Constants::max_adapters)
+      if (adapter_names.size() > Constants::max_adapters) {
+        in.close();
         throw runtime_error("You are testing too many adapters. The maximum "
                             "number is 128!");
+      }
       adapter_name = "";
       adapter_seq = "";
+
+      line_by_space.clear();
       istringstream iss(line);
       while (iss >> _tmp) {
         line_by_space.push_back(_tmp);
       }
 
       if (line_by_space.size() > 1) {
-        for (size_t i = 0; i < line_by_space.size() - 1; ++i)
-          adapter_name += line_by_space[i] + " ";
+        adapter_name = line_by_space[0];
+        for (size_t i = 1; i < line_by_space.size() - 1; ++i)
+          adapter_name += " " + line_by_space[i];
+
         adapter_seq = line_by_space.back();
 
         if (adapter_seq.size() > 32) {
@@ -581,8 +589,6 @@ FalcoConfig::read_adapters() {
           shortest_adapter_size = adapter_seq.size();
         }
       }
-
-      line_by_space.clear();
     }
   }
   in.close();
@@ -617,9 +623,9 @@ FalcoConfig::read_contaminants_file() {
         line_by_space.push_back(token);
 
       if (line_by_space.size() > 1) {
-        string contaminant_name;
-        for (size_t i = 0; i < line_by_space.size() - 1; ++i)
-          contaminant_name += line_by_space[i] + " ";
+        string contaminant_name = line_by_space[0];
+        for (size_t i = 1; i < line_by_space.size() - 1; ++i)
+          contaminant_name += " " + line_by_space[i];
         contaminants.push_back(make_pair(contaminant_name, line_by_space.back()));
       }
       line_by_space.clear();
