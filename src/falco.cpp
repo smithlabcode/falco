@@ -163,6 +163,9 @@ write_results(const FalcoConfig &falco_config,
 
     if (!summary_txt.good())
       throw runtime_error("Failed to create output summary file: " + summary_file);
+
+    if (!falco_config.quiet)
+      log_process("Writing summary to " + summary_file);
   }
 
   // Here we open the full text summary
