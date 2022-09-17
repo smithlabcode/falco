@@ -269,7 +269,7 @@ is_content_line (const string &line) {
 // Check existance of config files
 inline bool
 file_exists(const std::string& name) {
-  return ifstream(name).good();
+  return (access(name.c_str(), F_OK) == 0);
 }
 
 // Check if a std::string ends with another,
@@ -443,7 +443,7 @@ FalcoConfig::read_limits() {
   else {
     ifstream in(limits_file);
     if (!in)
-      throw runtime_error("problem opening file: " + limits_file);
+      throw runtime_error("problem opening limits file: " + limits_file);
 
     if (!quiet)
       cerr << "[limits]\tusing file " << limits_file << "\n"; 
@@ -525,8 +525,8 @@ FalcoConfig::read_adapters() {
   }
 
   ifstream in(adapters_file);
-  if (!in.good())
-    throw runtime_error("adapters file not found: " + adapters_file);
+  if (!in)
+    throw runtime_error("problem opening adapters file: " + adapters_file);
 
   if (!quiet)
     cerr << "[adapters]\tusing file " << adapters_file << "\n";
@@ -605,7 +605,7 @@ FalcoConfig::read_contaminants_file() {
   }
   ifstream in(contaminants_file);
   if (!in)
-    throw runtime_error("contaminants file not found: " + contaminants_file);
+    throw runtime_error("problem opening contaminants file: " + contaminants_file);
 
   if (!quiet)
     cerr << "[contaminants]\tusing file " << contaminants_file << "\n";
