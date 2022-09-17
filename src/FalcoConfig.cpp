@@ -279,8 +279,8 @@ file_exists(const std::string& name) {
 // variable, and files are not read properly
 // if these bytes are not removed
 void
-clean_zero_bytes(string &file) {
-  file.erase(std::remove(begin(file), end(file), '\0'), end(file));
+clean_zero_bytes(string &filename) {
+  filename.erase(std::remove(begin(filename), end(filename), '\0'), end(filename));
 }
 
 // Check if a std::string ends with another,
