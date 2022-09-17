@@ -1878,7 +1878,6 @@ Module(ModuleAdapterContent::module_name) {
 
 void
 ModuleAdapterContent::summarize_module(FastqStats &stats) {
-
   num_bases = max(min(stats.max_read_length, FastqStats::SHORT_READ_THRESHOLD),
                   ((shortest_adapter_size >= 1) ? (shortest_adapter_size - 1) : 0));
 
@@ -1931,9 +1930,10 @@ ModuleAdapterContent::make_grade() {
 
 void
 ModuleAdapterContent::write_module(ostream &os) {
-
   // ADS: number of positions with data calculated
-  const size_t n_pos_calc = adapter_pos_pct[0].size();
+  const size_t n_pos_calc =
+    (adapter_pos_pct.empty() ? 0 : adapter_pos_pct[0].size());
+
   os << "#Position";
 
   // adapter names
@@ -1964,7 +1964,8 @@ ModuleAdapterContent::make_html_data() {
   ostringstream data;
 
   // ADS: number of positions with data calculated
-  const size_t n_pos_calc = adapter_pos_pct[0].size();
+  const size_t n_pos_calc =
+    (adapter_pos_pct.empty() ? 0 : adapter_pos_pct[0].size());
 
   for (size_t i = 0; i < num_adapters; ++i) {
     if (!seen_first) {
@@ -1979,11 +1980,11 @@ ModuleAdapterContent::make_html_data() {
     data << "x : [";
     for (size_t j = 0; j < n_pos_calc; ++j) {
       data << j+1;
-      if (j < num_bases - 1) data << ",";
+      if (j + 1 < num_bases) data << ",";
     }
     for (size_t j = n_pos_calc; j < num_bases; ++j) {
       data << j+1;
-      if (j < num_bases - 1) data << ",";
+      if (j + 1 < num_bases) data << ",";
     }
     data << "]";
 
@@ -1991,12 +1992,12 @@ ModuleAdapterContent::make_html_data() {
     data << ", y : [";
     for (size_t j = 0; j < n_pos_calc; ++j) {
       data << adapter_pos_pct[i][j];
-      if (j < num_bases - 1)
+      if (j + 1 < num_bases)
         data << ",";
     }
     for (size_t j = n_pos_calc; j < num_bases; ++j) {
       data << adapter_pos_pct[i].back();
-      if (j < num_bases - 1)
+      if (j + 1 < num_bases)
         data << ",";
     }
 
