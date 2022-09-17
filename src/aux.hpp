@@ -45,8 +45,8 @@ size_t_to_seq(size_t v, const size_t seq_length) {
 }
 
 // Converts A,T,G,C to 2-bit values
-static inline size_t
-actg_to_2bit(const char &c) {
+static inline uint8_t
+actg_to_2bit(const char c) {
   return ((c >> 1) & 3);
 }
 
