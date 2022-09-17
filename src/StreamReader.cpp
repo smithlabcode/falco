@@ -142,7 +142,7 @@ StreamReader::~StreamReader() {
 /*************** BUFFER MANAGEMENT *********************/
 /*******************************************************/
 // puts base either on buffer or leftover
-inline void
+void
 StreamReader::put_base_in_buffer() {
   base_from_buffer = *cur_char;
   if (still_in_buffer) {
@@ -157,7 +157,7 @@ StreamReader::put_base_in_buffer() {
 }
 
 // Gets base from either buffer or leftover
-inline void
+void
 StreamReader::get_base_from_buffer() {
   base_from_buffer = still_in_buffer ?
                      buffer[read_pos] : leftover_buffer[leftover_ind];
@@ -192,7 +192,7 @@ StreamReader::read_fast_forward_line_eof() {
 // Parse the comment
 
 
-inline void
+void
 StreamReader::get_tile_value() {
   tile_cur = 0;
   size_t num_colon = 0;
@@ -213,7 +213,7 @@ StreamReader::get_tile_value() {
 }
 
 // Gets the tile from the sequence name (if applicable)
-inline void
+void
 StreamReader::read_tile_line(FastqStats &stats) {
 
   do_tile_read = (do_read && stats.num_reads == next_tile_read);
@@ -252,7 +252,7 @@ StreamReader::read_tile_line(FastqStats &stats) {
 
 // This is probably the most important function for speed, so it must be really
 // optimized at all times
-inline void
+void
 StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
   // I will count the Ns even if asked to ignore, as checking ifs take time
   if (base_from_buffer == 'N') {
@@ -299,7 +299,7 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
 
 // slower version of process_sequence_base_from_buffer that dynamically
 // allocates if base position is not already cached
-inline void
+void
 StreamReader::process_sequence_base_from_leftover(FastqStats &stats) {
   if (base_from_buffer == 'N') {
     ++stats.long_n_base_count[leftover_ind];
@@ -318,7 +318,7 @@ StreamReader::process_sequence_base_from_leftover(FastqStats &stats) {
 }
 
 // Gets statistics after reading the entire sequence line
-inline void
+void
 StreamReader::postprocess_sequence_line(FastqStats &stats) {
   // Updates basic statistics total GC
   stats.total_gc += cur_gc_count;
@@ -363,7 +363,7 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
 }
 
 // Reads the line that has the biological sequence
-inline void
+void
 StreamReader::read_sequence_line(FastqStats &stats) {
   if (!do_read) {
     read_fast_forward_line();
@@ -439,7 +439,7 @@ StreamReader::read_sequence_line(FastqStats &stats) {
 /*************** QUALITY PROCESSING ********************/
 /*******************************************************/
 // Process quality value the fast way from buffer
-inline void
+void
 StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
   // Average quality in position
   ++stats.position_quality_count[
@@ -460,7 +460,7 @@ StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
 }
 
 // Slow version of function above
-inline void
+void
 StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
   // Average quality in position
   ++stats.long_position_quality_count[
@@ -477,7 +477,7 @@ StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
 }
 
 // Reads the quality line of each base.
-inline void
+void
 StreamReader::read_quality_line(FastqStats &stats) {
   if (!do_read) {
     read_fast_forward_line_eof();
@@ -544,7 +544,7 @@ get_truncate_point(const size_t read_pos) {
     read_pos : Constants::unique_reads_truncate;
 }
 
-inline void
+void
 StreamReader::postprocess_fastq_record(FastqStats &stats) {
   if (do_sequence_hash) {
     buffer[get_truncate_point(read_pos)] = '\0';
@@ -642,7 +642,7 @@ FastqReader::~FastqReader() {
 }
 
 // Parses fastq gz by reading line by line into the gzbuf
-inline bool
+bool
 FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
 
@@ -714,7 +714,7 @@ GzFastqReader::~GzFastqReader() {
 }
 
 // Parses fastq gz by reading line by line into the gzbuf
-inline bool
+bool
 GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   cur_char = gzgets(fileobj, gzbuf, RESERVE_SIZE);
 
@@ -784,7 +784,7 @@ SamReader::is_eof() {
   return feof(fileobj);
 }
 
-inline bool
+bool
 SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
 
@@ -853,12 +853,12 @@ BamReader::load() {
 }
 
 // We will check eof on the >> operator
-bool
+inline bool
 BamReader::is_eof() {
   return (cur_char == last - 1);
 }
 
-inline bool
+bool
 BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   if ((rd_ret = sam_read1(hts, hdr, b)) >= 0) {
     fmt_ret = 0;
