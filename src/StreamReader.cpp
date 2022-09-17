@@ -113,7 +113,7 @@ StreamReader::StreamReader(FalcoConfig &config,
   {
 
   // Allocates buffer to temporarily store reads
-  buffer = new char[buffer_size + 1];
+  buffer = new char[buffer_size];
   buffer[buffer_size] = '\0';
 
   // duplication init
@@ -391,7 +391,7 @@ StreamReader::read_sequence_line(FastqStats &stats) {
   /*********************************************************/
   /********** THIS LOOP MUST BE ALWAYS OPTIMIZED ***********/
   /*********************************************************/
-  for (; *cur_char != field_separator; ++cur_char) {
+  for (; *cur_char != field_separator; ++cur_char, ++read_pos) {
     // if we reached the buffer size, stop using it and start using leftover
     if (read_pos == buffer_size) {
       still_in_buffer = false;
@@ -422,13 +422,10 @@ StreamReader::read_sequence_line(FastqStats &stats) {
       ++leftover_ind;
     }
 
-    // either way increase read position
-    ++read_pos;
-
     // Truncate GC counts to multiples of 100
     if (do_gc_sequence && read_pos == next_truncation) {
       truncated_gc_count = cur_gc_count;
-      truncated_length= read_pos;
+      truncated_length = read_pos;
       next_truncation += 100;
     }
   }
@@ -643,6 +640,7 @@ FastqReader::is_eof() {
 
 FastqReader::~FastqReader() {
   free(filebuf);
+  free(cur_char);
   fclose(fileobj);
 }
 
@@ -716,6 +714,7 @@ GzFastqReader::is_eof() {
 
 GzFastqReader::~GzFastqReader() {
   free(gzbuf);
+  free(cur_char);
   gzclose_r(fileobj);
 }
 
@@ -830,6 +829,7 @@ SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 
 SamReader::~SamReader() {
   free(filebuf);
+  free(cur_char);
   fclose(fileobj);
 }
 
@@ -919,5 +919,6 @@ BamReader::~BamReader() {
     hts_close(hts);
     hts = 0;
   }
+  free(cur_char);
 }
 #endif
