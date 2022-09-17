@@ -135,7 +135,7 @@ StreamReader::StreamReader(FalcoConfig &config,
 
 // Makes sure that any subclass deletes the buffer
 StreamReader::~StreamReader() {
-  delete buffer;
+  delete[] buffer;
 }
 
 /*******************************************************/
