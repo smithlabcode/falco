@@ -604,7 +604,7 @@ FastqReader::FastqReader(FalcoConfig &_config,
                          const size_t _buffer_size) :
   StreamReader(_config, _buffer_size,
                get_line_separator(_config.filename), get_line_separator(_config.filename)) {
-  filebuf = (char*)malloc(RESERVE_SIZE);
+  filebuf = new char[RESERVE_SIZE];
 }
 
 size_t
@@ -691,7 +691,7 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 GzFastqReader::GzFastqReader(FalcoConfig &_config,
                              const size_t _buffer_size) :
   StreamReader(_config, _buffer_size, '\n', '\n') {
-  gzbuf = (char*)malloc(RESERVE_SIZE);
+  gzbuf = new char[RESERVE_SIZE];
 }
 
 // Load fastq with zlib
@@ -766,7 +766,7 @@ SamReader::SamReader(FalcoConfig &_config,
                      const size_t _buffer_size) :
   StreamReader(_config, _buffer_size,
                '\t', get_line_separator(_config.filename)) {
-  filebuf = (char*)malloc(RESERVE_SIZE);
+  filebuf = new char[RESERVE_SIZE];
 }
 
 size_t
