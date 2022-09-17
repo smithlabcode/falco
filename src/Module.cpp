@@ -2008,6 +2008,15 @@ ModuleAdapterContent::make_html_data() {
 /************** KMER CONTENT ******************************/
 const string
 ModuleKmerContent::module_name = "Kmer Content";
+
+// ADS: Defining const static integer class variables here for
+// correctness. Optimizer has been ignoring the issue. Hopefully it
+// still will when turned on, and allow non-optimized code for
+// debugging to compile.
+const size_t ModuleKmerContent::MIN_OBS_EXP_TO_REPORT;
+const size_t ModuleKmerContent::MAX_KMERS_TO_REPORT;
+const size_t ModuleKmerContent::MAX_KMERS_TO_PLOT;
+
 ModuleKmerContent::
 ModuleKmerContent(const FalcoConfig &config) :
 Module(ModuleKmerContent::module_name) {

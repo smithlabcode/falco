@@ -31,6 +31,21 @@ using std::transform;
 using std::toupper;
 using std::setprecision;
 
+// ADS: Defining const static integer class variables here for
+// correctness. Optimizer has been ignoring the issue. Hopefully it
+// still will when turned on, and allow non-optimized code for
+// debugging to compile.
+const size_t FastqStats::SHORT_READ_THRESHOLD;
+const size_t FastqStats::kBaseQuality;
+const size_t FastqStats::kNumQualityValues;
+const size_t FastqStats::kNumNucleotides;
+const size_t FastqStats::kDupUniqueCutoff;
+const size_t FastqStats::kDupReadMaxSize;
+const size_t FastqStats::kDupReadTruncateSize;
+const size_t FastqStats::kBitShiftNucleotide;
+const size_t FastqStats::kBitShiftQuality;
+const size_t FastqStats::kBitShiftAdapter;
+
 // To make the gc models static const
 static array<GCModel, FastqStats::SHORT_READ_THRESHOLD>
 make_gc_models () {
