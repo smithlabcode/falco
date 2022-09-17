@@ -170,7 +170,6 @@ StreamReader::get_base_from_buffer() {
 // Keeps going forward while the current character is a separator
 inline void
 StreamReader::skip_separator() {
-  //++cur_char;
   for (; *cur_char == field_separator; ++cur_char) {}
 }
 
@@ -206,7 +205,6 @@ StreamReader::get_tile_value() {
       for (; (*cur_char != ':') && (*cur_char != field_separator); ++cur_char) {
         tile_cur = tile_cur*10 + (*cur_char - '0');
       }
-      ++num_colon;
     }
   }
 }
@@ -626,9 +624,6 @@ FastqReader::load() {
   fileobj = fopen(filename.c_str(), "r");
   if (fileobj == NULL)
     throw runtime_error("Cannot open FASTQ file : " + filename);
-  cur_char = new char[1];
-  ++cur_char;
-
   return get_file_size(filename);
 }
 
@@ -640,7 +635,6 @@ FastqReader::is_eof() {
 
 FastqReader::~FastqReader() {
   free(filebuf);
-  free(cur_char);
   fclose(fileobj);
 }
 
@@ -700,8 +694,6 @@ GzFastqReader::load() {
   fileobj = gzopen(filename.c_str(), "r");
   if (fileobj == Z_NULL)
     throw runtime_error("Cannot open gzip FASTQ file : " + filename);
-  cur_char = new char[1];
-  ++cur_char;
 
   return get_file_size(filename);
 }
@@ -714,7 +706,6 @@ GzFastqReader::is_eof() {
 
 GzFastqReader::~GzFastqReader() {
   free(gzbuf);
-  free(cur_char);
   gzclose_r(fileobj);
 }
 
@@ -774,12 +765,11 @@ SamReader::load() {
   fileobj = fopen(filename.c_str(), "r");
   if (fileobj == NULL)
     throw runtime_error("Cannot open SAM file : " + filename);
-  cur_char = new char[1];
-  ++cur_char;
 
   // skip sam header
-  while (!is_eof() && ((*cur_char = fgetc(fileobj)) == '@')) {
-    ungetc(*cur_char, fileobj);
+  char first_char_in_line;
+  while (!is_eof() && ((first_char_in_line = fgetc(fileobj)) == '@')) {
+    ungetc(first_char_in_line, fileobj);
     cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
   }
   return get_file_size(filename);
@@ -829,7 +819,6 @@ SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 
 SamReader::~SamReader() {
   free(filebuf);
-  free(cur_char);
   fclose(fileobj);
 }
 
@@ -919,6 +908,5 @@ BamReader::~BamReader() {
     hts_close(hts);
     hts = 0;
   }
-  free(cur_char);
 }
 #endif
