@@ -35,7 +35,7 @@ using std::setprecision;
 static array<GCModel, FastqStats::kNumBases>
 make_gc_models () {
   array<GCModel, FastqStats::kNumBases> ans;
-  for (size_t i = 0; i <= FastqStats::kNumBases; ++i) {
+  for (size_t i = 0; i < FastqStats::kNumBases; ++i) {
     ans[i] = GCModel(i);
   }
   return ans;
