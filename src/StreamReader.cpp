@@ -381,7 +381,7 @@ StreamReader::read_sequence_line(FastqStats &stats) {
     const string seq_line_str = cur_char;
     for (size_t i = 0; i != num_adapters; ++i) {
       const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
-      if (adapt_index < stats.kNumBases) {
+      if (adapt_index < stats.SHORT_READ_THRESHOLD) {
         ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) << Constants::bit_shift_adapter)
                                   | i];
       }

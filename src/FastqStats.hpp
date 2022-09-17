@@ -118,7 +118,7 @@ struct GCModel {
 
 struct FastqStats {
   // number of bases for static allocation.
-  static const size_t kNumBases = 500;
+  static const size_t SHORT_READ_THRESHOLD = 500;
 
   // Value to subtract quality characters to get the actual quality value
   static const size_t kBaseQuality = 33;  // The ascii for the lowest quality
@@ -174,7 +174,7 @@ struct FastqStats {
   size_t total_gc; // sum of all G+C bases in all reads
 
   // Pre-calculated GC model increments
-  static const std::array<GCModel, kNumBases> gc_models;
+  static const std::array<GCModel, SHORT_READ_THRESHOLD> gc_models;
 
   /*********************************************************
    *********** METRICS COLLECTED DURING IO *****************
@@ -182,12 +182,12 @@ struct FastqStats {
   /*********** PER BASE METRICS ****************/
 
   // counts the number of bases in every read position
-  std::array<size_t, kNumNucleotides * kNumBases> base_count;  // ATGC
-  std::array<size_t, kNumNucleotides * kNumBases> n_base_count;  // N
+  std::array<size_t, kNumNucleotides * SHORT_READ_THRESHOLD> base_count;  // ATGC
+  std::array<size_t, kNumNucleotides * SHORT_READ_THRESHOLD> n_base_count;  // N
 
   /*********** PER QUALITY VALUE METRICS ****************/
   // Counts of quality in each base position
-  std::array<size_t, kNumQualityValues * kNumBases> position_quality_count;
+  std::array<size_t, kNumQualityValues * SHORT_READ_THRESHOLD> position_quality_count;
 
   // Counts of average quality (truncated) per sequence
   std::array<size_t, kNumQualityValues> quality_count;
@@ -198,8 +198,8 @@ struct FastqStats {
 
     /*********** PER READ METRICS ***************/
   // Distribution of read lengths
-  std::array<size_t, kNumBases> read_length_freq;
-  std::array<size_t, kNumBases> cumulative_read_length_freq;
+  std::array<size_t, SHORT_READ_THRESHOLD> read_length_freq;
+  std::array<size_t, SHORT_READ_THRESHOLD> cumulative_read_length_freq;
 
   /*********** PER TILE SEQUENCE QUALITY OVERSERQUENCES ********/
   std::unordered_map <size_t, std::vector<double> > tile_position_quality;
@@ -214,14 +214,14 @@ struct FastqStats {
   std::vector<size_t> long_cumulative_read_length_freq;
 
   /********** KMER FREQUENCY ****************/
-  // A (4^K + 1)*kNumBases std::vector to count all possible kmers
+  // A (4^K + 1)*SHORT_READ_THRESHOLD std::vector to count all possible kmers
   std::vector<size_t> kmer_count;
 
   // How many kmers were counted in each position
-  std::array<size_t, kNumBases> pos_kmer_count;
+  std::array<size_t, SHORT_READ_THRESHOLD> pos_kmer_count;
 
   // How many adapters were counted in each position
-  std::array<size_t, Constants::max_adapters * kNumBases> pos_adapter_count;
+  std::array<size_t, Constants::max_adapters * SHORT_READ_THRESHOLD> pos_adapter_count;
 
   /*********** DUPLICATION ******************/
   // First 100k unique sequences and how often they were seen

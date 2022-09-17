@@ -440,10 +440,10 @@ ModuleBasicStatistics::summarize_module(FastqStats &stats) {
   avg_read_length = 0;
   size_t total_bases = 0;
   for (size_t i = 0; i < max_read_length; ++i) {
-    if (i < FastqStats::kNumBases)
+    if (i < FastqStats::SHORT_READ_THRESHOLD)
       total_bases += i * stats.read_length_freq[i];
     else
-      total_bases += i * stats.long_read_length_freq[i - FastqStats::kNumBases];
+      total_bases += i * stats.long_read_length_freq[i - FastqStats::SHORT_READ_THRESHOLD];
   }
 
   avg_read_length = total_bases / total_sequences;
@@ -631,13 +631,13 @@ ModulePerBaseSequenceQuality::summarize_module(FastqStats &stats) {
 
       for (size_t j = 0; j < FastqStats::kNumQualityValues; ++j) {
         // get value
-        if (i < FastqStats::kNumBases) {
+        if (i < FastqStats::SHORT_READ_THRESHOLD) {
           cur = stats.position_quality_count[
             (i << FastqStats::kBitShiftQuality) | j];
         }
         else {
           cur = stats.long_position_quality_count [
-            ((i - FastqStats::kNumBases) << FastqStats::kBitShiftQuality) | j];
+            ((i - FastqStats::SHORT_READ_THRESHOLD) << FastqStats::kBitShiftQuality) | j];
         }
 
         // Add to Phred histogram
@@ -645,11 +645,11 @@ ModulePerBaseSequenceQuality::summarize_module(FastqStats &stats) {
       }
 
       // Number of bases seen in position i
-      if (i < FastqStats::kNumBases) {
+      if (i < FastqStats::SHORT_READ_THRESHOLD) {
         bases_in_group += stats.cumulative_read_length_freq[i];
       } else {
         bases_in_group +=
-          stats.long_cumulative_read_length_freq[i - FastqStats::kNumBases];
+          stats.long_cumulative_read_length_freq[i - FastqStats::SHORT_READ_THRESHOLD];
       }
 
       ldecile_thresh = 0.1 * bases_in_group;
@@ -1077,7 +1077,7 @@ ModulePerBaseSequenceContent::summarize_module(FastqStats &stats) {
     a_group = c_group = g_group = t_group = n_group = 0.0;
     for (size_t i = base_groups[group].start;
               i  <= base_groups[group].end; ++i) {
-      if (i < FastqStats::kNumBases) {
+      if (i < FastqStats::SHORT_READ_THRESHOLD) {
         a_pos = stats.base_count[(i << FastqStats::kBitShiftNucleotide)];
         c_pos = stats.base_count[(i << FastqStats::kBitShiftNucleotide) | 1];
         t_pos = stats.base_count[(i << FastqStats::kBitShiftNucleotide) | 2];
@@ -1085,19 +1085,19 @@ ModulePerBaseSequenceContent::summarize_module(FastqStats &stats) {
         n_pos = stats.n_base_count[i];
       } else {
         a_pos = stats.long_base_count[
-              ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide)
+              ((i - FastqStats::SHORT_READ_THRESHOLD) << FastqStats::kBitShiftNucleotide)
             ];
         c_pos = stats.long_base_count[
-              ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide) | 1
+              ((i - FastqStats::SHORT_READ_THRESHOLD) << FastqStats::kBitShiftNucleotide) | 1
             ];
         t_pos = stats.long_base_count[
-              ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide) | 2
+              ((i - FastqStats::SHORT_READ_THRESHOLD) << FastqStats::kBitShiftNucleotide) | 2
             ];
         g_pos = stats.long_base_count[
-              ((i - FastqStats::kNumBases) << FastqStats::kBitShiftNucleotide) | 3
+              ((i - FastqStats::SHORT_READ_THRESHOLD) << FastqStats::kBitShiftNucleotide) | 3
             ];
         n_pos = stats.long_n_base_count[
-                i - FastqStats::kNumBases
+                i - FastqStats::SHORT_READ_THRESHOLD
             ];
       }
       a_group += a_pos; c_group += c_pos; g_group += g_pos; t_group += t_pos;
@@ -1390,11 +1390,11 @@ ModulePerBaseNContent::summarize_module(FastqStats &stats) {
     size_t group_n_cnt = 0, group_n_total = 0;
     for (size_t i = base_groups[group].start;
                 i <= base_groups[group].end; ++i) {
-      this_n_cnt = (i < FastqStats::kNumBases) ?
-        (stats.n_base_count[i]) : (stats.long_n_base_count[i - FastqStats::kNumBases]);
+      this_n_cnt = (i < FastqStats::SHORT_READ_THRESHOLD) ?
+        (stats.n_base_count[i]) : (stats.long_n_base_count[i - FastqStats::SHORT_READ_THRESHOLD]);
 
-      this_n_total = (i < FastqStats::kNumBases) ? (stats.cumulative_read_length_freq[i]) :
-                     (stats.long_cumulative_read_length_freq[i - FastqStats::kNumBases]);
+      this_n_total = (i < FastqStats::SHORT_READ_THRESHOLD) ? (stats.cumulative_read_length_freq[i]) :
+                     (stats.long_cumulative_read_length_freq[i - FastqStats::SHORT_READ_THRESHOLD]);
       this_n_pct = this_n_cnt / static_cast<double>(this_n_total);
       max_n_pct = max(max_n_pct, this_n_pct);
       group_n_cnt += this_n_cnt;
@@ -1476,11 +1476,11 @@ ModuleSequenceLengthDistribution::summarize_module(FastqStats &stats) {
 
   size_t num_nonzero = 0;
   for (size_t i = 0; i < max_read_length; ++i) {
-    if (i < FastqStats::kNumBases) {
+    if (i < FastqStats::SHORT_READ_THRESHOLD) {
       sequence_lengths[i] = stats.read_length_freq[i];
     } else {
       sequence_lengths[i] = stats.long_read_length_freq[
-                              i - FastqStats::kNumBases
+                              i - FastqStats::SHORT_READ_THRESHOLD
                             ];
     }
 
@@ -1879,7 +1879,7 @@ Module(ModuleAdapterContent::module_name) {
 void
 ModuleAdapterContent::summarize_module(FastqStats &stats) {
 
-  num_bases = max(min(stats.max_read_length, FastqStats::kNumBases),
+  num_bases = max(min(stats.max_read_length, FastqStats::SHORT_READ_THRESHOLD),
                   ((shortest_adapter_size >= 1) ? (shortest_adapter_size - 1) : 0));
   for (size_t i = 0; i < num_adapters; ++i)
     adapter_pos_pct.push_back(
@@ -2022,10 +2022,10 @@ ModuleKmerContent::summarize_module(FastqStats &stats) {
 
   // 4^kmer size
   num_kmers = (1 << (2 * kmer_size));
-  if (stats.max_read_length < FastqStats::kNumBases)
+  if (stats.max_read_length < FastqStats::SHORT_READ_THRESHOLD)
     num_kmer_bases = stats.max_read_length;
   else
-    num_kmer_bases = FastqStats::kNumBases;
+    num_kmer_bases = FastqStats::SHORT_READ_THRESHOLD;
 
   // copies counts of all kmers per base position from stats
   pos_kmer_count = stats.pos_kmer_count;

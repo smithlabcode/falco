@@ -32,10 +32,10 @@ using std::toupper;
 using std::setprecision;
 
 // To make the gc models static const
-static array<GCModel, FastqStats::kNumBases>
+static array<GCModel, FastqStats::SHORT_READ_THRESHOLD>
 make_gc_models () {
-  array<GCModel, FastqStats::kNumBases> ans;
-  for (size_t i = 0; i < FastqStats::kNumBases; ++i) {
+  array<GCModel, FastqStats::SHORT_READ_THRESHOLD> ans;
+  for (size_t i = 0; i < FastqStats::SHORT_READ_THRESHOLD; ++i) {
     ans[i] = GCModel(i);
   }
   return ans;
@@ -70,11 +70,11 @@ FastqStats::FastqStats() {
   position_quality_count.fill(0);
   pos_kmer_count.fill(0);
   pos_adapter_count.fill(0);
-  kmer_count = vector<size_t>(kNumBases*(Constants::kmer_mask + 1), 0);
+  kmer_count = vector<size_t>(SHORT_READ_THRESHOLD*(Constants::kmer_mask + 1), 0);
 }
 
 // Initialize as many gc models as fast bases
-const array<GCModel, FastqStats::kNumBases>
+const array<GCModel, FastqStats::SHORT_READ_THRESHOLD>
 FastqStats::gc_models = make_gc_models();
 
 // When we read new bases, dynamically allocate new space for their statistics
@@ -113,28 +113,28 @@ FastqStats::summarize() {
   // Cumulative read length frequency
   size_t cumulative_sum = 0;
   for (size_t i = 0; i < max_read_length; ++i) {
-    if (i < kNumBases) {
+    if (i < SHORT_READ_THRESHOLD) {
       cumulative_sum += read_length_freq[i];
       if (read_length_freq[i] > 0)
         if (min_read_length == 0)
           min_read_length = i + 1;
     }
     else {
-      cumulative_sum += long_read_length_freq[i - kNumBases];
-      if (long_read_length_freq[i - kNumBases] > 0)
+      cumulative_sum += long_read_length_freq[i - SHORT_READ_THRESHOLD];
+      if (long_read_length_freq[i - SHORT_READ_THRESHOLD] > 0)
         if (min_read_length == 0)
           min_read_length = i + 1;
     }
   }
 
   for (size_t i = 0; i < max_read_length; ++i) {
-    if (i < kNumBases) {
+    if (i < SHORT_READ_THRESHOLD) {
       cumulative_read_length_freq[i] = cumulative_sum;
       cumulative_sum -= read_length_freq[i];
     }
     else {
       long_cumulative_read_length_freq.push_back(cumulative_sum);
-      cumulative_sum -= long_read_length_freq[i - kNumBases];
+      cumulative_sum -= long_read_length_freq[i - SHORT_READ_THRESHOLD];
     }
   }
 }

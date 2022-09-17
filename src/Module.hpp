@@ -371,7 +371,7 @@ class ModuleKmerContent : public Module {
    size_t num_seen_kmers;
 
    double grade_warn, grade_error;
-   std::array<size_t, FastqStats::kNumBases> pos_kmer_count;
+   std::array<size_t, FastqStats::SHORT_READ_THRESHOLD> pos_kmer_count;
    std::vector<size_t> total_kmer_counts;
    std::vector<double> obs_exp_max;
    std::vector<size_t> where_obs_exp_is_max;
