@@ -1881,33 +1881,35 @@ ModuleAdapterContent::summarize_module(FastqStats &stats) {
 
   num_bases = max(min(stats.max_read_length, FastqStats::SHORT_READ_THRESHOLD),
                   ((shortest_adapter_size >= 1) ? (shortest_adapter_size - 1) : 0));
-  for (size_t i = 0; i < num_adapters; ++i)
-    adapter_pos_pct.push_back(
-        vector<double>(num_bases - shortest_adapter_size + 1, 0.0)
-    );
 
-  size_t cnt;
-  for (size_t i = 0; i < adapter_pos_pct.size(); ++i) {
-    for (size_t j = 0; j < adapter_pos_pct[0].size(); ++j) {
-      cnt = 0;
-      // check if position even makes sense
-      if (j + adapter_seqs[i].size() - 1 < num_bases)
-        cnt = stats.pos_adapter_count[
-          ((j + adapter_seqs[i].size() - 1) << stats.kBitShiftAdapter) | i
-        ];
+  if (num_bases + 1 >= shortest_adapter_size) { // otherwise this module does not make sense
+    adapter_pos_pct.clear();
+    for (size_t i = 0; i < num_adapters; ++i)
+      adapter_pos_pct.push_back(
+          vector<double>(num_bases - shortest_adapter_size + 1, 0.0)
+      );
 
-      if (j == 0)
-        adapter_pos_pct[i][j] = cnt;
-      else
-        adapter_pos_pct[i][j] = adapter_pos_pct[i][j-1] + cnt;
+    size_t cnt = 0;
+    for (size_t i = 0; i < adapter_pos_pct.size(); ++i) {
+      for (size_t j = 0; j < adapter_pos_pct[0].size(); ++j) {
+        cnt = 0;
+        // check if position even makes sense
+        if (j + adapter_seqs[i].size() < num_bases + 1 && j + adapter_seqs[i].size() >= 1)
+          cnt = stats.pos_adapter_count[
+            ((j + adapter_seqs[i].size() - 1) << stats.kBitShiftAdapter) | i
+          ];
+
+        if (j == 0) adapter_pos_pct[i][j] = cnt;
+        else adapter_pos_pct[i][j] = adapter_pos_pct[i][j-1] + cnt;
+      }
     }
-  }
 
-  // now convert the counts we got before to percentage
-  for (size_t i = 0; i < adapter_pos_pct.size(); ++i) {
-    for (size_t j = 0; j < adapter_pos_pct[0].size(); ++j) {
-      adapter_pos_pct[i][j] *= 100.0;
-      adapter_pos_pct[i][j] /= static_cast<double>(stats.num_reads);
+    // now convert the counts we got before to percentage
+    for (size_t i = 0; i < adapter_pos_pct.size(); ++i) {
+      for (size_t j = 0; j < adapter_pos_pct[0].size(); ++j) {
+        adapter_pos_pct[i][j] *= 100.0;
+        adapter_pos_pct[i][j] /= static_cast<double>(stats.num_reads);
+      }
     }
   }
 }
