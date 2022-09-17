@@ -199,12 +199,15 @@ StreamReader::get_tile_value() {
   for (; *cur_char != field_separator; ++cur_char) {
     num_colon += (*cur_char == ':');
     if (num_colon == tile_split_point) {
-      ++cur_char;
+      ++cur_char; // skip colon
 
       // parse till next colon or \n
-      for (; (*cur_char != ':') && (*cur_char != field_separator); ++cur_char) {
+      for (; (*cur_char != ':') && (*cur_char != field_separator); ++cur_char)
         tile_cur = tile_cur*10 + (*cur_char - '0');
-      }
+
+      // now fast forward until last \n
+      for(; *cur_char != field_separator; ++cur_char);
+      return;
     }
   }
 }
@@ -648,6 +651,7 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
     return false;
 
   do_read = (stats.num_reads == next_read);
+
 
   read_tile_line(stats);
   skip_separator();
