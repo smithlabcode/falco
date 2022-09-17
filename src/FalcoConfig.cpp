@@ -413,6 +413,22 @@ FalcoConfig::define_file_format() {
   }
 }
 
+template <class T>
+bool
+check_if_not_ignored(const T& limits_map,
+                 const string &limit) {
+  if (limits_map.find(limit) == end(limits_map))
+    throw runtime_error("no instructions for limit " + limit);
+
+  const auto the_limit = limits_map.find(limit)->second;
+  if (the_limit.find("ignore") == end(the_limit))
+    throw runtime_error("'ignore' option not set for limit " + limit);
+  
+  const bool ret = (the_limit.find("ignore")->second == 0.0);
+
+  return ret;
+}
+
 void
 FalcoConfig::read_limits() {
   limits = FileConstants::limits;
@@ -459,18 +475,18 @@ FalcoConfig::read_limits() {
   }
 
   // Get data from config that tells us which analyses to skip
-
-  do_duplication = (limits["duplication"]["ignore"] == 0.0);
-  do_kmer = (limits["kmer"]["ignore"] == 0.0);
-  do_n_content = (limits["n_content"]["ignore"] == 0.0);
-  do_overrepresented = (limits["overrepresented"]["ignore"] == 0.0);
-  do_quality_base = (limits["quality_base"]["ignore"] == 0.0);
-  do_sequence = (limits["sequence"]["ignore"] == 0.0);
-  do_gc_sequence = (limits["gc_sequence"]["ignore"] == 0.0);
-  do_quality_sequence= (limits["quality_sequence"]["ignore"] == 0.0);
-  do_tile = (limits["tile"]["ignore"] == 0.0);
-  do_adapter = (limits["adapter"]["ignore"] == 0.0);
-  do_sequence_length = (limits["sequence_length"]["ignore"] == 0.0);
+ 
+  do_duplication = check_if_not_ignored(limits, "duplication");
+  do_kmer = check_if_not_ignored(limits, "kmer");
+  do_n_content = check_if_not_ignored(limits, "n_content");
+  do_overrepresented = check_if_not_ignored(limits, "overrepresented");
+  do_quality_base = check_if_not_ignored(limits, "quality_base");
+  do_sequence = check_if_not_ignored(limits, "sequence");
+  do_gc_sequence = check_if_not_ignored(limits, "gc_sequence");
+  do_quality_sequence = check_if_not_ignored(limits, "quality_sequence");
+  do_tile = check_if_not_ignored(limits, "tile");
+  do_adapter = check_if_not_ignored(limits, "adapter");
+  do_sequence_length = check_if_not_ignored(limits, "sequence_length");
   do_adapter_optimized = false;
 }
 
