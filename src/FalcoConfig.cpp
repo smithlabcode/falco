@@ -355,6 +355,22 @@ const vector<string> FalcoConfig::values_to_check({
     "adapter"
   });
 
+template <class T>
+bool
+check_if_not_ignored(const T& limits_map,
+                 const string &limit) {
+  if (limits_map.find(limit) == end(limits_map))
+    throw runtime_error("no instructions for limit " + limit);
+
+  const auto the_limit = limits_map.find(limit)->second;
+  if (the_limit.find("ignore") == end(the_limit))
+    throw runtime_error("'ignore' option not set for limit " + limit);
+  
+  const bool ret = (the_limit.find("ignore")->second == 0.0);
+
+  return ret;
+}
+
 void
 FalcoConfig::setup() {
   // Now check for the file format (FASTQ/SAM/BAM, compressed or not)
@@ -365,11 +381,10 @@ FalcoConfig::setup() {
 
   // read which modules to run and the cutoffs for pass/warn/fail
   read_limits();
+
   // Read files for appropriate modules
-  if (limits["adapter"]["ignore"] == 0.0)
-    read_adapters();
-  if (limits["overrepresented"]["ignore"] == 0.0)
-    read_contaminants_file();
+  if (do_adapter) read_adapters();
+  if (do_overrepresented) read_contaminants_file();
 }
 
 void
@@ -377,6 +392,9 @@ FalcoConfig::define_file_format() {
   transform(begin(format), end(format), begin(format), tolower);
   string tmp_filename = filename;
   transform(begin(tmp_filename), end(tmp_filename), begin(tmp_filename), tolower);
+
+  // reset, important bececause the same FalcoConfig object is used
+  // across possibly multiple input files
   is_sam = is_bam = is_fastq_gz = is_fastq = false;
   if (format == "") {
     if (endswith(tmp_filename, "sam") ||
@@ -413,21 +431,6 @@ FalcoConfig::define_file_format() {
   }
 }
 
-template <class T>
-bool
-check_if_not_ignored(const T& limits_map,
-                 const string &limit) {
-  if (limits_map.find(limit) == end(limits_map))
-    throw runtime_error("no instructions for limit " + limit);
-
-  const auto the_limit = limits_map.find(limit)->second;
-  if (the_limit.find("ignore") == end(the_limit))
-    throw runtime_error("'ignore' option not set for limit " + limit);
-  
-  const bool ret = (the_limit.find("ignore")->second == 0.0);
-
-  return ret;
-}
 
 void
 FalcoConfig::read_limits() {
