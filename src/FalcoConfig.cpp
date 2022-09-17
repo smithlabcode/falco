@@ -272,6 +272,17 @@ file_exists(const std::string& name) {
   return (access(name.c_str(), F_OK) == 0);
 }
 
+
+// This function is necessary for conda:
+// zero bytes appear for whatever reason
+// in the compile-time-resolved PROGRAM_PATH
+// variable, and files are not read properly
+// if these bytes are not removed
+void
+clean_zero_bytes(string &file) {
+  file.erase(std::remove(begin(file), end(file), '\0'), end(file));
+}
+
 // Check if a std::string ends with another,
 // to be use to figure out the file format
 inline bool
@@ -311,6 +322,11 @@ FalcoConfig::FalcoConfig(const int argc, const char **argv) {
   contaminants_file = string(PROGRAM_PATH) + "/Configuration/contaminant_list.txt";
   adapters_file = string(PROGRAM_PATH) + "/Configuration/adapter_list.txt";
   limits_file = string(PROGRAM_PATH) + "/Configuration/limits.txt";
+
+  clean_zero_bytes(contaminants_file);
+  clean_zero_bytes(adapters_file);
+  clean_zero_bytes(limits_file);
+
 
   quiet = false;
   tmpdir = ".";
