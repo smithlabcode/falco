@@ -113,8 +113,8 @@ StreamReader::StreamReader(FalcoConfig &config,
   {
 
   // Allocates buffer to temporarily store reads
-  buffer = new char[buffer_size];
-  buffer[buffer_size] = '\0';
+  buffer = new char[buffer_size + 1]; // +1 for the \0
+  buffer[buffer_size - 1] = '\0';
 
   // duplication init
   continue_storing_sequences = true;
