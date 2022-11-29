@@ -717,9 +717,10 @@ int main(int argc, const char **argv) {
 
       // if oudir is empty we will set it as the filename path
       string cur_outdir;
-      string file_basename;
+
+      const size_t last_slash_idx = filename.rfind('/');
+      string file_basename = falco_config.filename.substr(last_slash_idx + 1);
       if (outdir.empty()) {
-        const size_t last_slash_idx = filename.rfind('/');
         // if file was given with relative path in the current dir, we set a dot
         if (last_slash_idx == string::npos) {
           cur_outdir = ".";
@@ -727,7 +728,6 @@ int main(int argc, const char **argv) {
         }
         else {
           cur_outdir = falco_config.filename.substr(0, last_slash_idx);
-          file_basename = falco_config.filename.substr(last_slash_idx + 1);
         }
       }
       else {
