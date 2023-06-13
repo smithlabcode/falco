@@ -66,7 +66,6 @@ get_tile_split_position(FalcoConfig &config) {
     const auto lim(end(first_line));
     for (auto itr(begin(first_line)); itr != lim; ++itr) {
       num_colon += (*itr == ':');
-      std::cout << config.is_fastq_gz << std::endl;
     }
   }
 
