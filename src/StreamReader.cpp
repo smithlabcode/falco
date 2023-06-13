@@ -44,28 +44,25 @@ get_tile_split_position(FalcoConfig &config) {
 
   if (config.is_fastq_gz) {
     gzFile in = gzopen(filename.c_str(), "rb");
-    if (!in) {
+    if (!in)
       throw std::runtime_error("problem reading input file: " + filename);
-    }
 
     // Read the first line of the file
     char buffer[1024];
     gzgets(in, buffer, sizeof(buffer));
     gzclose(in);
-
     for (char* itr = buffer; *itr != '\0'; ++itr) {
       num_colon += (*itr == ':');
     }
   } else {
     std::ifstream in(filename);
-    if (!in.good()) {
+    if (!in.good()) 
       throw std::runtime_error("problem reading input file: " + filename);
-    }
 
+    // Read the first line of the file
     std::string first_line;
     std::getline(in, first_line);
     in.close();
-
     const auto lim(end(first_line));
     for (auto itr(begin(first_line)); itr != lim; ++itr) {
       num_colon += (*itr == ':');
@@ -74,11 +71,8 @@ get_tile_split_position(FalcoConfig &config) {
   }
 
   // Copied from fastqc
-  if (num_colon >= 6) {
-    return 4;
-  } else if (num_colon >= 4) {
-    return 2;
-  }
+  if (num_colon >= 6) return 4;
+  else if (num_colon >= 4) return 2;
   return 0; // no tile information on read name
 }
 
