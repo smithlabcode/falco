@@ -37,24 +37,48 @@ inline T min8(const T a, const T b) {
 /***************** STREAMREADER *********************/
 /****************************************************/
 size_t
-get_tile_split_position(const string &filename) {
-  ifstream in(filename);
-  if (!in.good())
-    throw runtime_error("problem reading input file: " +filename);
-
-  string first_line;
-  getline(in, first_line);
-  in.close();
-
+get_tile_split_position(FalcoConfig &config) {
+  const std::string& filename = config.filename;
   // Count colons to know the formatting pattern
   size_t num_colon = 0;
-  const auto lim(end(first_line));
-  for (auto itr(begin(first_line)); itr != lim; ++itr)
-    num_colon += (*itr == ':');
+
+  if (config.is_fastq_gz) {
+    gzFile in = gzopen(filename.c_str(), "rb");
+    if (!in) {
+      throw std::runtime_error("problem reading input file: " + filename);
+    }
+
+    // Read the first line of the file
+    char buffer[1024];
+    gzgets(in, buffer, sizeof(buffer));
+    gzclose(in);
+
+    for (char* itr = buffer; *itr != '\0'; ++itr) {
+      num_colon += (*itr == ':');
+    }
+  } else {
+    std::ifstream in(filename);
+    if (!in.good()) {
+      throw std::runtime_error("problem reading input file: " + filename);
+    }
+
+    std::string first_line;
+    std::getline(in, first_line);
+    in.close();
+
+    const auto lim(end(first_line));
+    for (auto itr(begin(first_line)); itr != lim; ++itr) {
+      num_colon += (*itr == ':');
+      std::cout << config.is_fastq_gz << std::endl;
+    }
+  }
 
   // Copied from fastqc
-  if (num_colon >= 6) return 4;
-  else if (num_colon >=4) return 2;
+  if (num_colon >= 6) {
+    return 4;
+  } else if (num_colon >= 4) {
+    return 2;
+  }
   return 0; // no tile information on read name
 }
 
@@ -96,7 +120,7 @@ StreamReader::StreamReader(FalcoConfig &config,
   line_separator(_line_separator),
   buffer_size(_buffer_size),
   read_step(config.read_step),
-  tile_split_point(get_tile_split_position(config.filename)),
+  tile_split_point(get_tile_split_position(config)),
   tile_ignore(!do_tile || tile_split_point == 0),
 
   // Here are the const adapters
