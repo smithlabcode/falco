@@ -872,7 +872,7 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
       cur_char = hts->line.s;
       last = cur_char + strlen(hts->line.s) - 1;
       // MN code begin //
-      const size_t seq_len = b->core.l_qseq
+      const size_t seq_len = b->core.l_qseq;
 
 
       // MN code end //
