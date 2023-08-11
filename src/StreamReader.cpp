@@ -383,8 +383,10 @@ StreamReader::read_sequence_line(FastqStats &stats) {
     for (size_t i = 0; i != num_adapters; ++i) {
       const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
       if (adapt_index < stats.SHORT_READ_THRESHOLD) {
-        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) << Constants::bit_shift_adapter)
-                                  | i];
+        ++stats.pos_adapter_count[
+          ((adapt_index + adapter_seqs[i].length() - 1) << 
+           Constants::bit_shift_adapter) | i
+        ];
       }
     }
   }
@@ -869,11 +871,16 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
       // define char* values for processing lines char by char
       cur_char = hts->line.s;
       last = cur_char + strlen(hts->line.s) - 1;
+      // MN code begin //
+      const size_t seq_len = b->core.l_qseq
+
+
+      // MN code end //
 
       do_read = (stats.num_reads == next_read);
 
       // Now read it as regular sam
-      read_tile_line(stats);
+      read_tile_line(stats); // MN: Skipped due to tile_ignore=true
       skip_separator();
       for (size_t i = 0; i < 8; ++i) {
         read_fast_forward_line();
