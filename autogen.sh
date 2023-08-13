@@ -22,7 +22,6 @@
 # message has been read.
 
 runautoreconf() {
-    autoreconf -i src/smithlab_cpp;
     autoreconf -i;
 }
 
