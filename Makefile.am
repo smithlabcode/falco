@@ -14,12 +14,15 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # General Public License for more details.
 
-EXTRA_DIST = README.md LICENSE Configuration example.fq
+EXTRA_DIST = README.md LICENSE Configuration example.fq test
 
 ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS = -I $(top_srcdir)/src
 
 CXXFLAGS = -O3 # default has optimization on
+
+TESTS = test/falco.test
+TEST_EXTENSIONS = .test
 
 bin_PROGRAMS = falco
 
@@ -46,3 +49,5 @@ falco_SOURCES = \
 	src/OptionParser.hpp \
 	src/smithlab_utils.hpp \
 	src/aux.hpp
+
+CLEANFILES = tests_build/test_data.tgz
