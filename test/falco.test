@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+tar -zxf test_build/test_data.tgz -C test_build
+infiles=$(ls --color=no test_build/*.fastq)
+
+fail=0
+for i in ${infiles}
+do
+  a=$(basename $i ".fastq")
+  mkdir -p test_output/${a}
+  ./falco -o test_output/${a} ${i} \
+       1>test_output/${a}/${a}.output  \
+       2>test_output/${a}/${a}.error
+  for j in test_output/${a}/*.txt; do
+      x=$(md5sum -c test_build/md5sum.txt --ignore-missing | grep "${j}:" | cut -d ' ' -f 2);
+      if [[ "${x}" != "OK" ]]; then
+          echo "${a} failed on ${j}"
+          fail=1
+      fi
+  done
+  rm -rf test_output/${a}
+done
+
+rmdir test_output
+rm ${infiles}
+
+exit ${fail}
