@@ -2,7 +2,7 @@
  *
  * Copyright (C) 2019-2022 Guilherme De Sena Brandine and
  *                         Andrew D. Smith
- * Authors: Guilherme De Sena Brandine, Andrew Smith
+ * Authors: Guilherme De Sena Brandine, Andrew Smith, and Masaru Nakajima
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
