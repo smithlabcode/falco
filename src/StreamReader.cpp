@@ -669,8 +669,7 @@ BamReader::read_quality_line(FastqStats &stats) {
 
     // MN: Adding quality_zero to emulate the behavior of the original function.
     stats.lowest_char = min8(stats.lowest_char, 
-        static_cast<char>(*cur_char + 
-          static_cast<char>(Constants::quality_zero)));
+        static_cast<char>(*cur_char + 33));
 
     // Converts quality ascii to zero-based
     quality_value = *cur_char;
