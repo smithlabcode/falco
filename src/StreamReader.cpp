@@ -658,7 +658,9 @@ BamReader::read_quality_line(FastqStats &stats) {
   still_in_buffer = true;
 
   const size_t seq_len = b->core.l_qseq;
-  for (size_t i = 0; i < seq_len; ++cur_char, i++) {
+  //MN: TODO This is temporarily set to "- 2". it is to be removed
+  //    after confirming that everything works.
+  for (size_t i = 0; i < seq_len - 2; ++cur_char, i++) {
 
     if (read_pos == buffer_size) {
       still_in_buffer = false;
