@@ -644,6 +644,62 @@ StreamReader::read_quality_line(FastqStats &stats) {
     ++stats.quality_count[cur_quality / read_pos];  // avg quality histogram
 }
 
+
+// MN: Same as above, except we don't subtract by quality_zero.
+void
+BamReader::read_quality_line(FastqStats &stats) {
+  if (!do_read) {
+    read_fast_forward_line_eof();
+    return;
+  }
+  // reset quality counts
+  read_pos = 0;
+  cur_quality = 0;
+  still_in_buffer = true;
+
+  const size_t seq_len = b->core.l_qseq;
+  for (size_t i = 0; i < seq_len; ++cur_char, i++) {
+
+    if (read_pos == buffer_size) {
+      still_in_buffer = false;
+      leftover_ind = 0;
+    }
+
+    get_base_from_buffer();
+
+    // MN: Adding quality_zero to emulate the behavior of the original function.
+    stats.lowest_char = min8(stats.lowest_char, 
+        static_cast<char>(*cur_char + 
+          static_cast<char>(Constants::quality_zero)));
+
+    // Converts quality ascii to zero-based
+    quality_value = *cur_char;
+
+    // Fast bases from buffer
+    if (still_in_buffer) {
+      process_quality_base_from_buffer(stats);
+    }
+
+    // Slow bases from dynamic allocation
+    else {
+      process_quality_base_from_leftover(stats);
+      ++leftover_ind;
+    }
+
+    // Sums quality value so we can bin the average at the end
+    cur_quality += quality_value;
+
+    // Flag to start reading and writing outside of buffer
+    ++read_pos;
+  }
+
+  // Average quality approximated to the nearest integer. Used to make a
+  // histogram in the end of the summary.
+  if (read_pos != 0)
+    ++stats.quality_count[cur_quality / read_pos];  // avg quality histogram
+}
+
+
 /*******************************************************/
 /*************** POST LINE PROCESSING ******************/
 /*******************************************************/
@@ -950,7 +1006,7 @@ BamReader::BamReader(FalcoConfig &_config, const size_t _buffer_size) :
 
 size_t
 BamReader::load() {
-  if (!(hts = hts_open(filename.c_str(), "rb")))
+  if (!(hts = hts_open(filename.c_str(), "r")))
     throw runtime_error("cannot load bam file : " + filename);
 
   if (!(hdr = sam_hdr_read(hts)))
@@ -994,7 +1050,7 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
     // Set the first byte after qual to line_separator
     // So that read_quality_line stops at the end of qual
     *bam_get_aux(b) = line_separator; 
-    read_quality_line(stats);
+    BamReader::read_quality_line(stats);
 
 
     if (do_read)

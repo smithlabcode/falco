@@ -251,6 +251,7 @@ class BamReader : public StreamReader {
 
   // Specially made for BamReader to work directly with bam1_t
   inline void read_sequence_line(FastqStats &stats);  
+  inline void read_quality_line(FastqStats &stats);  // parse quality
   inline void put_base_in_buffer(const size_t pos);  // puts base in buffer or leftover
   ~BamReader();
 };
