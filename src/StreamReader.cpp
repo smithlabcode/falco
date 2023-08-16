@@ -1035,23 +1035,41 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
     // Read tile line
     cur_char = bam_get_qname(b);
     last = cur_char + b->m_data;
-    const size_t pos_first_padding_null = b->core.l_qname - b->core.l_extranul;
+    const size_t first_padding_null = b->core.l_qname - b->core.l_extranul - 1;
     // Turn "QUERYNAME\0\0\0" into "QUERYNAME\t\0\0" (assuming 
     // field_separtor = '\t') to be compatible with read_fast_forward_line().
-    cur_char[pos_first_padding_null] = field_separator;
+    cur_char[first_padding_null] = field_separator;
     read_tile_line(stats);
 
     // Read sequence line
+    size_t seq_len = b->core.l_qseq;
     cur_char = reinterpret_cast<char*>(bam_get_seq(b));
     BamReader::read_sequence_line(stats);
+
+    //char *copy_char = (char*)malloc(seq_len+1);
+    //for (size_t i = 0; i < seq_len; i++) {
+      //copy_char[i] = buffer[i];
+    //}
+    //copy_char[seq_len] = '\0';
+    //std::cout << copy_char << std::endl;
+    //free(copy_char);
 
     // Read quality line
     cur_char = reinterpret_cast<char*>(bam_get_qual(b));
     // Set the first byte after qual to line_separator
     // So that read_quality_line stops at the end of qual
-    *bam_get_aux(b) = line_separator; 
-    BamReader::read_quality_line(stats);
+    cur_char[seq_len] = line_separator; 
 
+    //char *copy_char = (char*)malloc(seq_len+1);
+    //for (size_t i = 0; i < seq_len; i++) {
+      //copy_char[i] = cur_char[i] + 33;
+    //}
+    //copy_char[seq_len] = '\0';
+    //std::cout << copy_char << std::endl;
+    //free(copy_char);
+
+
+    BamReader::read_quality_line(stats);
 
     if (do_read)
       postprocess_fastq_record(stats);
