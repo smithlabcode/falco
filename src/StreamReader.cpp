@@ -500,7 +500,7 @@ BamReader::read_sequence_line(FastqStats &stats) {
   // In the following loop, cur_char does not change, but rather i changes
   // and we access bases using bam_seqi(cur_char, i) in 
   // put_base_in_buffer.
-  for (size_t i = 0; i < seq_len; ++read_pos) {
+  for (size_t i = 0; i < seq_len; i++, ++read_pos) {
     // if we reached the buffer size, stop using it and start using leftover
     if (read_pos == buffer_size) {
       still_in_buffer = false;
@@ -950,7 +950,7 @@ BamReader::BamReader(FalcoConfig &_config, const size_t _buffer_size) :
 
 size_t
 BamReader::load() {
-  if (!(hts = hts_open(filename.c_str(), "r")))
+  if (!(hts = hts_open(filename.c_str(), "rb")))
     throw runtime_error("cannot load bam file : " + filename);
 
   if (!(hdr = sam_hdr_read(hts)))
@@ -990,11 +990,12 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
     BamReader::read_sequence_line(stats);
 
     // Read quality line
-    cur_char = reinterpret_cast<char*>bam_get_qual(b);
+    cur_char = reinterpret_cast<char*>(bam_get_qual(b));
     // Set the first byte after qual to line_separator
     // So that read_quality_line stops at the end of qual
     *bam_get_aux(b) = line_separator; 
     read_quality_line(stats);
+
 
     if (do_read)
       postprocess_fastq_record(stats);
