@@ -481,9 +481,13 @@ BamReader::read_sequence_line(FastqStats &stats) {
   next_truncation = 100;
   do_kmer_read = (stats.num_reads == next_kmer_read);
 
+  const size_t seq_len = b->core.l_qseq;
   // MN: TODO: make sure everything works in this scope
   if (do_adapters_slow) {
-    const string seq_line_str = cur_char;
+    string seq_line_str(seq_len, '\0');
+    for (size_t i = 0; i < seq_len; i++) {
+      seq_line_str[i] = seq_nt16_str[bam_seqi(cur_char, i)];
+    }
     for (size_t i = 0; i != num_adapters; ++i) {
       const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
       if (adapt_index < stats.SHORT_READ_THRESHOLD) {
@@ -496,7 +500,6 @@ BamReader::read_sequence_line(FastqStats &stats) {
   /*********************************************************/
   /********** THIS LOOP MUST BE ALWAYS OPTIMIZED ***********/
   /*********************************************************/
-  const size_t seq_len = b->core.l_qseq;
   // In the following loop, cur_char does not change, but rather i changes
   // and we access bases using bam_seqi(cur_char, i) in 
   // put_base_in_buffer.
