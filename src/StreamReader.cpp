@@ -173,20 +173,6 @@ StreamReader::put_base_in_buffer() {
   }
 }
 
-// puts base either on buffer or leftover
-void
-BamReader::put_base_in_buffer(const size_t pos) {
-  base_from_buffer = seq_nt16_str[bam_seqi(cur_char, pos)];
-  if (still_in_buffer) {
-    buffer[read_pos] = base_from_buffer;
-  }
-  else {
-    if (leftover_ind == leftover_buffer.size())
-      leftover_buffer.push_back(base_from_buffer);
-    else
-      leftover_buffer[leftover_ind] = base_from_buffer;
-  }
-}
 
 // Gets base from either buffer or leftover
 void
@@ -467,86 +453,6 @@ StreamReader::read_sequence_line(FastqStats &stats) {
   postprocess_sequence_line(stats);
 }
 
-// Specially made to work directly with bam1_t
-void
-BamReader::read_sequence_line(FastqStats &stats) {
-  if (!do_read) return;
-
-  // restart line counters
-  read_pos = 0;
-  cur_gc_count = 0;
-  truncated_gc_count = 0;
-  num_bases_after_n = 1;
-  still_in_buffer = true;
-  next_truncation = 100;
-  do_kmer_read = (stats.num_reads == next_kmer_read);
-
-  const size_t seq_len = b->core.l_qseq;
-  // MN: TODO: make sure everything works in this scope
-  if (do_adapters_slow) {
-    string seq_line_str(seq_len, '\0');
-    for (size_t i = 0; i < seq_len; i++) {
-      seq_line_str[i] = seq_nt16_str[bam_seqi(cur_char, i)];
-    }
-    for (size_t i = 0; i != num_adapters; ++i) {
-      const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
-      if (adapt_index < stats.SHORT_READ_THRESHOLD) {
-        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) 
-            << Constants::bit_shift_adapter) | i];
-      }
-    }
-  }
-
-  /*********************************************************/
-  /********** THIS LOOP MUST BE ALWAYS OPTIMIZED ***********/
-  /*********************************************************/
-  // In the following loop, cur_char does not change, but rather i changes
-  // and we access bases using bam_seqi(cur_char, i) in 
-  // put_base_in_buffer.
-  for (size_t i = 0; i < seq_len; i++, ++read_pos) {
-    // if we reached the buffer size, stop using it and start using leftover
-    if (read_pos == buffer_size) {
-      still_in_buffer = false;
-      leftover_ind = 0;
-    }
-
-    // Make sure we have memory space to process new base
-    if (!still_in_buffer) {
-      if (leftover_ind == stats.num_extra_bases) {
-        stats.allocate_new_base(tile_ignore);
-      }
-    }
-
-    // puts base either on buffer or leftover
-    BamReader::put_base_in_buffer(i);
-
-    // statistics updated base by base
-    // use buffer
-    if (still_in_buffer) {
-      process_sequence_base_from_buffer(stats);
-    }
-
-    // use dynamic allocation
-    else {
-      process_sequence_base_from_leftover(stats);
-
-      // Increase leftover pos if no longer in buffer
-      ++leftover_ind;
-    }
-
-    // Truncate GC counts to multiples of 100
-    if (do_gc_sequence && read_pos == next_truncation) {
-      truncated_gc_count = cur_gc_count;
-      truncated_length = read_pos;
-      next_truncation += 100;
-    }
-  }
-
-  // statistics summarized after the read
-  postprocess_sequence_line(stats);
-
-
-}
 
 
 /*******************************************************/
@@ -647,59 +553,6 @@ StreamReader::read_quality_line(FastqStats &stats) {
     ++stats.quality_count[cur_quality / read_pos];  // avg quality histogram
 }
 
-
-// MN: Same as above, except we don't subtract by quality_zero.
-void
-BamReader::read_quality_line(FastqStats &stats) {
-  if (!do_read) {
-    read_fast_forward_line_eof();
-    return;
-  }
-  // reset quality counts
-  read_pos = 0;
-  cur_quality = 0;
-  still_in_buffer = true;
-
-  const size_t seq_len = b->core.l_qseq;
-  for (size_t i = 0; i < seq_len; ++cur_char, i++) {
-
-    if (read_pos == buffer_size) {
-      still_in_buffer = false;
-      leftover_ind = 0;
-    }
-
-    get_base_from_buffer();
-
-    // MN: Adding quality_zero to emulate the behavior of the original function.
-    stats.lowest_char = min8(stats.lowest_char, 
-        static_cast<char>(*cur_char + 33));
-
-    // Converts quality ascii to zero-based
-    quality_value = *cur_char;
-
-    // Fast bases from buffer
-    if (still_in_buffer) {
-      process_quality_base_from_buffer(stats);
-    }
-
-    // Slow bases from dynamic allocation
-    else {
-      process_quality_base_from_leftover(stats);
-      ++leftover_ind;
-    }
-
-    // Sums quality value so we can bin the average at the end
-    cur_quality += quality_value;
-
-    // Flag to start reading and writing outside of buffer
-    ++read_pos;
-  }
-
-  // Average quality approximated to the nearest integer. Used to make a
-  // histogram in the end of the summary.
-  if (read_pos != 0)
-    ++stats.quality_count[cur_quality / read_pos];  // avg quality histogram
-}
 
 
 /*******************************************************/
@@ -996,9 +849,163 @@ SamReader::~SamReader() {
 }
 
 #ifdef USE_HTS
+
+// puts base either on buffer or leftover
+void
+BamReader::put_base_in_buffer(const size_t pos) {
+  base_from_buffer = seq_nt16_str[bam_seqi(cur_char, pos)];
+  if (still_in_buffer) {
+    buffer[read_pos] = base_from_buffer;
+  }
+  else {
+    if (leftover_ind == leftover_buffer.size())
+      leftover_buffer.push_back(base_from_buffer);
+    else
+      leftover_buffer[leftover_ind] = base_from_buffer;
+  }
+}
+
+// Specially made to work directly with bam1_t
+void
+BamReader::read_sequence_line(FastqStats &stats) {
+  if (!do_read) return;
+
+  // restart line counters
+  read_pos = 0;
+  cur_gc_count = 0;
+  truncated_gc_count = 0;
+  num_bases_after_n = 1;
+  still_in_buffer = true;
+  next_truncation = 100;
+  do_kmer_read = (stats.num_reads == next_kmer_read);
+
+  const size_t seq_len = b->core.l_qseq;
+  // MN: TODO: make sure everything works in this scope
+  if (do_adapters_slow) {
+    string seq_line_str(seq_len, '\0');
+    for (size_t i = 0; i < seq_len; i++) {
+      seq_line_str[i] = seq_nt16_str[bam_seqi(cur_char, i)];
+    }
+    for (size_t i = 0; i != num_adapters; ++i) {
+      const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
+      if (adapt_index < stats.SHORT_READ_THRESHOLD) {
+        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) 
+            << Constants::bit_shift_adapter) | i];
+      }
+    }
+  }
+
+  /*********************************************************/
+  /********** THIS LOOP MUST BE ALWAYS OPTIMIZED ***********/
+  /*********************************************************/
+  // In the following loop, cur_char does not change, but rather i changes
+  // and we access bases using bam_seqi(cur_char, i) in 
+  // put_base_in_buffer.
+  for (size_t i = 0; i < seq_len; i++, ++read_pos) {
+    // if we reached the buffer size, stop using it and start using leftover
+    if (read_pos == buffer_size) {
+      still_in_buffer = false;
+      leftover_ind = 0;
+    }
+
+    // Make sure we have memory space to process new base
+    if (!still_in_buffer) {
+      if (leftover_ind == stats.num_extra_bases) {
+        stats.allocate_new_base(tile_ignore);
+      }
+    }
+
+    // puts base either on buffer or leftover
+    BamReader::put_base_in_buffer(i);
+
+    // statistics updated base by base
+    // use buffer
+    if (still_in_buffer) {
+      process_sequence_base_from_buffer(stats);
+    }
+
+    // use dynamic allocation
+    else {
+      process_sequence_base_from_leftover(stats);
+
+      // Increase leftover pos if no longer in buffer
+      ++leftover_ind;
+    }
+
+    // Truncate GC counts to multiples of 100
+    if (do_gc_sequence && read_pos == next_truncation) {
+      truncated_gc_count = cur_gc_count;
+      truncated_length = read_pos;
+      next_truncation += 100;
+    }
+  }
+
+  // statistics summarized after the read
+  postprocess_sequence_line(stats);
+
+
+}
+
+void
+BamReader::read_quality_line(FastqStats &stats) {
+  if (!do_read) {
+    read_fast_forward_line_eof();
+    return;
+  }
+  // reset quality counts
+  read_pos = 0;
+  cur_quality = 0;
+  still_in_buffer = true;
+
+  const size_t seq_len = b->core.l_qseq;
+  for (size_t i = 0; i < seq_len; ++cur_char, i++) {
+
+    if (read_pos == buffer_size) {
+      still_in_buffer = false;
+      leftover_ind = 0;
+    }
+
+    get_base_from_buffer();
+
+    // MN: Adding quality_zero to emulate the behavior of the original function.
+    stats.lowest_char = min8(stats.lowest_char, 
+        static_cast<char>(*cur_char + 33));
+
+    // Converts quality ascii to zero-based
+    quality_value = *cur_char;
+
+    // Fast bases from buffer
+    if (still_in_buffer) {
+      process_quality_base_from_buffer(stats);
+    }
+
+    // Slow bases from dynamic allocation
+    else {
+      process_quality_base_from_leftover(stats);
+      ++leftover_ind;
+    }
+
+    // Sums quality value so we can bin the average at the end
+    cur_quality += quality_value;
+
+    // Flag to start reading and writing outside of buffer
+    ++read_pos;
+  }
+
+  // Average quality approximated to the nearest integer. Used to make a
+  // histogram in the end of the summary.
+  if (read_pos != 0)
+    ++stats.quality_count[cur_quality / read_pos];  // avg quality histogram
+}
+
+
 /*******************************************************/
 /*************** READ BAM RECORD ***********************/
 /*******************************************************/
+
+
+
+
 
 // set sam separator as tab
 BamReader::BamReader(FalcoConfig &_config, const size_t _buffer_size) :
