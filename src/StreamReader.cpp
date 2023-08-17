@@ -42,7 +42,33 @@ get_tile_split_position(FalcoConfig &config) {
   // Count colons to know the formatting pattern
   size_t num_colon = 0;
 
-  if (config.is_fastq_gz) {
+  if (config.is_bam) {
+    htsFile *hts = hts_open(filename.c_str(), "rb");
+    if (!hts)
+      throw runtime_error("cannot load bam file : " + filename);
+    sam_hdr_t *hdr = sam_hdr_read(hts);
+    if (hdr == nullptr) 
+      throw runtime_error("cannot read header from bam file : " + filename);
+    bam1_t *b = bam_init1();
+    if (sam_read1(hts, hdr, b) < - 1) {
+      hts_close(hts);
+      sam_hdr_destroy(hdr);
+      bam_destroy1(b);
+    
+      throw runtime_error("cannot read entry from bam file : " + filename);
+    }
+    else {
+      std::string first_entry_name(bam_get_qname(b));
+      const auto lim(end(first_entry_name));
+      for (auto itr(begin(first_entry_name)); itr != lim; ++itr) {
+        num_colon += (*itr == ':');
+      }
+      hts_close(hts);
+      bam_hdr_destroy(hdr);
+      bam_destroy1(b);
+    }
+  }
+  else if (config.is_fastq_gz) {
     gzFile in = gzopen(filename.c_str(), "rb");
     if (!in)
       throw std::runtime_error("problem reading input file: " + filename);
@@ -948,10 +974,11 @@ BamReader::read_sequence_line(FastqStats &stats) {
 
 void
 BamReader::read_quality_line(FastqStats &stats) {
-  if (!do_read) {
+  if (!do_read || b->core.qual == 255) {
     read_fast_forward_line_eof();
     return;
   }
+
   // reset quality counts
   read_pos = 0;
   cur_quality = 0;
