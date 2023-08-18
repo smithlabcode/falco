@@ -30,6 +30,7 @@
 
 #ifdef USE_HTS
 #include <htslib/sam.h>
+#include <htslib/bgzf.h>
 #endif
 
 #include "FalcoConfig.hpp"
@@ -247,6 +248,11 @@ class BamReader : public StreamReader {
   size_t load();
   bool is_eof();
   bool read_entry(FastqStats &stats, size_t &num_bytes_read);
+
+  // Specially made for BamReader to work directly with bam1_t
+  inline void read_sequence_line(FastqStats &stats);  
+  inline void read_quality_line(FastqStats &stats);  // parse quality
+  inline void put_base_in_buffer(const size_t pos);  // puts base in buffer or leftover
   ~BamReader();
 };
 #endif

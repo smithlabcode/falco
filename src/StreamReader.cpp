@@ -27,6 +27,7 @@ using std::vector;
 using std::runtime_error;
 using std::array;
 using std::end;
+using std::getline;
 
 // this is faster than std::min
 template<class T>
@@ -42,7 +43,47 @@ get_tile_split_position(FalcoConfig &config) {
   // Count colons to know the formatting pattern
   size_t num_colon = 0;
 
-  if (config.is_fastq_gz) {
+  if (config.is_sam) {
+    ifstream sam_file(filename);
+    if (!sam_file)
+      throw runtime_error("cannot load sam file : " + filename);
+    string line;
+    while (getline(sam_file, line) && line.size() > 0 && line[0] == '@') 
+      continue;
+    size_t tabPos = line.find('\t');
+    line = line.substr(0, tabPos);
+    for (char c : line) num_colon += (c == ':');
+    std::cout << num_colon << std::endl;
+  }
+#ifdef USE_HTS
+  else if (config.is_bam) {
+    htsFile *hts = hts_open(filename.c_str(), "r");
+    if (!hts)
+      throw runtime_error("cannot load bam file : " + filename);
+    sam_hdr_t *hdr = sam_hdr_read(hts);
+    if (hdr == nullptr) 
+      throw runtime_error("cannot read header from bam file : " + filename);
+    bam1_t *b = bam_init1();
+    if (sam_read1(hts, hdr, b) < - 1) {
+      hts_close(hts);
+      sam_hdr_destroy(hdr);
+      bam_destroy1(b);
+    
+      throw runtime_error("cannot read entry from bam file : " + filename);
+    }
+    else {
+      std::string first_entry_name(bam_get_qname(b));
+      const auto lim(end(first_entry_name));
+      for (auto itr(begin(first_entry_name)); itr != lim; ++itr) {
+        num_colon += (*itr == ':');
+      }
+      hts_close(hts);
+      sam_hdr_destroy(hdr);
+      bam_destroy1(b);
+    }
+  }
+#endif
+  else if (config.is_fastq_gz) {
     gzFile in = gzopen(filename.c_str(), "rb");
     if (!in)
       throw std::runtime_error("problem reading input file: " + filename);
@@ -173,6 +214,7 @@ StreamReader::put_base_in_buffer() {
   }
 }
 
+
 // Gets base from either buffer or leftover
 void
 StreamReader::get_base_from_buffer() {
@@ -257,6 +299,7 @@ StreamReader::read_tile_line(FastqStats &stats) {
       end(stats.tile_position_quality)) {
     stats.tile_position_quality[tile_cur] =
       vector<double> (stats.max_read_length , 0.0);
+    //stats.tile_position_quality.find(tile_cur)->second[0] = 0;
     stats.tile_position_count[tile_cur] =
       vector<size_t> (stats.max_read_length, 0);
   }
@@ -303,8 +346,8 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
         cur_kmer &= adapter_mask;
         for (size_t i = 0; i != num_adapters; ++i) {
           if (cur_kmer == adapters[i]) {
-            ++stats.pos_adapter_count[(read_pos << Constants::bit_shift_adapter)
-                                    | i];
+            ++stats.pos_adapter_count[
+              (read_pos << Constants::bit_shift_adapter) | i];
           }
         }
       }
@@ -400,8 +443,8 @@ StreamReader::read_sequence_line(FastqStats &stats) {
     for (size_t i = 0; i != num_adapters; ++i) {
       const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
       if (adapt_index < stats.SHORT_READ_THRESHOLD) {
-        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) << Constants::bit_shift_adapter)
-                                  | i];
+        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) 
+            << Constants::bit_shift_adapter) | i];
       }
     }
   }
@@ -452,6 +495,8 @@ StreamReader::read_sequence_line(FastqStats &stats) {
   postprocess_sequence_line(stats);
 }
 
+
+
 /*******************************************************/
 /*************** QUALITY PROCESSING ********************/
 /*******************************************************/
@@ -496,7 +541,13 @@ StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
 // Reads the quality line of each base.
 void
 StreamReader::read_quality_line(FastqStats &stats) {
-  if (!do_read) {
+  // MN: Below, the second condition tests whether the quality score in sam
+  // file only consists of '*', which indicates that no quality score is 
+  // available
+  if (!do_read || 
+      (*cur_char == '*' && 
+       (*(cur_char + 1) == field_separator || 
+        *(cur_char + 1) == field_separator) ) ) {
     read_fast_forward_line_eof();
     return;
   }
@@ -549,6 +600,8 @@ StreamReader::read_quality_line(FastqStats &stats) {
   if (read_pos != 0)
     ++stats.quality_count[cur_quality / read_pos];  // avg quality histogram
 }
+
+
 
 /*******************************************************/
 /*************** POST LINE PROCESSING ******************/
@@ -844,9 +897,164 @@ SamReader::~SamReader() {
 }
 
 #ifdef USE_HTS
+
+// puts base either on buffer or leftover
+void
+BamReader::put_base_in_buffer(const size_t pos) {
+  base_from_buffer = seq_nt16_str[bam_seqi(cur_char, pos)];
+  if (still_in_buffer) {
+    buffer[read_pos] = base_from_buffer;
+  }
+  else {
+    if (leftover_ind == leftover_buffer.size())
+      leftover_buffer.push_back(base_from_buffer);
+    else
+      leftover_buffer[leftover_ind] = base_from_buffer;
+  }
+}
+
+// Specially made to work directly with bam1_t
+void
+BamReader::read_sequence_line(FastqStats &stats) {
+  if (!do_read) return;
+
+  // restart line counters
+  read_pos = 0;
+  cur_gc_count = 0;
+  truncated_gc_count = 0;
+  num_bases_after_n = 1;
+  still_in_buffer = true;
+  next_truncation = 100;
+  do_kmer_read = (stats.num_reads == next_kmer_read);
+
+  const size_t seq_len = b->core.l_qseq;
+  // MN: TODO: make sure everything works in this scope
+  if (do_adapters_slow) {
+    string seq_line_str(seq_len, '\0');
+    for (size_t i = 0; i < seq_len; i++) {
+      seq_line_str[i] = seq_nt16_str[bam_seqi(cur_char, i)];
+    }
+    for (size_t i = 0; i != num_adapters; ++i) {
+      const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
+      if (adapt_index < stats.SHORT_READ_THRESHOLD) {
+        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) 
+            << Constants::bit_shift_adapter) | i];
+      }
+    }
+  }
+
+  /*********************************************************/
+  /********** THIS LOOP MUST BE ALWAYS OPTIMIZED ***********/
+  /*********************************************************/
+  // In the following loop, cur_char does not change, but rather i changes
+  // and we access bases using bam_seqi(cur_char, i) in 
+  // put_base_in_buffer.
+  for (size_t i = 0; i < seq_len; i++, ++read_pos) {
+    // if we reached the buffer size, stop using it and start using leftover
+    if (read_pos == buffer_size) {
+      still_in_buffer = false;
+      leftover_ind = 0;
+    }
+
+    // Make sure we have memory space to process new base
+    if (!still_in_buffer) {
+      if (leftover_ind == stats.num_extra_bases) {
+        stats.allocate_new_base(tile_ignore);
+      }
+    }
+
+    // puts base either on buffer or leftover
+    BamReader::put_base_in_buffer(i);
+
+    // statistics updated base by base
+    // use buffer
+    if (still_in_buffer) {
+      process_sequence_base_from_buffer(stats);
+    }
+
+    // use dynamic allocation
+    else {
+      process_sequence_base_from_leftover(stats);
+
+      // Increase leftover pos if no longer in buffer
+      ++leftover_ind;
+    }
+
+    // Truncate GC counts to multiples of 100
+    if (do_gc_sequence && read_pos == next_truncation) {
+      truncated_gc_count = cur_gc_count;
+      truncated_length = read_pos;
+      next_truncation += 100;
+    }
+  }
+
+  // statistics summarized after the read
+  postprocess_sequence_line(stats);
+
+
+}
+
+void
+BamReader::read_quality_line(FastqStats &stats) {
+  if (!do_read || b->core.qual == 255) {
+    read_fast_forward_line_eof();
+    return;
+  }
+
+  // reset quality counts
+  read_pos = 0;
+  cur_quality = 0;
+  still_in_buffer = true;
+
+  const size_t seq_len = b->core.l_qseq;
+  for (size_t i = 0; i < seq_len; ++cur_char, i++) {
+
+    if (read_pos == buffer_size) {
+      still_in_buffer = false;
+      leftover_ind = 0;
+    }
+
+    get_base_from_buffer();
+
+    // MN: Adding quality_zero to emulate the behavior of the original function.
+    stats.lowest_char = min8(stats.lowest_char, 
+        static_cast<char>(*cur_char + 33));
+
+    // Converts quality ascii to zero-based
+    quality_value = *cur_char;
+
+    // Fast bases from buffer
+    if (still_in_buffer) {
+      process_quality_base_from_buffer(stats);
+    }
+
+    // Slow bases from dynamic allocation
+    else {
+      process_quality_base_from_leftover(stats);
+      ++leftover_ind;
+    }
+
+    // Sums quality value so we can bin the average at the end
+    cur_quality += quality_value;
+
+    // Flag to start reading and writing outside of buffer
+    ++read_pos;
+  }
+
+  // Average quality approximated to the nearest integer. Used to make a
+  // histogram in the end of the summary.
+  if (read_pos != 0)
+    ++stats.quality_count[cur_quality / read_pos];  // avg quality histogram
+}
+
+
 /*******************************************************/
 /*************** READ BAM RECORD ***********************/
 /*******************************************************/
+
+
+
+
 
 // set sam separator as tab
 BamReader::BamReader(FalcoConfig &_config, const size_t _buffer_size) :
@@ -878,43 +1086,84 @@ BamReader::is_eof() {
 bool
 BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   if ((rd_ret = sam_read1(hts, hdr, b)) >= 0) {
-    fmt_ret = 0;
 
-    // GS TODO: implement this properly
     num_bytes_read = 0;
-    if ((fmt_ret = sam_format1(hdr, b, &hts->line)) > 0) {
-      // define char* values for processing lines char by char
-      cur_char = hts->line.s;
-      last = cur_char + strlen(hts->line.s) - 1;
+    do_read = (stats.num_reads == next_read);
 
-      do_read = (stats.num_reads == next_read);
+    // Read tile line
+    cur_char = bam_get_qname(b);
+    last = cur_char + b->m_data;
+    const size_t first_padding_null = b->core.l_qname - b->core.l_extranul - 1;
+    // Turn "QUERYNAME\0\0\0" into "QUERYNAME\t\0\0" (assuming 
+    // field_separtor = '\t') to be compatible with read_fast_forward_line().
+    cur_char[first_padding_null] = field_separator;
+    read_tile_line(stats);
 
-      // Now read it as regular sam
-      read_tile_line(stats);
-      skip_separator();
-      for (size_t i = 0; i < 8; ++i) {
-        read_fast_forward_line();
-        skip_separator();
-      }
+    // Read sequence line
+    size_t seq_len = b->core.l_qseq;
+    cur_char = reinterpret_cast<char*>(bam_get_seq(b));
+    BamReader::read_sequence_line(stats);
 
-      read_sequence_line(stats);
-      skip_separator();
-      read_quality_line(stats);
-      
-      if (do_read)
-        postprocess_fastq_record(stats);
+    // Read quality line
+    cur_char = reinterpret_cast<char*>(bam_get_qual(b));
+    // Set the first byte after qual to line_separator
+    // So that read_quality_line stops at the end of qual
+    cur_char[seq_len] = line_separator; 
 
-      next_read += do_read*read_step;
-      ++stats.num_reads;
-      return true;
-    }
-    else throw runtime_error("failed reading record from: " + filename);
+    BamReader::read_quality_line(stats);
 
-    return false;
+    if (do_read)
+      postprocess_fastq_record(stats);
+    
+    next_read += do_read*read_step;
+    ++stats.num_reads;
+    return true;
+
   }
   // If I could not read another line it means it's eof
   return false;
 }
+
+//bool
+//BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
+  //if ((rd_ret = sam_read1(hts, hdr, b)) >= 0) {
+    //fmt_ret = 0;
+
+    //// GS TODO: implement this properly
+    //num_bytes_read = 0;
+    //if ((fmt_ret = sam_format1(hdr, b, &hts->line)) > 0) {
+      //// define char* values for processing lines char by char
+      //cur_char = hts->line.s;
+      //last = cur_char + strlen(hts->line.s) - 1;
+
+      //do_read = (stats.num_reads == next_read);
+
+      //// Now read it as regular sam
+      //read_tile_line(stats);
+      //skip_separator();
+      //for (size_t i = 0; i < 8; ++i) {
+        //read_fast_forward_line();
+        //skip_separator();
+      //}
+
+      //StreamReader::read_sequence_line(stats);
+      //skip_separator();
+      //read_quality_line(stats);
+      
+      //if (do_read)
+        //postprocess_fastq_record(stats);
+
+      //next_read += do_read*read_step;
+      //++stats.num_reads;
+      //return true;
+    //}
+    //else throw runtime_error("failed reading record from: " + filename);
+
+    //return false;
+  //}
+  //// If I could not read another line it means it's eof
+  //return false;
+//}
 
 BamReader::~BamReader() {
   if (hdr) {
