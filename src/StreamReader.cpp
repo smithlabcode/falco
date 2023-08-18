@@ -27,6 +27,7 @@ using std::vector;
 using std::runtime_error;
 using std::array;
 using std::end;
+using std::getline;
 
 // this is faster than std::min
 template<class T>
@@ -42,9 +43,20 @@ get_tile_split_position(FalcoConfig &config) {
   // Count colons to know the formatting pattern
   size_t num_colon = 0;
 
-  if (false) {}
+  if (config.is_sam) {
+    ifstream sam_file(filename);
+    if (!sam_file)
+      throw runtime_error("cannot load sam file : " + filename);
+    string line;
+    while (getline(sam_file, line) && line.size() > 0 && line[0] == '@') 
+      continue;
+    size_t tabPos = line.find('\t');
+    line = line.substr(0, tabPos);
+    for (char c : line) num_colon += (c == ':');
+    std::cout << num_colon << std::endl;
+  }
 #ifdef USE_HTS
-  else if (config.is_bam || config.is_sam) {
+  else if (config.is_bam) {
     htsFile *hts = hts_open(filename.c_str(), "r");
     if (!hts)
       throw runtime_error("cannot load bam file : " + filename);
