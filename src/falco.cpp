@@ -682,6 +682,7 @@ int main(int argc, const char **argv) {
           log_process("reading file as SAM format");
         SamReader in(falco_config, stats.SHORT_READ_THRESHOLD);
         read_stream_into_stats(in, stats, falco_config);
+        stats.adjust_tile_maps_len();
       }
 #ifdef USE_HTS
       else if (falco_config.is_bam) {
@@ -689,6 +690,7 @@ int main(int argc, const char **argv) {
           log_process("reading file as BAM format");
         BamReader in(falco_config, stats.SHORT_READ_THRESHOLD);
         read_stream_into_stats(in, stats, falco_config);
+        stats.adjust_tile_maps_len();
       }
 #endif
 

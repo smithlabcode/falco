@@ -236,6 +236,8 @@ struct FastqStats {
 
   void summarize();
 
+  void adjust_tile_maps_len();
+
   // Given an input fastqc_data.txt file, populate the statistics with it
   void read(std::istream &is);
 };

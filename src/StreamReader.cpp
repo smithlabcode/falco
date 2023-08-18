@@ -42,8 +42,8 @@ get_tile_split_position(FalcoConfig &config) {
   // Count colons to know the formatting pattern
   size_t num_colon = 0;
 
-  if (config.is_bam) {
-    htsFile *hts = hts_open(filename.c_str(), "rb");
+  if (config.is_bam || config.is_sam) {
+    htsFile *hts = hts_open(filename.c_str(), "r");
     if (!hts)
       throw runtime_error("cannot load bam file : " + filename);
     sam_hdr_t *hdr = sam_hdr_read(hts);
@@ -64,7 +64,7 @@ get_tile_split_position(FalcoConfig &config) {
         num_colon += (*itr == ':');
       }
       hts_close(hts);
-      bam_hdr_destroy(hdr);
+      sam_hdr_destroy(hdr);
       bam_destroy1(b);
     }
   }
@@ -284,6 +284,7 @@ StreamReader::read_tile_line(FastqStats &stats) {
       end(stats.tile_position_quality)) {
     stats.tile_position_quality[tile_cur] =
       vector<double> (stats.max_read_length , 0.0);
+    //stats.tile_position_quality.find(tile_cur)->second[0] = 0;
     stats.tile_position_count[tile_cur] =
       vector<size_t> (stats.max_read_length, 0);
   }
@@ -525,7 +526,13 @@ StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
 // Reads the quality line of each base.
 void
 StreamReader::read_quality_line(FastqStats &stats) {
-  if (!do_read) {
+  // MN: Below, the second condition tests whether the quality score in sam
+  // file only consists of '*', which indicates that no quality score is 
+  // available
+  if (!do_read || 
+      (*cur_char == '*' && 
+       (*(cur_char + 1) == field_separator || 
+        *(cur_char + 1) == field_separator) ) ) {
     read_fast_forward_line_eof();
     return;
   }
@@ -1082,28 +1089,11 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
     cur_char = reinterpret_cast<char*>(bam_get_seq(b));
     BamReader::read_sequence_line(stats);
 
-    //char *copy_char = (char*)malloc(seq_len+1);
-    //for (size_t i = 0; i < seq_len; i++) {
-      //copy_char[i] = buffer[i];
-    //}
-    //copy_char[seq_len] = '\0';
-    //std::cout << copy_char << std::endl;
-    //free(copy_char);
-
     // Read quality line
     cur_char = reinterpret_cast<char*>(bam_get_qual(b));
     // Set the first byte after qual to line_separator
     // So that read_quality_line stops at the end of qual
     cur_char[seq_len] = line_separator; 
-
-    //char *copy_char = (char*)malloc(seq_len+1);
-    //for (size_t i = 0; i < seq_len; i++) {
-      //copy_char[i] = cur_char[i] + 33;
-    //}
-    //copy_char[seq_len] = '\0';
-    //std::cout << copy_char << std::endl;
-    //free(copy_char);
-
 
     BamReader::read_quality_line(stats);
 

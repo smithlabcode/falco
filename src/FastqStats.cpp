@@ -154,3 +154,16 @@ FastqStats::summarize() {
   }
 }
 
+
+void
+FastqStats::adjust_tile_maps_len() {
+  for (auto it = begin(tile_position_quality); 
+      it != end(tile_position_quality); it++) {
+    it->second.resize(max_read_length); // Always increase space
+  }
+  for (auto it = begin(tile_position_count); 
+      it != end(tile_position_count); it++) {
+    it->second.resize(max_read_length); // Always increase space
+  }
+}
+
