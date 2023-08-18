@@ -42,7 +42,9 @@ get_tile_split_position(FalcoConfig &config) {
   // Count colons to know the formatting pattern
   size_t num_colon = 0;
 
-  if (config.is_bam || config.is_sam) {
+  if (false) {}
+#ifdef USE_HTS
+  else if (config.is_bam || config.is_sam) {
     htsFile *hts = hts_open(filename.c_str(), "r");
     if (!hts)
       throw runtime_error("cannot load bam file : " + filename);
@@ -68,6 +70,7 @@ get_tile_split_position(FalcoConfig &config) {
       bam_destroy1(b);
     }
   }
+#endif
   else if (config.is_fastq_gz) {
     gzFile in = gzopen(filename.c_str(), "rb");
     if (!in)
