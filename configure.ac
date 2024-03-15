@@ -1,6 +1,6 @@
 dnl  falco: quality control for sequencing read files
 dnl
-dnl  Copyright (C) 2019-2022 Guilherme De Sena Brandine and
+dnl  Copyright (C) 2019-2024 Guilherme De Sena Brandine and
 dnl                          Andrew D. Smith
 dnl  Authors: Guilherme De Sena Brandine, Andrew Smith
 dnl
@@ -14,7 +14,7 @@ dnl  WITHOUT ANY WARRANTY; without even the implied warranty of
 dnl  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 dnl  General Public License for more details.
 
-AC_INIT([falco], [1.2.1], [desenabr@usc.edu],
+AC_INIT([falco], [1.2.2], [andrewds@usc.edu],
         [falco], [https://github.com/smithlabcode/falco])
 dnl the config.h is not currently #included in the source, and only
 dnl used to keep command lines short.
