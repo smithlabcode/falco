@@ -1,0 +1,35 @@
+# falco: quality control for sequencing read files
+#
+# Copyright (C) 2019-2024 Guilherme De Sena Brandine and
+#                         Andrew D. Smith
+# Authors: Guilherme De Sena Brandine, Andrew Smith
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+
+# Read the Docs configuration file for MkDocs projects
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+# Required
+version: 2
+
+# Set the version of Python and other tools you might need
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.12"
+
+mkdocs:
+  configuration: documentation/mkdocs.yml
+
+# Optionally declare the Python requirements required to build your docs
+python:
+  install:
+  - requirements: documentation/docs/requirements.txt
