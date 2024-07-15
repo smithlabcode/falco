@@ -77,11 +77,12 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
   size_t file_size = in.load();
   size_t tot_bytes_read = 0;
 
-  // can't report progress for bam files
-  constexpr bool is_bam = std::is_same<T, BamReader>::value;
-
   // decide whether to report progress
-  const bool quiet = falco_config.quiet || is_bam;
+  const bool quiet = falco_config.quiet
+#ifdef USE_HTS
+    || std::is_same<T, BamReader>::value // can't do progress for bam
+#endif
+    ;
 
   ProgressBar progress(file_size, "running falco");
   if (!quiet)
