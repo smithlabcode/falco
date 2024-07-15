@@ -1052,9 +1052,87 @@ BamReader::read_quality_line(FastqStats &stats) {
 /*************** READ BAM RECORD ***********************/
 /*******************************************************/
 
+/* ADS: The table below (due to Masaru Nakajima) converts 2 bases
+ * packed in a byte to their reverse complement. The input is
+ * therefore a unit8_t representing 2 bases. It is assumed that the
+ * input uint8_t value is of form "xx" or "x-", where 'x' a 4-bit
+ * number representing one of {A, C, G, T, N} and '-' is 0000.  For
+ * example, the ouptut for "AG" is "CT". The format "x-" is used at
+ * the end of an odd-length sequence. The output of "A-" is "-T", and
+ * the output of "C-" is "-G", and so forth. The calling function must
+ * take care when handling odd-length sequences.
+ */
+static const uint8_t byte_revcom_table[] = {
+// clang-format off
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    8, 136,  72,   0,  40,   0,   0,   0,
+   24,   0,   0,   0,   0,   0,   0, 248,
+    4, 132,  68,   0,  36,   0,   0,   0,
+   20,   0,   0,   0,   0,   0,   0, 244,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    2, 130,  66,   0,  34,   0,   0,   0,
+   18,   0,   0,   0,   0,   0,   0, 242,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    1, 129,  65,   0,  33,   0,   0,   0,
+   17,   0,   0,   0,   0,   0,   0, 241,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+   15, 143,  79,   0,  47,   0,   0,   0,
+   31,   0,   0,   0,   0,   0,   0, 255
+};
+// clang-format on
 
+static inline void
+revcom_byte_then_reverse(unsigned char *a, unsigned char *b) {
+  unsigned char *p1, *p2;
+  for (p1 = a, p2 = b - 1; p2 > p1; ++p1, --p2) {
+    *p1 = byte_revcom_table[*p1];
+    *p2 = byte_revcom_table[*p2];
+    *p1 ^= *p2;
+    *p2 ^= *p1;
+    *p1 ^= *p2;
+  }
+  if (p1 == p2) *p1 = byte_revcom_table[*p1];
+}
 
+static inline void
+revcomp_seq_by_byte(bam1_t *aln) {
+  const int32_t l_qseq = aln->core.l_qseq;
+  uint8_t *seq = bam_get_seq(aln);
+  const int32_t n_bytes = (l_qseq + 1) >> 1;  // ceil(l_qseq/2.0)
+  uint8_t *seq_end = seq + n_bytes;
+  revcom_byte_then_reverse(seq, seq_end);
+  if (l_qseq % 2 == 1) {  // for odd-length sequences
+    for (int32_t i = 0; i < n_bytes - 1; ++i) {
+      // swap 4-bit chunks within consecutive bytes like this:
+      // (----aaaa bbbbcccc dddd....) => (aaaabbbb ccccdddd ....)
+      seq[i] = (seq[i] << 4) | (seq[i + 1] >> 4);
+    }
+    seq[n_bytes - 1] <<= 4;  // final byte is just shifted
+  }
+}
 
+static inline void
+reverse_quality_scores(bam1_t *aln) {
+  std::reverse(bam_get_qual(aln), bam_get_qual(aln) + aln->core.l_qseq);
+}
 
 // set sam separator as tab
 BamReader::BamReader(FalcoConfig &_config, const size_t _buffer_size) :
