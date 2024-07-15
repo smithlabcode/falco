@@ -48,7 +48,7 @@ get_tile_split_position(FalcoConfig &config) {
     if (!sam_file)
       throw runtime_error("cannot load sam file : " + filename);
     string line;
-    while (getline(sam_file, line) && line.size() > 0 && line[0] == '@') 
+    while (getline(sam_file, line) && line.size() > 0 && line[0] == '@')
       continue;
     size_t tabPos = line.find('\t');
     line = line.substr(0, tabPos);
@@ -61,14 +61,14 @@ get_tile_split_position(FalcoConfig &config) {
     if (!hts)
       throw runtime_error("cannot load bam file : " + filename);
     sam_hdr_t *hdr = sam_hdr_read(hts);
-    if (hdr == nullptr) 
+    if (hdr == nullptr)
       throw runtime_error("cannot read header from bam file : " + filename);
     bam1_t *b = bam_init1();
     if (sam_read1(hts, hdr, b) < - 1) {
       hts_close(hts);
       sam_hdr_destroy(hdr);
       bam_destroy1(b);
-    
+
       throw runtime_error("cannot read entry from bam file : " + filename);
     }
     else {
@@ -97,7 +97,7 @@ get_tile_split_position(FalcoConfig &config) {
     }
   } else {
     std::ifstream in(filename);
-    if (!in.good()) 
+    if (!in.good())
       throw std::runtime_error("problem reading input file: " + filename);
 
     // Read the first line of the file
@@ -443,7 +443,7 @@ StreamReader::read_sequence_line(FastqStats &stats) {
     for (size_t i = 0; i != num_adapters; ++i) {
       const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
       if (adapt_index < stats.SHORT_READ_THRESHOLD) {
-        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) 
+        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1)
             << Constants::bit_shift_adapter) | i];
       }
     }
@@ -542,11 +542,11 @@ StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
 void
 StreamReader::read_quality_line(FastqStats &stats) {
   // MN: Below, the second condition tests whether the quality score in sam
-  // file only consists of '*', which indicates that no quality score is 
+  // file only consists of '*', which indicates that no quality score is
   // available
-  if (!do_read || 
-      (*cur_char == '*' && 
-       (*(cur_char + 1) == field_separator || 
+  if (!do_read ||
+      (*cur_char == '*' &&
+       (*(cur_char + 1) == field_separator ||
         *(cur_char + 1) == field_separator) ) ) {
     read_fast_forward_line_eof();
     return;
@@ -937,7 +937,7 @@ BamReader::read_sequence_line(FastqStats &stats) {
     for (size_t i = 0; i != num_adapters; ++i) {
       const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
       if (adapt_index < stats.SHORT_READ_THRESHOLD) {
-        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) 
+        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1)
             << Constants::bit_shift_adapter) | i];
       }
     }
@@ -947,7 +947,7 @@ BamReader::read_sequence_line(FastqStats &stats) {
   /********** THIS LOOP MUST BE ALWAYS OPTIMIZED ***********/
   /*********************************************************/
   // In the following loop, cur_char does not change, but rather i changes
-  // and we access bases using bam_seqi(cur_char, i) in 
+  // and we access bases using bam_seqi(cur_char, i) in
   // put_base_in_buffer.
   for (size_t i = 0; i < seq_len; i++, ++read_pos) {
     // if we reached the buffer size, stop using it and start using leftover
@@ -1017,7 +1017,7 @@ BamReader::read_quality_line(FastqStats &stats) {
     get_base_from_buffer();
 
     // MN: Adding quality_zero to emulate the behavior of the original function.
-    stats.lowest_char = min8(stats.lowest_char, 
+    stats.lowest_char = min8(stats.lowest_char,
         static_cast<char>(*cur_char + 33));
 
     // Converts quality ascii to zero-based
@@ -1094,7 +1094,7 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
     cur_char = bam_get_qname(b);
     last = cur_char + b->m_data;
     const size_t first_padding_null = b->core.l_qname - b->core.l_extranul - 1;
-    // Turn "QUERYNAME\0\0\0" into "QUERYNAME\t\0\0" (assuming 
+    // Turn "QUERYNAME\0\0\0" into "QUERYNAME\t\0\0" (assuming
     // field_separtor = '\t') to be compatible with read_fast_forward_line().
     cur_char[first_padding_null] = field_separator;
     read_tile_line(stats);
@@ -1108,13 +1108,13 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
     cur_char = reinterpret_cast<char*>(bam_get_qual(b));
     // Set the first byte after qual to line_separator
     // So that read_quality_line stops at the end of qual
-    cur_char[seq_len] = line_separator; 
+    cur_char[seq_len] = line_separator;
 
     BamReader::read_quality_line(stats);
 
     if (do_read)
       postprocess_fastq_record(stats);
-    
+
     next_read += do_read*read_step;
     ++stats.num_reads;
     return true;
@@ -1149,7 +1149,7 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
       //StreamReader::read_sequence_line(stats);
       //skip_separator();
       //read_quality_line(stats);
-      
+
       //if (do_read)
         //postprocess_fastq_record(stats);
 
