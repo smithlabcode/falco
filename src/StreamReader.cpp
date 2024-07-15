@@ -53,7 +53,6 @@ get_tile_split_position(FalcoConfig &config) {
     size_t tabPos = line.find('\t');
     line = line.substr(0, tabPos);
     for (char c : line) num_colon += (c == ':');
-    std::cout << num_colon << std::endl;
   }
 #ifdef USE_HTS
   else if (config.is_bam) {
@@ -64,7 +63,7 @@ get_tile_split_position(FalcoConfig &config) {
     if (hdr == nullptr)
       throw runtime_error("cannot read header from bam file : " + filename);
     bam1_t *b = bam_init1();
-    if (sam_read1(hts, hdr, b) < - 1) {
+    if (sam_read1(hts, hdr, b) < -1) {
       hts_close(hts);
       sam_hdr_destroy(hdr);
       bam_destroy1(b);
