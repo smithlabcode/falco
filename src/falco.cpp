@@ -17,6 +17,7 @@
 
 #include <fstream>
 #include <chrono>
+#include <type_traits>
 
 #include "smithlab_utils.hpp"
 #include "OptionParser.hpp"
@@ -76,11 +77,17 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
   size_t file_size = in.load();
   size_t tot_bytes_read = 0;
 
-  // Read record by record
-  const bool quiet = falco_config.quiet;
+  // can't report progress for bam files
+  constexpr bool is_bam = std::is_same<T, BamReader>::value;
+
+  // decide whether to report progress
+  const bool quiet = falco_config.quiet || is_bam;
+
   ProgressBar progress(file_size, "running falco");
   if (!quiet)
     progress.report(cerr, 0);
+
+  // Read record by record
   while (in.read_entry(stats, tot_bytes_read)) {
     if (!quiet && progress.time_to_report(tot_bytes_read))
       progress.report(cerr, tot_bytes_read);
@@ -195,7 +202,7 @@ write_results(const FalcoConfig &falco_config,
   if (!skip_html) {
     // Decide html filename based on input
     const string html_file =
-      (report_filename.empty() ? 
+      (report_filename.empty() ?
        (outdir + "/" + file_prefix + "fastqc_report.html") :
        (report_filename));
 
@@ -682,7 +689,7 @@ int main(int argc, const char **argv) {
           log_process("reading file as SAM format");
         SamReader in(falco_config, stats.SHORT_READ_THRESHOLD);
         read_stream_into_stats(in, stats, falco_config);
-        stats.adjust_tile_maps_len(); 
+        stats.adjust_tile_maps_len();
       }
 #ifdef USE_HTS
       else if (falco_config.is_bam) {
@@ -698,7 +705,7 @@ int main(int argc, const char **argv) {
         if (!falco_config.quiet)
           log_process("reading file as gzipped FASTQ format");
         GzFastqReader in(falco_config, stats.SHORT_READ_THRESHOLD);
-        read_stream_into_stats(in,stats,falco_config);
+        read_stream_into_stats(in, stats, falco_config);
       }
       else if (falco_config.is_fastq) {
         if (!falco_config.quiet)
