@@ -1952,8 +1952,10 @@ ModuleAdapterContent::write_module(ostream &os) {
   for (size_t i = n_pos_calc; i < num_bases; ++i) {
     os << i + 1;
     for (size_t j = 0; j < num_adapters; ++j)
-      // ADS: since this is cumulative, pad with final entry
-      os << "\t" << adapter_pos_pct[j].back();
+      // ADS: since this is cumulative, pad with final entry; but only
+      // if that exists...
+      if (!adapter_pos_pct[j].empty())
+        os << "\t" << adapter_pos_pct[j].back();
     os << "\n";
   }
 }
@@ -1995,10 +1997,15 @@ ModuleAdapterContent::make_html_data() {
       if (j + 1 < num_bases)
         data << ",";
     }
-    for (size_t j = n_pos_calc; j < num_bases; ++j) {
-      data << adapter_pos_pct[i].back();
-      if (j + 1 < num_bases)
-        data << ",";
+    // ADS: Only write the final entry of the adaptor position
+    // percentage if that exists. I don't know how we could get here
+    // if it doesn't, but it's happening.
+    if (!adapter_pos_pct[i].empty()) {
+      for (size_t j = n_pos_calc; j < num_bases; ++j) {
+        data << adapter_pos_pct[i].back();
+        if (j + 1 < num_bases)
+          data << ",";
+      }
     }
 
     data << "]";
