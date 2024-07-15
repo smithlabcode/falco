@@ -48,12 +48,11 @@ get_tile_split_position(FalcoConfig &config) {
     if (!sam_file)
       throw runtime_error("cannot load sam file : " + filename);
     string line;
-    while (getline(sam_file, line) && line.size() > 0 && line[0] == '@') 
+    while (getline(sam_file, line) && line.size() > 0 && line[0] == '@')
       continue;
     size_t tabPos = line.find('\t');
     line = line.substr(0, tabPos);
     for (char c : line) num_colon += (c == ':');
-    std::cout << num_colon << std::endl;
   }
 #ifdef USE_HTS
   else if (config.is_bam) {
@@ -61,14 +60,14 @@ get_tile_split_position(FalcoConfig &config) {
     if (!hts)
       throw runtime_error("cannot load bam file : " + filename);
     sam_hdr_t *hdr = sam_hdr_read(hts);
-    if (hdr == nullptr) 
+    if (hdr == nullptr)
       throw runtime_error("cannot read header from bam file : " + filename);
     bam1_t *b = bam_init1();
-    if (sam_read1(hts, hdr, b) < - 1) {
+    if (sam_read1(hts, hdr, b) < -1) {
       hts_close(hts);
       sam_hdr_destroy(hdr);
       bam_destroy1(b);
-    
+
       throw runtime_error("cannot read entry from bam file : " + filename);
     }
     else {
@@ -97,7 +96,7 @@ get_tile_split_position(FalcoConfig &config) {
     }
   } else {
     std::ifstream in(filename);
-    if (!in.good()) 
+    if (!in.good())
       throw std::runtime_error("problem reading input file: " + filename);
 
     // Read the first line of the file
@@ -443,7 +442,7 @@ StreamReader::read_sequence_line(FastqStats &stats) {
     for (size_t i = 0; i != num_adapters; ++i) {
       const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
       if (adapt_index < stats.SHORT_READ_THRESHOLD) {
-        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) 
+        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1)
             << Constants::bit_shift_adapter) | i];
       }
     }
@@ -542,11 +541,11 @@ StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
 void
 StreamReader::read_quality_line(FastqStats &stats) {
   // MN: Below, the second condition tests whether the quality score in sam
-  // file only consists of '*', which indicates that no quality score is 
+  // file only consists of '*', which indicates that no quality score is
   // available
-  if (!do_read || 
-      (*cur_char == '*' && 
-       (*(cur_char + 1) == field_separator || 
+  if (!do_read ||
+      (*cur_char == '*' &&
+       (*(cur_char + 1) == field_separator ||
         *(cur_char + 1) == field_separator) ) ) {
     read_fast_forward_line_eof();
     return;
@@ -937,7 +936,7 @@ BamReader::read_sequence_line(FastqStats &stats) {
     for (size_t i = 0; i != num_adapters; ++i) {
       const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
       if (adapt_index < stats.SHORT_READ_THRESHOLD) {
-        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1) 
+        ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1)
             << Constants::bit_shift_adapter) | i];
       }
     }
@@ -947,7 +946,7 @@ BamReader::read_sequence_line(FastqStats &stats) {
   /********** THIS LOOP MUST BE ALWAYS OPTIMIZED ***********/
   /*********************************************************/
   // In the following loop, cur_char does not change, but rather i changes
-  // and we access bases using bam_seqi(cur_char, i) in 
+  // and we access bases using bam_seqi(cur_char, i) in
   // put_base_in_buffer.
   for (size_t i = 0; i < seq_len; i++, ++read_pos) {
     // if we reached the buffer size, stop using it and start using leftover
@@ -1017,7 +1016,7 @@ BamReader::read_quality_line(FastqStats &stats) {
     get_base_from_buffer();
 
     // MN: Adding quality_zero to emulate the behavior of the original function.
-    stats.lowest_char = min8(stats.lowest_char, 
+    stats.lowest_char = min8(stats.lowest_char,
         static_cast<char>(*cur_char + 33));
 
     // Converts quality ascii to zero-based
@@ -1052,9 +1051,87 @@ BamReader::read_quality_line(FastqStats &stats) {
 /*************** READ BAM RECORD ***********************/
 /*******************************************************/
 
+/* ADS: The table below (due to Masaru Nakajima) converts 2 bases
+ * packed in a byte to their reverse complement. The input is
+ * therefore a unit8_t representing 2 bases. It is assumed that the
+ * input uint8_t value is of form "xx" or "x-", where 'x' a 4-bit
+ * number representing one of {A, C, G, T, N} and '-' is 0000.  For
+ * example, the ouptut for "AG" is "CT". The format "x-" is used at
+ * the end of an odd-length sequence. The output of "A-" is "-T", and
+ * the output of "C-" is "-G", and so forth. The calling function must
+ * take care when handling odd-length sequences.
+ */
+static const uint8_t byte_revcom_table[] = {
+// clang-format off
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    8, 136,  72,   0,  40,   0,   0,   0,
+   24,   0,   0,   0,   0,   0,   0, 248,
+    4, 132,  68,   0,  36,   0,   0,   0,
+   20,   0,   0,   0,   0,   0,   0, 244,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    2, 130,  66,   0,  34,   0,   0,   0,
+   18,   0,   0,   0,   0,   0,   0, 242,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    1, 129,  65,   0,  33,   0,   0,   0,
+   17,   0,   0,   0,   0,   0,   0, 241,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,
+   15, 143,  79,   0,  47,   0,   0,   0,
+   31,   0,   0,   0,   0,   0,   0, 255
+};
+// clang-format on
 
+static inline void
+revcom_byte_then_reverse(unsigned char *a, unsigned char *b) {
+  unsigned char *p1, *p2;
+  for (p1 = a, p2 = b - 1; p2 > p1; ++p1, --p2) {
+    *p1 = byte_revcom_table[*p1];
+    *p2 = byte_revcom_table[*p2];
+    *p1 ^= *p2;
+    *p2 ^= *p1;
+    *p1 ^= *p2;
+  }
+  if (p1 == p2) *p1 = byte_revcom_table[*p1];
+}
 
+static inline void
+revcomp_seq_by_byte(bam1_t *aln) {
+  const int32_t l_qseq = aln->core.l_qseq;
+  uint8_t *seq = bam_get_seq(aln);
+  const int32_t n_bytes = (l_qseq + 1) >> 1;  // ceil(l_qseq/2.0)
+  uint8_t *seq_end = seq + n_bytes;
+  revcom_byte_then_reverse(seq, seq_end);
+  if (l_qseq % 2 == 1) {  // for odd-length sequences
+    for (int32_t i = 0; i < n_bytes - 1; ++i) {
+      // swap 4-bit chunks within consecutive bytes like this:
+      // (----aaaa bbbbcccc dddd....) => (aaaabbbb ccccdddd ....)
+      seq[i] = (seq[i] << 4) | (seq[i + 1] >> 4);
+    }
+    seq[n_bytes - 1] <<= 4;  // final byte is just shifted
+  }
+}
 
+static inline void
+reverse_quality_scores(bam1_t *aln) {
+  std::reverse(bam_get_qual(aln), bam_get_qual(aln) + aln->core.l_qseq);
+}
 
 // set sam separator as tab
 BamReader::BamReader(FalcoConfig &_config, const size_t _buffer_size) :
@@ -1085,7 +1162,14 @@ BamReader::is_eof() {
 
 bool
 BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
+  static const uint16_t not_reverse = ~BAM_FREVERSE;
   if ((rd_ret = sam_read1(hts, hdr, b)) >= 0) {
+
+    if (bam_is_rev(b)) {
+      revcomp_seq_by_byte(b);
+      reverse_quality_scores(b);
+      b->core.flag &= not_reverse;
+    }
 
     num_bytes_read = 0;
     do_read = (stats.num_reads == next_read);
@@ -1094,7 +1178,7 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
     cur_char = bam_get_qname(b);
     last = cur_char + b->m_data;
     const size_t first_padding_null = b->core.l_qname - b->core.l_extranul - 1;
-    // Turn "QUERYNAME\0\0\0" into "QUERYNAME\t\0\0" (assuming 
+    // Turn "QUERYNAME\0\0\0" into "QUERYNAME\t\0\0" (assuming
     // field_separtor = '\t') to be compatible with read_fast_forward_line().
     cur_char[first_padding_null] = field_separator;
     read_tile_line(stats);
@@ -1108,13 +1192,13 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
     cur_char = reinterpret_cast<char*>(bam_get_qual(b));
     // Set the first byte after qual to line_separator
     // So that read_quality_line stops at the end of qual
-    cur_char[seq_len] = line_separator; 
+    cur_char[seq_len] = line_separator;
 
     BamReader::read_quality_line(stats);
 
     if (do_read)
       postprocess_fastq_record(stats);
-    
+
     next_read += do_read*read_step;
     ++stats.num_reads;
     return true;
@@ -1149,7 +1233,7 @@ BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
       //StreamReader::read_sequence_line(stats);
       //skip_separator();
       //read_quality_line(stats);
-      
+
       //if (do_read)
         //postprocess_fastq_record(stats);
 
