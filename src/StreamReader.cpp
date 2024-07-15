@@ -1163,7 +1163,14 @@ BamReader::is_eof() {
 
 bool
 BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
+  static const uint16_t not_reverse = ~BAM_FREVERSE;
   if ((rd_ret = sam_read1(hts, hdr, b)) >= 0) {
+
+    if (bam_is_rev(b)) {
+      revcomp_seq_by_byte(b);
+      reverse_quality_scores(b);
+      b->core.flag &= not_reverse;
+    }
 
     num_bytes_read = 0;
     do_read = (stats.num_reads == next_read);
