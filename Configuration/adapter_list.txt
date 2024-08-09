@@ -20,7 +20,8 @@
 # fragments for now.
 
 Illumina Universal Adapter					AGATCGGAAGAG
-Illumina Small RNA 3 prime Adapter				TGGAATTCTCGG
-Illumina Small RNA 5 prime Adapter				GATCGTCGGACT
+Illumina Small RNA 3' Adapter				TGGAATTCTCGG
+Illumina Small RNA 5' Adapter				GATCGTCGGACT
 Nextera Transposase Sequence				CTGTCTCTTATA
-SOLID Small RNA Adapter						CGCCTTGGCCGT
+PolyA										AAAAAAAAAAAA
+PolyG										GGGGGGGGGGGG
