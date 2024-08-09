@@ -18,7 +18,9 @@ do
           fail=1
       fi
   done
-  rm -rf test_output/${a}
+  if [ ${fail} == 0 ]; then
+      rm -r test_output/${a}
+  fi
 done
 
 rmdir test_output
