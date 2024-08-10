@@ -24,8 +24,6 @@ jobs:
       run: ./configure
     - name: Build falco
       run: make
-    - name: Run falco tests
-      run: make check
     - name: Check the distribution
       run: make distcheck
     - name: Cleanup after the build
