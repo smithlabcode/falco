@@ -9,11 +9,9 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Update packages
@@ -24,5 +22,9 @@ jobs:
       run: ./autogen.sh
     - name: configure
       run: ./configure --enable-hts
-    - name: make distcheck
+    - name: Build falco
+      run: make
+    - name: Check the distribution
       run: make distcheck
+    - name: Cleanup after the build
+      run: make distclean
