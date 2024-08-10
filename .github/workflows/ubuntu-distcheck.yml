@@ -21,7 +21,7 @@ jobs:
     - name: Generate configure script
       run: ./autogen.sh
     - name: configure
-      run: ./configure
+      run: ./configure --enable-hts
     - name: Build falco
       run: make
     - name: Check the distribution
