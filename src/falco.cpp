@@ -17,7 +17,6 @@
 
 #include <fstream>
 #include <chrono>
-#include <type_traits>
 
 #include "smithlab_utils.hpp"
 #include "OptionParser.hpp"
@@ -77,18 +76,11 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
   size_t file_size = in.load();
   size_t tot_bytes_read = 0;
 
-  // decide whether to report progress
-  const bool quiet = falco_config.quiet
-#ifdef USE_HTS
-    || std::is_same<T, BamReader>::value // can't do progress for bam
-#endif
-    ;
-
+  // Read record by record
+  const bool quiet = falco_config.quiet;
   ProgressBar progress(file_size, "running falco");
   if (!quiet)
     progress.report(cerr, 0);
-
-  // Read record by record
   while (in.read_entry(stats, tot_bytes_read)) {
     if (!quiet && progress.time_to_report(tot_bytes_read))
       progress.report(cerr, tot_bytes_read);
@@ -706,7 +698,7 @@ int main(int argc, const char **argv) {
         if (!falco_config.quiet)
           log_process("reading file as gzipped FASTQ format");
         GzFastqReader in(falco_config, stats.SHORT_READ_THRESHOLD);
-        read_stream_into_stats(in, stats, falco_config);
+        read_stream_into_stats(in,stats,falco_config);
       }
       else if (falco_config.is_fastq) {
         if (!falco_config.quiet)
