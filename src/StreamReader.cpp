@@ -344,9 +344,10 @@ StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
       if (do_adapter_optimized && (num_bases_after_n == adapter_size)) {
         cur_kmer &= adapter_mask;
         for (size_t i = 0; i != num_adapters; ++i) {
-          if (cur_kmer == adapters[i]) {
+          if (cur_kmer == adapters[i] && !adapters_found[i]) {
             ++stats.pos_adapter_count[
               (read_pos << Constants::bit_shift_adapter) | i];
+            adapters_found[i] = true;
           }
         }
       }
@@ -436,6 +437,7 @@ StreamReader::read_sequence_line(FastqStats &stats) {
   still_in_buffer = true;
   next_truncation = 100;
   do_kmer_read = (stats.num_reads == next_kmer_read);
+  adapters_found.reset();
 
   if (do_adapters_slow) {
     const string seq_line_str = cur_char;
