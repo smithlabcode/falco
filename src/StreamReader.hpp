@@ -18,6 +18,7 @@
 
 #include <string>
 #include <cmath>
+#include <bitset>
 
 // Optional zlib usage
 #include <zlib.h>
@@ -81,6 +82,7 @@ class StreamReader{
   const size_t adapter_size;
   const size_t adapter_mask;
   const std::array<size_t, Constants::max_adapters> adapters;
+  std::bitset<Constants::max_adapters> adapters_found{};
 
   const std::string filename;
 
@@ -250,7 +252,7 @@ class BamReader : public StreamReader {
   bool read_entry(FastqStats &stats, size_t &num_bytes_read);
 
   // Specially made for BamReader to work directly with bam1_t
-  inline void read_sequence_line(FastqStats &stats);  
+  inline void read_sequence_line(FastqStats &stats);
   inline void read_quality_line(FastqStats &stats);  // parse quality
   inline void put_base_in_buffer(const size_t pos);  // puts base in buffer or leftover
   ~BamReader();
