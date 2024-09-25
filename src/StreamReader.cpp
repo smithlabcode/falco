@@ -927,6 +927,7 @@ BamReader::read_sequence_line(FastqStats &stats) {
   still_in_buffer = true;
   next_truncation = 100;
   do_kmer_read = (stats.num_reads == next_kmer_read);
+  adapters_found.reset();
 
   const size_t seq_len = b->core.l_qseq;
   // MN: TODO: make sure everything works in this scope
