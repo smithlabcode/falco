@@ -21,14 +21,10 @@ dnl used to keep command lines short.
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([subdir-objects foreign])
 
-dnl Less output to the terminal. Use "--disable-silent-rules" when
-dnl running ./configure to reverse this.
-AM_SILENT_RULES([yes])
-
 AC_CONFIG_MACRO_DIR([m4])
 AC_LANG(C++)
 AC_PROG_CXX
-AX_CXX_COMPILE_STDCXX_11([noext], [mandatory])
+AX_CXX_COMPILE_STDCXX_17([noext], [mandatory])
 AC_OPENMP([C++]) dnl make sure we have openmp for multi-core in falco
 
 dnl check for the Zlib library
