@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  */
-// clang-format off
+
 #include "Module.hpp"
 #include <algorithm>
 #include <iomanip>
@@ -2194,4 +2194,3 @@ ModuleKmerContent::make_html_data() {
   }
   return data.str();
 }
-// clang-format on
