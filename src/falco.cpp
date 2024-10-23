@@ -16,6 +16,7 @@
  */
 
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 
 #include "FalcoConfig.hpp"
@@ -293,6 +294,7 @@ main(int argc, const char **argv) {
     bool skip_html = false;
     bool skip_short_summary = false;
     bool do_call = false;
+    bool allow_empty_input = false;
 
     // a tmp boolean to keep compatibility with FastQC
     bool tmp_compatibility_only = false;
@@ -542,6 +544,14 @@ main(int argc, const char **argv) {
                       " in programs that are very strict about the "
                       " FastQC output format).",
                       false, do_call);
+
+    opt_parse.add_opt(
+      "allow-empty-input", '\0',
+      "[Falco only] allow empty input files and generate empty output files "
+      "without en error state. WARNING: using this option can mask problems in "
+      "other parts of a workflow.",
+      false, allow_empty_input);
+
     vector<string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
@@ -576,6 +586,23 @@ main(int argc, const char **argv) {
            << " require multiple outputs, so they will be resolved by"
            << " the input filenames instead" << endl;
       return EXIT_FAILURE;
+    }
+
+    // ADS: make sure all input files are non-empty unless user oks it
+    if (!allow_empty_input) {
+      for (const auto &fn : leftover_args) {
+        std::error_code ec;
+        const bool empty_file = std::filesystem::is_empty(fn, ec);
+        if (ec) {
+          cerr << "Error reading file: " << fn << " (" << ec.message() << ")"
+               << endl;
+          return EXIT_FAILURE;
+        }
+        else if (empty_file) {
+          cerr << "Input file is empty: " << fn << endl;
+          return EXIT_FAILURE;
+        }
+      }
     }
 
     if (!outdir.empty()) {
