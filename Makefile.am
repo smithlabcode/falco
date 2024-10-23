@@ -19,7 +19,7 @@ EXTRA_DIST = README.md LICENSE Configuration example.fq test
 ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS = -I $(top_srcdir)/src
 
-CXXFLAGS = -O3 # default has optimization on
+CXXFLAGS = -O3 -DNDEBUG # default optimization on; override on cli
 
 TESTS = test/falco.test
 TEST_EXTENSIONS = .test
