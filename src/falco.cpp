@@ -38,6 +38,8 @@ using std::string;
 using std::to_string;
 using std::vector;
 
+namespace fs = std::filesystem;
+
 using std::chrono::duration_cast;
 using std::chrono::system_clock;
 using time_point = std::chrono::time_point<std::chrono::system_clock>;
@@ -62,12 +64,7 @@ log_process(const string &s) {
 // Function to check existance of directory
 static bool
 dir_exists(const string &path) {
-  struct stat info;
-  if (stat(path.c_str(), &info) != 0)
-    return false;
-  else if (info.st_mode & S_IFDIR)
-    return true;
-  return false;
+  return fs::exists(path) && fs::is_directory(path);
 }
 
 // Read any file type until the end and logs progress
@@ -76,7 +73,7 @@ template <typename T>
 void
 read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
   // open file
-  size_t file_size = in.load();
+  size_t file_size = std::max(in.load(), static_cast<size_t>(1));
   size_t tot_bytes_read = 0;
 
   // Read record by record
@@ -91,11 +88,10 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
 
   // if I could not get tile information from read names, I need to tell this to
   // config so it does not output tile data on the summary or html
-  if (in.tile_ignore) {
+  if (in.tile_ignore)
     falco_config.do_tile = false;
-  }
 
-  if (tot_bytes_read < file_size && !quiet)
+  if (!quiet && tot_bytes_read < file_size)
     progress.report(cerr, file_size);
 }
 
