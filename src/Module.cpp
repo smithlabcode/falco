@@ -19,6 +19,7 @@
 #include <cmath>
 #include <sstream>
 #include <cstdlib>
+#include <cassert>
 
 using std::string;
 using std::vector;
@@ -36,6 +37,8 @@ using std::make_pair;
 using std::ostringstream;
 using std::istringstream;
 using std::getline;
+
+template<typename T> using num_lim = std::numeric_limits<T>;
 
 /*****************************************************************************/
 /******************* AUX FUNCTIONS *******************************************/
@@ -97,7 +100,7 @@ make_exponential_base_groups(vector<BaseGroup> &base_groups,
 /************* LINEAR BASE GROUP *************/
 // aux function to get linear interval
 size_t
-get_linear_interval(const size_t &num_bases) {
+get_linear_interval(const size_t num_bases) {
   // The the first 9bp as individual residues since odd stuff
   // can happen there, then we find a grouping value which gives
   // us a total set of groups below 75.  We limit the intervals
@@ -174,7 +177,8 @@ double get_corrected_count(size_t count_at_limit,
                            size_t num_reads,
                            size_t dup_level,
                            size_t num_obs) {
-  // See if we can bail out early
+  // See if we can bail out early (ADS: can we know if num_reads <=
+  // count_at_limit always holds?)
   if (count_at_limit == num_reads)
     return num_obs;
 
@@ -210,7 +214,7 @@ double get_corrected_count(size_t count_at_limit,
 
   // Now we can assume that the number we observed can be
   // scaled up by this proportion
-  return num_obs/(1 - p_not_seeing);
+  return num_obs/std::max(num_lim<double>::min(), 1.0 - p_not_seeing);
 }
 
 // Function to calculate the deviation of a histogram with 100 bins from a
@@ -277,7 +281,8 @@ sum_deviation_from_normal(const array <double, 101> &gc_count,
     // centre of the model
     mode = first_mode;
   } else {
-    mode /= mode_duplicates;
+    // ADS: check if we need to avoid divide-by-zero here
+    mode /= std::max(static_cast<size_t>(1), mode_duplicates);
   }
 
   // We can now work out a theoretical distribution
@@ -286,7 +291,8 @@ sum_deviation_from_normal(const array <double, 101> &gc_count,
     stdev += (i - mode) * (i - mode) * gc_count[i];
   }
 
-  stdev = stdev / (total_count-1);
+  // ADS: check if we need to avoid divide-by-zero here
+  stdev = stdev / std::max(num_lim<double>::min(), total_count - 1.0);
   stdev = sqrt(stdev);
 
   /******************* END COPIED FROM FASTQC **********************/
@@ -297,20 +303,24 @@ sum_deviation_from_normal(const array <double, 101> &gc_count,
   // ADS: lonely magic below; what is the 100?
   for (size_t i = 0; i <= 100; ++i) {
     z = i - mode;
+    // ADS: check if we need to avoid divide-by-zero here
     theoretical[i] = exp(- (z*z)/ (2.0 * stdev *stdev));
     theoretical_sum += theoretical[i];
   }
 
   // Normalize theoretical so it sums to the total of readsq
   for (size_t i = 0; i <= 100; ++i) {
-    theoretical[i] = theoretical[i] * total_count / theoretical_sum;
+    // ADS: check if we need to avoid divide-by-zero here
+    theoretical[i] = theoretical[i] * total_count /
+      std::max(num_lim<double>::min(), theoretical_sum);
   }
 
   for (size_t i = 0; i <= 100; ++i) {
     ans += fabs(gc_count[i] - theoretical[i]);
   }
-  // Fractional deviation
-  return 100.0 * ans / total_count;
+  // Fractional deviation (ADS: check if we need to avoid
+  // divide-by-zero here)
+  return 100.0 * ans / std::max(num_lim<double>::min(), total_count);
 }
 
 /***************************************************************/
@@ -446,7 +456,8 @@ ModuleBasicStatistics::summarize_module(FastqStats &stats) {
       total_bases += i * stats.long_read_length_freq[i - FastqStats::SHORT_READ_THRESHOLD];
   }
 
-  avg_read_length = total_bases / total_sequences;
+  avg_read_length =
+    total_bases / std::max(static_cast<size_t>(1), total_sequences);
 
   // counts bases G and C in each base position
   avg_gc = 0;
@@ -454,7 +465,7 @@ ModuleBasicStatistics::summarize_module(FastqStats &stats) {
   // GC %
   // GS: TODO delete gc calculation during stream and do it using the total G
   // counts in all bases
-  avg_gc = 100 * stats.total_gc / static_cast<double>(total_bases);
+  avg_gc = 100 * stats.total_gc / std::max(1.0, static_cast<double>(total_bases));
 
 }
 
@@ -692,6 +703,7 @@ ModulePerBaseSequenceQuality::summarize_module(FastqStats &stats) {
     }
 
     const size_t base_positions = base_groups[group].end - base_groups[group].start + 1;
+    assert(base_positions != static_cast<size_t>(0));
     group_mean[group] = mean_group_sum / base_positions;
     group_ldecile[group] = static_cast<double>(ldecile_group_sum) / base_positions;
     group_lquartile[group] = static_cast<double>(lquartile_group_sum) / base_positions;
@@ -819,17 +831,19 @@ ModulePerTileSequenceQuality::summarize_module(FastqStats &stats) {
 
   // Now transform sum into mean
   for (size_t i = 0; i < max_read_length; ++i)
-    if (position_counts[i] > 0)
+    if (position_counts[i] > 0.0)
       mean_in_base[i] = mean_in_base[i] / position_counts[i];
     else
-      mean_in_base[i] = 0;
+      mean_in_base[i] = 0.0;
 
   for (auto &v : tile_position_quality) {
     const size_t lim = v.second.size();
     for (size_t i = 0; i < lim; ++i) {
       // transform sum of all qualities in mean
-      const size_t count_at_pos =
-        stats.tile_position_count.find(v.first)->second[i];
+      const auto itr = stats.tile_position_count.find(v.first);
+      if (itr == cend(stats.tile_position_count))
+        throw runtime_error("failure ModulePerTileSequenceQuality::summarize_module");
+      const size_t count_at_pos = itr->second[i];
 
       if (count_at_pos > 0)
         v.second[i] = v.second[i] / count_at_pos;
@@ -882,6 +896,7 @@ ModulePerTileSequenceQuality::write_module(ostream &os) {
 
 inline double
 round_quantile(const double val, const double num_quantiles) {
+  // ADS: check if we need to worry about divide by zero here
   return static_cast<int>(val * num_quantiles) / num_quantiles;
 }
 
@@ -937,6 +952,7 @@ ModulePerTileSequenceQuality::make_html_data() {
   // We will now discretize the quantiles so plotly understands
   // the color scheme
   static const double num_quantiles = 20.0;
+  // ADS: not sure if we need to worry about divide by zero here?
   double mid_point = round_quantile(min_val/(min_val - max_val), num_quantiles);
 
   // - 10: red
@@ -1054,7 +1070,7 @@ Module(ModulePerBaseSequenceContent::module_name) {
 void
 ModulePerBaseSequenceContent::summarize_module(FastqStats &stats) {
   double a_group, t_group, g_group, c_group, n_group;
-  double a_pos, t_pos, g_pos, c_pos, n_pos;
+  double a_pos{}, t_pos{}, g_pos{}, c_pos{}, n_pos{};
   double total; //a+c+t+g+n
   max_diff = 0.0;
 
@@ -1105,10 +1121,10 @@ ModulePerBaseSequenceContent::summarize_module(FastqStats &stats) {
 
       const double total_pos =
         static_cast<double>(a_pos + c_pos + g_pos + t_pos + n_pos);
-      a_pos = 100.0 * a_pos / total_pos;
-      c_pos = 100.0 * c_pos / total_pos;
-      g_pos = 100.0 * g_pos / total_pos;
-      t_pos = 100.0 * t_pos / total_pos;
+      a_pos = 100.0 * a_pos / std::max(num_lim<double>::min(), total_pos);
+      c_pos = 100.0 * c_pos / std::max(num_lim<double>::min(), total_pos);
+      g_pos = 100.0 * g_pos / std::max(num_lim<double>::min(), total_pos);
+      t_pos = 100.0 * t_pos / std::max(num_lim<double>::min(), total_pos);
 
       // for WGBS, we only test non-bisulfite treated bases
       if (!is_reverse_complement)
@@ -1135,11 +1151,10 @@ ModulePerBaseSequenceContent::summarize_module(FastqStats &stats) {
 
     // turns above values to percent
     total = static_cast<double>(a_group + c_group + t_group + g_group + n_group);
-    a_pct[group] = 100.0*a_group / total;
-    c_pct[group] = 100.0*c_group / total;
-    g_pct[group] = 100.0*g_group / total;
-    t_pct[group] = 100.0*t_group / total;
-
+    a_pct[group] = 100.0*a_group / std::max(num_lim<double>::min(), total);
+    c_pct[group] = 100.0*c_group / std::max(num_lim<double>::min(), total);
+    g_pct[group] = 100.0*g_group / std::max(num_lim<double>::min(), total);
+    t_pct[group] = 100.0*t_group / std::max(num_lim<double>::min(), total);
   }
 }
 
@@ -1395,12 +1410,14 @@ ModulePerBaseNContent::summarize_module(FastqStats &stats) {
 
       this_n_total = (i < FastqStats::SHORT_READ_THRESHOLD) ? (stats.cumulative_read_length_freq[i]) :
                      (stats.long_cumulative_read_length_freq[i - FastqStats::SHORT_READ_THRESHOLD]);
-      this_n_pct = this_n_cnt / static_cast<double>(this_n_total);
+      this_n_pct = this_n_cnt / std::max(num_lim<double>::min(),
+                                         static_cast<double>(this_n_total));
       max_n_pct = max(max_n_pct, this_n_pct);
       group_n_cnt += this_n_cnt;
       group_n_total += this_n_total;
     }
-    n_pct[group] = 100.0*group_n_cnt / static_cast<double>(group_n_total);
+    n_pct[group] = 100.0*group_n_cnt / std::max(num_lim<double>::min(),
+                                                static_cast<double>(group_n_total));
   }
 }
 
@@ -1627,15 +1644,15 @@ ModuleSequenceDuplicationLevels::summarize_module(FastqStats &stats) {
     }
 
     // "Sequence duplication estimate" in the summary
-    total_deduplicated_pct = 100.0 * seq_dedup / seq_total;
+    total_deduplicated_pct = 100.0 * seq_dedup / std::max(1.0, seq_total);
 
     // Convert to percentage
     for (auto &v : percentage_deduplicated)
-      v = 100.0 * v / seq_dedup;  // Percentage of unique sequences in bin
+      v = 100.0 * v / std::max(1.0, seq_dedup);  // Percentage of unique sequences in bin
 
      // Convert to percentage
     for (auto &v : percentage_total)
-      v = 100.0 * v / seq_total;  // Percentage of sequences in bin
+      v = 100.0 * v / std::max(1.0, seq_total);  // Percentage of sequences in bin
 }
 
 void
@@ -1796,7 +1813,7 @@ ModuleOverrepresentedSequences::make_grade() {
     // implment pass warn fail for overrep sequences
     if (grade != "fail") {
       // get percentage that overrep reads represent
-      double pct = 100.0 * seq.second / num_reads;
+      double pct = 100.0 * seq.second / std::max(static_cast<size_t>(1), num_reads);
       if (pct > grade_error) {
         grade = "fail";
       }
@@ -1813,7 +1830,7 @@ ModuleOverrepresentedSequences::write_module(ostream &os) {
     os << "#Sequence\tCount\tPercentage\tPossible Source\n";
   for (auto seq : overrep_sequences) {
       os << seq.first << "\t" << seq.second <<  "\t" <<
-        100.0 * seq.second / num_reads << "\t"
+        100.0 * seq.second / std::max(static_cast<size_t>(1), num_reads) << "\t"
         << get_matching_contaminant(seq.first) << "\n";
   }
 }
@@ -1836,7 +1853,7 @@ ModuleOverrepresentedSequences::make_html_data() {
   for (auto v : overrep_sequences) {
     data << "<tr><td>" << v.first << "</td>";
     data << "<td>" << v.second << "</td>";
-    data << "<td>" << 100.0 * v.second / num_reads << "</td>";
+    data << "<td>" << 100.0 * v.second / std::max(static_cast<size_t>(1), num_reads) << "</td>";
     data << "<td>" << get_matching_contaminant(v.first)
          << "</td>";
     data << "</tr>";
@@ -1907,7 +1924,8 @@ ModuleAdapterContent::summarize_module(FastqStats &stats) {
     for (size_t i = 0; i < adapter_pos_pct.size(); ++i) {
       for (size_t j = 0; j < adapter_pos_pct[0].size(); ++j) {
         adapter_pos_pct[i][j] *= 100.0;
-        adapter_pos_pct[i][j] /= static_cast<double>(stats.num_reads);
+        adapter_pos_pct[i][j] /= std::max(num_lim<double>::min(),
+                                          static_cast<double>(stats.num_reads));
       }
     }
   }
@@ -2077,7 +2095,8 @@ ModuleKmerContent::summarize_module(FastqStats &stats) {
       observed_count =
         stats.kmer_count[(i << Constants::bit_shift_kmer) | kmer];
 
-      expected_count = pos_kmer_count[i] / dividend;
+      expected_count = pos_kmer_count[i] / std::max(num_lim<double>::min(), dividend);
+      // ADS: below, denom can't be zero if not above?
       obs_exp_ratio = (expected_count > 0) ? (observed_count / expected_count) : 0;
 
       if (i == 0 || obs_exp_ratio > obs_exp_max[kmer]) {
@@ -2146,7 +2165,7 @@ ModuleKmerContent::make_html_data() {
 
   for (size_t i = 0; i < lim; ++i) {
     const size_t kmer = kmers_to_report[i].first;
-    const double log_obs_exp = log(kmers_to_report[i].second)/log(2);
+    const double log_obs_exp = log(kmers_to_report[i].second)/log(2.0);
     if (!seen_first)
       seen_first = true;
     else
