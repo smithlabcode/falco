@@ -27,19 +27,6 @@
 #include "StreamReader.hpp"
 #include "smithlab_utils.hpp"
 
-using std::cerr;
-using std::cout;
-using std::endl;
-using std::ifstream;
-using std::ofstream;
-using std::ostream;
-using std::runtime_error;
-using std::string;
-using std::to_string;
-using std::vector;
-
-namespace fs = std::filesystem;
-
 using std::chrono::duration_cast;
 using std::chrono::system_clock;
 using time_point = std::chrono::time_point<std::chrono::system_clock>;
@@ -54,17 +41,17 @@ get_seconds_since(const time_point &start_time) {
 
 // Function to print progress nicely
 static inline void
-log_process(const string &s) {
+log_process(const std::string &s) {
   auto tmp = system_clock::to_time_t(system_clock::now());
-  string time_fmt(std::ctime(&tmp));
+  std::string time_fmt(std::ctime(&tmp));
   time_fmt.pop_back();
-  cerr << "[" << time_fmt << "] " << s << endl;
+  std::cerr << "[" << time_fmt << "] " << s << '\n';
 }
 
 // Function to check existance of directory
 static bool
-dir_exists(const string &path) {
-  return fs::exists(path) && fs::is_directory(path);
+dir_exists(const std::string &path) {
+  return std::filesystem::exists(path) && std::filesystem::is_directory(path);
 }
 
 // Read any file type until the end and logs progress
@@ -80,10 +67,10 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
   const bool quiet = falco_config.quiet;
   ProgressBar progress(file_size, "running falco");
   if (!quiet)
-    progress.report(cerr, 0);
+    progress.report(std::cerr, 0);
   while (in.read_entry(stats, tot_bytes_read)) {
     if (!quiet && progress.time_to_report(tot_bytes_read))
-      progress.report(cerr, tot_bytes_read);
+      progress.report(std::cerr, tot_bytes_read);
   }
 
   // if I could not get tile information from read names, I need to tell this to
@@ -92,7 +79,7 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
     falco_config.do_tile = false;
 
   if (!quiet && tot_bytes_read < file_size)
-    progress.report(cerr, file_size);
+    progress.report(std::cerr, file_size);
 }
 
 // Write module content into html maker if requested
@@ -100,8 +87,8 @@ template <typename T>
 void
 write_if_requested(T module, FastqStats &stats, const bool requested,
                    const bool skip_text, const bool skip_html,
-                   const bool skip_short_summary, const string &filename,
-                   ostream &summary_txt, ostream &qc_data_txt,
+                   const bool skip_short_summary, const std::string &filename,
+                   std::ostream &summary_txt, std::ostream &qc_data_txt,
                    HtmlMaker &html_maker) {
   html_maker.put_comment(module.placeholder_cs, module.placeholder_ce,
                          requested);
@@ -137,36 +124,38 @@ void
 write_results(const FalcoConfig &falco_config, FastqStats &stats,
               const bool skip_text, const bool skip_html,
               const bool skip_short_summary, const bool do_call,
-              const string &file_prefix, const string &outdir,
-              const string &summary_filename, const string &data_filename,
-              const string &report_filename) {
+              const std::string &file_prefix, const std::string &outdir,
+              const std::string &summary_filename,
+              const std::string &data_filename,
+              const std::string &report_filename) {
 
   // Here we open the short summary ofstream
-  ofstream summary_txt;
+  std::ofstream summary_txt;
   if (!skip_short_summary) {
-    const string summary_file =
-      (summary_filename.empty() ? (outdir + "/" + file_prefix + "summary.txt")
-                                : (summary_filename));
-    summary_txt.open(summary_file.c_str(), std::ofstream::binary);
+    const std::string summary_file =
+      summary_filename.empty() ? outdir + "/" + file_prefix + "summary.txt"
+                               : summary_filename;
+    summary_txt.open(summary_file, std::ofstream::binary);
 
     if (!summary_txt.good())
-      throw runtime_error("Failed to create output summary file: " +
-                          summary_file);
+      throw std::runtime_error("Failed to create output summary file: " +
+                               summary_file);
 
     if (!falco_config.quiet)
       log_process("Writing summary to " + summary_file);
   }
 
   // Here we open the full text summary
-  ofstream qc_data_txt;
+  std::ofstream qc_data_txt;
   if (!skip_text) {
-    const string qc_data_file =
+    const std::string qc_data_file =
       (data_filename.empty() ? (outdir + "/" + file_prefix + "fastqc_data.txt")
                              : (data_filename));
-    qc_data_txt.open(qc_data_file.c_str(), std::ofstream::binary);
+    qc_data_txt.open(qc_data_file, std::ofstream::binary);
 
     if (!qc_data_txt.good())
-      throw runtime_error("Failed to create output data file: " + qc_data_file);
+      throw std::runtime_error("Failed to create output data file: " +
+                               qc_data_file);
 
     if (!falco_config.quiet)
       log_process("Writing text report to " + qc_data_file);
@@ -179,10 +168,10 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
 
   // Here we open the html ostream and maker object
   HtmlMaker html_maker = HtmlMaker();
-  ofstream html;
+  std::ofstream html;
   if (!skip_html) {
     // Decide html filename based on input
-    const string html_file =
+    const std::string html_file =
       (report_filename.empty()
          ? (outdir + "/" + file_prefix + "fastqc_report.html")
          : (report_filename));
@@ -190,10 +179,10 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
     if (!falco_config.quiet)
       log_process("Writing HTML report to " + html_file);
 
-    html.open(html_file.c_str(), std::ofstream::binary);
+    html.open(html_file, std::ofstream::binary);
     if (!html.good())
-      throw runtime_error("Failed to create output HTML report file: " +
-                          html_file);
+      throw std::runtime_error("Failed to create output HTML report file: " +
+                               html_file);
 
     html_maker.put_file_details(falco_config);
   }
@@ -272,16 +261,17 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
     html << html_maker.html_boilerplate;
 }
 
-inline bool
-file_exists(const string &file_name) {
-  return (access(file_name.c_str(), F_OK) == 0);
+[[nodiscard]] inline bool
+file_exists(const std::string &file_name) {
+  return access(file_name.data(), F_OK) == 0;
 }
 
 int
 main(int argc, const char **argv) {
 
   try {
-    static const string FALCO_VERSION = "falco " + FalcoConfig::FalcoVersion;
+    static const std::string FALCO_VERSION =
+      "falco " + FalcoConfig::FalcoVersion;
     bool help = false;
     bool version = false;
 
@@ -294,20 +284,20 @@ main(int argc, const char **argv) {
 
     // a tmp boolean to keep compatibility with FastQC
     bool tmp_compatibility_only = false;
-    string tmp_compatibility_only_str;
+    std::string tmp_compatibility_only_str;
 
     FalcoConfig falco_config(argc, argv);
 
     // if defined, read file as the file format specified by the user
-    string forced_file_format;
+    std::string forced_file_format;
 
     // output directory in which to put files
-    string outdir;
+    std::string outdir;
 
     // custom output filenames (if provided)
-    string data_filename = "";
-    string report_filename = "";
-    string summary_filename = "";
+    std::string data_filename = "";
+    std::string report_filename = "";
+    std::string summary_filename = "";
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(argv[0],
@@ -548,39 +538,39 @@ main(int argc, const char **argv) {
       "other parts of a workflow.",
       false, allow_empty_input);
 
-    vector<string> leftover_args;
+    std::vector<std::string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
     if (argc == 1 || opt_parse.help_requested()) {
-      cerr << opt_parse.help_message() << endl
-           << opt_parse.about_message() << endl;
+      std::cerr << opt_parse.help_message() << '\n'
+                << opt_parse.about_message() << '\n';
       return EXIT_SUCCESS;
     }
     if (version) {
-      cout << FALCO_VERSION << "\n";
+      std::cerr << FALCO_VERSION << "\n";
       return EXIT_SUCCESS;
     }
     if (opt_parse.about_requested()) {
-      cerr << opt_parse.about_message() << endl;
+      std::cerr << opt_parse.about_message() << '\n';
       return EXIT_SUCCESS;
     }
     if (opt_parse.option_missing()) {
-      cerr << opt_parse.option_missing_message() << endl;
+      std::cerr << opt_parse.option_missing_message() << '\n';
       return EXIT_SUCCESS;
     }
 
     if (leftover_args.size() == 0) {
-      cerr << opt_parse.help_message() << endl;
+      std::cerr << opt_parse.help_message() << '\n';
       return EXIT_SUCCESS;
     }
 
     if (leftover_args.size() > 1 &&
         (!summary_filename.empty() || !report_filename.empty() ||
          !data_filename.empty())) {
-      cerr << "ERROR: summary, report or data filename provided, but"
-           << " you are running falco with " << leftover_args.size()
-           << " inputs. We cannot allow this because multiple inputs"
-           << " require multiple outputs, so they will be resolved by"
-           << " the input filenames instead" << endl;
+      std::cerr << "ERROR: summary, report or data filename provided, but"
+                << " you are running falco with " << leftover_args.size()
+                << " inputs. We cannot allow this because multiple inputs"
+                << " require multiple outputs, so they will be resolved by"
+                << " the input filenames instead\n";
       return EXIT_FAILURE;
     }
 
@@ -590,12 +580,12 @@ main(int argc, const char **argv) {
         std::error_code ec;
         const bool empty_file = std::filesystem::is_empty(fn, ec);
         if (ec) {
-          cerr << "Error reading file: " << fn << " (" << ec.message() << ")"
-               << endl;
+          std::cerr << "Error reading file: " << fn << " (" << ec.message()
+                    << ")\n";
           return EXIT_FAILURE;
         }
         else if (empty_file) {
-          cerr << "Input file is empty: " << fn << endl;
+          std::cerr << "Input file is empty: " << fn << '\n';
           return EXIT_FAILURE;
         }
       }
@@ -603,22 +593,23 @@ main(int argc, const char **argv) {
 
     if (!outdir.empty()) {
       if (!summary_filename.empty())
-        cerr << "[WARNING] specifying custom output directory but also "
-             << "custom summary filename. Output " << outdir
-             << " will be disregarded and summary file will be saved to "
-             << summary_filename << endl;
+        std::cerr << "[WARNING] specifying custom output directory but also "
+                  << "custom summary filename. Output " << outdir
+                  << " will be disregarded and summary file will be saved to "
+                  << summary_filename << '\n';
 
       if (!data_filename.empty())
-        cerr << "[WARNING] specifying custom output directory but also "
-             << "custom data filename. Output " << outdir
-             << " will be disregarded and data file will be saved to "
-             << data_filename << endl;
+        std::cerr << "[WARNING] specifying custom output directory but also "
+                  << "custom data filename. Output " << outdir
+                  << " will be disregarded and data file will be saved to "
+                  << data_filename << '\n';
 
       if (!report_filename.empty())
-        cerr << "[WARNING] specifying custom output directory but also "
-             << "custom HTML Report filename. Output " << outdir
-             << " will be disregarded and HTML report file will be saved to "
-             << report_filename << endl;
+        std::cerr
+          << "[WARNING] specifying custom output directory but also "
+          << "custom HTML Report filename. Output " << outdir
+          << " will be disregarded and HTML report file will be saved to "
+          << report_filename << '\n';
 
       if (!dir_exists(outdir)) {
         if (!falco_config.quiet)
@@ -626,25 +617,26 @@ main(int argc, const char **argv) {
 
         // makes directory with r and w permission
         if (mkdir(outdir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
-          cerr << "failed to create directory: " << outdir
-               << ". Make sure you have write permissions on it!" << endl;
+          std::cerr << "failed to create directory: " << outdir
+                    << ". Make sure you have write permissions on it!\n";
           return EXIT_FAILURE;
         }
       }
     }
-    const vector<string> all_seq_filenames(leftover_args);
+    const std::vector<std::string> all_seq_filenames(leftover_args);
 
     // check if all filenames exist
     bool all_files_exist = true;
     for (size_t i = 0; i < all_seq_filenames.size(); ++i) {
       if (!file_exists(all_seq_filenames[i])) {
-        cerr << "ERROR! File does not exist: " << all_seq_filenames[i] << endl;
+        std::cerr << "ERROR! File does not exist: " << all_seq_filenames[i]
+                  << '\n';
         all_files_exist = false;
       }
     }
 
     if (!all_files_exist) {
-      throw runtime_error(
+      throw std::runtime_error(
         "not all input files exist. Check stderr for detailed list"
         " of files that were not found");
     }
@@ -701,8 +693,8 @@ main(int argc, const char **argv) {
         read_stream_into_stats(in, stats, falco_config);
       }
       else {
-        throw runtime_error("Cannot recognize file format for file " +
-                            falco_config.filename);
+        throw std::runtime_error("Cannot recognize file format for file " +
+                                 falco_config.filename);
       }
 
       if (!falco_config.quiet) {
@@ -712,13 +704,14 @@ main(int argc, const char **argv) {
       stats.summarize();
 
       // if oudir is empty we will set it as the filename path
-      string cur_outdir;
+      std::string cur_outdir;
 
       const size_t last_slash_idx = filename.rfind('/');
-      string file_basename = falco_config.filename.substr(last_slash_idx + 1);
+      std::string file_basename =
+        falco_config.filename.substr(last_slash_idx + 1);
       if (outdir.empty()) {
         // if file was given with relative path in the current dir, we set a dot
-        if (last_slash_idx == string::npos) {
+        if (last_slash_idx == std::string::npos) {
           cur_outdir = ".";
           file_basename = filename;
         }
@@ -731,7 +724,7 @@ main(int argc, const char **argv) {
       }
 
       // Write results
-      const string file_prefix =
+      const std::string file_prefix =
         (all_seq_filenames.size() == 1) ? ("") : (file_basename + "_");
       write_results(falco_config, stats, skip_text, skip_html,
                     skip_short_summary, do_call, file_prefix, cur_outdir,
@@ -739,12 +732,12 @@ main(int argc, const char **argv) {
 
       /************************** TIME SUMMARY *****************************/
       if (!falco_config.quiet)
-        cerr << "Elapsed time for file " << filename << ": "
-             << get_seconds_since(file_start_time) << "s" << endl;
+        std::cerr << "Elapsed time for file " << filename << ": "
+                  << get_seconds_since(file_start_time) << "s\n";
     }
   }
-  catch (const runtime_error &e) {
-    cerr << e.what() << endl;
+  catch (const std::exception &e) {
+    std::cerr << e.what() << '\n';
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
