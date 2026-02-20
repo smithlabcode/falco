@@ -20,7 +20,7 @@ duplication	warn	70
 duplication error	50
 
 # For the kmer module the filter is on the -log10 binomial
-# pvalue for the most significant Kmer, so 5 would be 
+# pvalue for the most significant Kmer, so 5 would be
 # 10^-5 = p<0.00001
 kmer	warn	2
 kmer	error	5
@@ -60,7 +60,7 @@ gc_sequence	error	30
 quality_sequence	warn	27
 quality_sequence	error	20
 
-# The per tile module tests the maximum phred score loss between 
+# The per tile module tests the maximum phred score loss between
 # and individual tile and the average for that base across all tiles
 tile	warn	5
 tile	error	10
@@ -73,7 +73,7 @@ tile	error	10
 sequence_length	warn	1
 sequence_length	error	1
 
-# The adapter module's warnings and errors are based on the 
+# The adapter module's warnings and errors are based on the
 # percentage of reads in the library which have been observed
 # to contain an adapter associated Kmer at any point
 
