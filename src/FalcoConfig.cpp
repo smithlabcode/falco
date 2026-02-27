@@ -329,6 +329,7 @@ FalcoConfig::FalcoConfig(const int argc, char *argv[]) {
 
 
   quiet = false;
+  progress = false;
   tmpdir = ".";
 
   is_sam = false;

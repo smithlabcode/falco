@@ -1,4 +1,4 @@
-/* Copyright (C) 2019-2022 Guilherme De Sena Brandine and
+/* Copyright (C) 2019-2026 Guilherme De Sena Brandine and
  *                         Andrew D. Smith
  * Authors: Guilherme De Sena Brandine, Andrew Smith
  *
@@ -42,7 +42,7 @@ struct FalcoConfig {
   bool extract;  // if set the zipped file will be uncompressed
   bool nogroup;  // disable grouping of bases for reads >50bp
   bool compressed;  // whether or not to inflate file
-  bool quiet;
+  bool quiet;   // suppress all progress output to terminal
   size_t read_step;  // only process reads that are multiple of read_step
   size_t threads;  // number of threads to read multiple files in parallel
   std::string call; // the function call
@@ -52,6 +52,9 @@ struct FalcoConfig {
   std::string limits_file;  // file with limits and options and custom analyses
   static const std::string html_template; // the html for the template
   std::string tmpdir;  // dir for temp files when generating report images
+
+  // Falco only
+  bool progress; // report the progress bar
 
   // config on how to handle reads
   bool do_duplication,
