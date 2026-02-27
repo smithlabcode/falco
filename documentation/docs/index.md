@@ -283,6 +283,12 @@ Options:
                            (this may break the parse of fastqc_data.txt
                            in programs that are very strict about the
                            FastQC output format).
+      -allow-empty-input   [Falco only] allow empty input files and
+                           generate empty output files without en error
+                           state. WARNING: using this option can mask
+                           problems in other parts of a workflow.
+      -progress            [Falco only] Report a progress bar while
+                           running.
 
 Help options:
   -?, -help                print this help message
@@ -306,7 +312,7 @@ quality control of sequencing data. F1000Research 2021, 8:1874
 Copyright and License Information
 =================================
 
-Copyright (C) 2019-2024 Guilherme de Sena Brandine and
+Copyright (C) 2019-2026 Guilherme de Sena Brandine and
                         Andrew D. Smith
 
 Authors: Guilherme de Sena Brandine and Andrew D. Smith
