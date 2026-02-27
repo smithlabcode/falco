@@ -64,12 +64,12 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
   size_t tot_bytes_read = 0;
 
   // Read record by record
-  const bool quiet = falco_config.quiet;
+  const bool report_progress = falco_config.progress;
   ProgressBar progress(file_size, "running falco");
-  if (!quiet)
+  if (report_progress)
     progress.report(std::cerr, 0);
   while (in.read_entry(stats, tot_bytes_read)) {
-    if (!quiet && progress.time_to_report(tot_bytes_read))
+    if (report_progress && progress.time_to_report(tot_bytes_read))
       progress.report(std::cerr, tot_bytes_read);
   }
 
@@ -78,7 +78,7 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
   if (in.tile_ignore)
     falco_config.do_tile = false;
 
-  if (!quiet && tot_bytes_read < file_size)
+  if (report_progress && tot_bytes_read < file_size)
     progress.report(std::cerr, file_size);
 }
 
@@ -537,6 +537,10 @@ main(int argc, char *argv[]) {
       "without en error state. WARNING: using this option can mask problems in "
       "other parts of a workflow.",
       false, allow_empty_input);
+
+    opt_parse.add_opt("progress", '\0',
+                      "[Falco only] Report a progress bar while running.",
+                      false, falco_config.progress);
 
     std::vector<std::string> leftover_args;
     opt_parse.parse(argc, argv, leftover_args);
