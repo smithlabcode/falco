@@ -308,7 +308,7 @@ strip_path(string full_path) {
 /******************** FALCOCONFIG FUNCTIONS *************************/
 /********************************************************************/
 // Default config properties
-FalcoConfig::FalcoConfig(const int argc, const char **argv) {
+FalcoConfig::FalcoConfig(const int argc, char *argv[]) {
   casava = false;
   nanopore = false;
   nofilter = false;

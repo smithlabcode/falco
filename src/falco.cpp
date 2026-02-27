@@ -267,7 +267,7 @@ file_exists(const std::string &file_name) {
 }
 
 int
-main(int argc, const char **argv) {
+main(int argc, char *argv[]) {
 
   try {
     static const std::string FALCO_VERSION =

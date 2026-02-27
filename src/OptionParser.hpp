@@ -107,10 +107,10 @@ public:
   void add_opt(const std::string l_name, const char s_name,
                const std::string descr,  const bool reqd, char &val);
 
-  void parse(const int argc, const char **argv,
+  void parse(const int argc, char *argv[],
              std::vector<std::string> &arguments);
 
-  void parse(const int argc, const char **argv,
+  void parse(const int argc, char *argv[],
              std::vector<std::string> &arguments,
              std::string config_filename);
 

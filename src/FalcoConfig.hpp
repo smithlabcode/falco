@@ -31,7 +31,7 @@
 // config from options, constants, magic numbers, etc
 struct FalcoConfig {
   static const std::string FalcoVersion;
-  FalcoConfig(const int argc, const char **argv);
+  FalcoConfig(const int argc, char *argv[]);
 
   /************************************************************
    *************** FASTQC OPTION PARSER************************
