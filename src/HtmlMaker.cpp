@@ -14,33 +14,21 @@
  */
 
 #include "HtmlMaker.hpp"
+
 #include <algorithm>
-#include <sstream>
 #include <chrono>
 #include <fstream>
-#include <algorithm>
-
-using std::ostringstream;
-using std::string;
-using std::vector;
-using std::sort;
-using std::ifstream;
-using std::runtime_error;
-using std::chrono::system_clock;
-using std::min;
-
+#include <sstream>
 
 void
-HtmlMaker::put_data(const string &placeholder,
-                    const string &data) {
+HtmlMaker::put_data(const std::string &placeholder, const std::string &data) {
   auto pos = html_boilerplate.find(placeholder);
   // Placeholder not found
-  if (pos == string::npos) {
-    throw runtime_error("placeholder not found: " + placeholder);
-  }
+  if (pos == std::string::npos)
+    throw std::runtime_error("placeholder not found: " + placeholder);
 
   // at least one placeholder found
-  while (pos != string::npos) {
+  while (pos != std::string::npos) {
     html_boilerplate.replace(pos, placeholder.size(), data);
     pos = html_boilerplate.find(placeholder, pos + 1);
   }
@@ -48,9 +36,8 @@ HtmlMaker::put_data(const string &placeholder,
 
 // Comments out html pieces if analyses were skipped
 void
-HtmlMaker::put_comment(string &comment_begin,
-            string &comment_end,
-            bool done) {
+HtmlMaker::put_comment(std::string &comment_begin, std::string &comment_end,
+                       bool done) {
   // put html comments if analysis was skipped
   if (!done) {
     put_data(comment_begin, "<!--");
@@ -67,16 +54,13 @@ HtmlMaker::put_comment(string &comment_begin,
 void
 HtmlMaker::put_file_details(const FalcoConfig &falco_config) {
   // Put file name in filename placeholder
-  put_data("{{filename}}",
-                                falco_config.filename_stripped);
+  put_data("{{filename}}", falco_config.filename_stripped);
 
   // Put date on date placeholder
-  auto tmp = system_clock::to_time_t(system_clock::now());
-  string time_fmt = string(ctime(&tmp));
+  auto tmp =
+    std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  std::string time_fmt = std::string(ctime(&tmp));
   put_data("{{date}}", time_fmt);
 }
 
-HtmlMaker::HtmlMaker() {
-  html_boilerplate = FalcoConfig::html_template;
-}
-
+HtmlMaker::HtmlMaker() { html_boilerplate = FalcoConfig::html_template; }

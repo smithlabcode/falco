@@ -18,6 +18,8 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <string>
+#include <vector>
 
 #include "FalcoConfig.hpp"
 #include "FastqStats.hpp"
@@ -27,22 +29,21 @@
 #include "StreamReader.hpp"
 #include "smithlab_utils.hpp"
 
-using std::chrono::duration_cast;
-using std::chrono::system_clock;
-using time_point = std::chrono::time_point<std::chrono::system_clock>;
-
 // Function to get seconds elapsed in program
-static size_t
-get_seconds_since(const time_point &start_time) {
-  const auto current_time = system_clock::now();
+static std::size_t
+get_seconds_since(
+  const std::chrono::time_point<std::chrono::system_clock> &start_time) {
+  const auto current_time = std::chrono::system_clock::now();
   const auto time_difference = current_time - start_time;
-  return duration_cast<std::chrono::seconds>(time_difference).count();
+  return std::chrono::duration_cast<std::chrono::seconds>(time_difference)
+    .count();
 }
 
 // Function to print progress nicely
 static inline void
 log_process(const std::string &s) {
-  auto tmp = system_clock::to_time_t(system_clock::now());
+  auto tmp =
+    std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   std::string time_fmt(std::ctime(&tmp));
   time_fmt.pop_back();
   std::cerr << "[" << time_fmt << "] " << s << '\n';
@@ -60,8 +61,8 @@ template <typename T>
 void
 read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
   // open file
-  size_t file_size = std::max(in.load(), static_cast<size_t>(1));
-  size_t tot_bytes_read = 0;
+  std::size_t file_size = std::max(in.load(), static_cast<std::size_t>(1));
+  std::size_t tot_bytes_read = 0;
 
   // Read record by record
   const bool report_progress = falco_config.progress;
@@ -149,8 +150,8 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
   std::ofstream qc_data_txt;
   if (!skip_text) {
     const std::string qc_data_file =
-      (data_filename.empty() ? (outdir + "/" + file_prefix + "fastqc_data.txt")
-                             : (data_filename));
+      data_filename.empty() ? outdir + "/" + file_prefix + "fastqc_data.txt"
+                            : data_filename;
     qc_data_txt.open(qc_data_file, std::ofstream::binary);
 
     if (!qc_data_txt.good())
@@ -562,16 +563,16 @@ main(int argc, char *argv[]) {
       return EXIT_SUCCESS;
     }
 
-    if (leftover_args.size() == 0) {
+    if (std::size(leftover_args) == 0) {
       std::cerr << opt_parse.help_message() << '\n';
       return EXIT_SUCCESS;
     }
 
-    if (leftover_args.size() > 1 &&
+    if (std::size(leftover_args) > 1 &&
         (!summary_filename.empty() || !report_filename.empty() ||
          !data_filename.empty())) {
       std::cerr << "ERROR: summary, report or data filename provided, but"
-                << " you are running falco with " << leftover_args.size()
+                << " you are running falco with " << std::size(leftover_args)
                 << " inputs. We cannot allow this because multiple inputs"
                 << " require multiple outputs, so they will be resolved by"
                 << " the input filenames instead\n";
@@ -620,7 +621,7 @@ main(int argc, char *argv[]) {
           log_process("creating directory for output: " + outdir);
 
         // makes directory with r and w permission
-        if (mkdir(outdir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
+        if (mkdir(std::data(outdir), S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
           std::cerr << "failed to create directory: " << outdir
                     << ". Make sure you have write permissions on it!\n";
           return EXIT_FAILURE;
@@ -631,7 +632,7 @@ main(int argc, char *argv[]) {
 
     // check if all filenames exist
     bool all_files_exist = true;
-    for (size_t i = 0; i < all_seq_filenames.size(); ++i) {
+    for (std::size_t i = 0; i < std::size(all_seq_filenames); ++i) {
       if (!file_exists(all_seq_filenames[i])) {
         std::cerr << "ERROR! File does not exist: " << all_seq_filenames[i]
                   << '\n';
@@ -648,7 +649,7 @@ main(int argc, char *argv[]) {
     /****************** END COMMAND LINE OPTIONS ********************/
     for (const auto &filename : all_seq_filenames) {
 
-      const time_point file_start_time = system_clock::now();
+      const auto file_start_time = std::chrono::system_clock::now();
 
       falco_config.filename = filename;
 
@@ -710,7 +711,7 @@ main(int argc, char *argv[]) {
       // if oudir is empty we will set it as the filename path
       std::string cur_outdir;
 
-      const size_t last_slash_idx = filename.rfind('/');
+      const std::size_t last_slash_idx = filename.rfind('/');
       std::string file_basename =
         falco_config.filename.substr(last_slash_idx + 1);
       if (outdir.empty()) {
@@ -728,8 +729,9 @@ main(int argc, char *argv[]) {
       }
 
       // Write results
-      const std::string file_prefix =
-        (all_seq_filenames.size() == 1) ? ("") : (file_basename + "_");
+      const std::string file_prefix = std::size(all_seq_filenames) == 1
+                                        ? std::string{}
+                                        : (file_basename + "_");
       write_results(falco_config, stats, skip_text, skip_html,
                     skip_short_summary, do_call, file_prefix, cur_outdir,
                     summary_filename, data_filename, report_filename);
