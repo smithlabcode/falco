@@ -16,26 +16,15 @@
 #include "FalcoConfig.hpp"
 #include "FastqStats.hpp"
 
-#include <fstream>
-#include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include <fstream>
+#include <sstream>
 #include <algorithm>
 #include <sstream>
 
-using std::ostringstream;
-using std::transform;
-using std::string;
-using std::vector;
-using std::unordered_map;
-using std::pair;
-using std::make_pair;
-using std::ifstream;
-using std::runtime_error;
-using std::istringstream;
-using std::cerr;
-
-const string FalcoConfig::FalcoVersion = "1.2.5";
+const std::string FalcoConfig::FalcoVersion = "1.2.5";
 
 /*********************************************************/
 /************** DEFAULT VALUES FOR FILES *****************/
@@ -44,7 +33,7 @@ const string FalcoConfig::FalcoVersion = "1.2.5";
 namespace FileConstants {
   // These will become const bools in the stream reader
   static const std::unordered_map<std::string,
-               std::unordered_map<std::string, double> >
+               std::unordered_map<std::string, double>>
   limits = {
     {"quality_base",{{"ignore",0}}},
     {"duplication",{{"ignore",0}, {"warn",70}, {"error",50}}},
@@ -62,7 +51,7 @@ namespace FileConstants {
   };
 
   /*************** CONTAMINANTS *****************/
-  static const std::vector<std::pair<std::string, std::string> >
+  static const std::vector<std::pair<std::string, std::string>>
   contaminants = {
     {"Illumina Single End Adapter 1","GATCGGAAGAGCTCGTATGCCGTCTTCTGCTTG"},
     {"Illumina Single End Adapter 2","CAAGCAGAAGACGGCATACGAGCTCTTCCGATCT"},
@@ -254,7 +243,7 @@ namespace FileConstants {
 
 // Check if line is not a comment or newline
 inline bool
-is_content_line (const string &line) {
+is_content_line (const std::string &line) {
   // comment
   if (line[0] == '#')
     return false;
@@ -269,7 +258,7 @@ is_content_line (const string &line) {
 // Check existance of config files
 inline bool
 file_exists(const std::string& name) {
-  return (access(name.c_str(), F_OK) == 0);
+  return access(std::data(name), F_OK) == 0;
 }
 
 
@@ -279,7 +268,7 @@ file_exists(const std::string& name) {
 // variable, and files are not read properly
 // if these bytes are not removed
 void
-clean_zero_bytes(string &filename) {
+clean_zero_bytes(std::string &filename) {
   filename.erase(std::remove(begin(filename), end(filename), '\0'), end(filename));
 }
 
@@ -294,10 +283,10 @@ endswith(std::string const &value, std::string const &ending) {
 }
 
 // Removes absolute path from a file
-static string
-strip_path(string full_path) {
+static std::string
+strip_path(std::string full_path) {
   size_t start = full_path.find_last_of('/');
-  if (start == string::npos)
+  if (start == std::string::npos)
     start = 0;
   else
     ++start;
@@ -319,9 +308,9 @@ FalcoConfig::FalcoConfig(const int argc, char *argv[]) {
   read_step = 1;
   format = "";
   threads = 1;
-  contaminants_file = string(PROGRAM_PATH) + "/Configuration/contaminant_list.txt";
-  adapters_file = string(PROGRAM_PATH) + "/Configuration/adapter_list.txt";
-  limits_file = string(PROGRAM_PATH) + "/Configuration/limits.txt";
+  contaminants_file = std::string(PROGRAM_PATH) + "/Configuration/contaminant_list.txt";
+  adapters_file = std::string(PROGRAM_PATH) + "/Configuration/adapter_list.txt";
+  limits_file = std::string(PROGRAM_PATH) + "/Configuration/limits.txt";
 
   clean_zero_bytes(contaminants_file);
   clean_zero_bytes(adapters_file);
@@ -337,16 +326,16 @@ FalcoConfig::FalcoConfig(const int argc, char *argv[]) {
   is_fastq = false;
   is_fastq_gz = false;
 
-  ostringstream ost;
+  std::ostringstream ost;
   for (int i = 0; i < argc; ++i) {
     if (i != 0)
       ost << " " ;
-    ost << string(argv[i]);
+    ost << std::string(argv[i]);
   }
   call = ost.str();
 }
 
-const vector<string> FalcoConfig::values_to_check({
+const std::vector<std::string> FalcoConfig::values_to_check({
     "duplication",
     "kmer",
     "n_content",
@@ -375,13 +364,13 @@ const vector<string> FalcoConfig::values_to_check({
 template <class T>
 bool
 check_if_not_ignored(const T& limits_map,
-                 const string &limit) {
+                 const std::string &limit) {
   if (limits_map.find(limit) == end(limits_map))
-    throw runtime_error("no instructions for limit " + limit);
+    throw std::runtime_error("no instructions for limit " + limit);
 
   const auto the_limit = limits_map.find(limit)->second;
   if (the_limit.find("ignore") == end(the_limit))
-    throw runtime_error("'ignore' option not set for limit " + limit);
+    throw std::runtime_error("'ignore' option not set for limit " + limit);
   
   const bool ret = (the_limit.find("ignore")->second == 0.0);
 
@@ -406,9 +395,9 @@ FalcoConfig::setup() {
 
 void
 FalcoConfig::define_file_format() {
-  transform(begin(format), end(format), begin(format), tolower);
-  string tmp_filename = filename;
-  transform(begin(tmp_filename), end(tmp_filename), begin(tmp_filename), tolower);
+  std::transform(begin(format), end(format), begin(format), tolower);
+  std::string tmp_filename = filename;
+  std::transform(begin(tmp_filename), end(tmp_filename), begin(tmp_filename), tolower);
 
   // reset, important bececause the same FalcoConfig object is used
   // across possibly multiple input files
@@ -444,7 +433,7 @@ FalcoConfig::define_file_format() {
 #endif
     else if (format == "fq.gz" || format == "fastq.gz") is_fastq_gz = true;
     else if (format == "fq" || format == "fastq") is_fastq = true;
-    else throw runtime_error("unrecognized file format: " + format);
+    else throw std::runtime_error("unrecognized file format: " + format);
   }
 }
 
@@ -454,38 +443,38 @@ FalcoConfig::read_limits() {
   limits = FileConstants::limits;
   if (!file_exists(limits_file)) {
     if (!quiet)
-      cerr << "[limits]\tWARNING: using default limits because "
+      std::cerr << "[limits]\tWARNING: using default limits because "
            << "limits file does not exist: " << limits_file << "\n";
   }
   else {
-    ifstream in(limits_file);
+    std::ifstream in(limits_file);
     if (!in)
-      throw runtime_error("problem opening limits file: " + limits_file);
+      throw std::runtime_error("problem opening limits file: " + limits_file);
 
     if (!quiet)
-      cerr << "[limits]\tusing file " << limits_file << "\n"; 
+      std::cerr << "[limits]\tusing file " << limits_file << "\n"; 
 
     // Variables to parse lines
-    string line, instruction;
+    std::string line, instruction;
     double value;
     while (getline(in, line)) {
       // Checks if the line has something to be parsed
       if (is_content_line(line)) {
-        istringstream iss(line);
+        std::istringstream iss(line);
 
         // Every line is a limit, warn/error/ignore and the value
-        string limit;
+        std::string limit;
         if (!(iss >> limit >> instruction >> value))
-          throw runtime_error("malformed limits line: \"" + line + "\"");
+          throw std::runtime_error("malformed limits line: \"" + line + "\"");
 
         if (find(begin(values_to_check), end(values_to_check), limit)
             == end(values_to_check))
-          throw runtime_error("unknown limit option: " + limit);
+          throw std::runtime_error("unknown limit option: " + limit);
 
         if (instruction != "warn" &&
             instruction != "error" &&
             instruction != "ignore")
-          throw runtime_error("unknown instruction for limit " +
+          throw std::runtime_error("unknown instruction for limit " +
                               limit + ": " + instruction);
 
         limits[limit][instruction] = value;
@@ -511,11 +500,11 @@ FalcoConfig::read_limits() {
 }
 
 size_t
-hash_adapter(const string &s) {
+hash_adapter(const std::string &s) {
   size_t ans = 0;
   for (size_t i = 0; i < s.size(); ++i) {
     if (s[i] != 'A' && s[i] != 'C' && s[i] != 'T' && s[i] != 'G')
-      throw runtime_error("Bad adapter (non-ATGC characters): " + s);
+      throw std::runtime_error("Bad adapter (non-ATGC characters): " + s);
 
     ans = (ans << 2) | actg_to_2bit(s[i]);
   }
@@ -527,7 +516,7 @@ void
 FalcoConfig::read_adapters() {
   if (!file_exists(adapters_file)) {
     if (!quiet)
-      cerr << "[adapters]\tWARNING: using default adapters because "
+      std::cerr << "[adapters]\tWARNING: using default adapters because "
            << "adapters file does not exist: " << adapters_file << "\n";
 
     adapter_names = FileConstants::adapter_names;
@@ -541,16 +530,16 @@ FalcoConfig::read_adapters() {
     return;
   }
 
-  ifstream in(adapters_file);
+  std::ifstream in(adapters_file);
   if (!in)
-    throw runtime_error("problem opening adapters file: " + adapters_file);
+    throw std::runtime_error("problem opening adapters file: " + adapters_file);
 
   if (!quiet)
-    cerr << "[adapters]\tusing file " << adapters_file << "\n";
+    std::cerr << "[adapters]\tusing file " << adapters_file << "\n";
 
-  string line, _tmp;
-  vector<string> line_by_space;
-  string adapter_name, adapter_seq;
+  std::string line, _tmp;
+  std::vector<std::string> line_by_space;
+  std::string adapter_name, adapter_seq;
 
   // The adapters file has a space separated name, and the last instance is
   // the biological sequence
@@ -565,14 +554,14 @@ FalcoConfig::read_adapters() {
     if (is_content_line(line)) {
       if (adapter_names.size() > Constants::max_adapters) {
         in.close();
-        throw runtime_error("You are testing too many adapters. The maximum "
+        throw std::runtime_error("You are testing too many adapters. The maximum "
                             "number is 128!");
       }
       adapter_name = "";
       adapter_seq = "";
 
       line_by_space.clear();
-      istringstream iss(line);
+      std::istringstream iss(line);
       while (iss >> _tmp) {
         line_by_space.push_back(_tmp);
       }
@@ -585,7 +574,7 @@ FalcoConfig::read_adapters() {
         adapter_seq = line_by_space.back();
 
         if (adapter_seq.size() > 32) {
-          cerr << "[adapters]\tadapter size is more then 32. Use slow adapters search" << "\n";
+          std::cerr << "[adapters]\tadapter size is more then 32. Use slow adapters search\n";
           do_adapter_optimized = false;
         }
       }
@@ -600,7 +589,7 @@ FalcoConfig::read_adapters() {
         shortest_adapter_size = adapter_size;
       }
       else if (adapter_seq.size() != adapter_size) {
-        cerr << "[adapters]\tadapters have different size. Use slow adapters search" << "\n";
+        std::cerr << "[adapters]\tadapters have different size. Use slow adapters search\n";
         do_adapter_optimized = false;
         if(adapter_seq.size() < shortest_adapter_size){
           shortest_adapter_size = adapter_seq.size();
@@ -615,35 +604,35 @@ void
 FalcoConfig::read_contaminants_file() {
   if (!file_exists(contaminants_file)) {
     if (!quiet)
-      cerr << "[contaminants]\tWARNING: using default contaminants because "
+      std::cerr << "[contaminants]\tWARNING: using default contaminants because "
            << "contaminants file does not exist: " << contaminants_file << "\n";
     contaminants = FileConstants::contaminants;
     return;
   }
-  ifstream in(contaminants_file);
+  std::ifstream in(contaminants_file);
   if (!in)
-    throw runtime_error("problem opening contaminants file: " + contaminants_file);
+    throw std::runtime_error("problem opening contaminants file: " + contaminants_file);
 
   if (!quiet)
-    cerr << "[contaminants]\tusing file " << contaminants_file << "\n";
-  vector<string> line_by_space;
+    std::cerr << "[contaminants]\tusing file " << contaminants_file << "\n";
+  std::vector<std::string> line_by_space;
 
   // The contaminants file has a space separated name, and the last
   // instance is the biological sequence
-  string line;
+  std::string line;
   contaminants.clear();
   while (getline(in, line)) {
     if (is_content_line(line)) {
-      istringstream iss(line);
-      string token;
+      std::istringstream iss(line);
+      std::string token;
       while (iss >> token)
         line_by_space.push_back(token);
 
       if (line_by_space.size() > 1) {
-        string contaminant_name = line_by_space[0];
+        std::string contaminant_name = line_by_space[0];
         for (size_t i = 1; i < line_by_space.size() - 1; ++i)
           contaminant_name += " " + line_by_space[i];
-        contaminants.push_back(make_pair(contaminant_name, line_by_space.back()));
+        contaminants.push_back(std::make_pair(contaminant_name, line_by_space.back()));
       }
       line_by_space.clear();
     }
@@ -651,7 +640,7 @@ FalcoConfig::read_contaminants_file() {
   in.close();
 }
 
-const string FalcoConfig::html_template =
+const std::string FalcoConfig::html_template =
 "<html>"
 "<head>"
 "    <meta charset=\"utf-8\">"

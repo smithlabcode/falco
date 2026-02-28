@@ -16,20 +16,8 @@
 #include "FastqStats.hpp"
 
 #include <algorithm>
-#include <iomanip>
 #include <cmath>
-using std::string;
-using std::vector;
-using std::array;
-using std::unordered_map;
-using std::sort;
-using std::min;
-using std::max;
-using std::ostream;
-using std::pair;
-using std::transform;
-using std::toupper;
-using std::setprecision;
+#include <iomanip>
 
 // ADS: Defining const static integer class variables here for
 // correctness. Optimizer has been ignoring the issue. Hopefully it
@@ -47,9 +35,9 @@ const size_t FastqStats::kBitShiftQuality;
 const size_t FastqStats::kBitShiftAdapter;
 
 // To make the gc models static const
-static array<GCModel, FastqStats::SHORT_READ_THRESHOLD>
-make_gc_models () {
-  array<GCModel, FastqStats::SHORT_READ_THRESHOLD> ans;
+static std::array<GCModel, FastqStats::SHORT_READ_THRESHOLD>
+make_gc_models() {
+  std::array<GCModel, FastqStats::SHORT_READ_THRESHOLD> ans;
   for (size_t i = 0; i < FastqStats::SHORT_READ_THRESHOLD; ++i) {
     ans[i] = GCModel(i);
   }
@@ -85,12 +73,13 @@ FastqStats::FastqStats() {
   position_quality_count.fill(0);
   pos_kmer_count.fill(0);
   pos_adapter_count.fill(0);
-  kmer_count = vector<size_t>(SHORT_READ_THRESHOLD*(Constants::kmer_mask + 1), 0);
+  kmer_count =
+    std::vector<size_t>(SHORT_READ_THRESHOLD * (Constants::kmer_mask + 1), 0);
 }
 
 // Initialize as many gc models as fast bases
-const array<GCModel, FastqStats::SHORT_READ_THRESHOLD>
-FastqStats::gc_models = make_gc_models();
+const std::array<GCModel, FastqStats::SHORT_READ_THRESHOLD>
+  FastqStats::gc_models = make_gc_models();
 
 // When we read new bases, dynamically allocate new space for their statistics
 void
@@ -110,10 +99,10 @@ FastqStats::allocate_new_base(const bool ignore_tile) {
   // space for tile quality in each position.
   //
   if (!ignore_tile) {
-    for (auto  &v : tile_position_quality) {
+    for (auto &v : tile_position_quality) {
       v.second.push_back(0);
     }
-    for (auto  &v : tile_position_count) {
+    for (auto &v : tile_position_count) {
       v.second.push_back(0);
     }
   }
@@ -154,16 +143,14 @@ FastqStats::summarize() {
   }
 }
 
-
 void
 FastqStats::adjust_tile_maps_len() {
-  for (auto it = begin(tile_position_quality); 
-      it != end(tile_position_quality); it++) {
-    it->second.resize(max_read_length); // Always increase space
+  for (auto it = begin(tile_position_quality); it != end(tile_position_quality);
+       it++) {
+    it->second.resize(max_read_length);  // Always increase space
   }
-  for (auto it = begin(tile_position_count); 
-      it != end(tile_position_count); it++) {
-    it->second.resize(max_read_length); // Always increase space
+  for (auto it = begin(tile_position_count); it != end(tile_position_count);
+       it++) {
+    it->second.resize(max_read_length);  // Always increase space
   }
 }
-
