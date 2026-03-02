@@ -47,6 +47,7 @@ falco_SOURCES = \
 	src/HtmlMaker.hpp \
 	src/StreamReader.hpp \
 	src/FalcoConfig.hpp \
+	src/html_template.hpp \
 	src/OptionParser.hpp \
 	src/smithlab_utils.hpp \
 	src/aux.hpp
