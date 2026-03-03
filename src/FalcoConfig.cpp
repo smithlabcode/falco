@@ -17,6 +17,8 @@
 #include "FastqStats.hpp"
 #include "html_template.hpp"
 
+#include "config.h"
+
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -25,7 +27,7 @@
 #include <fstream>
 #include <sstream>
 
-const std::string FalcoConfig::FalcoVersion = "1.2.5";
+const std::string FalcoConfig::FalcoVersion = VERSION;
 
 /*********************************************************/
 /************** DEFAULT VALUES FOR FILES *****************/
