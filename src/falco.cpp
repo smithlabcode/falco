@@ -15,19 +15,23 @@
  * General Public License for more details.
  */
 
-#include <chrono>
-#include <filesystem>
-#include <fstream>
-#include <string>
-#include <vector>
 
 #include "FalcoConfig.hpp"
 #include "FastqStats.hpp"
 #include "HtmlMaker.hpp"
 #include "Module.hpp"
+
 #include "OptionParser.hpp"
 #include "StreamReader.hpp"
 #include "smithlab_utils.hpp"
+
+#include "config.h"
+
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <string>
+#include <vector>
 
 // Function to get seconds elapsed in program
 static std::size_t
@@ -162,7 +166,7 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
       log_process("Writing text report to " + qc_data_file);
 
     // put header
-    qc_data_txt << "##Falco\t" + FalcoConfig::FalcoVersion + "\n";
+    qc_data_txt << "##Falco\t" + std::string{VERSION} + "\n";
     if (do_call)
       qc_data_txt << "##Call\t" << falco_config.call << "\n";
   }
@@ -262,17 +266,12 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
     html << html_maker.html_boilerplate;
 }
 
-[[nodiscard]] inline bool
-file_exists(const std::string &file_name) {
-  return access(file_name.data(), F_OK) == 0;
-}
-
 int
 main(int argc, char *argv[]) {
 
   try {
     static const std::string FALCO_VERSION =
-      "falco " + FalcoConfig::FalcoVersion;
+      "falco " + std::string{VERSION};
     bool help = false;
     bool version = false;
 
@@ -633,7 +632,7 @@ main(int argc, char *argv[]) {
     // check if all filenames exist
     bool all_files_exist = true;
     for (std::size_t i = 0; i < std::size(all_seq_filenames); ++i) {
-      if (!file_exists(all_seq_filenames[i])) {
+      if (!std::filesystem::exists(all_seq_filenames[i])) {
         std::cerr << "ERROR! File does not exist: " << all_seq_filenames[i]
                   << '\n';
         all_files_exist = false;
