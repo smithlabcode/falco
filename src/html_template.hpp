@@ -389,7 +389,7 @@ p {
 
 
 </div>
-<div class="footer">Falco 1.2.5
+<div class="footer">Falco {{version}}
 </div>
 </body>
 <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" 
