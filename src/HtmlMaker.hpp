@@ -28,7 +28,7 @@
 class HtmlMaker {
 public:
   std::string html_boilerplate;
-  HtmlMaker();
+  HtmlMaker() : html_boilerplate{FalcoConfig::html_template} {}
   // Fill data from module
   void put_data(const std::string &placeholder, const std::string &data);
 
