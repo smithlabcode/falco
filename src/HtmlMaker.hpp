@@ -35,7 +35,7 @@ public:
   // Comment or remove placeholders
   void put_comment(std::string &comment_begin,
                    std::string &comment_end,
-                   bool done);
+                   const bool done);
 
   // Put file details and date
   void put_file_details(const FalcoConfig &falco_config);
