@@ -35,7 +35,7 @@ AC_DEFINE_UNQUOTED([PROGRAM_PATH], ["$srcdir"],
   [The PROGRAM_PATH variable])
 
 AX_CXX_COMPILE_STDCXX_17([noext], [mandatory])
-AC_OPENMP([C++]) dnl make sure we have openmp for multi-core in falco
+dnl AC_OPENMP([C++]) dnl make sure we have openmp for multi-core in falco
 
 dnl check for the Zlib library
 AC_CHECK_LIB([z], [zlibVersion], [],
