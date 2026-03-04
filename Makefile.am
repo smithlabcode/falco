@@ -17,21 +17,15 @@
 EXTRA_DIST = README.md LICENSE Configuration example.fq test
 
 ACLOCAL_AMFLAGS = -I m4
-AM_CPPFLAGS = -I $(top_srcdir)/src
 
-### ADS: use AM_CXXFLAGS if these are needed
-## AM_CXXFLAGS = -Wall -Wextra -Wpedantic -Wno-unknown-attributes
-
-TESTS = test/falco.test
-TEST_EXTENSIONS = .test
+# ADS: fix the order of user and project set vars; shouldn't need to worry about
+# setting CXXFLAGS in configure.ac
+AM_CXXFLAGS = -Wall -Wextra -Wpedantic
+if ENABLE_HTS
+CPPFLAGS += -DUSE_HTS
+endif
 
 bin_PROGRAMS = falco
-
-falco_CXXFLAGS = $(OPENMP_CXXFLAGS) $(AM_CXXFLAGS)
-falco_CPPFLAGS = -DPROGRAM_PATH=\"$(abspath $(top_srcdir))\"
-if ENABLE_HTS
-falco_CPPFLAGS += -DUSE_HTS
-endif
 
 falco_SOURCES = \
 	src/falco.cpp \
@@ -52,4 +46,6 @@ falco_SOURCES = \
 	src/smithlab_utils.hpp \
 	src/aux.hpp
 
+TESTS = test/falco.test
+TEST_EXTENSIONS = .test
 CLEANFILES = tests_build/test_data.tgz
