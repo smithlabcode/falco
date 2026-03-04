@@ -15,10 +15,13 @@
 
 #include "HtmlMaker.hpp"
 
+#include "config.h"
+
 #include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <sstream>
+#include <regex>
 
 void
 HtmlMaker::put_data(const std::string &placeholder, const std::string &data) {
@@ -29,7 +32,7 @@ HtmlMaker::put_data(const std::string &placeholder, const std::string &data) {
 
   // at least one placeholder found
   while (pos != std::string::npos) {
-    html_boilerplate.replace(pos, placeholder.size(), data);
+    html_boilerplate.replace(pos, std::size(placeholder), data);
     pos = html_boilerplate.find(placeholder, pos + 1);
   }
 }
@@ -37,15 +40,12 @@ HtmlMaker::put_data(const std::string &placeholder, const std::string &data) {
 // Comments out html pieces if analyses were skipped
 void
 HtmlMaker::put_comment(std::string &comment_begin, std::string &comment_end,
-                       bool done) {
-  // put html comments if analysis was skipped
-  if (!done) {
+                       const bool done) {
+  if (!done) { // put html comments if analysis was skipped
     put_data(comment_begin, "<!--");
     put_data(comment_end, "-->");
   }
-
-  // otherwise delete placeholder
-  else {
+  else { // otherwise delete placeholder
     put_data(comment_begin, "");
     put_data(comment_end, "");
   }
@@ -53,14 +53,21 @@ HtmlMaker::put_comment(std::string &comment_begin, std::string &comment_end,
 
 void
 HtmlMaker::put_file_details(const FalcoConfig &falco_config) {
-  // Put file name in filename placeholder
-  put_data("{{filename}}", falco_config.filename_stripped);
+  using namespace std::string_literals;
+  static const auto left_tag = "\\{\\{"s;
+  static const auto right_tag = "\\}\\}"s;
 
-  // Put date on date placeholder
-  auto tmp =
-    std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  std::string time_fmt = std::string(ctime(&tmp));
-  put_data("{{date}}", time_fmt);
+  std::regex filename_re(left_tag + "filename"s + right_tag);
+  std::regex_replace(html_boilerplate, filename_re,
+                     falco_config.filename_stripped);
+
+  using system_clock = std::chrono::system_clock;
+  auto time_unformatted = system_clock::to_time_t(system_clock::now());
+  std::string time_formatted = std::string(ctime(&time_unformatted));
+
+  std::regex date_re(left_tag + "date"s + right_tag);
+  std::regex_replace(html_boilerplate, date_re, time_formatted);
+
+  std::regex version_re(left_tag + "version"s + right_tag);
+  std::regex_replace(html_boilerplate, version_re, VERSION);
 }
-
-HtmlMaker::HtmlMaker() { html_boilerplate = FalcoConfig::html_template; }
