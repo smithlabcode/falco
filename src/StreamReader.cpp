@@ -36,6 +36,11 @@ get_tile_split_position(FalcoConfig &config) {
   // Count colons to know the formatting pattern
   size_t num_colon = 0;
 
+  // If reading from stdin (stdin:<prefix>), we cannot open the file to
+  // inspect read names; assume no tile information.
+  if (filename.rfind("stdin:", 0) == 0)
+    return 0;
+
   if (config.is_sam) {
     std::ifstream sam_file(filename);
     if (!sam_file)
@@ -639,6 +644,11 @@ StreamReader::check_bytes_read(const size_t read_num) {
 /*******************************************************/
 char
 get_line_separator(const std::string &filename) {
+  // If filename indicates stdin (stdin:<prefix>) assume standard newline
+  if (filename.rfind("stdin:", 0) == 0) {
+    return '\n';
+  }
+
   FILE *fp = fopen(filename.c_str(), "r");
   if (fp == NULL)
     throw std::runtime_error("bad input file: " + filename);
@@ -663,6 +673,11 @@ FastqReader::FastqReader(FalcoConfig &_config, const size_t _buffer_size) :
 
 size_t
 get_file_size(const std::string &filename) {
+  // For stdin-mode inputs (stdin:<prefix>) we cannot determine size; return 1
+  if (filename.rfind("stdin:", 0) == 0) {
+    return 1;
+  }
+
   FILE *fp = fopen(filename.c_str(), "r");
   if (fp == NULL)
     throw std::runtime_error("bad input file: " + filename);
@@ -677,6 +692,12 @@ get_file_size(const std::string &filename) {
 // Load fastq with zlib
 size_t
 FastqReader::load() {
+  // If filename indicates stdin (stdin:<prefix>) then use stdin as input
+  if (filename.rfind("stdin:", 0) == 0) {
+    fileobj = stdin;
+    return 1; // unknown size
+  }
+
   fileobj = fopen(filename.c_str(), "r");
   if (fileobj == NULL)
     throw std::runtime_error("Cannot open FASTQ file : " + filename);
@@ -691,7 +712,9 @@ FastqReader::is_eof() {
 
 FastqReader::~FastqReader() {
   delete[] filebuf;
-  fclose(fileobj);
+  // Only close if it's not stdin
+  if (fileobj && fileobj != stdin)
+    fclose(fileobj);
 }
 
 // Parses fastq gz by reading line by line into the gzbuf
@@ -746,6 +769,16 @@ GzFastqReader::GzFastqReader(FalcoConfig &_config, const size_t _buffer_size) :
 // Load fastq with zlib
 size_t
 GzFastqReader::load() {
+  // We do not support reading compressed streams from stdin via this API.
+  // Users should decompress upstream (e.g. with zcat) and pass contents
+  // with the std:<prefix> convention. If filename indicates stdin, throw
+  // an informative error.
+  if (filename.rfind("stdin:", 0) == 0) {
+    throw std::runtime_error(
+      "Compressed stdin not supported: pipe decompressed data (e.g. zcat) "
+      "and use stdin:<prefix> as filename");
+  }
+
   fileobj = gzopen(filename.c_str(), "r");
   if (fileobj == Z_NULL)
     throw std::runtime_error("Cannot open gzip FASTQ file : " + filename);
