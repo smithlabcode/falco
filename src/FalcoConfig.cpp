@@ -300,6 +300,7 @@ FalcoConfig::FalcoConfig(const int argc, char *argv[]) {
   is_bam = false;
   is_fastq = false;
   is_fastq_gz = false;
+  is_stdin = false;
 
   std::ostringstream ost;
   for (int i = 0; i < argc; ++i) {
@@ -356,8 +357,18 @@ FalcoConfig::setup() {
   // Now check for the file format (FASTQ/SAM/BAM, compressed or not)
   define_file_format();
 
-  // Get filename without absolute path
-  filename_stripped = std::filesystem::path(filename).filename().string();
+  // If filename indicates stdin with prefix like "stdin:prefix",
+  // set is_stdin and derive filename_stripped from the prefix.
+  if (filename.rfind("stdin:", 0) == 0) {
+    is_stdin = true;
+    // strip the "stdin:" prefix and use remainder as stripped filename
+    const std::string prefix = filename.substr(6);
+    filename_stripped = prefix.empty() ? std::string{"stdin"} : prefix;
+  }
+  else {
+    // Get filename without absolute path
+    filename_stripped = std::filesystem::path(filename).filename().string();
+  }
 
   // read which modules to run and the cutoffs for pass/warn/fail
   read_limits();
@@ -387,6 +398,12 @@ FalcoConfig::define_file_format() {
   if (format.empty()) {
     auto filename_lower(filename);
     to_lower(filename_lower);
+    // If input is from stdin (stdin:<prefix>), assume plain FASTQ unless
+    // the user explicitly forced a format.
+    if (filename.rfind("stdin:", 0) == 0) {
+      is_fastq = true;
+      return;
+    }
     if (endswith(filename, ".sam") || endswith(filename, ".sam_mapped")) {
       is_sam = true;
     }

@@ -104,6 +104,7 @@ struct FalcoConfig {
 
   // IO
   bool is_sam, is_bam, is_fastq, is_fastq_gz;
+  bool is_stdin; // whether input should be read from standard input
   std::string filename;
   std::string filename_stripped;
 

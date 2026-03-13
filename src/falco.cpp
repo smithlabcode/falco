@@ -581,15 +581,28 @@ main(int argc, char *argv[]) {
     // ADS: make sure all input files are non-empty unless user oks it
     if (!allow_empty_input) {
       for (const auto &fn : leftover_args) {
-        std::error_code ec;
-        const bool empty_file = std::filesystem::is_empty(fn, ec);
-        if (ec) {
-          std::cerr << "Error reading file: " << fn << " (" << ec.message()
-                    << ")\n";
-          return EXIT_FAILURE;
+        // Skip emptiness checks for stdin-mode inputs (stdin:<prefix>)
+        if (fn.rfind("stdin:", 0) == 0)
+          continue;
+
+        try {
+          std::error_code ec;
+          const bool empty_file = std::filesystem::is_empty(fn, ec);
+          if (ec) {
+            std::cerr << "Error reading file: " << fn << " (" << ec.message()
+                      << ")\n";
+            return EXIT_FAILURE;
+          }
+          else if (empty_file) {
+            std::cerr << "Input file is empty: " << fn << '\n';
+            return EXIT_FAILURE;
+          }
         }
-        else if (empty_file) {
-          std::cerr << "Input file is empty: " << fn << '\n';
+        catch (const std::filesystem::filesystem_error &e) {
+          // If it's a stdin-style argument, skip; otherwise report
+          if (fn.rfind("stdin:", 0) == 0)
+            continue;
+          std::cerr << "Error reading file: " << fn << " (" << e.what() << ")\n";
           return EXIT_FAILURE;
         }
       }
@@ -632,9 +645,12 @@ main(int argc, char *argv[]) {
     // check if all filenames exist
     bool all_files_exist = true;
     for (std::size_t i = 0; i < std::size(all_seq_filenames); ++i) {
-      if (!std::filesystem::exists(all_seq_filenames[i])) {
-        std::cerr << "ERROR! File does not exist: " << all_seq_filenames[i]
-                  << '\n';
+      const auto &fn = all_seq_filenames[i];
+      // allow stdin:<prefix> to represent stdin; skip exists check for it
+      if (fn.rfind("stdin:", 0) == 0)
+        continue;
+      if (!std::filesystem::exists(fn)) {
+        std::cerr << "ERROR! File does not exist: " << fn << '\n';
         all_files_exist = false;
       }
     }
