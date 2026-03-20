@@ -159,7 +159,7 @@ public:
   void
   write_module(std::ostream &os);
   void
-  read_data_line(const std::string &line);
+  read_data_line([[maybe_unused]] const std::string &line);
   std::string
   make_html_data();
 };
