@@ -772,7 +772,8 @@ ModulePerBaseSequenceQuality::make_html_data() {
 }
 
 void
-ModulePerBaseSequenceQuality::read_data_line(const std::string &line) {}
+ModulePerBaseSequenceQuality::read_data_line(
+  [[maybe_unused]] const std::string &line) {}
 
 /************** PER TILE SEQUENCE QUALITY ********************/
 const std::string ModulePerTileSequenceQuality::module_name =
@@ -1116,28 +1117,15 @@ ModulePerBaseSequenceContent::summarize_module(FastqStats &stats) {
       t_pos =
         100.0 * t_pos / std::max(std::numeric_limits<double>::min(), total_pos);
 
-      // for WGBS, we only test non-bisulfite treated bases
-      if (!is_reverse_complement)
-        max_diff = std::max(max_diff, std::fabs(a_pos - g_pos));
-      else
-        max_diff = std::max(max_diff, std::fabs(c_pos - t_pos));
-
-      if (!is_bisulfite) {
-        max_diff = std::max(max_diff, std::fabs(a_pos - c_pos));
-        max_diff = std::max(max_diff, std::fabs(a_pos - t_pos));
-        max_diff = std::max(max_diff, std::fabs(c_pos - g_pos));
-        max_diff = std::max(max_diff, std::fabs(t_pos - g_pos));
-
-        if (!is_reverse_complement)
-          max_diff = std::max(max_diff, std::fabs(c_pos - t_pos));
-        else
-          max_diff = std::max(max_diff, std::fabs(a_pos - g_pos));
-      }
-      // WGBS specific base content count
-      else {
+      if (is_bisulfite) {
+        // for WGBS, we only test non-bisulfite treated bases
         max_diff =
-          std::max(max_diff, std::fabs((c_pos + t_pos) - (a_pos + g_pos)));
+          std::max(max_diff, is_reverse_complement ? std::fabs(c_pos - t_pos)
+                                                   : std::fabs(a_pos - g_pos));
+        continue;
       }
+      max_diff = std::max(
+        max_diff, std::max(std::fabs(a_pos - t_pos), std::fabs(c_pos - g_pos)));
     }
 
     // turns above values to percent
