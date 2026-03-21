@@ -20,8 +20,8 @@
 #include <algorithm>
 #include <chrono>
 #include <fstream>
-#include <sstream>
 #include <regex>
+#include <sstream>
 
 void
 HtmlMaker::put_data(const std::string &placeholder, const std::string &data) {
@@ -41,11 +41,11 @@ HtmlMaker::put_data(const std::string &placeholder, const std::string &data) {
 void
 HtmlMaker::put_comment(std::string &comment_begin, std::string &comment_end,
                        const bool done) {
-  if (!done) { // put html comments if analysis was skipped
+  if (!done) {  // put html comments if analysis was skipped
     put_data(comment_begin, "<!--");
     put_data(comment_end, "-->");
   }
-  else { // otherwise delete placeholder
+  else {  // otherwise delete placeholder
     put_data(comment_begin, "");
     put_data(comment_end, "");
   }
@@ -54,20 +54,22 @@ HtmlMaker::put_comment(std::string &comment_begin, std::string &comment_end,
 void
 HtmlMaker::put_file_details(const FalcoConfig &falco_config) {
   using namespace std::string_literals;
-  static const auto left_tag = "\\{\\{"s;
-  static const auto right_tag = "\\}\\}"s;
+  static constexpr auto left_tag = "\\{\\{";
+  static constexpr auto right_tag = "\\}\\}";
 
+  const auto filename_formatted = falco_config.filename_stripped;
   std::regex filename_re(left_tag + "filename"s + right_tag);
-  std::regex_replace(html_boilerplate, filename_re,
-                     falco_config.filename_stripped);
+  html_boilerplate =
+    std::regex_replace(html_boilerplate, filename_re, filename_formatted);
 
   using system_clock = std::chrono::system_clock;
   auto time_unformatted = system_clock::to_time_t(system_clock::now());
   std::string time_formatted = std::string(ctime(&time_unformatted));
 
   std::regex date_re(left_tag + "date"s + right_tag);
-  std::regex_replace(html_boilerplate, date_re, time_formatted);
+  html_boilerplate =
+    std::regex_replace(html_boilerplate, date_re, time_formatted);
 
   std::regex version_re(left_tag + "version"s + right_tag);
-  std::regex_replace(html_boilerplate, version_re, VERSION);
+  html_boilerplate = std::regex_replace(html_boilerplate, version_re, VERSION);
 }
