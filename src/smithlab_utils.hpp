@@ -475,10 +475,10 @@ private:
   std::size_t total{};
   std::size_t prev{};
   std::size_t bar_width{};
-  std::string left_tag = R"(\r[)";
+  std::string left_tag = "\r[";
   std::string mid_tag;
   std::string bar;
-  std::string right_tag = R"(\%])";
+  std::string right_tag = "%]";
 
   static constexpr auto max_bar_width{72ul};
 };
