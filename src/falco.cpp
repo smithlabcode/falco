@@ -15,7 +15,6 @@
  * General Public License for more details.
  */
 
-
 #include "FalcoConfig.hpp"
 #include "FastqStats.hpp"
 #include "HtmlMaker.hpp"
@@ -142,7 +141,7 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
                                : summary_filename;
     summary_txt.open(summary_file, std::ofstream::binary);
 
-    if (!summary_txt.good())
+    if (!summary_txt)
       throw std::runtime_error("Failed to create output summary file: " +
                                summary_file);
 
@@ -158,7 +157,7 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
                             : data_filename;
     qc_data_txt.open(qc_data_file, std::ofstream::binary);
 
-    if (!qc_data_txt.good())
+    if (!qc_data_txt)
       throw std::runtime_error("Failed to create output data file: " +
                                qc_data_file);
 
@@ -172,20 +171,20 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
   }
 
   // Here we open the html ostream and maker object
-  HtmlMaker html_maker = HtmlMaker();
+  HtmlMaker html_maker;
   std::ofstream html;
   if (!skip_html) {
     // Decide html filename based on input
     const std::string html_file =
-      (report_filename.empty()
-         ? (outdir + "/" + file_prefix + "fastqc_report.html")
-         : (report_filename));
+      report_filename.empty()
+        ? (outdir + "/" + file_prefix + "fastqc_report.html")
+        : report_filename;
 
     if (!falco_config.quiet)
       log_process("Writing HTML report to " + html_file);
 
     html.open(html_file, std::ofstream::binary);
-    if (!html.good())
+    if (!html)
       throw std::runtime_error("Failed to create output HTML report file: " +
                                html_file);
 
@@ -270,8 +269,7 @@ int
 main(int argc, char *argv[]) {
 
   try {
-    static const std::string FALCO_VERSION =
-      "falco " + std::string{VERSION};
+    static const std::string FALCO_VERSION = "falco " + std::string{VERSION};
     bool help = false;
     bool version = false;
 
@@ -707,25 +705,11 @@ main(int argc, char *argv[]) {
 
       stats.summarize();
 
+      const auto p = std::filesystem::path{filename};
+      const auto file_basename = p.filename().string();
+      const auto file_dirname = p.parent_path().string();
       // if oudir is empty we will set it as the filename path
-      std::string cur_outdir;
-
-      const std::size_t last_slash_idx = filename.rfind('/');
-      std::string file_basename =
-        falco_config.filename.substr(last_slash_idx + 1);
-      if (outdir.empty()) {
-        // if file was given with relative path in the current dir, we set a dot
-        if (last_slash_idx == std::string::npos) {
-          cur_outdir = ".";
-          file_basename = filename;
-        }
-        else {
-          cur_outdir = falco_config.filename.substr(0, last_slash_idx);
-        }
-      }
-      else {
-        cur_outdir = outdir;
-      }
+      const auto cur_outdir = outdir.empty() ? file_dirname : outdir;
 
       // Write results
       const std::string file_prefix = std::size(all_seq_filenames) == 1
