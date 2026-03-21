@@ -30,20 +30,21 @@ min8(const T a, const T b) {
 /****************************************************/
 /***************** STREAMREADER *********************/
 /****************************************************/
-size_t
+std::size_t
 get_tile_split_position(FalcoConfig &config) {
   const std::string &filename = config.filename;
   // Count colons to know the formatting pattern
-  size_t num_colon = 0;
+  std::size_t num_colon{};
 
   if (config.is_sam) {
     std::ifstream sam_file(filename);
     if (!sam_file)
       throw std::runtime_error("cannot load sam file : " + filename);
     std::string line;
-    while (std::getline(sam_file, line) && line.size() > 0 && line[0] == '@')
+    while (std::getline(sam_file, line) && std::size(line) > 0 &&
+           line[0] == '@')
       continue;
-    size_t tabPos = line.find('\t');
+    std::size_t tabPos = line.find('\t');
     line = line.substr(0, tabPos);
     for (char c : line)
       num_colon += (c == ':');
@@ -113,26 +114,24 @@ get_tile_split_position(FalcoConfig &config) {
   return 0;  // no tile information on read name
 }
 
-// function to turn a vector into array for adapter hashes and fast lookup
-std::array<size_t, Constants::max_adapters>
-make_adapters(const std::vector<size_t> &adapter_hashes) {
-  if (adapter_hashes.size() > Constants::max_adapters)
-    throw std::runtime_error(
-      "Number of adapters is larger than 128, which hinders "
-      "visualziation and speed of falco. Please keep it to "
-      "under 128");
-
-  std::array<size_t, Constants::max_adapters> ans;
-  for (size_t i = 0; i < adapter_hashes.size(); ++i)
-    ans[i] = adapter_hashes[i];
-
+// function to turn a vector into array for adapter hashes and faster lookup
+std::array<std::size_t, Constants::max_adapters>
+make_adapters(const std::vector<std::size_t> &adapter_hashes) {
+  static constexpr auto error_message =
+    "Number of adapters is larger than 128, which hinders visualziation and "
+    "speed of falco. Please keep it to under 128";
+  if (std::size(adapter_hashes) > Constants::max_adapters)
+    throw std::runtime_error(error_message);
+  std::array<std::size_t, Constants::max_adapters> ans;
+  std::copy(std::cbegin(adapter_hashes), std::cend(adapter_hashes),
+            std::begin(ans));
   return ans;
 }
 
-StreamReader::StreamReader(FalcoConfig &config, const size_t _buffer_size,
+StreamReader::StreamReader(FalcoConfig &config, const std::size_t _buffer_size,
                            const char _field_separator,
                            const char _line_separator) :
-  // I have to pass the config skips as const to read them fast
+  // must pass the config skips as const to read them fast
   do_sequence_hash(config.do_duplication || config.do_overrepresented),
   do_kmer(config.do_kmer), do_adapter(config.do_adapter),
   do_adapter_optimized(config.do_adapter_optimized),
@@ -152,7 +151,8 @@ StreamReader::StreamReader(FalcoConfig &config, const size_t _buffer_size,
   do_adapters_slow(config.do_adapter && !config.do_adapter_optimized),
   adapter_seqs(config.adapter_seqs),
 
-  num_adapters(config.adapter_hashes.size()), adapter_size(config.adapter_size),
+  num_adapters(std::size(config.adapter_hashes)),
+  adapter_size(config.adapter_size),
   // for case size == 32 expr (1ull << 64) -1 gives 0.
   // We need to set mask as all 64 bits 1 => use SIZE_MAX in this case
   adapter_mask(adapter_size == 32 ? SIZE_MAX
@@ -193,7 +193,7 @@ StreamReader::put_base_in_buffer() {
     buffer[read_pos] = base_from_buffer;
   }
   else {
-    if (leftover_ind == leftover_buffer.size())
+    if (leftover_ind == std::size(leftover_buffer))
       leftover_buffer.push_back(base_from_buffer);
     else
       leftover_buffer[leftover_ind] = base_from_buffer;
@@ -241,7 +241,7 @@ StreamReader::read_fast_forward_line_eof() {
 void
 StreamReader::get_tile_value() {
   tile_cur = 0;
-  size_t num_colon = 0;
+  std::size_t num_colon = 0;
   for (; *cur_char != field_separator; ++cur_char) {
     num_colon += (*cur_char == ':');
     if (num_colon == tile_split_point) {
@@ -289,7 +289,7 @@ StreamReader::read_tile_line(FastqStats &stats) {
       std::vector<double>(stats.max_read_length, 0.0);
     // stats.tile_position_quality.find(tile_cur)->second[0] = 0;
     stats.tile_position_count[tile_cur] =
-      std::vector<size_t>(stats.max_read_length, 0);
+      std::vector<std::size_t>(stats.max_read_length, 0);
   }
 }
 
@@ -301,48 +301,44 @@ StreamReader::read_tile_line(FastqStats &stats) {
 // optimized at all times
 void
 StreamReader::process_sequence_base_from_buffer(FastqStats &stats) {
-  // I will count the Ns even if asked to ignore, as checking ifs take time
+  // count Ns even if asked not to report them
   if (base_from_buffer == 'N') {
     ++stats.n_base_count[read_pos];
     num_bases_after_n = 1;  // start over the current kmer
+    return;
   }
 
+  const auto two_bit = actg_to_2bit(base_from_buffer);
+
   // ATGC bases
-  else {
-    // increments basic statistic counts
-    cur_gc_count += (actg_to_2bit(base_from_buffer) & 1);
-    ++stats.base_count[(read_pos << Constants::bit_shift_base) |
-                       actg_to_2bit(base_from_buffer)];
+  // increments basic statistic counts
+  cur_gc_count += (two_bit & 1);
+  ++stats.base_count[(read_pos << Constants::bit_shift_base) | two_bit];
 
-    if (do_sliding_window) {
-      // Update k-mer sequence
-      cur_kmer = ((cur_kmer << Constants::bit_shift_base) |
-                  actg_to_2bit(base_from_buffer));
+  if (do_sliding_window) {
+    // Update k-mer sequence
+    cur_kmer = (cur_kmer << Constants::bit_shift_base) | two_bit;
+    // registers k-mer if seen at least k nucleotides since the last n
+    if (do_kmer && do_kmer_read &&
+        (num_bases_after_n >= Constants::kmer_size)) {
 
-      // registers k-mer if seen at least k nucleotides since the last n
-      if (do_kmer && do_kmer_read &&
-          (num_bases_after_n >= Constants::kmer_size)) {
+      ++stats.kmer_count[(read_pos << Constants::bit_shift_kmer) |
+                         (cur_kmer & Constants::kmer_mask)];
+      ++stats.pos_kmer_count[read_pos];
+    }
 
-        ++stats.kmer_count[(read_pos << Constants::bit_shift_kmer) |
-                           (cur_kmer & Constants::kmer_mask)];
-        ++stats.pos_kmer_count[read_pos];
-      }
-
-      // GS: slow, need to use fsm
-      if (do_adapter_optimized && (num_bases_after_n == adapter_size)) {
-        cur_kmer &= adapter_mask;
-        for (size_t i = 0; i != num_adapters; ++i) {
-          if (cur_kmer == adapters[i] && !adapters_found[i]) {
-            ++stats
-                .pos_adapter_count[(read_pos << Constants::bit_shift_adapter) |
-                                   i];
-            adapters_found[i] = true;
-          }
+    // GS: slow, need to use fsm
+    if (do_adapter_optimized && (num_bases_after_n == adapter_size)) {
+      cur_kmer &= adapter_mask;
+      for (std::size_t i = 0; i != num_adapters; ++i) {
+        if (cur_kmer == adapters[i] && !adapters_found[i]) {
+          ++stats.pos_adapter_count[(read_pos << Constants::bit_shift_adapter) |
+                                    i];
+          adapters_found[i] = true;
         }
       }
-
-      num_bases_after_n += (num_bases_after_n != adapter_size);
     }
+    num_bases_after_n += (num_bases_after_n != adapter_size);
   }
 }
 
@@ -353,17 +349,15 @@ StreamReader::process_sequence_base_from_leftover(FastqStats &stats) {
   if (base_from_buffer == 'N') {
     ++stats.long_n_base_count[leftover_ind];
     num_bases_after_n = 1;  // start over the current kmer
+    return;
   }
-
   // ATGC bases
-  else {
-    // increments basic statistic counts
-    cur_gc_count += (actg_to_2bit(base_from_buffer) & 1);
-    ++stats.long_base_count[(leftover_ind << Constants::bit_shift_base) |
-                            actg_to_2bit(base_from_buffer)];
-
-    // WE WILL NOT DO KMER STATS OUTSIDE OF BUFFER
-  }
+  // increments basic statistic counts
+  const auto two_bit = actg_to_2bit(base_from_buffer);
+  cur_gc_count += (two_bit & 1);
+  const auto idx = (leftover_ind << Constants::bit_shift_base) | two_bit;
+  ++stats.long_base_count[idx];
+  // WE WILL NOT DO KMER STATS OUTSIDE OF BUFFER
 }
 
 // Gets statistics after reading the entire sequence line
@@ -385,7 +379,8 @@ StreamReader::postprocess_sequence_line(FastqStats &stats) {
 
   // Updates maximum read length if applicable
   stats.max_read_length =
-    ((read_pos > stats.max_read_length) ? (read_pos) : (stats.max_read_length));
+    read_pos > stats.max_read_length ? read_pos : stats.max_read_length;
+  stats.total_bases += read_pos;
 
   // FastQC's gc model summarized, if requested
   if (do_gc_sequence && read_pos != 0) {
@@ -429,8 +424,8 @@ StreamReader::read_sequence_line(FastqStats &stats) {
 
   if (do_adapters_slow) {
     const std::string seq_line_str = cur_char;
-    for (size_t i = 0; i != num_adapters; ++i) {
-      const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
+    for (std::size_t i = 0; i != num_adapters; ++i) {
+      const std::size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
       if (adapt_index < stats.SHORT_READ_THRESHOLD) {
         ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1)
                                    << Constants::bit_shift_adapter) |
@@ -498,7 +493,7 @@ StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
   // Tile processing
   if (!tile_ignore && do_tile_read && tile_cur != 0) {
     // allocate more base space if necessary
-    if (stats.tile_position_quality[tile_cur].size() == read_pos) {
+    if (std::size(stats.tile_position_quality[tile_cur]) == read_pos) {
       stats.tile_position_quality[tile_cur].push_back(0.0);
       stats.tile_position_count[tile_cur].push_back(0);
     }
@@ -591,8 +586,8 @@ StreamReader::read_quality_line(FastqStats &stats) {
 /*******************************************************/
 /*************** THIS IS VERY SLOW ********************/
 // if reads are >75pb, truncate to 50 akin to FastQC
-inline size_t
-get_truncate_point(const size_t read_pos) {
+inline std::size_t
+get_truncate_point(const std::size_t read_pos) {
   return (read_pos <= Constants::unique_reads_max_length)
            ? read_pos
            : Constants::unique_reads_truncate;
@@ -630,7 +625,7 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
 }
 
 inline bool
-StreamReader::check_bytes_read(const size_t read_num) {
+StreamReader::check_bytes_read(const std::size_t read_num) {
   return ((read_num & check_bytes_read_mask) == 0);
 }
 
@@ -639,7 +634,7 @@ StreamReader::check_bytes_read(const size_t read_num) {
 /*******************************************************/
 char
 get_line_separator(const std::string &filename) {
-  FILE *fp = fopen(filename.c_str(), "r");
+  FILE *fp = fopen(std::data(filename), "r");
   if (fp == NULL)
     throw std::runtime_error("bad input file: " + filename);
 
@@ -655,29 +650,29 @@ get_line_separator(const std::string &filename) {
 }
 
 // Set fastq field_separator as line_separator
-FastqReader::FastqReader(FalcoConfig &_config, const size_t _buffer_size) :
+FastqReader::FastqReader(FalcoConfig &_config, const std::size_t _buffer_size) :
   StreamReader(_config, _buffer_size, get_line_separator(_config.filename),
                get_line_separator(_config.filename)) {
   filebuf = new char[RESERVE_SIZE];
 }
 
-size_t
+std::size_t
 get_file_size(const std::string &filename) {
-  FILE *fp = fopen(filename.c_str(), "r");
+  FILE *fp = fopen(std::data(filename), "r");
   if (fp == NULL)
     throw std::runtime_error("bad input file: " + filename);
 
   fseek(fp, 0L, SEEK_END);
-  const size_t ret = static_cast<size_t>(ftell(fp));
+  const std::size_t ret = static_cast<std::size_t>(ftell(fp));
   fclose(fp);
 
   return ret;
 }
 
 // Load fastq with zlib
-size_t
+std::size_t
 FastqReader::load() {
-  fileobj = fopen(filename.c_str(), "r");
+  fileobj = fopen(std::data(filename), "r");
   if (fileobj == NULL)
     throw std::runtime_error("Cannot open FASTQ file : " + filename);
   return get_file_size(filename);
@@ -696,7 +691,7 @@ FastqReader::~FastqReader() {
 
 // Parses fastq gz by reading line by line into the gzbuf
 bool
-FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
+FastqReader::read_entry(FastqStats &stats, std::size_t &num_bytes_read) {
   cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
 
   // need to check here if we did not hit eof
@@ -710,6 +705,7 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 
   cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
   read_sequence_line(stats);
+
   skip_separator();
 
   cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
@@ -731,6 +727,7 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   // Returns if file should keep being checked
   if (check_bytes_read(stats.num_reads))
     num_bytes_read = ftell(fileobj);
+
   return (!is_eof() && cur_char != 0);
 }
 
@@ -738,15 +735,16 @@ FastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 /*************** READ FASTQ GZ RCORD *******************/
 /*******************************************************/
 // the gz fastq constructor is the same as the fastq
-GzFastqReader::GzFastqReader(FalcoConfig &_config, const size_t _buffer_size) :
+GzFastqReader::GzFastqReader(FalcoConfig &_config,
+                             const std::size_t _buffer_size) :
   StreamReader(_config, _buffer_size, '\n', '\n') {
   gzbuf = new char[RESERVE_SIZE];
 }
 
 // Load fastq with zlib
-size_t
+std::size_t
 GzFastqReader::load() {
-  fileobj = gzopen(filename.c_str(), "r");
+  fileobj = gzopen(std::data(filename), "r");
   if (fileobj == Z_NULL)
     throw std::runtime_error("Cannot open gzip FASTQ file : " + filename);
 
@@ -766,7 +764,7 @@ GzFastqReader::~GzFastqReader() {
 
 // Parses fastq gz by reading line by line into the gzbuf
 bool
-GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
+GzFastqReader::read_entry(FastqStats &stats, std::size_t &num_bytes_read) {
   cur_char = gzgets(fileobj, gzbuf, RESERVE_SIZE);
 
   // need to check here if we did not hit eof
@@ -808,15 +806,15 @@ GzFastqReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
 /*************** READ SAM RECORD ***********************/
 /*******************************************************/
 // set sam separator as tab
-SamReader::SamReader(FalcoConfig &_config, const size_t _buffer_size) :
+SamReader::SamReader(FalcoConfig &_config, const std::size_t _buffer_size) :
   StreamReader(_config, _buffer_size, '\t',
                get_line_separator(_config.filename)) {
   filebuf = new char[RESERVE_SIZE];
 }
 
-size_t
+std::size_t
 SamReader::load() {
-  fileobj = fopen(filename.c_str(), "r");
+  fileobj = fopen(std::data(filename), "r");
   if (fileobj == NULL)
     throw std::runtime_error("Cannot open SAM file : " + filename);
 
@@ -835,7 +833,7 @@ SamReader::is_eof() {
 }
 
 bool
-SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
+SamReader::read_entry(FastqStats &stats, std::size_t &num_bytes_read) {
   cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
 
   if (is_eof())
@@ -845,7 +843,7 @@ SamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
   read_tile_line(stats);
   skip_separator();
 
-  for (size_t i = 0; i < 8; ++i) {
+  for (std::size_t i = 0; i < 8; ++i) {
     read_fast_forward_line();
     skip_separator();
   }
@@ -881,13 +879,13 @@ SamReader::~SamReader() {
 
 // puts base either on buffer or leftover
 void
-BamReader::put_base_in_buffer(const size_t pos) {
+BamReader::put_base_in_buffer(const std::size_t pos) {
   base_from_buffer = seq_nt16_str[bam_seqi(cur_char, pos)];
   if (still_in_buffer) {
     buffer[read_pos] = base_from_buffer;
   }
   else {
-    if (leftover_ind == leftover_buffer.size())
+    if (leftover_ind == std::size(leftover_buffer))
       leftover_buffer.push_back(base_from_buffer);
     else
       leftover_buffer[leftover_ind] = base_from_buffer;
@@ -910,15 +908,15 @@ BamReader::read_sequence_line(FastqStats &stats) {
   do_kmer_read = (stats.num_reads == next_kmer_read);
   adapters_found.reset();
 
-  const size_t seq_len = b->core.l_qseq;
+  const std::size_t seq_len = b->core.l_qseq;
   // MN: TODO: make sure everything works in this scope
   if (do_adapters_slow) {
     std::string seq_line_str(seq_len, '\0');
-    for (size_t i = 0; i < seq_len; i++) {
+    for (std::size_t i = 0; i < seq_len; i++) {
       seq_line_str[i] = seq_nt16_str[bam_seqi(cur_char, i)];
     }
-    for (size_t i = 0; i != num_adapters; ++i) {
-      const size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
+    for (std::size_t i = 0; i != num_adapters; ++i) {
+      const std::size_t adapt_index = seq_line_str.find(adapter_seqs[i], 0);
       if (adapt_index < stats.SHORT_READ_THRESHOLD) {
         ++stats.pos_adapter_count[((adapt_index + adapter_seqs[i].length() - 1)
                                    << Constants::bit_shift_adapter) |
@@ -933,7 +931,7 @@ BamReader::read_sequence_line(FastqStats &stats) {
   // In the following loop, cur_char does not change, but rather i changes
   // and we access bases using bam_seqi(cur_char, i) in
   // put_base_in_buffer.
-  for (size_t i = 0; i < seq_len; i++, ++read_pos) {
+  for (std::size_t i = 0; i < seq_len; i++, ++read_pos) {
     // if we reached the buffer size, stop using it and start using leftover
     if (read_pos == buffer_size) {
       still_in_buffer = false;
@@ -988,8 +986,8 @@ BamReader::read_quality_line(FastqStats &stats) {
   cur_quality = 0;
   still_in_buffer = true;
 
-  const size_t seq_len = b->core.l_qseq;
-  for (size_t i = 0; i < seq_len; ++cur_char, i++) {
+  const std::size_t seq_len = b->core.l_qseq;
+  for (std::size_t i = 0; i < seq_len; ++cur_char, i++) {
 
     if (read_pos == buffer_size) {
       still_in_buffer = false;
@@ -1117,14 +1115,14 @@ reverse_quality_scores(bam1_t *aln) {
 }
 
 // set sam separator as tab
-BamReader::BamReader(FalcoConfig &_config, const size_t _buffer_size) :
+BamReader::BamReader(FalcoConfig &_config, const std::size_t _buffer_size) :
   StreamReader(_config, _buffer_size, '\t', '\n') {
   rd_ret = 0;
 }
 
-size_t
+std::size_t
 BamReader::load() {
-  if (!(hts = hts_open(filename.c_str(), "r")))
+  if (!(hts = hts_open(std::data(filename), "r")))
     throw std::runtime_error("cannot load bam file : " + filename);
 
   if (!(hdr = sam_hdr_read(hts)))
@@ -1144,30 +1142,29 @@ BamReader::is_eof() {
 }
 
 bool
-BamReader::read_entry(FastqStats &stats, size_t &num_bytes_read) {
+BamReader::read_entry(FastqStats &stats, std::size_t &num_bytes_read) {
   static const uint16_t not_reverse = ~BAM_FREVERSE;
   if ((rd_ret = sam_read1(hts, hdr, b)) >= 0) {
-
     if (bam_is_rev(b)) {
       revcomp_seq_by_byte(b);
       reverse_quality_scores(b);
       b->core.flag &= not_reverse;
     }
-
     num_bytes_read = 0;
     do_read = (stats.num_reads == next_read);
 
     // Read tile line
     cur_char = bam_get_qname(b);
     last = cur_char + b->m_data;
-    const size_t first_padding_null = b->core.l_qname - b->core.l_extranul - 1;
+    const std::size_t first_padding_null =
+      b->core.l_qname - b->core.l_extranul - 1;
     // Turn "QUERYNAME\0\0\0" into "QUERYNAME\t\0\0" (assuming
     // field_separtor = '\t') to be compatible with read_fast_forward_line().
     cur_char[first_padding_null] = field_separator;
     read_tile_line(stats);
 
     // Read sequence line
-    size_t seq_len = b->core.l_qseq;
+    std::size_t seq_len = b->core.l_qseq;
     cur_char = reinterpret_cast<char *>(bam_get_seq(b));
     BamReader::read_sequence_line(stats);
 
