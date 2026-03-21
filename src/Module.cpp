@@ -44,22 +44,24 @@ make_default_base_groups(std::vector<BaseGroup> &base_groups,
                          const std::size_t num_bases) {
   base_groups.clear();
   for (std::size_t i = 0; i < num_bases; ++i)
-    base_groups.push_back(BaseGroup(i, i));
+    base_groups.push_back({i, i});
 }
 
 /************* EXP BASE GROUP **************/
 void
 make_exponential_base_groups(std::vector<BaseGroup> &base_groups,
                              const std::size_t &num_bases) {
-  std::size_t starting_base = 0, end_base, interval = 1;
+  std::size_t starting_base{};
+  std::size_t end_base{};
+  std::size_t interval{1};
 
   base_groups.clear();
-  for (; starting_base < num_bases;) {
+  while (starting_base < num_bases) {
     end_base = starting_base + interval - 1;
     if (end_base >= num_bases)
       end_base = num_bases;
 
-    base_groups.push_back(BaseGroup(starting_base, end_base));
+    base_groups.push_back({starting_base, end_base});
     starting_base += interval;
     if (starting_base == 9 && num_bases > 75)
       interval = 5;
@@ -107,37 +109,40 @@ void
 make_linear_base_groups(std::vector<BaseGroup> &base_groups,
                         const std::size_t num_bases) {
 
-  // For lengths below 75bp we just return everything.
+  // lengths not larger than 75bp just return everything
   if (num_bases <= 75) {
     make_default_base_groups(base_groups, num_bases);
     return;
   }
 
-  // We need to work out what interval we're going to use.
+  // determine the interval to use
   const std::size_t interval = get_linear_interval(num_bases);
-  std::size_t starting_base = 1;
+  std::size_t starting_base{1};
 
   while (starting_base <= num_bases) {
-    std::size_t end_base = starting_base + interval - 1;
+    const auto end_base = [&] {
+      std::size_t end_base = starting_base + interval - 1;
+      if (starting_base < 10)
+        end_base = starting_base;
+      if (starting_base == 10 && interval > 10)
+        end_base = interval - 1;
+      if (end_base > num_bases)
+        end_base = num_bases;
+      return end_base;
+    }();
 
-    if (starting_base < 10)
-      end_base = starting_base;
+    assert(starting_base > 0u && end_base > 0u);
+    base_groups.push_back({starting_base - 1ul, end_base - 1ul});
 
-    if (starting_base == 10 && interval > 10)
-      end_base = interval - 1;
-
-    if (end_base > num_bases)
-      end_base = num_bases;
-
-    BaseGroup bg = BaseGroup(starting_base - 1, end_base - 1);
-    base_groups.push_back(bg);
-
-    if (starting_base < 10)
-      starting_base++;
-    else if (starting_base == 10 && interval > 10)
-      starting_base = interval;
-    else
-      starting_base += interval;
+    starting_base = [&] {
+      if (starting_base < 10)
+        starting_base++;
+      else if (starting_base == 10 && interval > 10)
+        starting_base = interval;
+      else
+        starting_base += interval;
+      return starting_base;
+    }();
   }
 }
 
@@ -165,33 +170,31 @@ get_corrected_count(std::size_t count_at_limit, std::size_t num_reads,
   if (num_reads - num_obs < count_at_limit)
     return num_obs;
 
-  // If not then we need to see what the likelihood is that we had
-  // another sequence with this number of observations which we would
-  // have missed. We'll start by working out the probability of NOT seeing a
-  // sequence with this duplication level within the first count_at_limit
-  // sequences of num_obs.  This is easier than calculating
-  // the probability of seeing it.
+  // If not then we need to see what the likelihood is that we had another
+  // sequence with this number of observations which we would have missed. We'll
+  // start by working out the probability of NOT seeing a sequence with this
+  // duplication level within the first count_at_limit sequences of num_obs.
+  // This is easier than calculating the probability of seeing it.
   double p_not_seeing = 1.0;
 
   // To save doing long calculations which are never going to produce anything
   // meaningful we'll set a limit to our p-value calculation.  This is the
   // probability below which we won't increase our count by 0.01 of an
   // observation.  Once we're below this we stop caring about the corrected
-  // value since it's going to be so close to the observed value thatwe can
-  // just return that instead.
-  double limit_of_caring = 1.0 - (num_obs / (num_obs + 0.01));
+  // value since it's going to be so close to the observed value thatwe can just
+  // return that instead.
+  const double limit_of_caring = 1.0 - (num_obs / (num_obs + 0.01));
   for (std::size_t i = 0; i < count_at_limit; ++i) {
     p_not_seeing *= static_cast<double>((num_reads - i) - dup_level) /
                     static_cast<double>(num_reads - i);
-
     if (p_not_seeing < limit_of_caring) {
       p_not_seeing = 0;
       break;
     }
   }
 
-  // Now we can assume that the number we observed can be
-  // scaled up by this proportion
+  // Now we can assume that the number we observed can be scaled up by this
+  // proportion
   return num_obs /
          std::max(std::numeric_limits<double>::min(), 1.0 - p_not_seeing);
 }
@@ -377,8 +380,9 @@ ModuleBasicStatistics::ModuleBasicStatistics(const FalcoConfig &config) :
 
 void
 ModuleBasicStatistics::summarize_module(FastqStats &stats) {
-  // Total sequences
+  // total sequences and bases
   total_sequences = stats.num_reads;
+  total_bases = stats.total_bases;
 
   // min and max read length
   min_read_length = stats.min_read_length;
@@ -430,49 +434,56 @@ ModuleBasicStatistics::summarize_module(FastqStats &stats) {
 
   // Average read length
   avg_read_length = 0;
-  std::size_t total_bases = 0;
+  std::size_t total_bases_for_mean = 0;
   for (std::size_t i = 0; i < max_read_length; ++i) {
     if (i < FastqStats::SHORT_READ_THRESHOLD)
-      total_bases += i * stats.read_length_freq[i];
+      total_bases_for_mean += i * stats.read_length_freq[i];
     else
-      total_bases +=
+      total_bases_for_mean +=
         i * stats.long_read_length_freq[i - FastqStats::SHORT_READ_THRESHOLD];
   }
-
-  avg_read_length =
-    total_bases / std::max(static_cast<std::size_t>(1), total_sequences);
+  avg_read_length = total_bases_for_mean / std::max(1ul, total_sequences);
 
   // counts bases G and C in each base position
-  avg_gc = 0;
 
   // GC %
   // GS: TODO delete gc calculation during stream and do it using the total G
   // counts in all bases
   avg_gc =
-    100 * stats.total_gc / std::max(1.0, static_cast<double>(total_bases));
+    100.0 * stats.total_gc / std::max(1.0, static_cast<double>(total_bases));
 }
 
-// It's always a pass
 void
-ModuleBasicStatistics::make_grade() {}
+ModuleBasicStatistics::make_grade() {}  // always a pass
 
 void
 ModuleBasicStatistics::write_module(std::ostream &os) {
+  static constexpr auto mega = 1'000'000;
   os << "#Measure\tValue\n";
   os << "Filename\t" << filename_stripped << "\n";
   os << "File type\t" << file_type << "\n";
   os << "Encoding\t" << file_encoding << "\n";
   os << "Total Sequences\t" << total_sequences << "\n";
+  // clang-format off
+  os << "Total Bases\t"
+     << (total_bases > mega ? total_bases / mega : total_bases)
+     << (total_bases > mega ? " Mbp\n" : " bp\n");
+  // clang-format on
   os << "Sequences flagged as poor quality\t" << num_poor << "\n";
   os << "Sequence length\t";
-  if (min_read_length == max_read_length) {
-    os << min_read_length;
-  }
-  else {
-    os << min_read_length << "-" << max_read_length;
-  }
+  os << min_read_length;
+  if (min_read_length != max_read_length)
+    os << "-" << max_read_length;
   os << "\n";
-  os << "%GC\t" << static_cast<std::size_t>(avg_gc) << "\n";
+  const auto default_precision{os.precision()};
+  // clang-format off
+  os << "%GC\t"
+     << std::setprecision(1)
+     << std::fixed
+     << avg_gc << '\n'
+     << std::defaultfloat
+     << std::setprecision(default_precision);
+  // clang-format on
 }
 
 std::string
@@ -515,9 +526,9 @@ ModuleBasicStatistics::read_data_line(const std::string &line) {
   else if (lhs == "Encoding")
     file_encoding = rhs;
   else if (lhs == "Total Sequences")
-    total_sequences = atoi(rhs.c_str());
+    total_sequences = std::atoi(std::data(rhs));
   else if (lhs == "Sequences flagged as poor quality")
-    num_poor = atoi(rhs.c_str());
+    num_poor = std::atoi(std::data(rhs));
 
   else if (lhs == "Sequence length") {
     // non-constant sequence length
@@ -526,12 +537,12 @@ ModuleBasicStatistics::read_data_line(const std::string &line) {
       std::string min_l, max_l;
       std::getline(seq_iss, min_l, '-');
       std::getline(seq_iss, max_l, '-');
-      min_read_length = atoi(min_l.c_str());
-      max_read_length = atoi(max_l.c_str());
+      min_read_length = std::atoi(std::data(min_l));
+      max_read_length = std::atoi(std::data(max_l));
     }
   }
   else if (lhs == "%GC")
-    avg_gc = atoi(rhs.c_str());
+    avg_gc = std::atoi(std::data(rhs));
   else {
     throw std::runtime_error("malformed basic statistic" + lhs);
   }
@@ -819,7 +830,7 @@ ModulePerTileSequenceQuality::summarize_module(FastqStats &stats) {
     for (std::size_t i = 0; i < lim; ++i) {
       // transform sum of all qualities in mean
       const auto itr = stats.tile_position_count.find(v.first);
-      if (itr == cend(stats.tile_position_count))
+      if (itr == std::cend(stats.tile_position_count))
         throw std::runtime_error(
           "failure ModulePerTileSequenceQuality::summarize_module");
       const std::size_t count_at_pos = itr->second[i];
@@ -1787,19 +1798,15 @@ void
 ModuleOverrepresentedSequences::summarize_module(FastqStats &stats) {
   // Keep only sequences that pass the input cutoff
   num_reads = stats.num_reads;
-  for (auto it = stats.sequence_count.begin(); it != stats.sequence_count.end();
-       ++it) {
+  for (auto it = std::cbegin(stats.sequence_count);
+       it != std::cend(stats.sequence_count); ++it) {
     if (it->second > num_reads * min_fraction_to_overrepresented) {
       overrep_sequences.push_back(*it);
     }
   }
-
-  // Sort strings by frequency
-  std::sort(begin(overrep_sequences), end(overrep_sequences),
-            [](const std::pair<std::string, std::size_t> &a,
-               const std::pair<std::string, std::size_t> &b) {
-              return a.second > b.second;
-            });
+  // sort strings by frequency
+  std::sort(std::begin(overrep_sequences), std::end(overrep_sequences),
+            [](const auto &a, const auto &b) { return a.second > b.second; });
 }
 
 void
