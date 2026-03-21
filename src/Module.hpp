@@ -28,17 +28,15 @@
 
 /* base groups for longer reads, copied from FastQC*/
 struct BaseGroup {
-  size_t start, end;
-  BaseGroup(size_t _start, size_t _end) : start(_start), end(_end) {}
+  std::size_t start{};
+  std::size_t end{};
 };
 
-class Module {
-private:
-  const std::string module_name;
+struct Module {
+  const std::string module_name{};
 
-public:
   // avoid writing things prior to summarizing
-  bool summarized;
+  bool summarized{};
 
   // The module name displayed in outputs and html
   // GS TODO: automate placing it in html too
@@ -67,9 +65,7 @@ public:
   Module(const std::string &module_name);
   virtual ~Module() = 0;
 
-  /*********************************************/
-  /*****Abstract functions to be implemented****/
-  /*********************************************/
+  // functions to be in child classes
 
   // Summarize the module
   virtual void
@@ -85,9 +81,6 @@ public:
   virtual std::string
   make_html_data() = 0;
 
-  /*********************************************/
-  /**************Visible functions**************/
-  /*********************************************/
   // Summarizes and registers that it summarized
   void
   summarize(FastqStats &stats);
@@ -106,19 +99,19 @@ public:
   put_data_on_html(HtmlMaker &html_maker);
 };
 
-class ModuleBasicStatistics : public Module {
-public:
-  bool is_nanopore;
+struct ModuleBasicStatistics : public Module {
+  static const std::string module_name;
+  bool is_nanopore{};
   std::string file_type;
   std::string file_encoding;
   std::string filename_stripped;
-  size_t avg_read_length;
-  size_t avg_gc;
-  size_t num_poor;
-  size_t min_read_length;
-  size_t max_read_length;
-  size_t total_sequences;
-  static const std::string module_name;
+  std::size_t avg_read_length{};
+  double avg_gc{};
+  std::size_t num_poor{};
+  std::size_t min_read_length{};
+  std::size_t max_read_length{};
+  std::size_t total_bases{};
+  std::size_t total_sequences{};
   ModuleBasicStatistics(const FalcoConfig &config);
   ~ModuleBasicStatistics() {}
   void
@@ -129,27 +122,30 @@ public:
   write_module(std::ostream &os);
   std::string
   make_html_data();
-
   void
   read_data_line(const std::string &line);
 };
 
-class ModulePerBaseSequenceQuality : public Module {
-private:
+struct ModulePerBaseSequenceQuality : public Module {
+  static const std::string module_name;
   // from FastQC: whether to group bases
-  bool do_group;
-  size_t num_bases;
-  size_t num_groups;
-  // grade criteria
-  size_t base_lower_warn, base_lower_error, base_median_warn, base_median_error;
-  size_t num_warn, num_error;
+  bool do_group{};
+  std::size_t num_bases{};
+  std::size_t num_groups{};
+  std::size_t base_lower_warn{};   // grade criteria
+  std::size_t base_lower_error{};  // grade criteria
+  std::size_t base_median_warn{};
+  std::size_t base_median_error{};
+  std::size_t num_warn{};
+  std::size_t num_error{};
   std::vector<double> group_mean;
-  std::vector<double> group_ldecile, group_lquartile, group_median,
-    group_uquartile, group_udecile;
+  std::vector<double> group_ldecile;
+  std::vector<double> group_lquartile;
+  std::vector<double> group_median;
+  std::vector<double> group_uquartile;
+  std::vector<double> group_udecile;
   std::vector<BaseGroup> base_groups;
 
-public:
-  static const std::string module_name;
   ModulePerBaseSequenceQuality(const FalcoConfig &config);
   ~ModulePerBaseSequenceQuality() {}
   void
@@ -164,14 +160,13 @@ public:
   make_html_data();
 };
 
-class ModulePerTileSequenceQuality : public Module {
-private:
-  double grade_warn, grade_error;
-  size_t max_read_length;
-  std::unordered_map<size_t, std::vector<double>> tile_position_quality;
-  std::vector<size_t> tiles_sorted;
+struct ModulePerTileSequenceQuality : public Module {
+  double grade_warn{};
+  double grade_error{};
+  std::size_t max_read_length{};
+  std::unordered_map<std::size_t, std::vector<double>> tile_position_quality;
+  std::vector<std::size_t> tiles_sorted;
 
-public:
   static const std::string module_name;
   ModulePerTileSequenceQuality(const FalcoConfig &config);
   ~ModulePerTileSequenceQuality() {}
@@ -185,17 +180,15 @@ public:
   make_html_data();
 };
 
-class ModulePerSequenceQualityScores : public Module {
-private:
-  size_t mode_val;
-  size_t mode_ind;
-  size_t offset;
-  std::array<size_t, FastqStats::kNumQualityValues> quality_count;
+struct ModulePerSequenceQualityScores : public Module {
+  std::size_t mode_val{};
+  std::size_t mode_ind{};
+  std::size_t offset{};
+  std::array<std::size_t, FastqStats::kNumQualityValues> quality_count{};
   // grade criteria
-  size_t mode_warn;
-  size_t mode_error;
+  std::size_t mode_warn{};
+  std::size_t mode_error{};
 
-public:
   static const std::string module_name;
   ModulePerSequenceQualityScores(const FalcoConfig &config);
   ~ModulePerSequenceQualityScores() {}
@@ -209,27 +202,25 @@ public:
   make_html_data();
 };
 
-class ModulePerBaseSequenceContent : public Module {
-private:
-  bool do_group;
-  std::vector<double> a_pct, c_pct, t_pct, g_pct;
-  double max_diff;
-  size_t num_bases;
+struct ModulePerBaseSequenceContent : public Module {
+  static const std::string module_name;
+  bool do_group{};
+  std::vector<double> a_pct;
+  std::vector<double> c_pct;
+  std::vector<double> t_pct;
+  std::vector<double> g_pct;
+  double max_diff{};
+  std::size_t num_bases{};
 
-  // flag as to whether or not dataset is WGBS
-  bool is_bisulfite;
+  bool is_bisulfite{};           // flag for dataset is WGBS
+  bool is_reverse_complement{};  // indicates test T vs C instead of A vs G
 
-  // if so we have to test T vs C instead of A vs G
-  bool is_reverse_complement;
+  double sequence_error{};  // for grade
+  double sequence_warn{};   // for grade
 
-  // for grade
-  double sequence_error, sequence_warn;
-
-  size_t num_groups;
+  std::size_t num_groups{};
   std::vector<BaseGroup> base_groups;
 
-public:
-  static const std::string module_name;
   ModulePerBaseSequenceContent(const FalcoConfig &config);
   ~ModulePerBaseSequenceContent() {}
   void
@@ -242,15 +233,14 @@ public:
   make_html_data();
 };
 
-class ModulePerSequenceGCContent : public Module {
-private:
-  double gc_warn, gc_error;
-  double gc_deviation;
+struct ModulePerSequenceGCContent : public Module {
+  static const std::string module_name;
+  double gc_warn{};
+  double gc_error{};
+  double gc_deviation{};
   std::array<double, 101> gc_count;
   std::array<double, 101> theoretical_gc_count;
 
-public:
-  static const std::string module_name;
   ModulePerSequenceGCContent(const FalcoConfig &config);
   ~ModulePerSequenceGCContent() {}
   void
@@ -263,26 +253,21 @@ public:
   make_html_data();
 };
 
-class ModulePerBaseNContent : public Module {
-private:
-  size_t num_bases;
-  // for grade
-  size_t grade_n_warn;
-  size_t grade_n_error;
-
-  double max_n_pct;
-  std::array<size_t, 101> gc_count;
-  std::array<size_t, 101> theoretical_gc_count;
+struct ModulePerBaseNContent : public Module {
+  static const std::string module_name;
+  std::size_t num_bases{};
+  std::size_t grade_n_warn{};   // for grade
+  std::size_t grade_n_error{};  // for grade
+  double max_n_pct{};
+  std::array<std::size_t, 101> gc_count;
+  std::array<std::size_t, 101> theoretical_gc_count;
   std::vector<double> n_pct;
-  // grade vars
-  size_t gc_warn, gc_error;
-
-  bool do_group;
-  size_t num_groups;
+  std::size_t gc_warn{};   // grade vars
+  std::size_t gc_error{};  // grade vars
+  bool do_group{};
+  std::size_t num_groups{};
   std::vector<BaseGroup> base_groups;
 
-public:
-  static const std::string module_name;
   ModulePerBaseNContent(const FalcoConfig &config);
   ~ModulePerBaseNContent() {}
   void
@@ -295,23 +280,21 @@ public:
   make_html_data();
 };
 
-class ModuleSequenceLengthDistribution : public Module {
-private:
-  bool do_grade_error;
-  bool do_grade_warn;
-  size_t max_read_length;
-  std::vector<size_t> sequence_lengths;
+struct ModuleSequenceLengthDistribution : public Module {
+  static const std::string module_name;
+  bool do_grade_error{};
+  bool do_grade_warn{};
+  std::size_t max_read_length{};
+  std::vector<std::size_t> sequence_lengths;
 
   // warn and fail criteria
-  bool is_all_same_length;
-  size_t empty_reads;
+  bool is_all_same_length{};
+  std::size_t empty_reads{};
 
-  bool do_group;
-  size_t num_groups;
+  bool do_group{};
+  std::size_t num_groups{};
   std::vector<BaseGroup> base_groups;
 
-public:
-  static const std::string module_name;
   ModuleSequenceLengthDistribution(const FalcoConfig &config);
   ~ModuleSequenceLengthDistribution() {}
   void
@@ -324,19 +307,18 @@ public:
   make_html_data();
 };
 
-class ModuleSequenceDuplicationLevels : public Module {
-private:
-  double seq_total, seq_dedup;
-
-  double grade_dup_warn;
-  double grade_dup_error;
-  double total_deduplicated_pct;
-  std::array<double, 16> percentage_deduplicated;
-  std::array<double, 16> percentage_total;
-  std::unordered_map<size_t, size_t> counts_by_freq;
-
-public:
+struct ModuleSequenceDuplicationLevels : public Module {
   static const std::string module_name;
+  double seq_total{};
+  double seq_dedup{};
+
+  double grade_dup_warn{};
+  double grade_dup_error{};
+  double total_deduplicated_pct{};
+  std::array<double, 16> percentage_deduplicated{};
+  std::array<double, 16> percentage_total{};
+  std::unordered_map<std::size_t, std::size_t> counts_by_freq;
+
   ModuleSequenceDuplicationLevels(const FalcoConfig &config);
   ~ModuleSequenceDuplicationLevels() {}
   void
@@ -349,20 +331,20 @@ public:
   make_html_data();
 };
 
-class ModuleOverrepresentedSequences : public Module {
-private:
-  size_t num_reads;
-  std::vector<std::pair<std::string, size_t>> overrep_sequences;
-  double grade_warn, grade_error;
-  const double min_fraction_to_overrepresented = 0.001;
+struct ModuleOverrepresentedSequences : public Module {
+  static constexpr auto min_fraction_to_overrepresented = 0.001;
+  static const std::string module_name;
+
+  std::size_t num_reads{};
+  std::vector<std::pair<std::string, std::size_t>> overrep_sequences;
+  double grade_warn{};
+  double grade_error{};
   std::vector<std::pair<std::string, std::string>> contaminants;
 
   // Function to find the matching contaminant within the list
   std::string
   get_matching_contaminant(const std::string &seq);
 
-public:
-  static const std::string module_name;
   ModuleOverrepresentedSequences(const FalcoConfig &config);
   ~ModuleOverrepresentedSequences() {}
   void
@@ -375,36 +357,31 @@ public:
   make_html_data();
 };
 
-class ModuleAdapterContent : public Module {
-private:
-  // Number of adapters to test
-  size_t num_adapters;
-
-  // number of bases to report
-  size_t num_bases;
-
+struct ModuleAdapterContent : public Module {
+  static const std::string module_name;
+  std::size_t num_adapters{};  // Number of adapters to test
+  std::size_t num_bases{};     // number of bases to report
   // adapter size to know how many bases to report
-  size_t adapter_size;
+  std::size_t adapter_size{};
 
-  // Information from config
+  // info from config
   std::vector<std::string> adapter_names;
   std::vector<std::string> adapter_seqs;
-  std::vector<size_t> adapter_hashes;
-  size_t shortest_adapter_size;
+  std::vector<std::size_t> adapter_hashes;
+  std::size_t shortest_adapter_size{};
 
-  // vector to be reported
+  // to be reported
   std::vector<std::vector<double>> adapter_pos_pct;
-  // minimum percentages for warn/fail
-  double grade_warn, grade_error;
+  // min minimum cutoffs for warn/fail (percentages)
+  double grade_warn{};
+  double grade_error{};
 
   // Aux function to count adapter in a position
   double
-  count_adapter(const std::vector<size_t> &kmer_count, const size_t pos,
-                const size_t adapter_hash, const size_t adapter_size,
-                const size_t kmer_size);
+  count_adapter(const std::vector<std::size_t> &kmer_count,
+                const std::size_t pos, const std::size_t adapter_hash,
+                const std::size_t adapter_size, const std::size_t kmer_size);
 
-public:
-  static const std::string module_name;
   ModuleAdapterContent(const FalcoConfig &config);
   ~ModuleAdapterContent() {}
   void
@@ -417,25 +394,25 @@ public:
   make_html_data();
 };
 
-class ModuleKmerContent : public Module {
-private:
-  size_t num_kmer_bases;
-  size_t kmer_size;
-  size_t num_kmers;
-  size_t num_seen_kmers;
-
-  double grade_warn, grade_error;
-  std::array<size_t, FastqStats::SHORT_READ_THRESHOLD> pos_kmer_count;
-  std::vector<size_t> total_kmer_counts;
-  std::vector<double> obs_exp_max;
-  std::vector<size_t> where_obs_exp_is_max;
-  std::vector<std::pair<size_t, double>> kmers_to_report;
-
-public:
+struct ModuleKmerContent : public Module {
+  static constexpr std::size_t MIN_OBS_EXP_TO_REPORT = 5;
+  static constexpr std::size_t MAX_KMERS_TO_REPORT = 20;
+  static constexpr std::size_t MAX_KMERS_TO_PLOT = 10;
   static const std::string module_name;
-  static const size_t MIN_OBS_EXP_TO_REPORT = 5;
-  static const size_t MAX_KMERS_TO_REPORT = 20;
-  static const size_t MAX_KMERS_TO_PLOT = 10;
+
+  std::size_t num_kmer_bases{};
+  std::size_t kmer_size{};
+  std::size_t num_kmers{};
+  std::size_t num_seen_kmers{};
+
+  double grade_warn{};
+  double grade_error{};
+  std::array<std::size_t, FastqStats::SHORT_READ_THRESHOLD> pos_kmer_count{};
+  std::vector<std::size_t> total_kmer_counts;
+  std::vector<double> obs_exp_max;
+  std::vector<std::size_t> where_obs_exp_is_max;
+  std::vector<std::pair<std::size_t, double>> kmers_to_report;
+
   ModuleKmerContent(const FalcoConfig &config);
   ~ModuleKmerContent() {}
   void
