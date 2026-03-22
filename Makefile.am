@@ -33,6 +33,7 @@ falco_SOURCES = \
 	src/HtmlMaker.cpp \
 	src/Module.cpp \
 	src/StreamReader.cpp \
+	src/bam_stream_reader.cpp \
 	src/FalcoConfig.cpp \
 	src/OptionParser.cpp \
 	src/smithlab_utils.cpp \
@@ -40,6 +41,7 @@ falco_SOURCES = \
 	src/FastqStats.hpp \
 	src/HtmlMaker.hpp \
 	src/StreamReader.hpp \
+	src/bam_stream_reader.hpp \
 	src/FalcoConfig.hpp \
 	src/html_template.hpp \
 	src/OptionParser.hpp \
