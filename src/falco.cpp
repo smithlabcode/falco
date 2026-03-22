@@ -13,6 +13,9 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "FalcoConfig.hpp"
@@ -22,6 +25,7 @@
 
 #include "OptionParser.hpp"
 #include "StreamReader.hpp"
+#include "bam_stream_reader.hpp"
 #include "smithlab_utils.hpp"
 
 #include "config.h"
@@ -30,6 +34,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 // Function to get seconds elapsed in program
@@ -77,8 +82,8 @@ read_stream_into_stats(T &in, FastqStats &stats, FalcoConfig &falco_config) {
       progress.report(std::cerr, tot_bytes_read);
   }
 
-  // if I could not get tile information from read names, I need to tell this to
-  // config so it does not output tile data on the summary or html
+  // if tile information not available from read names, tell this config so it
+  // will not output tile data
   if (in.tile_ignore)
     falco_config.do_tile = false;
 
@@ -96,30 +101,28 @@ write_if_requested(T module, FastqStats &stats, const bool requested,
                    HtmlMaker &html_maker) {
   html_maker.put_comment(module.placeholder_cs, module.placeholder_ce,
                          requested);
-
   // If module has not been requested we put nothing where the data is
   if (!requested) {
     // puts the actual data (table, graph, etc)
     html_maker.put_data(module.placeholder_data, "");
     return;
   }
-
   // calculates module summary, mandatory before writing
   module.summarize(stats);
 
+  const auto module_filename =
+    std::filesystem::path(filename).filename().string();
   // writes what was requested
   if (!skip_short_summary)
-    module.write_short_summary(summary_txt, filename);
+    module.write_short_summary(summary_txt, module_filename);
   if (!skip_text)
     module.write(qc_data_txt);
   if (!skip_html) {
-    // puts the module name
+    // module name
     html_maker.put_data(module.placeholder_name, T::module_name);
-
-    // puts the grade
+    // grade
     html_maker.put_data(module.placeholder_grade, module.grade);
-
-    // puts the actual data (table, graph, etc)
+    // actual data (table, graph, etc)
     html_maker.put_data(module.placeholder_data, module.html_data);
   }
 }
@@ -140,11 +143,9 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
       summary_filename.empty() ? outdir + "/" + file_prefix + "summary.txt"
                                : summary_filename;
     summary_txt.open(summary_file, std::ofstream::binary);
-
     if (!summary_txt)
       throw std::runtime_error("Failed to create output summary file: " +
                                summary_file);
-
     if (!falco_config.quiet)
       log_process("Writing summary to " + summary_file);
   }
@@ -156,14 +157,11 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
       data_filename.empty() ? outdir + "/" + file_prefix + "fastqc_data.txt"
                             : data_filename;
     qc_data_txt.open(qc_data_file, std::ofstream::binary);
-
     if (!qc_data_txt)
       throw std::runtime_error("Failed to create output data file: " +
                                qc_data_file);
-
     if (!falco_config.quiet)
       log_process("Writing text report to " + qc_data_file);
-
     // put header
     qc_data_txt << "##Falco\t" + std::string{VERSION} + "\n";
     if (do_call)
@@ -172,116 +170,113 @@ write_results(const FalcoConfig &falco_config, FastqStats &stats,
 
   // Here we open the html ostream and maker object
   HtmlMaker html_maker;
-  std::ofstream html;
-  if (!skip_html) {
-    // Decide html filename based on input
-    const std::string html_file =
-      report_filename.empty()
-        ? (outdir + "/" + file_prefix + "fastqc_report.html")
-        : report_filename;
-
-    if (!falco_config.quiet)
-      log_process("Writing HTML report to " + html_file);
-
-    html.open(html_file, std::ofstream::binary);
-    if (!html)
-      throw std::runtime_error("Failed to create output HTML report file: " +
-                               html_file);
-
+  if (!skip_html)
     html_maker.put_file_details(falco_config);
-  }
 
   // Now we create modules if requested, summarize them and kill them
   //  Basic Statistics
   write_if_requested(ModuleBasicStatistics(falco_config), stats, true,
                      skip_text, skip_html, skip_short_summary,
-                     falco_config.filename_stripped, summary_txt, qc_data_txt,
+                     falco_config.filename, summary_txt, qc_data_txt,
                      html_maker);
 
   //  Per base sequence quality
   write_if_requested(ModulePerBaseSequenceQuality(falco_config), stats,
                      falco_config.do_quality_sequence, skip_text, skip_html,
-                     skip_short_summary, falco_config.filename_stripped,
-                     summary_txt, qc_data_txt, html_maker);
+                     skip_short_summary, falco_config.filename, summary_txt,
+                     qc_data_txt, html_maker);
 
   //  Per tile sequence quality
   write_if_requested(ModulePerTileSequenceQuality(falco_config), stats,
                      falco_config.do_tile, skip_text, skip_html,
-                     skip_short_summary, falco_config.filename_stripped,
-                     summary_txt, qc_data_txt, html_maker);
+                     skip_short_summary, falco_config.filename, summary_txt,
+                     qc_data_txt, html_maker);
 
   //  Per sequence quality scores
   write_if_requested(ModulePerSequenceQualityScores(falco_config), stats,
                      falco_config.do_quality_sequence, skip_text, skip_html,
-                     skip_short_summary, falco_config.filename_stripped,
-                     summary_txt, qc_data_txt, html_maker);
+                     skip_short_summary, falco_config.filename, summary_txt,
+                     qc_data_txt, html_maker);
 
   //  Per base sequence content
   write_if_requested(ModulePerBaseSequenceContent(falco_config), stats,
                      falco_config.do_sequence, skip_text, skip_html,
-                     skip_short_summary, falco_config.filename_stripped,
-                     summary_txt, qc_data_txt, html_maker);
+                     skip_short_summary, falco_config.filename, summary_txt,
+                     qc_data_txt, html_maker);
   //  Per sequence GC content
   write_if_requested(ModulePerSequenceGCContent(falco_config), stats,
                      falco_config.do_gc_sequence, skip_text, skip_html,
-                     skip_short_summary, falco_config.filename_stripped,
-                     summary_txt, qc_data_txt, html_maker);
+                     skip_short_summary, falco_config.filename, summary_txt,
+                     qc_data_txt, html_maker);
 
   //  Per base N content
   write_if_requested(ModulePerBaseNContent(falco_config), stats,
                      falco_config.do_n_content, skip_text, skip_html,
-                     skip_short_summary, falco_config.filename_stripped,
-                     summary_txt, qc_data_txt, html_maker);
+                     skip_short_summary, falco_config.filename, summary_txt,
+                     qc_data_txt, html_maker);
 
   //  Sequence Length Distribution
   write_if_requested(ModuleSequenceLengthDistribution(falco_config), stats,
                      falco_config.do_sequence_length, skip_text, skip_html,
-                     skip_short_summary, falco_config.filename_stripped,
-                     summary_txt, qc_data_txt, html_maker);
+                     skip_short_summary, falco_config.filename, summary_txt,
+                     qc_data_txt, html_maker);
 
   //  Sequence Duplication Levels
   write_if_requested(ModuleSequenceDuplicationLevels(falco_config), stats,
                      falco_config.do_duplication, skip_text, skip_html,
-                     skip_short_summary, falco_config.filename_stripped,
-                     summary_txt, qc_data_txt, html_maker);
+                     skip_short_summary, falco_config.filename, summary_txt,
+                     qc_data_txt, html_maker);
 
   //  Overrepresented sequences
   write_if_requested(ModuleOverrepresentedSequences(falco_config), stats,
                      falco_config.do_overrepresented, skip_text, skip_html,
-                     skip_short_summary, falco_config.filename_stripped,
-                     summary_txt, qc_data_txt, html_maker);
+                     skip_short_summary, falco_config.filename, summary_txt,
+                     qc_data_txt, html_maker);
   //  Adapter Content
   write_if_requested(ModuleAdapterContent(falco_config), stats,
                      falco_config.do_adapter, skip_text, skip_html,
-                     skip_short_summary, falco_config.filename_stripped,
-                     summary_txt, qc_data_txt, html_maker);
+                     skip_short_summary, falco_config.filename, summary_txt,
+                     qc_data_txt, html_maker);
   //  Kmer Content
   write_if_requested(ModuleKmerContent(falco_config), stats,
                      falco_config.do_kmer, skip_text, skip_html,
-                     skip_short_summary, falco_config.filename_stripped,
-                     summary_txt, qc_data_txt, html_maker);
+                     skip_short_summary, falco_config.filename, summary_txt,
+                     qc_data_txt, html_maker);
 
-  if (!skip_html)
+  if (!skip_html) {
+    std::ofstream html;
+    // Decide html filename based on input
+    const std::string html_file =
+      report_filename.empty()
+        ? (outdir + "/" + file_prefix + "fastqc_report.html")
+        : report_filename;
+    if (!falco_config.quiet)
+      log_process("Writing HTML report to " + html_file);
+    html.open(html_file, std::ofstream::binary);
+    if (!html)
+      throw std::runtime_error("Failed to create output HTML report file: " +
+                               html_file);
+    html_maker.put_file_details(falco_config);
     html << html_maker.html_boilerplate;
+  }
 }
 
 int
 main(int argc, char *argv[]) {
-
   try {
     static const std::string FALCO_VERSION = "falco " + std::string{VERSION};
-    bool help = false;
-    bool version = false;
+    bool help{};
+    bool version{};
 
     // skip outputs
-    bool skip_text = false;
-    bool skip_html = false;
-    bool skip_short_summary = false;
-    bool do_call = false;
-    bool allow_empty_input = false;
+    bool skip_text{};
+    bool skip_html{};
+    bool skip_short_summary{};
+    bool do_call{};
+    bool allow_empty_input{};
 
     // a tmp boolean to keep compatibility with FastQC
-    bool tmp_compatibility_only = false;
+    bool tmp_compatibility_only{};
     std::string tmp_compatibility_only_str;
 
     FalcoConfig falco_config(argc, argv);
@@ -293,9 +288,9 @@ main(int argc, char *argv[]) {
     std::string outdir;
 
     // custom output filenames (if provided)
-    std::string data_filename = "";
-    std::string report_filename = "";
-    std::string summary_filename = "";
+    std::string data_filename;
+    std::string report_filename;
+    std::string summary_filename;
 
     /****************** COMMAND LINE OPTIONS ********************/
     OptionParser opt_parse(argv[0],
@@ -400,14 +395,11 @@ main(int argc, char *argv[]) {
                       "fq, fastq.gz or fq.gz.",
                       false, forced_file_format);
 
-    opt_parse.add_opt("-threads", 't',
-                      "[NOT YET IMPLEMENTED IN FALCO] "
-                      "Specifies the number of files which can be processed "
-                      "simultaneously.  Each thread will be allocated 250MB of "
-                      "memory so you shouldn't run more threads than your "
-                      "available memory will cope with, and not more than "
-                      "6 threads on a 32 bit machine",
-                      false, falco_config.threads);
+    opt_parse.add_opt(
+      "-threads", 't',
+      "Currently this value is passed to decompression routines to speedup "
+      "reading BAM and gz files (the latter if bgzf was used to compress",
+      false, falco_config.threads);
 
     opt_parse.add_opt(
       "-contaminants", 'c',
@@ -559,7 +551,6 @@ main(int argc, char *argv[]) {
       std::cerr << opt_parse.option_missing_message() << '\n';
       return EXIT_SUCCESS;
     }
-
     if (std::size(leftover_args) == 0) {
       std::cerr << opt_parse.help_message() << '\n';
       return EXIT_SUCCESS;
@@ -575,6 +566,9 @@ main(int argc, char *argv[]) {
                 << " the input filenames instead\n";
       return EXIT_FAILURE;
     }
+
+    falco_config.threads = std::max(
+      1u, std::min(std::thread::hardware_concurrency(), falco_config.threads));
 
     // ADS: make sure all input files are non-empty unless user oks it
     if (!allow_empty_input) {
@@ -616,9 +610,8 @@ main(int argc, char *argv[]) {
       if (!dir_exists(outdir)) {
         if (!falco_config.quiet)
           log_process("creating directory for output: " + outdir);
-
-        // makes directory with r and w permission
-        if (mkdir(std::data(outdir), S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
+        // makes output directory
+        if (!std::filesystem::create_directory(outdir)) {
           std::cerr << "failed to create directory: " << outdir
                     << ". Make sure you have write permissions on it!\n";
           return EXIT_FAILURE;
@@ -645,7 +638,6 @@ main(int argc, char *argv[]) {
 
     /****************** END COMMAND LINE OPTIONS ********************/
     for (const auto &filename : all_seq_filenames) {
-
       const auto file_start_time = std::chrono::system_clock::now();
 
       falco_config.filename = filename;
@@ -664,44 +656,36 @@ main(int argc, char *argv[]) {
         log_process("Started reading file " + falco_config.filename);
       FastqStats stats;  // allocate all space to summarize data
 
+      const infile_type_t infile_type = falco_config.infile_type;
+      if (!falco_config.quiet)
+        log_process("reading file as " + to_string(infile_type) + " format");
+
       // Initializes a reader given the file format
-      if (falco_config.is_sam) {
-        if (!falco_config.quiet)
-          log_process("reading file as SAM format");
+      if (infile_type == infile_type_t::sam) {
         SamReader in(falco_config, stats.SHORT_READ_THRESHOLD);
         read_stream_into_stats(in, stats, falco_config);
         stats.adjust_tile_maps_len();
       }
 #ifdef USE_HTS
-      else if (falco_config.is_bam) {
-        if (!falco_config.quiet)
-          log_process("reading file as BAM format");
+      else if (infile_type == infile_type_t::bam) {
         BamReader in(falco_config, stats.SHORT_READ_THRESHOLD);
         read_stream_into_stats(in, stats, falco_config);
         stats.adjust_tile_maps_len();
       }
 #endif
-
-      else if (falco_config.is_fastq_gz) {
-        if (!falco_config.quiet)
-          log_process("reading file as gzipped FASTQ format");
+      else if (infile_type == infile_type_t::fastq_gz) {
         GzFastqReader in(falco_config, stats.SHORT_READ_THRESHOLD);
         read_stream_into_stats(in, stats, falco_config);
       }
-      else if (falco_config.is_fastq) {
-        if (!falco_config.quiet)
-          log_process("reading file as uncompressed FASTQ format");
+      else if (infile_type == infile_type_t::fastq) {
         FastqReader in(falco_config, stats.SHORT_READ_THRESHOLD);
         read_stream_into_stats(in, stats, falco_config);
       }
-      else {
+      else
         throw std::runtime_error("Cannot recognize file format for file " +
                                  falco_config.filename);
-      }
-
-      if (!falco_config.quiet) {
+      if (!falco_config.quiet)
         log_process("Finished reading file");
-      }
 
       stats.summarize();
 
