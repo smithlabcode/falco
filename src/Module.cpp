@@ -1779,15 +1779,15 @@ ModuleOverrepresentedSequences::get_matching_contaminant(
   const std::string &seq) {
   std::size_t best = 0;
   std::string ret;
-  for (auto v : contaminants) {
-    const std::size_t cand =
-      std::max(get_overlap(v.second, seq), get_overlap(seq, v.second));
-    if (cand > best) {
-      best = cand;
-      ret = v.first;
+  for (const auto &[name, contam_seq] : contaminants) {
+    std::cerr << name << '\t' << contam_seq << '\n';
+    const auto curr =
+      std::max(get_overlap(contam_seq, seq), get_overlap(seq, contam_seq));
+    if (curr > best) {
+      best = curr;
+      ret = name;
     }
   }
-
   // If any sequence is a match, return the best one
   if (best >= std::min(std::size(ret), std::size(seq)) / 2)
     return ret;
@@ -1798,12 +1798,9 @@ void
 ModuleOverrepresentedSequences::summarize_module(FastqStats &stats) {
   // Keep only sequences that pass the input cutoff
   num_reads = stats.num_reads;
-  for (auto it = std::cbegin(stats.sequence_count);
-       it != std::cend(stats.sequence_count); ++it) {
-    if (it->second > num_reads * min_fraction_to_overrepresented) {
-      overrep_sequences.push_back(*it);
-    }
-  }
+  for (const auto &[seq, seq_count] : stats.sequence_count)
+    if (seq_count > num_reads * min_fraction_to_overrepresented)
+      overrep_sequences.push_back({seq, seq_count});
   // sort strings by frequency
   std::sort(std::begin(overrep_sequences), std::end(overrep_sequences),
             [](const auto &a, const auto &b) { return a.second > b.second; });
@@ -1811,18 +1808,15 @@ ModuleOverrepresentedSequences::summarize_module(FastqStats &stats) {
 
 void
 ModuleOverrepresentedSequences::make_grade() {
-  for (auto seq : overrep_sequences) {
+  for (const auto &[_, seq_count] : overrep_sequences) {
     // implment pass warn fail for overrep sequences
     if (grade != "fail") {
       // get percentage that overrep reads represent
-      double pct =
-        100.0 * seq.second / std::max(static_cast<std::size_t>(1), num_reads);
-      if (pct > grade_error) {
+      const auto pct = 100.0 * seq_count / std::max(1ul, num_reads);
+      if (pct > grade_error)
         grade = "fail";
-      }
-      else if (pct > grade_warn) {
+      else if (pct > grade_warn)
         grade = "warn";
-      }
     }
   }
 }
@@ -1853,13 +1847,11 @@ ModuleOverrepresentedSequences::make_html_data() {
   data << "</tr></thead><tbody>";
 
   // All overrep sequences
-  for (auto v : overrep_sequences) {
-    data << "<tr><td>" << v.first << "</td>";
-    data << "<td>" << v.second << "</td>";
-    data << "<td>"
-         << 100.0 * v.second / std::max(static_cast<std::size_t>(1), num_reads)
-         << "</td>";
-    data << "<td>" << get_matching_contaminant(v.first) << "</td>";
+  for (const auto &[seq, seq_count] : overrep_sequences) {
+    data << "<tr><td>" << seq << "</td>";
+    data << "<td>" << seq_count << "</td>";
+    data << "<td>" << 100.0 * seq_count / std::max(1ul, num_reads) << "</td>";
+    data << "<td>" << get_matching_contaminant(seq) << "</td>";
     data << "</tr>";
   }
   data << "</tbody></table>";
