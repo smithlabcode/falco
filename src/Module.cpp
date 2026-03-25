@@ -736,14 +736,22 @@ ModulePerBaseSequenceQuality::make_grade() {
 
 void
 ModulePerBaseSequenceQuality::write_module(std::ostream &os) {
+  constexpr auto max_precision{std::numeric_limits<double>::digits10};
+  const auto default_precision{os.precision()};
   os << "#Base\tMean\tMedian\tLower Quartile\tUpper Quartile"
      << "\t10th Percentile\t90th Percentile\n";
-
   // GS: TODO make base groups
   for (std::size_t i = 0; i < num_groups; ++i) {
-    os << base_groups[i] << "\t" << group_mean[i] << "\t" << group_median[i]
-       << "\t" << group_lquartile[i] << "\t" << group_uquartile[i] << "\t"
-       << group_ldecile[i] << "\t" << group_udecile[i] << "\n";
+    // clang-format off
+    os << base_groups[i] << "\t"
+       << std::setprecision(max_precision) << group_mean[i] << "\t"
+       << std::fixed << std::setprecision(1) << group_median[i] << "\t"
+       << std::fixed << std::setprecision(1) << group_lquartile[i] << "\t"
+       << std::fixed << std::setprecision(1) << group_uquartile[i] << "\t"
+       << std::fixed << std::setprecision(1) << group_ldecile[i] << "\t"
+       << std::fixed << std::setprecision(1) << group_udecile[i] << "\n"
+       << std::defaultfloat << std::setprecision(default_precision);
+    // clang-format on
   }
 }
 
@@ -869,16 +877,17 @@ ModulePerTileSequenceQuality::make_grade() {
 
 void
 ModulePerTileSequenceQuality::write_module(std::ostream &os) {
-
+  constexpr auto max_precision{std::numeric_limits<double>::digits10};
+  const auto default_precision{os.precision()};
   // prints tiles sorted by value
   os << "#Tile\tBase\tMean\n";
   for (std::size_t i = 0; i < std::size(tiles_sorted); ++i) {
     for (std::size_t j = 0; j < max_read_length; ++j) {
-
       if (std::size(tile_position_quality[tiles_sorted[i]]) >= j) {
         os << tiles_sorted[i] << "\t" << j + 1 << "\t"
-           << tile_position_quality[tiles_sorted[i]][j];
-        os << "\n";
+           << std::setprecision(max_precision)
+           << tile_position_quality[tiles_sorted[i]][j]
+           << std::setprecision(default_precision) << "\n";
       }
     }
   }
@@ -1294,7 +1303,8 @@ ModulePerBaseSequenceContent::make_html_data() {
 const std::string ModulePerSequenceGCContent::module_name =
   "Per sequence GC content";
 ModulePerSequenceGCContent::ModulePerSequenceGCContent(
-  const FalcoConfig &config) : Module(ModulePerSequenceGCContent::module_name) {
+  const FalcoConfig &config) :
+  Module(ModulePerSequenceGCContent::module_name) {
   auto gc_vars = config.limits.find("gc_sequence")->second;
   gc_warn = gc_vars.find("warn")->second;
   gc_error = gc_vars.find("error")->second;
@@ -2152,8 +2162,9 @@ ModuleKmerContent::write_module(std::ostream &os) {
     const std::size_t kmer = kmers_to_report[i].first;
     os << size_t_to_seq(kmer, kmer_size) << "\t" << total_kmer_counts[kmer]
        << "\t"
-       << "0.0" << "\t" << obs_exp_max[kmer] << "\t"
-       << where_obs_exp_is_max[kmer] << "\n";
+       << "0.0"
+       << "\t" << obs_exp_max[kmer] << "\t" << where_obs_exp_is_max[kmer]
+       << "\n";
   }
 }
 
