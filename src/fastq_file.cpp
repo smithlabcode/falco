@@ -33,7 +33,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <iterator>
-#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <vector>

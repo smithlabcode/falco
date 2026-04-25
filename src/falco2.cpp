@@ -52,6 +52,7 @@
 #include <utility>
 #include <vector>
 
+// NOLINTBEGIN (cppcoreguidelines-avoid-magic-numbers)
 [[nodiscard]] static inline auto
 five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
   const auto dlb = [](const auto &p, const auto x) {
@@ -69,6 +70,7 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
     dlb(p, 9 * p.back() / 10),  // 90th percentile
   };
 }
+// NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
 
 struct falco_results {
   static constexpr auto init_read_len = 256;
@@ -81,7 +83,7 @@ struct falco_results {
   std::uint64_t max_read_len{};
   std::uint64_t gc{};
   std::vector<std::array<std::uint64_t, alphabet_size>> nucs;
-  std::array<std::uint64_t, 101> gcs{};
+  std::array<std::uint64_t, 101> gcs{};  // NOLINT (*-avoid-magic-numbers)
   std::vector<std::uint64_t> n_counts;
   std::vector<std::uint64_t> lengths;
   std::vector<std::array<std::uint64_t, max_qual_val>> qual_by_pos;
@@ -116,8 +118,9 @@ struct falco_results {
   template <const bool do_tile, const bool do_kmers>
   auto
   process_one(const fastq_buffer &fq, const fqrec &rec) {
+    // NOLINTBEGIN (*-pro-bounds-constant-array-index)
     static constexpr auto pct_int = [](const auto a, const auto b) {
-      return (100 * a) / b;
+      return (100 * a) / b;  // NOLINT (cppcoreguidelines-avoid-magic-numbers)
     };
     const auto l = get_seq_size(rec);
     const auto seq = get_seq(fq, rec);
@@ -127,7 +130,7 @@ struct falco_results {
     ++lengths[l];
     count_nucs(seq, l, nucs);
     const auto curr_gc = count_gc(seq, l);
-    ++gcs[pct_int(curr_gc, l)];
+    ++gcs[pct_int(curr_gc, l)];  // NOLINT (*-pro-bounds-constant-array-index)
     gc += curr_gc;
     count_ns(seq, l, n_counts);
     const auto qual_itr = get_qual(fq, rec);
@@ -144,6 +147,7 @@ struct falco_results {
     if constexpr (do_kmers)
       kc.count_kmers(n_reads, seq, l);
     ++n_reads;
+    // NOLINTEND (*-pro-bounds-constant-array-index)
   }
 
   template <const bool do_tile, const bool do_kmers>
@@ -198,6 +202,7 @@ struct falco_results {
       return r + std::format("{}", a.back());
     };
 
+    // NOLINTBEGIN (*-pro-bounds-constant-array-index)
     const auto nucs_no_n = fix_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
 
@@ -282,6 +287,8 @@ struct falco_results {
         r += std::format("{}\t{}\n", i, lengths[i]);
     r += end_module_tag;
 
+    // NOLINTEND (*-pro-bounds-constant-array-index)
+
     r += dr.string();                         // duplication results
     r += dr.format_overrepresented(n_reads);  // overrepresented sequences
     r += am.string(n_reads);                  // adapter content
@@ -301,9 +308,10 @@ template <> struct std::formatter<falco_results> : std::formatter<std::string> {
 int
 main(int argc, char *argv[]) {
   try {
+    static constexpr auto buf_size_defulat = 512 * 1024 * 1024;
     std::string fastq_filename;
     std::string output_filename;
-    std::int64_t buf_size{512 * 1024 * 1024};
+    std::int64_t buf_size{buf_size_defulat};
     std::int64_t n_threads{1};
 
     CLI::App app{"fastq_parser"};
@@ -336,6 +344,7 @@ main(int argc, char *argv[]) {
     std::vector<falco_results> fr(n_threads);
     std::vector<std::int64_t> cursors(n_threads, 0);
 
+    // NOLINTBEGIN (cppcoreguidelines-narrowing-conversions)
     while (fqfile) {
       std::ranges::fill_n(std::begin(cursors), n_threads, 0);  // reset cursors
       auto fq = fqfile.get_next();
@@ -346,6 +355,7 @@ main(int argc, char *argv[]) {
         constexpr bool do_kmers = true;
         std::vector<std::jthread> workers;
         for (auto th_id = 0; th_id < n_threads; ++th_id)
+          // NOLINTNEXTLINE (performance-inefficient-vector-operation)
           workers.emplace_back([&, th_id, chunks] {
             cursors[th_id] = chunks[th_id].first;
             fr[th_id].process_records<do_tiles, do_kmers>(fq, cursors[th_id],
@@ -357,6 +367,7 @@ main(int argc, char *argv[]) {
         constexpr bool do_kmers = true;
         std::vector<std::jthread> workers;
         for (auto th_id = 0; th_id < n_threads; ++th_id)
+          // NOLINTNEXTLINE (performance-inefficient-vector-operation)
           workers.emplace_back([&, th_id, chunks] {
             cursors[th_id] = chunks[th_id].first;
             fr[th_id].process_records<do_tiles, do_kmers>(fq, cursors[th_id],
@@ -365,6 +376,7 @@ main(int argc, char *argv[]) {
       }
       fqfile.cursor = std::ranges::max(cursors);
     }
+    // NOLINTEND (cppcoreguidelines-narrowing-conversions)
 
     const auto results = std::reduce(std::cbegin(fr), std::cend(fr));
     std::ofstream out(output_filename);
