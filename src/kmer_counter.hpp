@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <format>
 #include <iterator>
+#include <string>
 #include <vector>
 
 struct kmer_counter {

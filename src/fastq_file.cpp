@@ -24,12 +24,15 @@
 #include "fastq_file.hpp"
 #include "fastq_buffer.hpp"
 
-#include <fcntl.h>     // open, O_RDONLY
-#include <sys/mman.h>  // mmap, munmap, MAP_FAILED, MAP_PRIVATE
-#include <unistd.h>    // close
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
+#include <algorithm>
+#include <cerrno>
 #include <cstdint>
 #include <filesystem>
+#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <system_error>

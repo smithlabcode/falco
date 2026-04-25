@@ -22,12 +22,12 @@
  */
 
 #include "tile_processor.hpp"
-
 #include "falco_utils.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
-#include <ranges>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>

@@ -26,15 +26,11 @@
 
 #include "fastq_buffer.hpp"
 
-#include <fcntl.h>     // open, O_RDONLY
-#include <sys/mman.h>  // mmap, munmap, MAP_FAILED, MAP_PRIVATE
-#include <unistd.h>    // close
+#include <unistd.h>
 
 #include <cstdint>
-#include <filesystem>
-#include <stdexcept>
 #include <string>
-#include <system_error>
+#include <utility>
 #include <vector>
 
 struct mmap_vals {

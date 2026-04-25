@@ -24,7 +24,6 @@
 #include "adapter_matcher.hpp"
 #include "duplication_results.hpp"
 #include "falco_utils.hpp"
-#include "falco_word.hpp"
 #include "fastq_buffer.hpp"
 #include "fastq_file.hpp"
 #include "fastq_record.hpp"
@@ -34,22 +33,23 @@
 #include "CLI11/CLI11.hpp"
 
 #include <algorithm>
-#include <cassert>
-#include <condition_variable>
-#include <cstddef>
+#include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <exception>
+#include <format>
+#include <fstream>
+#include <initializer_list>
 #include <iostream>
-#include <mutex>
+#include <iterator>
 #include <numeric>
 #include <print>
-#include <queue>
 #include <ranges>
+#include <stdexcept>
 #include <string>
-#include <string_view>
-#include <system_error>
 #include <thread>
-#include <unordered_map>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 [[nodiscard]] static inline auto

@@ -24,16 +24,20 @@
 #ifndef TILE_PROCESSOR_HPP_
 #define TILE_PROCESSOR_HPP_
 
-#include "fastq_file.hpp"
 #include "fastq_record.hpp"
 
-#include <algorithm>
+#include <charconv>
 #include <cstdint>
-#include <fstream>
+#include <format>
+#include <iterator>
 #include <ranges>
 #include <string>
+#include <system_error>
 #include <unordered_map>
+#include <utility>
 #include <vector>
+
+struct fastq_buffer;
 
 struct tile_processor {
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;

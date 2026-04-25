@@ -26,8 +26,10 @@
 #include "falco_utils.hpp"
 #include "falco_word.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <format>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
