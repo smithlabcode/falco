@@ -32,8 +32,6 @@
 #include <unordered_map>
 #include <vector>
 
-struct falco_word;
-
 struct duplication_results {
   static constexpr auto overrepresented_cutoff = 0.001;
   // only count first 100k unique sequences
