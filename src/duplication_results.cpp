@@ -53,6 +53,7 @@ duplication_results::format_overrepresented(const std::uint64_t n_reads) const
   // Keep only sequences that pass the input cutoff
   auto overrep_seqs = std::vector<std::pair<std::uint64_t, falco_word>>{};
   const auto overrep = static_cast<std::uint64_t>(
+    // NOLINTNEXTLINE (cppcoreguidelines-narrowing-conversions)
     n_reads * duplication_results::overrepresented_cutoff);
   for (const auto &[seq, seq_count] : dups)
     if (seq_count > overrep)
@@ -72,8 +73,8 @@ duplication_results::summarize() {
     return;
   std::vector<std::uint32_t> counter;
   counter.resize(dups_sz);
-  for (const auto &d : dups)
-    counter.push_back(d.second);
+  std::ranges::transform(dups, std::begin(counter),
+                         [](const auto &d) { return d.second; });
   std::ranges::sort(counter, std::ranges::greater{});
   const auto cutoff = counter[max_unique];
   auto dups_itr = std::cbegin(dups);

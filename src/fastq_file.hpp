@@ -21,8 +21,8 @@
  * SOFTWARE.
  */
 
-#ifndef FASTQ_FILE_HPP_
-#define FASTQ_FILE_HPP_
+#ifndef SRC_FASTQ_FILE_HPP_
+#define SRC_FASTQ_FILE_HPP_
 
 #include "fastq_buffer.hpp"
 
@@ -71,4 +71,4 @@ get_chunks(const fastq_buffer &fq, const std::uint64_t start_idx,
            const std::uint64_t stop_idx, const std::uint64_t n_chunks)
   -> std::vector<std::pair<std::uint64_t, std::uint64_t>>;
 
-#endif  // FASTQ_FILE_HPP_
+#endif  // SRC_FASTQ_FILE_HPP_

@@ -21,8 +21,8 @@
  * SOFTWARE.
  */
 
-#ifndef FALCO_WORD_HPP_
-#define FALCO_WORD_HPP_
+#ifndef SRC_FALCO_WORD_HPP_
+#define SRC_FALCO_WORD_HPP_
 
 #include <algorithm>
 #include <cstdint>
@@ -44,11 +44,11 @@ struct falco_word {
   operator<=>(const falco_word &) const = default;
 
   falco_word(auto b, const std::uint64_t w) {
-    static constexpr auto encode = [](const auto c) {
+    static constexpr auto fw_encode = [](const auto c) {
       return (c >> 1) & mask;  // Ns are counted as G so must be subtracted
     };
     static const auto enc_shift = [&](auto &x, auto &c) {
-      x = (x << bits_per_base) | encode(*c++);
+      x = (x << bits_per_base) | fw_encode(*c++);
     };
     const auto lo_lim = b + (w > max_lo_lim ? max_lo_lim : w);
     const auto hi_lim = b + (w < max_hi_lim ? w : max_hi_lim);
@@ -100,4 +100,4 @@ template <> struct std::hash<falco_word> {
   }
 };
 
-#endif  // FALCO_WORD_HPP_
+#endif  // SRC_FALCO_WORD_HPP_

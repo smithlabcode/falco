@@ -38,11 +38,15 @@ adapter_matcher::adapter_matcher(const std::uint32_t max_read_len) :
   const auto encode_adap = [&](const auto &a) {
     std::uint64_t x{};
     for (const auto i : std::views::iota(0, adapter_size))
+      // cppcheck-suppress useStlAlgorithm
       x = (x << nibble_size) + encode_nibble(a[i]);
     return x;
   };
+  // NOLINTBEGIN (*-pro-bounds-constant-array-index)
   for (const auto i : std::views::iota(0, n_adapters))
+    // cppcheck-suppress useStlAlgorithm
     encoded_adapters[i] = encode_adap(adapters[i]);
+  // NOLINTEND (*-pro-bounds-constant-array-index)
 }
 
 auto
@@ -55,14 +59,11 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 
 [[nodiscard]] auto
 adapter_matcher::string(const std::uint64_t n_reads) const -> std::string {
-  constexpr auto as_frac = [](const auto a, const auto b) {
-    return static_cast<double>(a) / static_cast<double>(b);
-  };
   auto r = std::format(">>Adapter Content\t{}\n", "pass");
   for (auto i = 0; i < max_read_len; ++i) {
-    r += std::format("{}", i + 1);
-    for (const auto j : adapter_counts[i])
-      r += std::format("\t{:.6g}", as_frac(j, n_reads));
+    for (const auto c : adapter_counts[i])
+      // cppcheck-suppress useStlAlgorithm
+      r += std::format("\t{:.6g}", as_frac(c, n_reads));
     r += '\n';
   }
   return r + end_module_tag;

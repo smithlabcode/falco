@@ -21,13 +21,14 @@
  * SOFTWARE.
  */
 
-#ifndef FASTQ_RECORD_HPP_
-#define FASTQ_RECORD_HPP_
+#ifndef SRC_FASTQ_RECORD_HPP_
+#define SRC_FASTQ_RECORD_HPP_
 
 #include "fastq_buffer.hpp"
 
 #include <cstdint>
 #include <format>
+#include <limits>
 #include <numeric>
 #include <string>
 
@@ -104,4 +105,4 @@ get_next(const auto data, std::int64_t &cursor,
   return {n, r, o, q, e};
 }
 
-#endif  // FASTQ_RECORD_HPP_
+#endif  // SRC_FASTQ_RECORD_HPP_

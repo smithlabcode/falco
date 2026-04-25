@@ -21,8 +21,8 @@
  * SOFTWARE.
  */
 
-#ifndef TILE_PROCESSOR_HPP_
-#define TILE_PROCESSOR_HPP_
+#ifndef SRC_TILE_PROCESSOR_HPP_
+#define SRC_TILE_PROCESSOR_HPP_
 
 #include "fastq_record.hpp"
 
@@ -63,8 +63,8 @@ struct tile_processor {
       q.resize(max_read_len);
   }
 
-  [[nodiscard]] auto
-  get_tile_id(const fastq_buffer &fq, const fqrec &rec) {
+  auto
+  update_tile_id(const fastq_buffer &fq, const fqrec &rec) {
     const auto name_beg = get_name(fq, rec);
     const auto name_end = name_beg + get_name_size(rec);
     auto tile_itr = name_beg;
@@ -113,4 +113,4 @@ struct std::formatter<tile_processor> : std::formatter<std::string> {
   }
 };
 
-#endif  // TILE_PROCESSOR_HPP_
+#endif  // SRC_TILE_PROCESSOR_HPP_

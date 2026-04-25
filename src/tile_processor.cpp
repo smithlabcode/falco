@@ -37,6 +37,11 @@ std::uint32_t tile_processor::preceding_colons = 0;
 auto
 tile_processor::set_preceding_colons(const std::string &fastq_buffername)
   -> std::uint32_t {
+  // Colon cutoffs taken from FastQC
+  static constexpr auto colon_cutoff_1 = 6;
+  static constexpr auto colon_cutoff_1_val = 4;
+  static constexpr auto colon_cutoff_2 = 4;
+  static constexpr auto colon_cutoff_2_val = 2;
   std::ifstream in(fastq_buffername);
   if (!in)
     throw std::runtime_error("failed to open file: " + fastq_buffername);
@@ -44,15 +49,16 @@ tile_processor::set_preceding_colons(const std::string &fastq_buffername)
   if (!std::getline(in, line))
     throw std::runtime_error("failed to read line from: " + fastq_buffername);
   const auto colons_found = std::ranges::count(line, ':');
-  preceding_colons = colons_found >= 6 ? 4 : (colons_found >= 4 ? 2 : 0);
+  // clang-format off
+  preceding_colons =
+    colons_found >= colon_cutoff_1 ? colon_cutoff_1_val :
+    (colons_found >= colon_cutoff_2 ? colon_cutoff_2_val : 0);
+  // clang-format on
   return preceding_colons;
 }
 
 [[nodiscard]] auto
 tile_processor::string() const -> std::string {
-  static constexpr auto as_frac = [](const auto a, const auto b) {
-    return static_cast<double>(a) / static_cast<double>(b);
-  };
   auto r = std::format(">>Per tile sequence quality\t{}\n", "pass");
   r += header;
   for (const auto &[i, q] : quals)

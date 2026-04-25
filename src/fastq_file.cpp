@@ -53,24 +53,19 @@ mmap_fastq(const int fd, const std::int64_t start_offset,
 static auto
 cleanup_mmap_fastq(fastq_buffer &fq) {
   if (fq.data == nullptr)
-    throw std::runtime_error("failed to cleanup memory map");
-  const int rc = munmap(static_cast<void *>(fq.data), fq.sz);
-  if (rc)
-    throw std::system_error(std::make_error_code(std::errc(errno)),
-                            "cleanup_mmap_fastq");
+    return;
+  [[maybe_unused]] const int rc = munmap(static_cast<void *>(fq.data), fq.sz);
   fq = {nullptr, 0};
 }
 
-fastq_file::fastq_file(const std::string &fastq_filename,
+fastq_file::fastq_file(const std::string &filename,
                        const std::int64_t buf_size) :
-  buf_size{buf_size}, filesize{static_cast<std::int64_t>(
-                        std::filesystem::file_size(fastq_filename))} {
-  // ADS: file descriptor will be reused
-  fd = open(std::data(fastq_filename), O_RDONLY, 0);
+  buf_size{buf_size},
+  filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
+  fd{open(std::data(filename), O_RDONLY, 0)}, stop_offset{buf_size} {
   if (fd < 0)
     throw std::system_error(std::make_error_code(std::errc(errno)),
-                            R"(failed to open file: )" + fastq_filename);
-  stop_offset = buf_size;
+                            R"(failed to open file: )" + filename);
 }
 
 fastq_file::~fastq_file() {

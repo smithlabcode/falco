@@ -21,8 +21,8 @@
  * SOFTWARE.
  */
 
-#ifndef FASTQ_BUFFER_HPP_
-#define FASTQ_BUFFER_HPP_
+#ifndef SRC_FASTQ_BUFFER_HPP_
+#define SRC_FASTQ_BUFFER_HPP_
 
 #include <cstdint>
 
@@ -31,4 +31,4 @@ struct fastq_buffer {
   std::int64_t sz{};
 };
 
-#endif  // FASTQ_BUFFER_HPP_
+#endif  // SRC_FASTQ_BUFFER_HPP_

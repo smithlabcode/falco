@@ -36,14 +36,11 @@ kmer_counter::operator+=(const kmer_counter &rhs) -> const kmer_counter & {
 
 [[nodiscard]] auto
 kmer_counter::string(const std::uint64_t n_reads) const -> std::string {
-  constexpr auto as_frac = [](const auto a, const auto b) {
-    return static_cast<double>(a) / static_cast<double>(b);
-  };
   auto r = std::format(">>Kmer Content\t{}\n", "pass");
   auto total_kmer_count = 0ul;
   for (const auto &c : kmer_counts)
     for (auto i = 0; i < n_kmers; ++i)
-      total_kmer_count += c[i];
+      total_kmer_count += c[i];  // NOLINT (*-pro-bounds-constant-array-index)
   r += std::format("total kmers: {}\n", total_kmer_count);
   return r + end_module_tag;
 }

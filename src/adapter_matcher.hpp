@@ -21,8 +21,8 @@
  * SOFTWARE.
  */
 
-#ifndef ADAPTER_MATCHER_HPP_
-#define ADAPTER_MATCHER_HPP_
+#ifndef SRC_ADAPTER_MATCHER_HPP_
+#define SRC_ADAPTER_MATCHER_HPP_
 
 #include "falco_utils.hpp"
 
@@ -47,12 +47,12 @@ struct adapter_matcher {
   };
   static constexpr auto adapters = std::array{
     // clang-format off
-    "AGATCGGAAGAG", // Illumina Universal Adapter
-    "TGGAATTCTCGG", // Illumina Small RNA 3' Adapter
-    "GATCGTCGGACT", // Illumina Small RNA 5' Adapter
-    "CTGTCTCTTATA", // Nextera Transposase Sequence
-    "AAAAAAAAAAAA", // PolyA
-    "GGGGGGGGGGGG", // PolyG
+    "AGATCGGAAGAG",  // Illumina Universal Adapter
+    "TGGAATTCTCGG",  // Illumina Small RNA 3' Adapter
+    "GATCGTCGGACT",  // Illumina Small RNA 5' Adapter
+    "CTGTCTCTTATA",  // Nextera Transposase Sequence
+    "AAAAAAAAAAAA",  // PolyA
+    "GGGGGGGGGGGG",  // PolyG
     // clang-format on
   };
   std::uint32_t max_read_len{};
@@ -104,4 +104,4 @@ struct std::formatter<adapter_matcher> : std::formatter<std::string> {
   }
 };
 
-#endif  // ADAPTER_MATCHER_HPP_
+#endif  // SRC_ADAPTER_MATCHER_HPP_

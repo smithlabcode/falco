@@ -21,8 +21,8 @@
  * SOFTWARE.
  */
 
-#ifndef FALCO_UTILS_HPP_
-#define FALCO_UTILS_HPP_
+#ifndef SRC_FALCO_UTILS_HPP_
+#define SRC_FALCO_UTILS_HPP_
 
 #include <algorithm>
 #include <iterator>
@@ -80,7 +80,8 @@ ipow(const auto b, const auto e) -> std::remove_cvref_t<decltype(b)> {
 }
 
 static inline auto
-count_nucs(auto seq_itr, const auto sz, auto &tab) {
+count_nucs(auto seq_itr, const auto sz,
+           auto &tab) {  // cppcheck-suppress constParameterReference
   const auto seq_end = seq_itr + sz;
   auto out_itr = std::begin(tab);
   while (seq_itr != seq_end)
@@ -88,7 +89,8 @@ count_nucs(auto seq_itr, const auto sz, auto &tab) {
 }
 
 static inline auto
-count_ns(auto seq_itr, const auto sz, auto &tab) {
+count_ns(auto seq_itr, const auto sz,
+         auto &tab) {  // cppcheck-suppress constParameterReference
   const auto seq_end = seq_itr + sz;
   auto out_itr = std::begin(tab);
   while (seq_itr != seq_end)
@@ -107,7 +109,8 @@ count_gc(auto seq_itr, const auto sz) {
 }
 
 [[nodiscard]] static inline auto
-count_quals(auto qual_itr, const auto sz, auto &tab) {
+count_quals(auto qual_itr, const auto sz,
+            auto &tab) {  // cppcheck-suppress constParameterReference
   const auto qual_end = qual_itr + sz;
   auto out_itr = std::begin(tab);
   auto qual_tot = 0;
@@ -136,4 +139,4 @@ mean_tabular(const auto &a) {
   return static_cast<double>(num) / static_cast<double>(denom);
 }
 
-#endif  // FALCO_UTILS_HPP_
+#endif  // SRC_FALCO_UTILS_HPP_

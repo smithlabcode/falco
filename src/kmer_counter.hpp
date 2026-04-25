@@ -21,8 +21,8 @@
  * SOFTWARE.
  */
 
-#ifndef KMER_COUNTER_HPP_
-#define KMER_COUNTER_HPP_
+#ifndef SRC_KMER_COUNTER_HPP_
+#define SRC_KMER_COUNTER_HPP_
 
 #include "falco_utils.hpp"
 
@@ -90,4 +90,4 @@ template <> struct std::formatter<kmer_counter> : std::formatter<std::string> {
   }
 };
 
-#endif  // KMER_COUNTER_HPP_
+#endif  // SRC_KMER_COUNTER_HPP_

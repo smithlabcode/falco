@@ -21,8 +21,8 @@
  * SOFTWARE.
  */
 
-#ifndef DUPLICATION_RESULTS_HPP_
-#define DUPLICATION_RESULTS_HPP_
+#ifndef SRC_DUPLICATION_RESULTS_HPP_
+#define SRC_DUPLICATION_RESULTS_HPP_
 
 #include "falco_word.hpp"
 
@@ -97,4 +97,4 @@ count_seqs(const auto seq_itr, const auto sz, const auto n_reads,
     count_seqs_dups(seq_itr, sz, n_reads, dr);
 }
 
-#endif  // DUPLICATION_RESULTS_HPP_
+#endif  // SRC_DUPLICATION_RESULTS_HPP_

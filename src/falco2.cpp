@@ -137,7 +137,7 @@ struct falco_results {
     am.match_adapters(seq, l);
     if constexpr (do_tile)
       if (n_reads == tp.next_tile_read) {
-        tp.get_tile_id(fq, rec);
+        tp.update_tile_id(fq, rec);
         tp(fq.data, rec);
         tp.next_tile_read += tp.tile_step;
       }
@@ -185,14 +185,11 @@ struct falco_results {
 
   [[nodiscard]] auto
   string() const {
-    static constexpr auto bases = "\tG\tA\tT\tC";
+    [[maybe_unused]] static constexpr auto bases = "\tG\tA\tT\tC";
     static constexpr auto base_permutation = {3, 0, 2, 1};
     const auto sub_from_each = [](auto a, const auto b) {
       std::ranges::for_each(a, [&](auto &x) { x -= b; });
       return a;
-    };
-    constexpr auto as_frac = [](const auto a, const auto b) {
-      return static_cast<double>(a) / static_cast<double>(b);
     };
     const auto tab_sep = [](const auto &a) {
       auto r = std::string{};
@@ -204,7 +201,7 @@ struct falco_results {
     const auto nucs_no_n = fix_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
 
-    const auto gc = std::accumulate(
+    const auto total_gc = std::accumulate(
       std::cbegin(nucs_no_n), std::cend(nucs_no_n), 0ul,
       [](const auto a, const auto &nuc) { return a + nuc[1] + nuc[3]; });
 
@@ -227,7 +224,7 @@ struct falco_results {
                          n_reads,
                          0,
                          max_read_len,
-                         pct(as_frac(gc, total_nucs)));
+                         pct(as_frac(total_gc, total_nucs)));
     // clang-format on
 
     r += std::format(">>Per base sequence quality\t{}\n", "pass");
@@ -256,6 +253,7 @@ struct falco_results {
       const auto tot =
         std::reduce(std::cbegin(nucs_no_n[i]), std::cend(nucs_no_n[i]));
       for (const auto j : base_permutation)
+        // cppcheck-suppress useStlAlgorithm
         r += std::format("\t{:2.4f}", pct(as_frac(nucs_no_n[i][j], tot)));
       r += '\n';
     }
