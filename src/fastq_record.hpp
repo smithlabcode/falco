@@ -66,20 +66,29 @@ struct fastq_buffer {
 [[nodiscard]] constexpr auto
 get_name(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.n; }
 [[nodiscard]] constexpr auto
+get_name_end(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.r - 1; }
+[[nodiscard]] constexpr auto
 get_name_size(const fqrec &rec) { return rec.r - rec.n - 1; }
+
 [[nodiscard]] constexpr auto
 get_seq(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.r; }
 [[nodiscard]] constexpr auto
+get_seq_end(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.o - 1; }
+[[nodiscard]] constexpr auto
 get_seq_size(const fqrec &rec) { return std::size(rec); }
+
 [[nodiscard]] constexpr auto
 get_qual(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.q; }
+[[nodiscard]] constexpr auto
+get_qual_end(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.e - 1; }
 [[nodiscard]] constexpr auto
 get_qual_size(const fqrec &rec) { return std::size(rec); }
 // clang-format on
 
 [[nodiscard]] inline auto
-get_next(const auto data, std::int64_t &cursor,
+get_next(const auto &reads_buf, std::int64_t &cursor,
          const std::int64_t lim) -> fqrec {
+  const auto data = reads_buf.data;
   const auto n = cursor;
   auto itr = data + n;  // should point to '@', should not be '\n'
   const auto fq_end = data + lim;
