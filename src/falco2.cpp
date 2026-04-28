@@ -109,25 +109,25 @@ struct falco_results {
 
   template <typename self_t>
   auto
-  process_one(this self_t &&self, const auto &reads_buf,
-              const auto &rec) -> void {
-    self.process_one_impl(reads_buf, rec);
+  process_one_read(this self_t &&self, const auto &reads_buf,
+                   const auto &rec) -> void {
+    self.process_one_read_impl(reads_buf, rec);
   }
 
   template <typename self_t>
   auto
-  process_records(this self_t &&self, const auto &reads_buf,
-                  std::int64_t cursor, const std::int64_t lim) {
+  process_reads(this self_t &&self, const auto &reads_buf, std::int64_t cursor,
+                const std::int64_t lim) {
     using rec_t = std::decay_t<decltype(reads_buf)>::rec_t;
     rec_t rec{};
     while (cursor < lim && (rec = get_next(reads_buf, cursor, lim))) {
-      self.process_one(reads_buf, rec);
+      self.process_one_read(reads_buf, rec);
       ++self.n_reads;
     }
   }
 
   auto
-  process_one_impl(const auto &reads_buf, const auto &rec) {
+  process_one_read_impl(const auto &reads_buf, const auto &rec) {
     // NOLINTBEGIN (*-pro-bounds-constant-array-index)
     static constexpr auto pct_int = [](const auto a, const auto b) {
       return (100 * a) / b;  // NOLINT (cppcoreguidelines-avoid-magic-numbers)
@@ -305,8 +305,8 @@ struct falco_results_tile : public falco_results {
   }
 
   auto
-  process_one_impl(const auto &reads_buf, const auto &rec) {
-    falco_results::process_one_impl(reads_buf, rec);
+  process_one_read_impl(const auto &reads_buf, const auto &rec) {
+    falco_results::process_one_read_impl(reads_buf, rec);
     if (n_reads == tp.next_tile_read) {
       const auto name_itr = get_name(reads_buf, rec);
       const auto name_end = get_name_end(reads_buf, rec);
@@ -343,8 +343,8 @@ struct falco_results_kmer : public falco_results {
   }
 
   auto
-  process_one_impl(const auto &reads_buf, const auto &rec) {
-    falco_results::process_one_impl(reads_buf, rec);
+  process_one_read_impl(const auto &reads_buf, const auto &rec) {
+    falco_results::process_one_read_impl(reads_buf, rec);
     if (n_reads == kc.next_kmer_read) {
       const auto l = get_seq_size(rec);
       const auto seq = get_seq(reads_buf, rec);
@@ -378,8 +378,8 @@ struct falco_results_tile_kmer : public falco_results_tile {
   }
 
   auto
-  process_one_impl(const auto &reads_buf, const auto &rec) {
-    falco_results_tile::process_one_impl(reads_buf, rec);
+  process_one_read_impl(const auto &reads_buf, const auto &rec) {
+    falco_results_tile::process_one_read_impl(reads_buf, rec);
     if (n_reads == kc.next_kmer_read) {
       const auto l = get_seq_size(rec);
       const auto seq = get_seq(reads_buf, rec);
@@ -414,8 +414,8 @@ run(auto &reads_file, const auto n_threads, const auto &output_filename) {
       for (auto th_id = 0; th_id < n_threads; ++th_id)
         // NOLINTNEXTLINE (performance-inefficient-vector-operation)
         workers.emplace_back([&, th_id] {
-          fr[th_id].process_records(reads_buf, chunks[th_id].first,
-                                    chunks[th_id].second);
+          fr[th_id].process_reads(reads_buf, chunks[th_id].first,
+                                  chunks[th_id].second);
         });
     }
   }
