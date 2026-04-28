@@ -27,6 +27,6 @@
 namespace falco {
 static constexpr auto max_qual_val = 128;
 static constexpr auto min_qual_val = 33;
-};  // namespace falco
+}  // namespace falco
 
 #endif  // SRC_QUALITY_SCORE_HPP_
