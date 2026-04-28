@@ -31,6 +31,8 @@
 
 #include "CLI11/CLI11.hpp"
 
+#include <config.h>
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -50,30 +52,8 @@
 #include <type_traits>
 #include <vector>
 
-// NOLINTBEGIN (cppcoreguidelines-avoid-magic-numbers)
-[[nodiscard]] static inline auto
-five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
-  const auto dlb = [](const auto &p, const auto x) {
-    // get quantile as distance to insertion point
-    return static_cast<std::uint32_t>(
-      std::distance(std::begin(p), std::ranges::lower_bound(p, x)));
-  };
-  std::vector<std::uint64_t> p(std::size(a), 0);
-  std::inclusive_scan(std::cbegin(a), std::cend(a), std::begin(p));
-  return {
-    dlb(p, p.back() / 2),       // median
-    dlb(p, p.back() / 4),       // lower quartile
-    dlb(p, 3 * p.back() / 4),   // upper quartile
-    dlb(p, p.back() / 10),      // 10th percentile
-    dlb(p, 9 * p.back() / 10),  // 90th percentile
-  };
-}
-// NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
-
 struct falco_results {
   static constexpr auto init_read_len = 256;
-  static constexpr auto max_qual_val = 128;
-  static constexpr auto min_qual_val = 33;
   static constexpr auto alphabet_size = 4;
 
   std::uint64_t n_reads{};
@@ -83,8 +63,8 @@ struct falco_results {
   std::array<std::uint64_t, 101> gcs{};  // NOLINT (*-avoid-magic-numbers)
   std::vector<std::uint64_t> n_counts;
   std::vector<std::uint64_t> lengths;
-  std::vector<std::array<std::uint64_t, max_qual_val>> qual_by_pos;
-  std::array<std::uint64_t, max_qual_val> qual_by_read{};
+  std::vector<std::array<std::uint64_t, falco::max_qual_val>> qual_by_pos;
+  std::array<std::uint64_t, falco::max_qual_val> qual_by_read{};
   duplication_results dr;
   adapter_matcher am;
 
@@ -93,7 +73,7 @@ struct falco_results {
     nucs(init_read_len, std::array<std::uint64_t, alphabet_size>{}),
     n_counts(init_read_len, 0),
     lengths(init_read_len + 1, 0),
-    qual_by_pos(init_read_len, std::array<std::uint64_t, max_qual_val>{}),
+    qual_by_pos(init_read_len, std::array<std::uint64_t, falco::max_qual_val>{}),
     am(init_read_len)
   {}
   // clang-format on
@@ -132,24 +112,24 @@ struct falco_results {
     static constexpr auto pct_int = [](const auto a, const auto b) {
       return (100 * a) / b;  // NOLINT (cppcoreguidelines-avoid-magic-numbers)
     };
-    const auto l = get_seq_size(rec);
+    const auto read_len = get_seq_size(rec);
     const auto seq_itr = get_seq(reads_buf, rec);
     const auto seq_end = get_seq_end(reads_buf, rec);
-    if (l > max_read_len)
-      resize(l);
-    max_read_len = l > max_read_len ? l : max_read_len;
-    ++lengths[l];
+    if (read_len > max_read_len)
+      resize(read_len);
+    max_read_len = read_len > max_read_len ? read_len : max_read_len;
+    ++lengths[read_len];
     count_nucs(seq_itr, seq_end, nucs);
     const auto curr_gc = count_gc(seq_itr, seq_end);
-    ++gcs[pct_int(curr_gc, l)];  // NOLINT (*-pro-bounds-constant-array-index)
+    ++gcs[pct_int(curr_gc, read_len)];
     gc += curr_gc;
     count_ns(seq_itr, seq_end, n_counts);
     const auto qual_itr = get_qual(reads_buf, rec);
     const auto qual_end = get_qual_end(reads_buf, rec);
-    const auto qtot = count_quals(qual_itr, qual_end, qual_by_pos) / l;
+    const auto qtot = count_quals(qual_itr, qual_end, qual_by_pos) / read_len;
     ++qual_by_read[qtot];
-    count_seqs(seq_itr, l, n_reads, dr);
-    am.match_adapters(seq_itr, l);
+    count_seqs(seq_itr, read_len, n_reads, dr);
+    am.match_adapters(seq_itr, read_len);
     // NOLINTEND (*-pro-bounds-constant-array-index)
   }
 
@@ -170,9 +150,8 @@ struct falco_results {
     return *this;
   }
 
-  auto
-  fix_nucs_for_ns() const -> std::remove_cvref_t<decltype(nucs)> {
-    // Ns were counted among the C in nucs
+  [[nodiscard]] auto
+  fix_nucs_for_ns() const {  // Ns were counted among the C in nucs
     auto x = nucs;
     for (auto i = 0; i < std::size(x); ++i)
       x[i][3] -= n_counts[i];
@@ -187,103 +166,20 @@ struct falco_results {
 
   [[nodiscard]] auto
   string_impl() const -> std::string {
-    [[maybe_unused]] static constexpr auto bases = "\tG\tA\tT\tC";
-    static constexpr auto base_permutation = {3, 0, 2, 1};
-    const auto sub_from_each = [](auto a, const auto b) {
-      std::ranges::for_each(a, [&](auto &x) { x -= b; });
-      return a;
-    };
-    const auto tab_sep = [](const auto &a) {
-      auto r = std::string{};
-      for (const auto &value : a | std::views::take(std::size(a) - 1))
-        r += std::format("{}\t", value);
-      return r + std::format("{}", a.back());
-    };
-
-    // NOLINTBEGIN (*-pro-bounds-constant-array-index)
     const auto nucs_no_n = fix_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
-
     const auto total_gc = std::accumulate(
       std::cbegin(nucs_no_n), std::cend(nucs_no_n), 0ul,
       [](const auto a, const auto &nuc) { return a + nuc[1] + nuc[3]; });
 
-    // clang-format off
-    auto r = std::format("##Falco {}\n"
-                         ">>Basic Statistics\n"
-                         "#Measure\tValue\n"
-                         "Filename\t{}\n"
-                         "File type\t{}\n"
-                         "Encoding\t{}\n"
-                         "Total Sequences\t{}\n"
-                         "Sequences flagged as poor quality {}\n"
-                         "Sequence length\t{}\n"
-                         "%GC\t{:.1f}\n"
-                         ">> END_MODULE\n",
-                         "1.2.4",
-                         "asdf",
-                         "Conventional base calls",
-                         "Sanger / Illumina 1.9",
-                         n_reads,
-                         0,
-                         max_read_len,
-                         pct(as_frac(total_gc, total_nucs)));
-    // clang-format on
-
-    r += std::format(">>Per base sequence quality\t{}\n", "pass");
-    // qual by position
-    for (auto i = 0; i < max_read_len; ++i) {
-      const auto q = sub_from_each(five_quants(qual_by_pos[i]), min_qual_val);
-      r += std::format("{}\t{:.6g}\t{}\n", i + 1,
-                       mean_tabular(qual_by_pos[i]) - min_qual_val, tab_sep(q));
-    }
-    r += end_module_tag;
-
-    // qual by read
-    const auto q_itr = std::cbegin(qual_by_read);
-    const auto q_tot = std::reduce(q_itr + min_qual_val, q_itr + max_qual_val);
-    r += std::format(">>Per sequence quality scores\t{}\n", "pass");
-    for (auto i = min_qual_val; i < max_qual_val; ++i)
-      r += std::format("{}\t{:.6g}\n", i, as_frac(qual_by_read[i], q_tot));
-    r += end_module_tag;
-
-    // base composition
-    r += std::format(">>Per base sequence content\t{}\n", "fail");
-    for (auto i = 0; i < max_read_len; ++i) {
-      r += std::format("{}", i + 1);
-      const auto tot =
-        std::reduce(std::cbegin(nucs_no_n[i]), std::cend(nucs_no_n[i]));
-      for (const auto j : base_permutation)
-        // cppcheck-suppress useStlAlgorithm
-        r += std::format("\t{:2.4f}", pct(as_frac(nucs_no_n[i][j], tot)));
-      r += '\n';
-    }
-    r += end_module_tag;
-
-    // GC content
-    r += std::format(">>Per sequence GC content\t{}\n", "pass");
-    for (auto i = 0; i < max_read_len; ++i)
-      r += std::format("{}\t{}\n", i + 1, gcs[i]);
-    r += end_module_tag;
-
-    // N content
-    r += std::format("Per base N content\t{}\n", "pass");
-    for (auto i = 0; i < max_read_len; ++i) {
-      const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
-      r += std::format("{}\t{:.6g}\n", i + 1, pct(as_frac(n_counts[i], tot)));
-    }
-    r += end_module_tag;
-
-    // read lengths
-    r += std::format(">>Sequence Length Distribution\t{}\n"
-                     "#Length Count\n",
-                     "pass");
-    for (auto i = 0; i <= max_read_len; ++i)
-      if (lengths[i] > 0)
-        r += std::format("{}\t{}\n", i, lengths[i]);
-    r += end_module_tag;
-
-    // NOLINTEND (*-pro-bounds-constant-array-index)
+    auto r = format_basic_stats(/*filename, */ n_reads, max_read_len, total_gc,
+                                total_nucs);
+    r += format_qual_by_pos(qual_by_pos, max_read_len);     // qual by pos
+    r += format_qual_by_read(qual_by_read, max_read_len);   // qual by read
+    r += format_base_composition(nucs_no_n, max_read_len);  // base composition
+    r += format_gc_content(gcs, max_read_len);              // GC content
+    r += format_n_counts(n_counts, nucs, max_read_len);     // N content
+    r += format_read_lengths(lengths, max_read_len);        // read lengths
 
     r += dr.string();                         // duplication results
     r += dr.format_overrepresented(n_reads);  // overrepresented sequences
@@ -346,9 +242,9 @@ struct falco_results_kmer : public falco_results {
   process_one_read_impl(const auto &reads_buf, const auto &rec) {
     falco_results::process_one_read_impl(reads_buf, rec);
     if (n_reads == kc.next_kmer_read) {
-      const auto l = get_seq_size(rec);
+      const auto read_len = get_seq_size(rec);
       const auto seq = get_seq(reads_buf, rec);
-      kc.count_kmers(n_reads, seq, l);
+      kc.count_kmers(n_reads, seq, read_len);
       kc.next_kmer_read += kmer_counter::kmer_step;
     }
   }
@@ -381,9 +277,9 @@ struct falco_results_tile_kmer : public falco_results_tile {
   process_one_read_impl(const auto &reads_buf, const auto &rec) {
     falco_results_tile::process_one_read_impl(reads_buf, rec);
     if (n_reads == kc.next_kmer_read) {
-      const auto l = get_seq_size(rec);
+      const auto read_len = get_seq_size(rec);
       const auto seq = get_seq(reads_buf, rec);
-      kc.count_kmers(n_reads, seq, l);
+      kc.count_kmers(n_reads, seq, read_len);
       kc.next_kmer_read += kmer_counter::kmer_step;
     }
   }
@@ -438,10 +334,10 @@ main(int argc, char *argv[]) {
     bool do_tiles{};
     bool do_kmers{};
 
-    CLI::App app{"fastq_parser"};
+    CLI::App app{PROJECT_NAME};
     argv = app.ensure_utf8(argv);
     if (argc >= 2)
-      app.footer("fastq_parser");
+      app.footer(PROJECT_NAME);
 
     // clang-format off
     app.set_help_flag("-h,--help", "Print a detailed help message and exit");
