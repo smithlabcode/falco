@@ -24,8 +24,6 @@
 #ifndef SRC_FASTQ_RECORD_HPP_
 #define SRC_FASTQ_RECORD_HPP_
 
-#include "fastq_buffer.hpp"
-
 #include <cstdint>
 #include <format>
 #include <limits>
@@ -57,6 +55,12 @@ struct fqrec {
   }
 };
 static constexpr fqrec null_rec = {0, 0, 0, 0, fqrec::sentinel};
+
+struct fastq_buffer {
+  using rec_t = fqrec;
+  char *data{};
+  std::int64_t sz{};
+};
 
 // clang-format off
 [[nodiscard]] constexpr auto
