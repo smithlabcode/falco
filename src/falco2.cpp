@@ -24,7 +24,6 @@
 #include "adapter_matcher.hpp"
 #include "duplication_results.hpp"
 #include "falco_utils.hpp"
-#include "fastq_buffer.hpp"
 #include "fastq_file.hpp"
 #include "fastq_record.hpp"
 #include "kmer_counter.hpp"
@@ -79,7 +78,6 @@ struct falco_results {
   static constexpr auto alphabet_size = 4;
 
   std::uint64_t n_reads{};
-  std::uint64_t next_kmer_read{};
   std::uint64_t max_read_len{};
   std::uint64_t gc{};
   std::vector<std::array<std::uint64_t, alphabet_size>> nucs;
@@ -90,8 +88,6 @@ struct falco_results {
   std::array<std::uint64_t, max_qual_val> qual_by_read{};
   duplication_results dr;
   adapter_matcher am;
-  tile_processor tp;
-  kmer_counter kc;
 
   // clang-format off
   falco_results() :
@@ -99,9 +95,7 @@ struct falco_results {
     n_counts(init_read_len, 0),
     lengths(init_read_len + 1, 0),
     qual_by_pos(init_read_len, std::array<std::uint64_t, max_qual_val>{}),
-    am(init_read_len),
-    tp(init_read_len),
-    kc(init_read_len)
+    am(init_read_len)
   {}
   // clang-format on
 
@@ -112,18 +106,35 @@ struct falco_results {
     lengths.resize(updated_length + 1);  // need one extra here
     qual_by_pos.resize(updated_length);
     am.resize(updated_length);
-    tp.resize(updated_length);
   }
 
-  template <const bool do_tile, const bool do_kmers>
+  template <typename self_t>
   auto
-  process_one(const fastq_buffer &fq, const fqrec &rec) {
+  process_one(this self_t &&self, const auto &reads_buf,
+              const auto &rec) -> void {
+    self.process_one_impl(reads_buf, rec);
+  }
+
+  template <typename self_t>
+  auto
+  process_records(this self_t &&self, const auto &reads_buf,
+                  std::int64_t &cursor, const std::int64_t lim) {
+    using rec_t = std::decay_t<decltype(reads_buf)>::rec_t;
+    rec_t rec{};
+    while (cursor < lim && (rec = get_next(reads_buf.data, cursor, lim))) {
+      self.process_one(reads_buf, rec);
+      ++self.n_reads;
+    }
+  }
+
+  auto
+  process_one_impl(const auto &reads_buf, const auto &rec) {
     // NOLINTBEGIN (*-pro-bounds-constant-array-index)
     static constexpr auto pct_int = [](const auto a, const auto b) {
       return (100 * a) / b;  // NOLINT (cppcoreguidelines-avoid-magic-numbers)
     };
     const auto l = get_seq_size(rec);
-    const auto seq = get_seq(fq, rec);
+    const auto seq = get_seq(reads_buf, rec);
     if (l > max_read_len)
       resize(l);
     max_read_len = l > max_read_len ? l : max_read_len;
@@ -133,30 +144,12 @@ struct falco_results {
     ++gcs[pct_int(curr_gc, l)];  // NOLINT (*-pro-bounds-constant-array-index)
     gc += curr_gc;
     count_ns(seq, l, n_counts);
-    const auto qual_itr = get_qual(fq, rec);
+    const auto qual_itr = get_qual(reads_buf, rec);
     const auto qtot = count_quals(qual_itr, l, qual_by_pos) / l;
     ++qual_by_read[qtot];
     count_seqs(seq, l, n_reads, dr);
     am.match_adapters(seq, l);
-    if constexpr (do_tile)
-      if (n_reads == tp.next_tile_read) {
-        tp.update_tile_id(fq, rec);
-        tp(fq.data, rec);
-        tp.next_tile_read += tp.tile_step;
-      }
-    if constexpr (do_kmers)
-      kc.count_kmers(n_reads, seq, l);
-    ++n_reads;
     // NOLINTEND (*-pro-bounds-constant-array-index)
-  }
-
-  template <const bool do_tile, const bool do_kmers>
-  auto
-  process_records(const fastq_buffer &fq, std::int64_t &cursor,
-                  const std::int64_t lim) {
-    fqrec rec{};
-    while (cursor < lim && (rec = get_next(fq.data, cursor, lim)))
-      process_one<do_tile, do_kmers>(fq, rec);
   }
 
   auto
@@ -172,8 +165,6 @@ struct falco_results {
 
     dr += rhs.dr;
     am += rhs.am;
-    tp += rhs.tp;
-    kc += rhs.kc;
 
     return *this;
   }
@@ -187,8 +178,14 @@ struct falco_results {
     return x;
   };
 
+  template <typename self_t>
   [[nodiscard]] auto
-  string() const {
+  string(this const self_t &self) -> std::string {
+    return self.string_impl();
+  }
+
+  [[nodiscard]] auto
+  string_impl() const -> std::string {
     [[maybe_unused]] static constexpr auto bases = "\tG\tA\tT\tC";
     static constexpr auto base_permutation = {3, 0, 2, 1};
     const auto sub_from_each = [](auto a, const auto b) {
@@ -241,8 +238,6 @@ struct falco_results {
     }
     r += end_module_tag;
 
-    r += tp.string();  // qual by tile
-
     // qual by read
     const auto q_itr = std::cbegin(qual_by_read);
     const auto q_tot = std::reduce(q_itr + min_qual_val, q_itr + max_qual_val);
@@ -291,19 +286,144 @@ struct falco_results {
 
     r += dr.string();                         // duplication results
     r += dr.format_overrepresented(n_reads);  // overrepresented sequences
-    r += am.string(n_reads);                  // adapter content
-    r += kc.string();                         // kmer content
+    r += am.string(n_reads, max_read_len);    // adapter content
 
     return r;
   }
 };
 
-template <> struct std::formatter<falco_results> : std::formatter<std::string> {
+struct falco_results_tile : public falco_results {
+  tile_processor tp;
+
+  falco_results_tile() : tp(init_read_len) {}
+
   auto
-  format(const falco_results &fr, auto &ctx) const {
-    return std::formatter<std::string>::format(fr.string(), ctx);
+  resize(const std::uint32_t updated_length) {
+    falco_results::resize(updated_length);
+    tp.resize(updated_length);
+  }
+
+  auto
+  process_one_impl(const auto &reads_buf, const auto &rec) {
+    falco_results::process_one_impl(reads_buf, rec);
+    if (n_reads == tp.next_tile_read) {
+      tp.update_tile_id(reads_buf, rec);
+      tp(reads_buf.data, rec);
+      tp.next_tile_read += tp.tile_step;
+    }
+  }
+
+  auto
+  operator+=(const falco_results_tile &rhs) -> const falco_results_tile & {
+    falco_results::operator+=(rhs);
+    tp += rhs.tp;
+    return *this;
+  }
+
+  [[nodiscard]] auto
+  string_impl() const -> std::string {
+    return falco_results::string_impl() + tp.string(max_read_len);
   }
 };
+
+struct falco_results_kmer : public falco_results {
+  kmer_counter kc;
+
+  falco_results_kmer() : kc(init_read_len) {}
+
+  auto
+  resize(const std::uint32_t updated_length) {
+    falco_results::resize(updated_length);
+    kc.resize(updated_length);
+  }
+
+  auto
+  process_one_impl(const auto &reads_buf, const auto &rec) {
+    falco_results::process_one_impl(reads_buf, rec);
+    if (n_reads == kc.next_kmer_read) {
+      const auto l = get_seq_size(rec);
+      const auto seq = get_seq(reads_buf, rec);
+      kc.count_kmers(n_reads, seq, l);
+      kc.next_kmer_read += kmer_counter::kmer_step;
+    }
+  }
+
+  auto
+  operator+=(const falco_results_kmer &rhs) -> const falco_results_kmer & {
+    falco_results::operator+=(rhs);
+    kc += rhs.kc;
+    return *this;
+  }
+
+  [[nodiscard]] auto
+  string_impl() const -> std::string {
+    return falco_results::string_impl() + kc.string(n_reads);
+  }
+};
+
+struct falco_results_tile_kmer : public falco_results_tile {
+  kmer_counter kc;
+
+  falco_results_tile_kmer() : kc(init_read_len) {}
+
+  auto
+  resize(const std::uint32_t updated_length) {
+    falco_results_tile::resize(updated_length);
+    kc.resize(updated_length);
+  }
+
+  auto
+  process_one_impl(const auto &reads_buf, const auto &rec) {
+    falco_results_tile::process_one_impl(reads_buf, rec);
+    if (n_reads == kc.next_kmer_read) {
+      const auto l = get_seq_size(rec);
+      const auto seq = get_seq(reads_buf, rec);
+      kc.count_kmers(n_reads, seq, l);
+      kc.next_kmer_read += kmer_counter::kmer_step;
+    }
+  }
+
+  auto
+  operator+=(const falco_results_tile_kmer &rhs)
+    -> const falco_results_tile_kmer & {
+    falco_results_tile::operator+=(rhs);
+    kc += rhs.kc;
+    return *this;
+  }
+
+  [[nodiscard]] auto
+  string_impl() const -> std::string {
+    return falco_results_tile::string_impl() + kc.string(n_reads);
+  }
+};
+
+template <typename results_t>
+static auto
+run(auto &reads_file, const auto n_threads, const auto &output_filename) {
+  std::vector<results_t> fr(n_threads);
+  while (reads_file) {
+    auto reads_buf = reads_file.get_next();
+    const auto chunks =
+      get_chunks(reads_buf, reads_file.cursor, reads_buf.sz, n_threads);
+    std::vector<std::int64_t> cursors(n_threads, 0);
+    {
+      std::vector<std::jthread> workers;
+      for (auto th_id = 0; th_id < n_threads; ++th_id)
+        // NOLINTNEXTLINE (performance-inefficient-vector-operation)
+        workers.emplace_back([&, th_id] {
+          cursors[th_id] = chunks[th_id].first;
+          fr[th_id].process_records(reads_buf, cursors[th_id],
+                                    chunks[th_id].second);
+        });
+    }
+    reads_file.cursor = std::ranges::max(cursors);
+  }
+  std::ofstream out(output_filename);
+  if (!out)
+    throw std::runtime_error("failed to open file: " + output_filename);
+  const auto results = std::reduce(std::cbegin(fr), std::cend(fr));
+  std::println(out, "{}", results.string());
+}
 
 int
 main(int argc, char *argv[]) {
@@ -313,6 +433,9 @@ main(int argc, char *argv[]) {
     std::string output_filename;
     std::int64_t buf_size{buf_size_defulat};
     std::int64_t n_threads{1};
+
+    bool do_tiles{};
+    bool do_kmers{};
 
     CLI::App app{"fastq_parser"};
     argv = app.ensure_utf8(argv);
@@ -329,6 +452,8 @@ main(int argc, char *argv[]) {
     app.add_option("-s,--size", buf_size, "buffer size");
     // app.add_option("-k,--kmers", do_kmers, "do kmers");
     app.add_option("-t,--threads", n_threads, "number of threads");
+    app.add_flag("--tiles", do_tiles, "report results per tile");
+    app.add_flag("--kmers", do_kmers, "report results for kmers");
     // clang-format on
 
     if (argc < 2) {
@@ -338,51 +463,18 @@ main(int argc, char *argv[]) {
     CLI11_PARSE(app, argc, argv);
 
     const bool has_tiles = tile_processor::set_preceding_colons(fastq_filename);
+    do_tiles = do_tiles && has_tiles;
 
-    fastq_file fqfile(fastq_filename, buf_size);
+    fastq_file reads_file(fastq_filename, buf_size);
 
-    std::vector<falco_results> fr(n_threads);
-    std::vector<std::int64_t> cursors(n_threads, 0);
-
-    // NOLINTBEGIN (cppcoreguidelines-narrowing-conversions)
-    while (fqfile) {
-      std::ranges::fill_n(std::begin(cursors), n_threads, 0);  // reset cursors
-      auto fq = fqfile.get_next();
-
-      const auto chunks = get_chunks(fq, fqfile.cursor, fq.sz, n_threads);
-      if (has_tiles) {
-        constexpr bool do_tiles = true;
-        constexpr bool do_kmers = true;
-        std::vector<std::jthread> workers;
-        for (auto th_id = 0; th_id < n_threads; ++th_id)
-          // NOLINTNEXTLINE (performance-inefficient-vector-operation)
-          workers.emplace_back([&, th_id, chunks] {
-            cursors[th_id] = chunks[th_id].first;
-            fr[th_id].process_records<do_tiles, do_kmers>(fq, cursors[th_id],
-                                                          chunks[th_id].second);
-          });
-      }
-      else {
-        constexpr bool do_tiles = false;
-        constexpr bool do_kmers = true;
-        std::vector<std::jthread> workers;
-        for (auto th_id = 0; th_id < n_threads; ++th_id)
-          // NOLINTNEXTLINE (performance-inefficient-vector-operation)
-          workers.emplace_back([&, th_id, chunks] {
-            cursors[th_id] = chunks[th_id].first;
-            fr[th_id].process_records<do_tiles, do_kmers>(fq, cursors[th_id],
-                                                          chunks[th_id].second);
-          });
-      }
-      fqfile.cursor = std::ranges::max(cursors);
-    }
-    // NOLINTEND (cppcoreguidelines-narrowing-conversions)
-
-    const auto results = std::reduce(std::cbegin(fr), std::cend(fr));
-    std::ofstream out(output_filename);
-    if (!out)
-      throw std::runtime_error("failed to open file: " + output_filename);
-    std::println(out, "{}", results);
+    if (do_tiles && do_kmers)
+      run<falco_results_tile_kmer>(reads_file, n_threads, output_filename);
+    else if (do_tiles)
+      run<falco_results_tile>(reads_file, n_threads, output_filename);
+    else if (do_kmers)
+      run<falco_results_kmer>(reads_file, n_threads, output_filename);
+    else
+      run<falco_results>(reads_file, n_threads, output_filename);
   }
   catch (const std::exception &e) {
     std::println("{}", e.what());
