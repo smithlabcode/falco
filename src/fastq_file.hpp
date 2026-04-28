@@ -113,34 +113,49 @@ struct fastq_file {
   }
 };
 
-template <typename T>
 [[nodiscard]] static inline auto
-get_chunks(const fastq_buffer &fq, const T start_idx, const T stop_idx,
-           const T n_chunks) -> std::vector<std::pair<T, T>> {
-  const auto to_read_start = [](const fastq_buffer &fq, auto x) {
-    const auto not_read_start = [](const auto &s, const auto p) {
-      return s[p] != '@' || s[p - 1] != '\n' ||
-             (s[p - 2] == '+' && s[p - 3] == '\n');
-    };
-    while (x < fq.sz && not_read_start(fq.data, x))
+get_chunks(fastq_file &fq, const fastq_buffer &buf, const std::int64_t n_chunks)
+  -> std::vector<std::pair<std::int64_t, std::int64_t>> {
+  static constexpr auto lines_per_record = 4;
+  const auto not_read_start = [](const auto &s, const auto p) {
+    return s[p] != '@' || s[p - 1] != '\n' ||
+           (s[p - 2] == '+' && s[p - 3] == '\n');
+  };
+  const auto forward_to_read_start = [&](const fastq_buffer &buf, auto x) {
+    while (x < buf.sz && not_read_start(buf.data, x))
       ++x;
     return x;
   };
+  const auto backward_to_read_start = [&](const fastq_buffer &buf, auto x) {
+    while (x == buf.sz || not_read_start(buf.data, x))
+      --x;
+    return x;
+  };
+  const auto start_idx = fq.cursor;
+  const auto stop_idx = buf.sz;
   const auto n_elements = stop_idx - start_idx;
   const auto q = n_elements / n_chunks;
   const auto r = n_elements - q * n_chunks;
-  std::vector<std::pair<T, T>> chunks(n_chunks);
-  T block_beg{};
+  std::vector<std::pair<std::int64_t, std::int64_t>> chunks(n_chunks);
+  std::int64_t block_beg{};
   for (auto i = 0u; i < n_chunks; ++i) {
     auto chunk_beg = start_idx + block_beg;
-    chunk_beg = chunk_beg == 0 ? chunk_beg : to_read_start(fq, chunk_beg);
+    chunk_beg =
+      chunk_beg == 0 ? chunk_beg : forward_to_read_start(buf, chunk_beg);
     const auto sz = i < r ? q + 1 : q;
     const auto block_end = block_beg + sz;
     const auto chunk_end =
-      to_read_start(fq, std::max(chunk_beg, start_idx + block_end));
+      forward_to_read_start(buf, std::max(chunk_beg, start_idx + block_end));
     chunks[i] = {chunk_beg, chunk_end};
     block_beg = block_end;
   }
+  const auto prev_read_start =
+    backward_to_read_start(buf, chunks.back().second);
+  const auto lines_remaining =
+    std::ranges::count(buf.data + prev_read_start, buf.data + buf.sz, '\n');
+  if (lines_remaining < lines_per_record)
+    chunks.back().second = prev_read_start;
+  fq.cursor = chunks.back().second;
   return chunks;
 }
 
