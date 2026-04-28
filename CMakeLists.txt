@@ -37,6 +37,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS on)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
+configure_file(config.h.in config.h)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
 if(STATIC_ANALYSIS)
   include(cmake/static_analysis.cmake)
 endif()
