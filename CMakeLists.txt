@@ -41,6 +41,10 @@ if(STATIC_ANALYSIS)
   include(cmake/static_analysis.cmake)
 endif()
 
+if(CMAKE_BUILD_TYPE STREQUAL Release)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
+
 add_library(tile_processor OBJECT src/tile_processor.cpp)
 add_library(kmer_counter OBJECT src/kmer_counter.cpp)
 add_library(duplication_results OBJECT src/duplication_results.cpp)
