@@ -37,8 +37,6 @@
 #include <utility>
 #include <vector>
 
-struct fastq_buffer;
-
 struct tile_processor {
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
 
