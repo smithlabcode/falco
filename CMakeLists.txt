@@ -43,7 +43,6 @@ endif()
 
 add_library(tile_processor OBJECT src/tile_processor.cpp)
 add_library(kmer_counter OBJECT src/kmer_counter.cpp)
-add_library(fastq_file OBJECT src/fastq_file.cpp)
 add_library(duplication_results OBJECT src/duplication_results.cpp)
 add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
 
@@ -52,7 +51,6 @@ target_link_libraries(falco2 PUBLIC
   tile_processor
   adapter_matcher
   duplication_results
-  fastq_file
   kmer_counter
 )
 
