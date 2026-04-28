@@ -88,7 +88,7 @@ struct tile_processor {
   set_preceding_colons(const std::string &fastq_buffername) -> std::uint32_t;
 
   [[nodiscard]] auto
-  string() const -> std::string;
+  string(const std::uint32_t len = 0) const -> std::string;
 
   auto
   operator+=(const tile_processor &rhs) -> const tile_processor &;

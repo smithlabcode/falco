@@ -58,13 +58,20 @@ tile_processor::set_preceding_colons(const std::string &fastq_buffername)
 }
 
 [[nodiscard]] auto
-tile_processor::string() const -> std::string {
+tile_processor::string(const std::uint32_t len) const -> std::string {
   auto r = std::format(">>Per tile sequence quality\t{}\n", "pass");
   r += header;
-  for (const auto &[i, q] : quals)
-    for (auto j = 0; j < std::size(q); ++j)
+  // auto to_sort = std::ranges::sort(quals | std::views::elements<0> |
+  //                                  std::ranges::to<std::vector>());
+  for (const auto &[i, q] : quals) {
+    auto idx = 0;
+    for (auto j = 0; j < std::size(q); ++j) {
       r += std::format("{}\t{}\t{:.6g}\n", i, j + 1,
                        as_frac(q[j].first, q[j].second));
+      if (len > 0 && ++idx == len)
+        break;
+    }
+  }
   r += footer;
   return r + end_module_tag;
 }
