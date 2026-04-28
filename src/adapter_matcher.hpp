@@ -93,14 +93,16 @@ struct adapter_matcher {
   operator+=(const adapter_matcher &rhs) -> const adapter_matcher &;
 
   [[nodiscard]] auto
-  string(const std::uint64_t n_reads = 1) const -> std::string;
+  string(const std::uint64_t n_reads,
+         const std::uint32_t n_pos) const -> std::string;
 };
 
 template <>
 struct std::formatter<adapter_matcher> : std::formatter<std::string> {
   auto
   format(const adapter_matcher &am, auto &ctx) const {
-    return std::formatter<std::string>::format(am.string(), ctx);
+    return std::formatter<std::string>::format(
+      am.string(1, std::numeric_limits<std::uint32_t>::max()), ctx);
   }
 };
 
