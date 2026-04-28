@@ -120,7 +120,7 @@ struct falco_results {
                   std::int64_t cursor, const std::int64_t lim) {
     using rec_t = std::decay_t<decltype(reads_buf)>::rec_t;
     rec_t rec{};
-    while (cursor < lim && (rec = get_next(reads_buf.data, cursor, lim))) {
+    while (cursor < lim && (rec = get_next(reads_buf, cursor, lim))) {
       self.process_one(reads_buf, rec);
       ++self.n_reads;
     }
@@ -133,21 +133,23 @@ struct falco_results {
       return (100 * a) / b;  // NOLINT (cppcoreguidelines-avoid-magic-numbers)
     };
     const auto l = get_seq_size(rec);
-    const auto seq = get_seq(reads_buf, rec);
+    const auto seq_itr = get_seq(reads_buf, rec);
+    const auto seq_end = get_seq_end(reads_buf, rec);
     if (l > max_read_len)
       resize(l);
     max_read_len = l > max_read_len ? l : max_read_len;
     ++lengths[l];
-    count_nucs(seq, l, nucs);
-    const auto curr_gc = count_gc(seq, l);
+    count_nucs(seq_itr, seq_end, nucs);
+    const auto curr_gc = count_gc(seq_itr, seq_end);
     ++gcs[pct_int(curr_gc, l)];  // NOLINT (*-pro-bounds-constant-array-index)
     gc += curr_gc;
-    count_ns(seq, l, n_counts);
+    count_ns(seq_itr, seq_end, n_counts);
     const auto qual_itr = get_qual(reads_buf, rec);
-    const auto qtot = count_quals(qual_itr, l, qual_by_pos) / l;
+    const auto qual_end = get_qual_end(reads_buf, rec);
+    const auto qtot = count_quals(qual_itr, qual_end, qual_by_pos) / l;
     ++qual_by_read[qtot];
-    count_seqs(seq, l, n_reads, dr);
-    am.match_adapters(seq, l);
+    count_seqs(seq_itr, l, n_reads, dr);
+    am.match_adapters(seq_itr, l);
     // NOLINTEND (*-pro-bounds-constant-array-index)
   }
 
@@ -306,8 +308,12 @@ struct falco_results_tile : public falco_results {
   process_one_impl(const auto &reads_buf, const auto &rec) {
     falco_results::process_one_impl(reads_buf, rec);
     if (n_reads == tp.next_tile_read) {
-      tp.update_tile_id(reads_buf, rec);
-      tp(reads_buf.data, rec);
+      const auto name_itr = get_name(reads_buf, rec);
+      const auto name_end = get_name_end(reads_buf, rec);
+      tp.update_tile_id(name_itr, name_end);
+      const auto qual_itr = get_qual(reads_buf, rec);
+      const auto qual_end = get_qual_end(reads_buf, rec);
+      tp(qual_itr, qual_end);
       tp.next_tile_read += tp.tile_step;
     }
   }
