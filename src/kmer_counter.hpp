@@ -59,8 +59,6 @@ struct kmer_counter {
 
   auto
   count_kmers(const std::uint64_t n_reads, auto seq_itr, const auto sz) {
-    if (n_reads != next_kmer_read)
-      return;
     const auto seq_end = seq_itr + sz;
     auto out_itr = std::begin(kmer_counts);
     auto kmer = 0;
