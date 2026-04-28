@@ -37,3 +37,5 @@ missingInclude
 toomanyconfigs
 # More problems caused by external files -- with too many ifdefs
 normalCheckLevelMaxBranches
+# This seems not to work with the designs used here
+duplInheritedMember
