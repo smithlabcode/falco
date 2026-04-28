@@ -62,9 +62,7 @@ struct tile_processor {
   }
 
   auto
-  update_tile_id(const fastq_buffer &fq, const fqrec &rec) {
-    const auto name_beg = get_name(fq, rec);
-    const auto name_end = name_beg + get_name_size(rec);
+  update_tile_id(const auto name_beg, const auto name_end) {
     auto tile_itr = name_beg;
     auto colon_count = 0;
     while (colon_count < preceding_colons && tile_itr != name_end)
@@ -92,9 +90,7 @@ struct tile_processor {
   operator+=(const tile_processor &rhs) -> const tile_processor &;
 
   auto
-  operator()(const auto &c, const fqrec &rec) {
-    auto q_itr = c + rec.q;
-    const auto q_end = q_itr + std::size(rec);
+  operator()(auto q_itr, const auto q_end) {
     auto tab_itr = qual;
     while (q_itr != q_end) {
       tab_itr->first += *q_itr++;
