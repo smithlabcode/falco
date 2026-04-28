@@ -24,10 +24,17 @@
 #ifndef SRC_FALCO_UTILS_HPP_
 #define SRC_FALCO_UTILS_HPP_
 
+#include "quality_score.hpp"
+
+#include <config.h>
+
 #include <algorithm>
+#include <array>
+#include <format>
 #include <iterator>
 #include <numeric>
 #include <ranges>
+#include <vector>
 
 static constexpr auto end_module_tag = ">>END_MODULE\n";
 
@@ -133,6 +140,145 @@ mean_tabular(const auto &a) {
   const auto num = tabular_dot(a);
   const auto denom = std::reduce(std::cbegin(a), std::cend(a));
   return static_cast<double>(num) / static_cast<double>(denom);
+}
+
+// NOLINTBEGIN (cppcoreguidelines-avoid-magic-numbers)
+[[nodiscard]] static inline auto
+five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
+  const auto dlb = [](const auto &p, const auto x) {
+    // get quantile as distance to insertion point
+    return static_cast<std::uint32_t>(
+      std::distance(std::begin(p), std::ranges::lower_bound(p, x)));
+  };
+  std::vector<std::uint64_t> p(std::size(a), 0);
+  std::inclusive_scan(std::cbegin(a), std::cend(a), std::begin(p));
+  return {
+    dlb(p, p.back() / 2),      // median
+    dlb(p, p.back() / 4),      // lower quartile
+    dlb(p, 3 * p.back() / 4),  // upper quartile
+    dlb(p, p.back() / 10),     // 10th percentile
+    dlb(p, 9 * p.back() / 10)  // 90th percentile
+  };
+}
+// NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
+
+[[nodiscard]] static inline auto
+format_read_lengths(const auto &lengths, const auto max_read_len) {
+  static constexpr auto start_tag = ">>Sequence Length Distribution\t{}\n";
+  static constexpr auto header = "#Length Count\n";
+  auto r = std::format(start_tag, "pass");
+  r += header;
+  for (auto i = 0; i <= max_read_len; ++i)
+    if (lengths[i] > 0)
+      r += std::format("{}\t{}\n", i, lengths[i]);
+  r += end_module_tag;
+  return r;
+}
+
+[[nodiscard]] static inline auto
+format_gc_content(const auto &gc_content, const auto max_read_len) {
+  static constexpr auto start_tag = ">>Per sequence GC content\t{}\n";
+  static constexpr auto header = "#GC\tContent\tCount\n";
+  auto r = std::format(start_tag, "pass");
+  r += header;
+  for (auto i = 0; i < max_read_len; ++i)
+    r += std::format("{}\t{}\n", i + 1, gc_content[i]);
+  r += end_module_tag;
+  return r;
+}
+
+[[nodiscard]] static inline auto
+format_base_composition(const auto &nucs, const auto max_read_len) {
+  static constexpr auto start_tag = ">>Per base sequence content\t{}\n";
+  static constexpr auto header = "#Base\tG\tA\tT\tC\n";
+  static constexpr auto base_permutation = {3, 0, 2, 1};
+  auto r = std::format(start_tag, "fail");
+  r += header;
+  for (auto i = 0; i < max_read_len; ++i) {
+    r += std::format("{}", i + 1);
+    const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
+    for (const auto j : base_permutation)
+      // cppcheck-suppress useStlAlgorithm
+      r += std::format("\t{:2.4f}", pct(as_frac(nucs[i][j], tot)));
+    r += '\n';
+  }
+  r += end_module_tag;
+  return r;
+}
+
+[[nodiscard]] static inline auto
+format_n_counts(const auto &n_counts, const auto &nucs,
+                const auto max_read_len) {
+  static constexpr auto start_tag = "Per base N content\t{}\n";
+  static constexpr auto header = "#Base\tN-Count\n";
+  auto r = std::format(start_tag, "pass");
+  r += header;
+  for (auto i = 0; i < max_read_len; ++i) {
+    const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
+    r += std::format("{}\t{:.6g}\n", i + 1, pct(as_frac(n_counts[i], tot)));
+  }
+  r += end_module_tag;
+  return r;
+}
+
+[[nodiscard]] static inline auto
+format_qual_by_read(const auto &qual, const auto max_read_len) {
+  static constexpr auto start_tag = ">>Per sequence quality scores\t{}\n";
+  static constexpr auto header = "#Quality\tCount\n";
+  const auto qual_itr = std::cbegin(qual);
+  const auto qual_tot =
+    std::reduce(qual_itr + falco::min_qual_val, qual_itr + falco::max_qual_val);
+  auto r = std::format(start_tag, "pass");
+  r += header;
+  for (auto i = falco::min_qual_val; i < falco::max_qual_val; ++i)
+    r += std::format("{}\t{:.6g}\n", i, as_frac(qual[i], qual_tot));
+  r += end_module_tag;
+  return r;
+}
+
+[[nodiscard]] static inline auto
+format_qual_by_pos(const auto &qual, const auto max_read_len) {
+  static constexpr auto start_tag = ">>Per base sequence quality\t{}\n";
+  static constexpr auto header = "#Base\tMean\tMedian\tLower Quartile\tUpper "
+                                 "Quartile\t10th Percentile\t90th Percentile\n";
+  const auto tab_sep = [](const auto &a) {
+    auto r = std::string{};
+    for (const auto &value : a | std::views::take(std::size(a) - 1))
+      r += std::format("{}\t", value);
+    return r + std::format("{}", a.back());
+  };
+  const auto sub_from_each = [](auto a, const auto b) {
+    std::ranges::for_each(a, [&](auto &x) { x -= b; });
+    return a;
+  };
+  auto r = std::format(start_tag, "pass");
+  r += header;
+  for (auto i = 0; i < max_read_len; ++i) {
+    const auto q = sub_from_each(five_quants(qual[i]), falco::min_qual_val);
+    r += std::format("{}\t{:.6g}\t{}\n", i + 1,
+                     mean_tabular(qual[i]) - falco::min_qual_val, tab_sep(q));
+  }
+  r += end_module_tag;
+  return r;
+}
+
+[[nodiscard]] static inline auto
+format_basic_stats(/*const auto &filename,*/ const auto n_reads,
+                   const auto max_read_len, const auto total_gc,
+                   const auto total_nucs) {
+  static constexpr auto start_tag = "##Falco {}\n>>Basic Statistics\n";
+  static constexpr auto header = "#Measure\tValue\n";
+  auto r = std::format("##Falco {}\n", VERSION);
+  r += header;
+  r += std::format("Filename\t{}\n", "asdf");
+  r += std::format("File type\t{}\n", "Conventional base calls");
+  r += std::format("Encoding\t{}\n", "Sanger / Illumina 1.9");
+  r += std::format("Total Sequences\t{}\n", n_reads);
+  r += std::format("Sequences flagged as poor quality {}\n", 0);
+  r += std::format("Sequence length\t{}\n", max_read_len);
+  r += std::format("%GC\t{:.1f}\n", pct(as_frac(total_gc, total_nucs)));
+  r += end_module_tag;
+  return r;
 }
 
 #endif  // SRC_FALCO_UTILS_HPP_
