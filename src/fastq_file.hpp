@@ -26,19 +26,17 @@
 
 #include "fastq_record.hpp"
 
-#include <unistd.h>
-
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
-
-#include <system_error>
 
 struct mmap_vals {
   // ADS: need to check that buffer size is larger than page size
