@@ -117,7 +117,7 @@ struct falco_results {
   template <typename self_t>
   auto
   process_records(this self_t &&self, const auto &reads_buf,
-                  std::int64_t &cursor, const std::int64_t lim) {
+                  std::int64_t cursor, const std::int64_t lim) {
     using rec_t = std::decay_t<decltype(reads_buf)>::rec_t;
     rec_t rec{};
     while (cursor < lim && (rec = get_next(reads_buf.data, cursor, lim))) {
@@ -402,20 +402,16 @@ run(auto &reads_file, const auto n_threads, const auto &output_filename) {
   std::vector<results_t> fr(n_threads);
   while (reads_file) {
     auto reads_buf = reads_file.get_next();
-    const auto chunks =
-      get_chunks(reads_buf, reads_file.cursor, reads_buf.sz, n_threads);
-    std::vector<std::int64_t> cursors(n_threads, 0);
+    const auto chunks = get_chunks(reads_file, reads_buf, n_threads);
     {
       std::vector<std::jthread> workers;
       for (auto th_id = 0; th_id < n_threads; ++th_id)
         // NOLINTNEXTLINE (performance-inefficient-vector-operation)
         workers.emplace_back([&, th_id] {
-          cursors[th_id] = chunks[th_id].first;
-          fr[th_id].process_records(reads_buf, cursors[th_id],
+          fr[th_id].process_records(reads_buf, chunks[th_id].first,
                                     chunks[th_id].second);
         });
     }
-    reads_file.cursor = std::ranges::max(cursors);
   }
   std::ofstream out(output_filename);
   if (!out)
@@ -449,7 +445,6 @@ main(int argc, char *argv[]) {
     app.add_option("-o,--output", output_filename, "output filename")
       ->required();
     app.add_option("-s,--size", buf_size, "buffer size");
-    // app.add_option("-k,--kmers", do_kmers, "do kmers");
     app.add_option("-t,--threads", n_threads, "number of threads");
     app.add_flag("--tiles", do_tiles, "report results per tile");
     app.add_flag("--kmers", do_kmers, "report results for kmers");
