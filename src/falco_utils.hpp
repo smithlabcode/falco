@@ -29,6 +29,8 @@
 #include <numeric>
 #include <ranges>
 
+static constexpr auto end_module_tag = ">>END_MODULE\n";
+
 // N (78)10 = (1001110)2
 // A (65)10 = (1000001)2
 // C (67)10 = (1000011)2
@@ -80,26 +82,23 @@ ipow(const auto b, const auto e) -> std::remove_cvref_t<decltype(b)> {
 }
 
 static inline auto
-count_nucs(auto seq_itr, const auto sz,
+count_nucs(auto seq_itr, const auto seq_end,
            auto &tab) {  // cppcheck-suppress constParameterReference
-  const auto seq_end = seq_itr + sz;
   auto out_itr = std::begin(tab);
   while (seq_itr != seq_end)
     ++(*out_itr++)[encode(*seq_itr++)];
 }
 
 static inline auto
-count_ns(auto seq_itr, const auto sz,
+count_ns(auto seq_itr, const auto seq_end,
          auto &tab) {  // cppcheck-suppress constParameterReference
-  const auto seq_end = seq_itr + sz;
   auto out_itr = std::begin(tab);
   while (seq_itr != seq_end)
     *out_itr++ += (*seq_itr++ == 'N');
 }
 
 [[nodiscard]] static inline auto
-count_gc(auto seq_itr, const auto sz) {
-  const auto seq_end = seq_itr + sz;
+count_gc(auto seq_itr, const auto seq_end) {
   auto gc = 0;
   while (seq_itr != seq_end) {
     gc += (*seq_itr != 'N' && (encode(*seq_itr) & 1));
@@ -109,9 +108,8 @@ count_gc(auto seq_itr, const auto sz) {
 }
 
 [[nodiscard]] static inline auto
-count_quals(auto qual_itr, const auto sz,
+count_quals(auto qual_itr, const auto qual_end,
             auto &tab) {  // cppcheck-suppress constParameterReference
-  const auto qual_end = qual_itr + sz;
   auto out_itr = std::begin(tab);
   auto qual_tot = 0;
   while (qual_itr != qual_end) {
@@ -121,8 +119,6 @@ count_quals(auto qual_itr, const auto sz,
   }
   return qual_tot;
 }
-
-static constexpr auto end_module_tag = ">>END_MODULE\n";
 
 [[nodiscard]] static inline auto
 tabular_dot(const auto &a) {
