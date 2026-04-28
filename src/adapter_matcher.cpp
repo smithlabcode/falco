@@ -58,9 +58,11 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 }
 
 [[nodiscard]] auto
-adapter_matcher::string(const std::uint64_t n_reads) const -> std::string {
+adapter_matcher::string(const std::uint64_t n_reads,
+                        const std::uint32_t n_pos) const -> std::string {
   auto r = std::format(">>Adapter Content\t{}\n", "pass");
-  for (auto i = 0; i < max_read_len; ++i) {
+  for (auto i = 0; i < std::min(n_pos, max_read_len); ++i) {
+    r += std::format("{}", i + 1);
     for (const auto c : adapter_counts[i])
       // cppcheck-suppress useStlAlgorithm
       r += std::format("\t{:.6g}", as_frac(c, n_reads));
