@@ -24,9 +24,14 @@
 #include "tile_processor.hpp"
 #include "falco_utils.hpp"
 
+#include <htslib/bgzf.h>
+#include <htslib/sam.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <fstream>
+#include <memory>
+#include <print>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -35,19 +40,35 @@
 std::uint32_t tile_processor::preceding_colons = 0;
 
 auto
-tile_processor::set_preceding_colons(const std::string &fastq_buffername)
+tile_processor::set_preceding_colons(const std::string &fastq_filename)
   -> std::uint32_t {
-  // Colon cutoffs taken from FastQC
+  // colon cutoffs taken from FastQC
   static constexpr auto colon_cutoff_1 = 6;
   static constexpr auto colon_cutoff_1_val = 4;
   static constexpr auto colon_cutoff_2 = 4;
   static constexpr auto colon_cutoff_2_val = 2;
-  std::ifstream in(fastq_buffername);
-  if (!in)
-    throw std::runtime_error("failed to open file: " + fastq_buffername);
-  std::string line;
-  if (!std::getline(in, line))
-    throw std::runtime_error("failed to read line from: " + fastq_buffername);
+
+  const auto file_format = [&fastq_filename] {
+    std::unique_ptr<htsFile, int (*)(htsFile *)> fp(
+      hts_open(std::data(fastq_filename), "r"), &hts_close);
+    if (!fp)
+      throw std::runtime_error("failed to open file: " + fastq_filename);
+    return hts_get_format(fp.get());
+  }();
+
+  if (file_format->format != fastq_format)
+    throw std::runtime_error("unknown format: " + fastq_filename);
+
+  std::unique_ptr<BGZF, int (*)(BGZF *)> fp(
+    bgzf_open(std::data(fastq_filename), "r"), &bgzf_close);
+  if (!fp)
+    throw std::runtime_error("failed to open file: " + fastq_filename);
+  kstring_t str = KS_INITIALIZE;
+  const auto r = bgzf_getline(fp.get(), '\n', &str);
+  if (r < 0)
+    throw std::runtime_error("failed to read line from: " + fastq_filename);
+  std::string line(str.s, str.l);
+  ks_free(&str);
   const auto colons_found = std::ranges::count(line, ':');
   // clang-format off
   preceding_colons =
