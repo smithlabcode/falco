@@ -333,6 +333,7 @@ main(int argc, char *argv[]) {
 
     bool do_tiles{};
     bool do_kmers{};
+    bool is_gzip{};
 
     CLI::App app{PROJECT_NAME};
     argv = app.ensure_utf8(argv);
@@ -350,6 +351,7 @@ main(int argc, char *argv[]) {
     app.add_option("-t,--threads", n_threads, "number of threads");
     app.add_flag("--tiles", do_tiles, "report results per tile");
     app.add_flag("--kmers", do_kmers, "report results for kmers");
+    app.add_flag("-z,--zip", is_gzip, "input file is gzip");
     // clang-format on
 
     if (argc < 2) {
@@ -361,16 +363,28 @@ main(int argc, char *argv[]) {
     const bool has_tiles = tile_processor::set_preceding_colons(fastq_filename);
     do_tiles = do_tiles && has_tiles;
 
-    fastq_file reads_file(fastq_filename, buf_size);
-
-    if (do_tiles && do_kmers)
-      run<falco_results_tile_kmer>(reads_file, n_threads, output_filename);
-    else if (do_tiles)
-      run<falco_results_tile>(reads_file, n_threads, output_filename);
-    else if (do_kmers)
-      run<falco_results_kmer>(reads_file, n_threads, output_filename);
-    else
-      run<falco_results>(reads_file, n_threads, output_filename);
+    if (is_gzip) {
+      fastq_gz_file reads_file(fastq_filename, buf_size);
+      if (do_tiles && do_kmers)
+        run<falco_results_tile_kmer>(reads_file, n_threads, output_filename);
+      else if (do_tiles)
+        run<falco_results_tile>(reads_file, n_threads, output_filename);
+      else if (do_kmers)
+        run<falco_results_kmer>(reads_file, n_threads, output_filename);
+      else
+        run<falco_results>(reads_file, n_threads, output_filename);
+    }
+    else {
+      fastq_file reads_file(fastq_filename, buf_size);
+      if (do_tiles && do_kmers)
+        run<falco_results_tile_kmer>(reads_file, n_threads, output_filename);
+      else if (do_tiles)
+        run<falco_results_tile>(reads_file, n_threads, output_filename);
+      else if (do_kmers)
+        run<falco_results_kmer>(reads_file, n_threads, output_filename);
+      else
+        run<falco_results>(reads_file, n_threads, output_filename);
+    }
   }
   catch (const std::exception &e) {
     std::println("{}", e.what());
