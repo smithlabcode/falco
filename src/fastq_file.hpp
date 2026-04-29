@@ -26,12 +26,16 @@
 
 #include "fastq_record.hpp"
 
+#include <htslib/bgzf.h>
+
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <system_error>
 #include <thread>
@@ -63,17 +67,17 @@ mmap_fastq(const int fd, const std::int64_t start_offset,
 }
 
 static inline auto
-cleanup_mmap_fastq(fastq_buffer &fq) {
-  if (fq.data == nullptr)
+cleanup_mmap_fastq(fastq_buffer &buf) {
+  if (buf.data == nullptr)
     return;
-  [[maybe_unused]] const int rc = munmap(static_cast<void *>(fq.data), fq.sz);
-  fq = {nullptr, 0};
+  [[maybe_unused]] const int rc = munmap(static_cast<void *>(buf.data), buf.sz);
+  buf = {nullptr, 0};
 }
 
 struct fastq_file {
   std::int64_t buf_size{};
   std::int64_t filesize{};
-  fastq_buffer fq{};
+  fastq_buffer buf{};
   std::int64_t start_offset{};
   std::int64_t stop_offset{};
   std::int64_t cursor{};
@@ -83,15 +87,13 @@ struct fastq_file {
   fastq_file(const std::string &filename, const std::int64_t buf_size) :
     buf_size{buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
-    fd{open(std::data(filename), O_RDONLY, 0)}, stop_offset{buf_size} {
+    stop_offset{buf_size}, fd{open(std::data(filename), O_RDONLY, 0)} {
     if (fd < 0)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               R"(failed to open file: )" + filename);
   }
 
   ~fastq_file() {
-    if (fq.sz > 0)
-      cleanup_mmap_fastq(fq);
     if (fd)
       close(fd);  // done with file descriptor
   }
@@ -106,15 +108,67 @@ struct fastq_file {
     cursor = start_offset & mv.offset_mask;
     start_offset = start_offset & mv.page_mask;
     stop_offset = std::min(filesize, start_offset + buf_size);
-    if (fq.sz > 0)
-      cleanup_mmap_fastq(fq);
-    fq = mmap_fastq(fd, start_offset, stop_offset);
-    return fq;
+    if (buf.sz > 0)
+      cleanup_mmap_fastq(buf);
+    buf = mmap_fastq(fd, start_offset, stop_offset);
+    return buf;
+  }
+};
+
+// using fastq_gz_buffer = std::vector<char>;
+
+struct fastq_gz_file {
+  std::int64_t buf_size{};
+  std::int64_t filesize{};
+  fastq_buffer buf{};
+  std::int64_t start_offset{};
+  std::int64_t stop_offset{};
+  std::int64_t cursor{};
+  std::unique_ptr<BGZF, int (*)(BGZF *)> f;
+
+  // clang-format off
+  fastq_gz_file(const std::string &filename, const std::int64_t buf_size) :
+    buf_size{buf_size},
+    filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
+    stop_offset{buf_size},
+    f(bgzf_open(std::data(filename), "r"), &bgzf_close)
+  {
+    if (!f)
+      throw std::system_error(std::make_error_code(std::errc(errno)),
+                              R"(failed to open file: )" + filename);
+    buf.data = new char[buf_size];
+  }
+  // clang-format on
+
+  ~fastq_gz_file() { delete[] buf.data; }
+
+  [[nodiscard]] operator bool() const {
+    return stop_offset - start_offset == buf_size;
+  }
+
+  [[nodiscard]] auto
+  get_next() -> const fastq_buffer & {
+    if (cursor > 0) {
+      std::memmove(buf.data, buf.data + cursor, buf.sz - cursor);
+      cursor = buf.sz - cursor;
+    }
+    start_offset = cursor;
+    const auto n_bytes = buf_size - start_offset;
+    const auto r = bgzf_read(f.get(), buf.data + start_offset, n_bytes);
+    if (stop_offset < 0) {
+      // ADS: cleanup
+      throw std::system_error(std::make_error_code(std::errc(errno)),
+                              "failed reading gz input file");
+    }
+    stop_offset = r;
+    stop_offset += start_offset;
+    buf.sz = stop_offset;
+    return buf;
   }
 };
 
 [[nodiscard]] static inline auto
-get_chunks(fastq_file &fq, const fastq_buffer &buf, const std::int64_t n_chunks)
+get_chunks(auto &fq, const fastq_buffer &buf, const std::int64_t n_chunks)
   -> std::vector<std::pair<std::int64_t, std::int64_t>> {
   static constexpr auto lines_per_record = 4;
   const auto not_read_start = [](const auto &s, const auto p) {
