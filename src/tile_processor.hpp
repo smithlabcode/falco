@@ -81,7 +81,7 @@ struct tile_processor {
   }
 
   static auto
-  set_preceding_colons(const std::string &fastq_buffername) -> std::uint32_t;
+  set_preceding_colons(const std::string &fastq_filename) -> std::uint32_t;
 
   [[nodiscard]] auto
   string(const std::uint32_t len = 0) const -> std::string;
