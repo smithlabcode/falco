@@ -61,10 +61,9 @@ target_link_libraries(falco2 PUBLIC
   kmer_counter
 )
 
-# find_package(HTSLIB REQUIRED)
-# if(HTSLIB_FOUND)
-#   target_include_directories(falco2 PUBLIC src/bamxx)
-#   target_link_libraries(falco2 PUBLIC HTSLIB::HTSLIB)
-# else()
-#   message(FATAL_ERROR "HTSLib required but not found")
-# endif()
+find_package(HTSLIB REQUIRED)
+if(HTSLIB_FOUND)
+  target_link_libraries(falco2 PUBLIC HTSLIB::HTSLIB)
+else()
+  message(FATAL_ERROR "HTSLib required but not found")
+endif()
