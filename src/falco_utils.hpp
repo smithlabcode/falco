@@ -36,7 +36,7 @@
 #include <ranges>
 #include <vector>
 
-static constexpr auto end_module_tag = ">>END_MODULE\n";
+inline constexpr auto end_module_tag = ">>END_MODULE\n";
 
 // N (78)10 = (1001110)2
 // A (65)10 = (1000001)2
@@ -44,19 +44,19 @@ static constexpr auto end_module_tag = ">>END_MODULE\n";
 // G (71)10 = (1000111)2
 // T (84)10 = (1010100)2
 
-[[nodiscard]] constexpr auto
+[[nodiscard]] inline constexpr auto
 encode(const char c) {
   return (c >> 1) & 3;  // Ns are counted as G so must be subtracted
 }
 
-static constexpr auto nibble_size = 4;
+inline constexpr auto nibble_size = 4;
 
-[[nodiscard]] constexpr auto
+[[nodiscard]] inline constexpr auto
 encode_nibble(const char c) {
   return (c >> 1) & 15;  // N gets separate encoding
 }
 
-constexpr auto pct = [](const double a) { return 100.0 * a; };
+inline constexpr auto pct = [](const double a) { return 100.0 * a; };
 
 const auto add = [](auto &a1, auto &a2) {
   std::ranges::transform(a1, a2, std::begin(a1), std::plus{});
@@ -83,7 +83,7 @@ as_frac(const auto a, const auto b) {
   return static_cast<double>(a) / static_cast<double>(b);
 }
 
-[[nodiscard]] constexpr auto
+[[nodiscard]] consteval auto
 ipow(const auto b, const auto e) -> std::remove_cvref_t<decltype(b)> {
   return e == 0 ? 1 : (e & 1 ? b : 1) * ipow(b * b, e >> 1);
 }
