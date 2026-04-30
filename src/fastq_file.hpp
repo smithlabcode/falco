@@ -27,6 +27,7 @@
 #include "fastq_record.hpp"
 
 #include <htslib/bgzf.h>
+#include <htslib/thread_pool.h>
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -115,6 +116,16 @@ struct fastq_file {
   }
 };
 
+struct falco_thread_pool {
+  htsThreadPool t{};
+  explicit falco_thread_pool(const std::uint32_t n_threads) :
+    t{hts_tpool_init(std::max(1u, n_threads)), 0} {
+    if (t.pool == nullptr)
+      throw std::runtime_error("failed to construct thread pool");
+  }
+  ~falco_thread_pool() { hts_tpool_destroy(t.pool); }
+};
+
 struct fastq_gz_file {
   std::int64_t buf_size{};
   std::int64_t filesize{};
@@ -122,18 +133,26 @@ struct fastq_gz_file {
   std::int64_t start_offset{};
   std::int64_t stop_offset{};
   std::int64_t cursor{};
+  falco_thread_pool t;
   std::unique_ptr<BGZF, int (*)(BGZF *)> f;
 
   // clang-format off
-  fastq_gz_file(const std::string &filename, const std::int64_t buf_size) :
+  fastq_gz_file(const std::string &filename, const std::int64_t buf_size,
+                const std::uint32_t n_threads = 1) :
     buf_size{buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
     stop_offset{buf_size},
+    t(n_threads),
     f(bgzf_open(std::data(filename), "r"), &bgzf_close)
   {
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
-                              R"(failed to open file: )" + filename);
+                              "failed to open file: " + filename);
+    if (n_threads > 0) {
+      const auto r = bgzf_thread_pool(f.get(), t.t.pool, t.t.qsize);
+      if (r < 0)
+        throw std::runtime_error("failed to set thread pool");
+    }
     buf.data = new char[buf_size];
   }
   // clang-format on
