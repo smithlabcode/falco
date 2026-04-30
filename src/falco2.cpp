@@ -364,7 +364,7 @@ main(int argc, char *argv[]) {
     const auto [infmt, infmt_descr] = get_file_format(input_filename);
     if (verbose)
       std::println("input file: {}\n"
-                   "input file format: {}\n",
+                   "input file format: {}",
                    input_filename, infmt_descr);
 
     const bool has_tiles = tile_processor::set_preceding_colons(input_filename);
