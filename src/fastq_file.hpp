@@ -115,8 +115,6 @@ struct fastq_file {
   }
 };
 
-// using fastq_gz_buffer = std::vector<char>;
-
 struct fastq_gz_file {
   std::int64_t buf_size{};
   std::int64_t filesize{};
@@ -142,9 +140,7 @@ struct fastq_gz_file {
 
   ~fastq_gz_file() { delete[] buf.data; }
 
-  [[nodiscard]] operator bool() const {
-    return stop_offset - start_offset == buf_size;
-  }
+  [[nodiscard]] operator bool() const { return stop_offset == buf_size; }
 
   [[nodiscard]] auto
   get_next() -> const fastq_buffer & {
@@ -163,6 +159,7 @@ struct fastq_gz_file {
     stop_offset = r;
     stop_offset += start_offset;
     buf.sz = stop_offset;
+    cursor = 0;  // cursor always moves back to zero if buffer is not mmapped
     return buf;
   }
 };
