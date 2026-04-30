@@ -23,6 +23,7 @@
 
 #include "adapter_matcher.hpp"
 #include "duplication_results.hpp"
+#include "falco_file_format.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
 #include "fastq_record.hpp"
@@ -326,14 +327,14 @@ int
 main(int argc, char *argv[]) {
   try {
     static constexpr auto buf_size_defulat = 512 * 1024 * 1024;
-    std::string fastq_filename;
+    std::string input_filename;
     std::string output_filename;
     std::int64_t buf_size{buf_size_defulat};
     std::int64_t n_threads{1};
 
     bool do_tiles{};
     bool do_kmers{};
-    bool is_gzip{};
+    bool verbose{};
 
     CLI::App app{PROJECT_NAME};
     argv = app.ensure_utf8(argv);
@@ -342,7 +343,7 @@ main(int argc, char *argv[]) {
 
     // clang-format off
     app.set_help_flag("-h,--help", "Print a detailed help message and exit");
-    app.add_option("-i,--input", fastq_filename, "FASTQ filename")
+    app.add_option("-i,--input", input_filename, "FASTQ filename")
       ->required()
       ->check(CLI::ExistingFile);
     app.add_option("-o,--output", output_filename, "output filename")
@@ -351,7 +352,7 @@ main(int argc, char *argv[]) {
     app.add_option("-t,--threads", n_threads, "number of threads");
     app.add_flag("--tiles", do_tiles, "report results per tile");
     app.add_flag("--kmers", do_kmers, "report results for kmers");
-    app.add_flag("-z,--zip", is_gzip, "input file is gzip");
+    app.add_flag("-v,--verbose", verbose, "print more run info");
     // clang-format on
 
     if (argc < 2) {
@@ -360,11 +361,28 @@ main(int argc, char *argv[]) {
     }
     CLI11_PARSE(app, argc, argv);
 
-    const bool has_tiles = tile_processor::set_preceding_colons(fastq_filename);
+    const auto [infmt, infmt_descr] = get_file_format(input_filename);
+    if (verbose)
+      std::println("input file: {}\n"
+                   "input file format: {}\n",
+                   input_filename, infmt_descr);
+
+    const bool has_tiles = tile_processor::set_preceding_colons(input_filename);
     do_tiles = do_tiles && has_tiles;
 
-    if (is_gzip) {
-      fastq_gz_file reads_file(fastq_filename, buf_size);
+    if (infmt == file_format::fastq_gz) {
+      fastq_gz_file reads_file(input_filename, buf_size);
+      if (do_tiles && do_kmers)
+        run<falco_results_tile_kmer>(reads_file, n_threads, output_filename);
+      else if (do_tiles)
+        run<falco_results_tile>(reads_file, n_threads, output_filename);
+      else if (do_kmers)
+        run<falco_results_kmer>(reads_file, n_threads, output_filename);
+      else
+        run<falco_results>(reads_file, n_threads, output_filename);
+    }
+    else if (infmt == file_format::fastq) {
+      fastq_file reads_file(input_filename, buf_size);
       if (do_tiles && do_kmers)
         run<falco_results_tile_kmer>(reads_file, n_threads, output_filename);
       else if (do_tiles)
@@ -375,15 +393,7 @@ main(int argc, char *argv[]) {
         run<falco_results>(reads_file, n_threads, output_filename);
     }
     else {
-      fastq_file reads_file(fastq_filename, buf_size);
-      if (do_tiles && do_kmers)
-        run<falco_results_tile_kmer>(reads_file, n_threads, output_filename);
-      else if (do_tiles)
-        run<falco_results_tile>(reads_file, n_threads, output_filename);
-      else if (do_kmers)
-        run<falco_results_kmer>(reads_file, n_threads, output_filename);
-      else
-        run<falco_results>(reads_file, n_threads, output_filename);
+      std::println("unsupported file format: {}", infmt_descr);
     }
   }
   catch (const std::exception &e) {
