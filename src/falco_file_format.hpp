@@ -53,20 +53,28 @@ enum class file_format : std::uint8_t {
   bam,
 };
 
-[[nodiscard]] static auto
+template <> struct std::formatter<file_format> : std::formatter<std::string> {
+  auto
+  format(const file_format &f, auto &ctx) const {
+    return std::formatter<std::string>::format(
+      std::to_string(std::to_underlying(f)), ctx);
+  }
+};
+
+[[nodiscard]] consteval auto
 is_sequence_data(const auto hts_fp) -> bool {
   return htsFormatCategory(hts_get_format(hts_fp)->format) ==
          static_cast<const htsFormatCategory>(sequence_data);
 }
 
-[[nodiscard]] static auto
+[[nodiscard]] consteval auto
 is_sequence_data(const std::string &filename) -> bool {
   std::unique_ptr<htsFile, int (*)(htsFile *)> fp(
     hts_open(std::data(filename), "r"), &hts_close);
   return is_sequence_data(fp.get());
 }
 
-auto
+[[nodiscard]] inline auto
 get_file_format(const std::string &filename)
   -> std::tuple<file_format, std::string> {
   std::unique_ptr<htsFile, int (*)(htsFile *)> fp(
@@ -81,7 +89,7 @@ get_file_format(const std::string &filename)
   if (fmt->format == bam || fmt->format == sam)
     return {file_format::bam, descr};
   // check for FASTQ
-  else if (fmt->format == fastq_format) {
+  if (fmt->format == fastq_format) {
     // check for compressed
     if (fmt->compression == gzip || fmt->compression == bgzf)
       return {file_format::fastq_gz, descr};
@@ -89,13 +97,5 @@ get_file_format(const std::string &filename)
   }
   return {file_format::unknown, descr};
 }
-
-template <> struct std::formatter<file_format> : std::formatter<std::string> {
-  auto
-  format(const file_format &f, auto &ctx) const {
-    return std::formatter<std::string>::format(
-      std::to_string(std::to_underlying(f)), ctx);
-  }
-};
 
 #endif  // SRC_FASTQ_FILE_FORMAT_HPP_
