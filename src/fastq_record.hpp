@@ -31,7 +31,7 @@
 #include <string>
 
 struct fqrec {
-  using fqrec_pos_t = std::int64_t;
+  using fqrec_pos_t = char *;  // std::int64_t;
   static constexpr auto sentinel = std::numeric_limits<fqrec_pos_t>::max();
 
   fqrec_pos_t n{};  // start of "name"
@@ -50,11 +50,13 @@ struct fqrec {
   }
 
   [[nodiscard]] auto
-  string(const char *data) const -> std::string {
-    return {data + n, data + e};
+  string([[maybe_unused]] const char *data) const -> std::string {
+    // return {data + n, data + e};
+    return {n, e};
   }
 };
-static constexpr fqrec null_rec = {0, 0, 0, 0, fqrec::sentinel};
+static constexpr fqrec null_rec = {nullptr, nullptr, nullptr, nullptr,
+                                   fqrec::sentinel};
 
 struct fastq_buffer {
   using rec_t = fqrec;
@@ -62,60 +64,119 @@ struct fastq_buffer {
   std::int64_t sz{};
 };
 
+// // clang-format off
+// [[nodiscard]] constexpr auto
+// get_name(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.n; }
+// [[nodiscard]] constexpr auto
+// get_name_end(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.r
+// - 1; }
+// [[nodiscard]] constexpr auto
+// get_name_size(const fqrec &rec) { return rec.r - rec.n - 1; }
+
+// [[nodiscard]] constexpr auto
+// get_seq(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.r; }
+// [[nodiscard]] constexpr auto
+// get_seq_end(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.o
+// - 1; }
+// [[nodiscard]] constexpr auto
+// get_seq_size(const fqrec &rec) { return std::size(rec); }
+
+// [[nodiscard]] constexpr auto
+// get_qual(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.q; }
+// [[nodiscard]] constexpr auto
+// get_qual_end(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.e
+// - 1; }
+// [[nodiscard]] constexpr auto
+// get_qual_size(const fqrec &rec) { return std::size(rec); }
+// // clang-format on
+
 // clang-format off
 [[nodiscard]] constexpr auto
-get_name(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.n; }
+get_name([[maybe_unused]] const fastq_buffer &b, const fqrec &rec) { return rec.n; }
 [[nodiscard]] constexpr auto
-get_name_end(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.r - 1; }
+get_name_end([[maybe_unused]] const fastq_buffer &b, const fqrec &rec) { return rec.r - 1; }
 [[nodiscard]] constexpr auto
-get_name_size(const fqrec &rec) { return rec.r - rec.n - 1; }
+get_name_size(const fqrec &rec) { return rec.r - 1 - rec.n; }
 
 [[nodiscard]] constexpr auto
-get_seq(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.r; }
+get_seq([[maybe_unused]] const fastq_buffer &b, const fqrec &rec) { return rec.r; }
 [[nodiscard]] constexpr auto
-get_seq_end(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.o - 1; }
+get_seq_end([[maybe_unused]] const fastq_buffer &b, const fqrec &rec) { return rec.o - 1; }
 [[nodiscard]] constexpr auto
 get_seq_size(const fqrec &rec) { return std::size(rec); }
 
 [[nodiscard]] constexpr auto
-get_qual(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.q; }
+get_qual([[maybe_unused]] const fastq_buffer &b, const fqrec &rec) { return rec.q; }
 [[nodiscard]] constexpr auto
-get_qual_end(const fastq_buffer &b, const fqrec &rec) { return b.data + rec.e - 1; }
+get_qual_end([[maybe_unused]] const fastq_buffer &b, const fqrec &rec) { return rec.e - 1; }
 [[nodiscard]] constexpr auto
 get_qual_size(const fqrec &rec) { return std::size(rec); }
 // clang-format on
 
 [[nodiscard]] inline auto
-get_next(const auto &reads_buf, std::int64_t &cursor,
-         const std::int64_t lim) -> fqrec {
+get_next(const auto &reads_buf, fqrec::fqrec_pos_t &cursor,
+         const fqrec::fqrec_pos_t lim) -> fqrec {
   const auto data = reads_buf.data;
   const auto n = cursor;
-  auto itr = data + n;  // should point to '@', should not be '\n'
-  const auto fq_end = data + lim;
+  auto itr = n;  // data + n;  // should point to '@', should not be '\n'
+  const auto fq_end = lim;  // data + lim;
 
   itr = std::find(itr + 1, fq_end, '\n');
   if (itr == fq_end)
     return null_rec;
-  const auto r = std::distance(data, itr) + 1;
+  const auto r = itr + 1;  // std::distance(data, itr) + 1;
 
   itr = std::find(itr + 1, fq_end, '\n');
   if (itr == fq_end)
     return null_rec;
-  const auto o = std::distance(data, itr) + 1;
+  const auto o = itr + 1;  // std::distance(data, itr) + 1;
 
   itr = std::find(itr + 1, fq_end, '\n');
   if (itr == fq_end)
     return null_rec;
-  const auto q = std::distance(data, itr) + 1;
+  const auto q = itr + 1;  // std::distance(data, itr) + 1;
 
   itr = std::find(itr + 1, fq_end, '\n');
   if (itr == fq_end)
     return null_rec;
-  const auto e = std::distance(data, itr) + 1;
+  const auto e = itr + 1;  // std::distance(data, itr) + 1;
 
   cursor = e;
 
   return {n, r, o, q, e};
 }
+
+// [[nodiscard]] inline auto
+// get_next(const auto &reads_buf, std::int64_t &cursor,
+//          const std::int64_t lim) -> fqrec {
+//   const auto data = reads_buf.data;
+//   const auto n = cursor;
+//   auto itr = data + n;  // should point to '@', should not be '\n'
+//   const auto fq_end = data + lim;
+
+//   itr = std::find(itr + 1, fq_end, '\n');
+//   if (itr == fq_end)
+//     return null_rec;
+//   const auto r = std::distance(data, itr) + 1;
+
+//   itr = std::find(itr + 1, fq_end, '\n');
+//   if (itr == fq_end)
+//     return null_rec;
+//   const auto o = std::distance(data, itr) + 1;
+
+//   itr = std::find(itr + 1, fq_end, '\n');
+//   if (itr == fq_end)
+//     return null_rec;
+//   const auto q = std::distance(data, itr) + 1;
+
+//   itr = std::find(itr + 1, fq_end, '\n');
+//   if (itr == fq_end)
+//     return null_rec;
+//   const auto e = std::distance(data, itr) + 1;
+
+//   cursor = e;
+
+//   return {n, r, o, q, e};
+// }
 
 #endif  // SRC_FASTQ_RECORD_HPP_
