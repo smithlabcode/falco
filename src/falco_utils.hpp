@@ -26,6 +26,9 @@
 
 #include "quality_score.hpp"
 
+#include <htslib/hts.h>
+#include <htslib/thread_pool.h>
+
 #include <config.h>
 
 #include <algorithm>
@@ -280,5 +283,15 @@ format_basic_stats(/*const auto &filename,*/ const auto n_reads,
   r += end_module_tag;
   return r;
 }
+
+struct hts_thread_pool_wrapper {
+  htsThreadPool t{};
+  explicit hts_thread_pool_wrapper(const std::uint32_t n_threads) :
+    t{hts_tpool_init(std::max(1u, n_threads)), 0} {
+    if (t.pool == nullptr)
+      throw std::runtime_error("failed to construct thread pool");
+  }
+  ~hts_thread_pool_wrapper() { hts_tpool_destroy(t.pool); }
+};
 
 #endif  // SRC_FALCO_UTILS_HPP_
