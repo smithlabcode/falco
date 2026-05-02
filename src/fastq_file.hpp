@@ -24,8 +24,6 @@
 #ifndef SRC_FASTQ_FILE_HPP_
 #define SRC_FASTQ_FILE_HPP_
 
-#include "fastq_record.hpp"
-
 #include <htslib/bgzf.h>
 #include <htslib/thread_pool.h>
 
@@ -43,11 +41,83 @@
 #include <utility>
 #include <vector>
 
+struct fqrec {
+  using pos_t = char *;
+  static constexpr auto sentinel = std::numeric_limits<pos_t>::max();
+  pos_t n{};  // start of "name"
+  pos_t r{};  // start of "read"
+  pos_t o{};  // start of "other"
+  pos_t q{};  // start of "quality" scores
+  pos_t e{};  // end of the record
+
+  [[nodiscard]] auto
+  size() const -> std::uint32_t {
+    return std::distance(r, o) - 1;
+  }
+
+  [[nodiscard]] operator bool() const {
+    return e != std::numeric_limits<pos_t>::max();
+  }
+
+  [[nodiscard]] auto
+  string() const -> std::string {
+    return {n, e};
+  }
+};
+static constexpr fqrec null_rec = {0, 0, 0, 0, fqrec::sentinel};
+
+struct fastq_buffer {
+  using rec_t = fqrec;
+  char *data{};
+  std::int64_t sz{};
+};
+
+// clang-format off
+[[nodiscard]] constexpr auto get_name(const fqrec &rec) { return rec.n; }
+[[nodiscard]] constexpr auto get_name_end(const fqrec &rec) { return rec.r - 1; }
+
+[[nodiscard]] constexpr auto get_seq(const fqrec &rec) { return rec.r; }
+[[nodiscard]] constexpr auto get_seq_end(const fqrec &rec) { return rec.o - 1; }
+[[nodiscard]] constexpr auto get_seq_size(const fqrec &rec) { return std::size(rec); }
+
+[[nodiscard]] constexpr auto get_qual(const fqrec &rec) { return rec.q; }
+[[nodiscard]] constexpr auto get_qual_end(const fqrec &rec) { return rec.e - 1; }
+[[nodiscard]] constexpr auto get_qual_size(const fqrec &rec) { return std::size(rec); }
+// clang-format on
+
+[[nodiscard]] inline auto
+get_next(auto &&cursor, const auto end_itr) -> fqrec {
+  const auto n = cursor;
+  auto itr = n;
+  itr = std::find(itr + 1, end_itr, '\n');
+  if (itr++ == end_itr)
+    return null_rec;
+  const auto r = itr;
+
+  itr = std::find(itr, end_itr, '\n');
+  if (itr++ == end_itr)
+    return null_rec;
+  const auto o = itr;
+
+  itr = std::find(itr, end_itr, '\n');
+  if (itr++ == end_itr)
+    return null_rec;
+  const auto q = itr;
+
+  itr = std::find(itr, end_itr, '\n');
+  if (itr++ == end_itr)
+    return null_rec;
+  const auto e = itr;
+
+  cursor = e;
+
+  return {n, r, o, q, e};
+}
+
 struct mmap_vals {
   // ADS: need to check that buffer size is larger than page size
   const std::int64_t page_size{};
-  // ADS: for below, I vaguely recall these values already exist as
-  // constants
+  // ADS: for below, I vaguely recall these values already exist as constants
   const std::int64_t offset_mask{};
   const std::int64_t page_mask{};
   mmap_vals() :
@@ -91,7 +161,7 @@ struct fastq_file {
     stop_offset{buf_size}, fd{open(std::data(filename), O_RDONLY, 0)} {
     if (fd < 0)
       throw std::system_error(std::make_error_code(std::errc(errno)),
-                              R"(failed to open file: )" + filename);
+                              "failed to open file: " + filename);
   }
 
   ~fastq_file() {
@@ -184,7 +254,7 @@ struct fastq_gz_file {
 };
 
 [[nodiscard]] static inline auto
-get_chunks(auto &fq, const fastq_buffer &buf, const std::int64_t n_chunks)
+get_chunks_impl(auto &fq, const fastq_buffer &buf, const std::int64_t n_chunks)
   -> std::vector<std::pair<std::int64_t, std::int64_t>> {
   static constexpr auto lines_per_record = 4;
   const auto not_read_start = [](const auto &s, const auto p) {
@@ -226,6 +296,16 @@ get_chunks(auto &fq, const fastq_buffer &buf, const std::int64_t n_chunks)
   if (lines_remaining < lines_per_record)
     chunks.back().second = prev_read_start;
   fq.cursor = chunks.back().second;
+  return chunks;
+}
+
+[[nodiscard]] static inline auto
+get_chunks(auto &fq, const fastq_buffer &buf, const std::int64_t n_chunks)
+  -> std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> {
+  const auto orig_chunks = get_chunks_impl(fq, buf, n_chunks);
+  std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> chunks;
+  for (const auto c : orig_chunks)
+    chunks.emplace_back(buf.data + c.first, buf.data + c.second);
   return chunks;
 }
 
