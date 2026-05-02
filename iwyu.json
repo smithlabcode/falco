@@ -1,2 +1,4 @@
 [
+    { "include": ["@[\"<]htslib/kstring.h[\">]", "private", "<htslib/sam.h>", "public"] },
+    { "include": ["@[\"<]htslib/hts.h[\">]", "private", "<htslib/sam.h>", "public"] },
 ]
