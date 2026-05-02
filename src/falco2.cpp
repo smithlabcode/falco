@@ -26,7 +26,7 @@
 #include "falco_file_format.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
-#include "fastq_record.hpp"
+
 #include "kmer_counter.hpp"
 #include "tile_processor.hpp"
 
@@ -97,25 +97,25 @@ struct falco_results {
 
   template <typename self_t>
   auto
-  process_reads(this self_t &&self, const auto &reads_buf, std::int64_t cursor,
-                const std::int64_t lim) {
+  process_reads(this self_t &&self, const auto &reads_buf, auto cursor,
+                const auto lim) {
     using rec_t = std::decay_t<decltype(reads_buf)>::rec_t;
     rec_t rec{};
-    while (cursor < lim && (rec = get_next(reads_buf, cursor, lim))) {
+    while (cursor < lim && (rec = get_next(cursor, lim))) {
       self.process_one_read(reads_buf, rec);
       ++self.n_reads;
     }
   }
 
   auto
-  process_one_read_impl(const auto &reads_buf, const auto &rec) {
+  process_one_read_impl(const auto &reads_buf, const fqrec &rec) {
     // NOLINTBEGIN (*-pro-bounds-constant-array-index)
     static constexpr auto pct_int = [](const auto a, const auto b) {
       return (100 * a) / b;  // NOLINT (cppcoreguidelines-avoid-magic-numbers)
     };
+    const auto seq_itr = get_seq(rec);
+    const auto seq_end = get_seq_end(rec);
     const auto read_len = get_seq_size(rec);
-    const auto seq_itr = get_seq(reads_buf, rec);
-    const auto seq_end = get_seq_end(reads_buf, rec);
     if (read_len > max_read_len)
       resize(read_len);
     max_read_len = read_len > max_read_len ? read_len : max_read_len;
@@ -125,9 +125,8 @@ struct falco_results {
     ++gcs[pct_int(curr_gc, read_len)];
     gc += curr_gc;
     count_ns(seq_itr, seq_end, n_counts);
-    const auto qual_itr = get_qual(reads_buf, rec);
-    const auto qual_end = get_qual_end(reads_buf, rec);
-    const auto qtot = count_quals(qual_itr, qual_end, qual_by_pos) / read_len;
+    const auto qtot =
+      count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos) / read_len;
     ++qual_by_read[qtot];
     count_seqs(seq_itr, read_len, n_reads, dr);
     am.match_adapters(seq_itr, read_len);
@@ -144,19 +143,17 @@ struct falco_results {
     vec_add(n_counts, rhs.n_counts);
     two_dim_add(qual_by_pos, rhs.qual_by_pos);
     add(qual_by_read, rhs.qual_by_read);
-
     dr += rhs.dr;
     am += rhs.am;
-
     return *this;
   }
 
   [[nodiscard]] auto
   fix_nucs_for_ns() const {  // Ns were counted among the C in nucs
-    auto x = nucs;
-    for (auto i = 0; i < std::size(x); ++i)
-      x[i][3] -= n_counts[i];
-    return x;
+    auto nucs_no_n = nucs;
+    for (auto i = 0; i < std::size(nucs_no_n); ++i)
+      nucs_no_n[i][3] -= n_counts[i];
+    return nucs_no_n;
   };
 
   template <typename self_t>
@@ -172,7 +169,6 @@ struct falco_results {
     const auto total_gc = std::accumulate(
       std::cbegin(nucs_no_n), std::cend(nucs_no_n), 0ul,
       [](const auto a, const auto &nuc) { return a + nuc[1] + nuc[3]; });
-
     auto r = format_basic_stats(/*filename, */ n_reads, max_read_len, total_gc,
                                 total_nucs);
     r += format_qual_by_pos(qual_by_pos, max_read_len);     // qual by pos
@@ -181,11 +177,9 @@ struct falco_results {
     r += format_gc_content(gcs, max_read_len);              // GC content
     r += format_n_counts(n_counts, nucs, max_read_len);     // N content
     r += format_read_lengths(lengths, max_read_len);        // read lengths
-
     r += dr.string();                         // duplication results
     r += dr.format_overrepresented(n_reads);  // overrepresented sequences
     r += am.string(n_reads, max_read_len);    // adapter content
-
     return r;
   }
 };
@@ -202,15 +196,11 @@ struct falco_results_tile : public falco_results {
   }
 
   auto
-  process_one_read_impl(const auto &reads_buf, const auto &rec) {
+  process_one_read_impl(const auto &reads_buf, const fqrec &rec) {
     falco_results::process_one_read_impl(reads_buf, rec);
     if (n_reads == tp.next_tile_read) {
-      const auto name_itr = get_name(reads_buf, rec);
-      const auto name_end = get_name_end(reads_buf, rec);
-      tp.update_tile_id(name_itr, name_end);
-      const auto qual_itr = get_qual(reads_buf, rec);
-      const auto qual_end = get_qual_end(reads_buf, rec);
-      tp(qual_itr, qual_end);
+      tp.update_tile_id(get_name(rec), get_name_end(rec));
+      tp(get_qual(rec), get_qual_end(rec));
       tp.next_tile_read += tp.tile_step;
     }
   }
@@ -240,12 +230,10 @@ struct falco_results_kmer : public falco_results {
   }
 
   auto
-  process_one_read_impl(const auto &reads_buf, const auto &rec) {
+  process_one_read_impl(const auto &reads_buf, const fqrec &rec) {
     falco_results::process_one_read_impl(reads_buf, rec);
     if (n_reads == kc.next_kmer_read) {
-      const auto read_len = get_seq_size(rec);
-      const auto seq = get_seq(reads_buf, rec);
-      kc.count_kmers(n_reads, seq, read_len);
+      kc.count_kmers(n_reads, get_seq(rec), get_seq_size(rec));
       kc.next_kmer_read += kmer_counter::kmer_step;
     }
   }
@@ -275,12 +263,10 @@ struct falco_results_tile_kmer : public falco_results_tile {
   }
 
   auto
-  process_one_read_impl(const auto &reads_buf, const auto &rec) {
+  process_one_read_impl(const auto &reads_buf, const fqrec &rec) {
     falco_results_tile::process_one_read_impl(reads_buf, rec);
     if (n_reads == kc.next_kmer_read) {
-      const auto read_len = get_seq_size(rec);
-      const auto seq = get_seq(reads_buf, rec);
-      kc.count_kmers(n_reads, seq, read_len);
+      kc.count_kmers(n_reads, get_seq(rec), get_seq_size(rec));
       kc.next_kmer_read += kmer_counter::kmer_step;
     }
   }
@@ -371,7 +357,7 @@ main(int argc, char *argv[]) {
     do_tiles = do_tiles && has_tiles;
 
     if (infmt == file_format::fastq_gz) {
-      fastq_gz_file reads_file(input_filename, buf_size);
+      fastq_gz_file reads_file(input_filename, buf_size, n_threads);
       if (do_tiles && do_kmers)
         run<falco_results_tile_kmer>(reads_file, n_threads, output_filename);
       else if (do_tiles)
