@@ -26,8 +26,8 @@
 #include "falco_file_format.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
-
 #include "kmer_counter.hpp"
+#include "quality_score.hpp"
 #include "tile_processor.hpp"
 
 #include "CLI11/CLI11.hpp"
@@ -39,14 +39,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
-#include <format>
 #include <fstream>
-#include <initializer_list>
 #include <iostream>
 #include <iterator>
 #include <numeric>
 #include <print>
-#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <thread>
