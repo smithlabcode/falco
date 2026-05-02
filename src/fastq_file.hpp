@@ -43,7 +43,6 @@
 
 struct fqrec {
   using pos_t = char *;
-  static constexpr auto sentinel = std::numeric_limits<pos_t>::max();
   pos_t n{};  // start of "name"
   pos_t r{};  // start of "read"
   pos_t o{};  // start of "other"
@@ -55,16 +54,13 @@ struct fqrec {
     return std::distance(r, o) - 1;
   }
 
-  [[nodiscard]] operator bool() const {
-    return e != std::numeric_limits<pos_t>::max();
-  }
+  [[nodiscard]] operator bool() const { return n != nullptr; }
 
   [[nodiscard]] auto
   string() const -> std::string {
     return {n, e};
   }
 };
-static constexpr fqrec null_rec = {0, 0, 0, 0, fqrec::sentinel};
 
 struct fastq_buffer {
   using rec_t = fqrec;
@@ -91,22 +87,22 @@ get_next(auto &&cursor, const auto end_itr) -> fqrec {
   auto itr = n;
   itr = std::find(itr + 1, end_itr, '\n');
   if (itr++ == end_itr)
-    return null_rec;
+    return {};
   const auto r = itr;
 
   itr = std::find(itr, end_itr, '\n');
   if (itr++ == end_itr)
-    return null_rec;
+    return {};
   const auto o = itr;
 
   itr = std::find(itr, end_itr, '\n');
   if (itr++ == end_itr)
-    return null_rec;
+    return {};
   const auto q = itr;
 
   itr = std::find(itr, end_itr, '\n');
   if (itr++ == end_itr)
-    return null_rec;
+    return {};
   const auto e = itr;
 
   cursor = e;
