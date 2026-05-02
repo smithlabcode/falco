@@ -63,8 +63,7 @@ get_name_bam(const std::string &filename) -> std::string {
   std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h(sam_hdr_read(in.get()),
                                                       &sam_hdr_destroy);
   std::unique_ptr<bam1_t, void (*)(bam1_t *)> b(bam_init1(), &bam_destroy1);
-  const auto r =
-    sam_read1(in.get(), h.get(), b.get());  // -1 on EOF; args non-const
+  const auto r = sam_read1(in.get(), h.get(), b.get());  // -1 on EOF
   if (r < -1)
     throw std::runtime_error("failed reading bam record");
   return bam_get_qname(b);
@@ -117,7 +116,6 @@ tile_processor::string(const std::uint32_t len) const -> std::string {
         break;
     }
   }
-  r += footer;
   return r + end_module_tag;
 }
 

@@ -24,8 +24,6 @@
 #ifndef SRC_TILE_PROCESSOR_HPP_
 #define SRC_TILE_PROCESSOR_HPP_
 
-#include "fastq_record.hpp"
-
 #include <charconv>
 #include <cstdint>
 #include <format>
@@ -41,7 +39,6 @@ struct tile_processor {
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
 
   static constexpr auto header = "#Tile\tBase\tMean\n";
-  static constexpr auto footer = "";
   static constexpr auto tile_step = 10;
   static std::uint32_t preceding_colons;
 
