@@ -52,6 +52,11 @@ encode(const char c) {
   return (c >> 1) & 3;  // Ns are counted as G so must be subtracted
 }
 
+[[nodiscard]] inline constexpr auto
+is_gc(const char c) {
+  return (c >> 1) & 1;
+}
+
 inline constexpr auto nibble_size = 4;
 
 [[nodiscard]] inline constexpr auto
@@ -111,7 +116,7 @@ count_ns(auto seq_itr, const auto seq_end,
 count_gc(auto seq_itr, const auto seq_end) {
   auto gc = 0;
   while (seq_itr != seq_end) {
-    gc += (*seq_itr != 'N' && (encode(*seq_itr) & 1));
+    gc += (*seq_itr != 'N' && is_gc(*seq_itr));
     ++seq_itr;
   }
   return gc;
