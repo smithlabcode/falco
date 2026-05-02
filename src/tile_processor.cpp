@@ -22,7 +22,6 @@
  */
 
 #include "tile_processor.hpp"
-#include "falco_file_format.hpp"
 #include "falco_utils.hpp"
 
 #include <htslib/bgzf.h>
@@ -30,7 +29,6 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <string>
