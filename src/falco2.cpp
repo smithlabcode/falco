@@ -65,6 +65,7 @@ struct falco_results {
   std::array<std::uint64_t, falco::max_qual_val> qual_by_read{};
   duplication_results dr;
   adapter_matcher am;
+  std::string filename;
 
   // clang-format off
   falco_results() :
@@ -153,21 +154,25 @@ struct falco_results {
 
   template <typename self_t>
   [[nodiscard]] auto
-  string(this const self_t &self) -> std::string {
-    return self.string_impl();
+  string(this const self_t &self, const std::string &filename) -> std::string {
+    return self.string_impl(filename);
   }
 
   [[nodiscard]] auto
-  string_impl() const -> std::string {
+  string_impl(const std::string &filename) const -> std::string {
     const auto nucs_no_n = fix_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
     const auto total_gc = std::accumulate(
       std::cbegin(nucs_no_n), std::cend(nucs_no_n), 0ul,
       [](const auto a, const auto &nuc) { return a + nuc[1] + nuc[3]; });
-    auto r = format_basic_stats(/*filename, */ n_reads, max_read_len, total_gc,
-                                total_nucs);
-    r += format_qual_by_pos(qual_by_pos, max_read_len);     // qual by pos
-    r += format_qual_by_read(qual_by_read, max_read_len);   // qual by read
+    const auto encoding = identify_quality_score_encoding(qual_by_read);
+    auto r = format_basic_stats(filename, n_reads, max_read_len, total_gc,
+                                total_nucs, encoding);
+    const auto qual_offset = identify_quality_score_offset(qual_by_read);
+    // qual by pos
+    r += format_qual_by_pos(qual_by_pos, max_read_len, qual_offset);
+    // qual by read
+    r += format_qual_by_read(qual_by_read);
     r += format_base_composition(nucs_no_n, max_read_len);  // base composition
     r += format_gc_content(gcs, max_read_len);              // GC content
     r += format_n_counts(n_counts, nucs, max_read_len);     // N content
@@ -208,8 +213,8 @@ struct falco_results_tile : public falco_results {
   }
 
   [[nodiscard]] auto
-  string_impl() const -> std::string {
-    return falco_results::string_impl() + tp.string(max_read_len);
+  string_impl(const std::string &filename) const -> std::string {
+    return falco_results::string_impl(filename) + tp.string(max_read_len);
   }
 };
 
@@ -241,8 +246,8 @@ struct falco_results_kmer : public falco_results {
   }
 
   [[nodiscard]] auto
-  string_impl() const -> std::string {
-    return falco_results::string_impl() + kc.string(n_reads);
+  string_impl(const std::string &filename) const -> std::string {
+    return falco_results::string_impl(filename) + kc.string(n_reads);
   }
 };
 
@@ -275,14 +280,15 @@ struct falco_results_tile_kmer : public falco_results_tile {
   }
 
   [[nodiscard]] auto
-  string_impl() const -> std::string {
-    return falco_results_tile::string_impl() + kc.string(n_reads);
+  string_impl(const std::string &filename) const -> std::string {
+    return falco_results_tile::string_impl(filename) + kc.string(n_reads);
   }
 };
 
 template <typename results_t>
 static auto
-run(auto &reads_file, const auto n_threads, const auto &output_filename) {
+run(const std::string &filename, auto &reads_file, const auto n_threads,
+    const auto &outfile) {
   std::vector<results_t> fr(n_threads);
   while (reads_file) {
     reads_file.load_next();
@@ -297,19 +303,19 @@ run(auto &reads_file, const auto n_threads, const auto &output_filename) {
         });
     }
   }
-  std::ofstream out(output_filename);
+  std::ofstream out(outfile);
   if (!out)
-    throw std::runtime_error("failed to open file: " + output_filename);
+    throw std::runtime_error("failed to open file: " + outfile);
   const auto results = std::reduce(std::cbegin(fr), std::cend(fr));
-  std::println(out, "{}", results.string());
+  std::println(out, "{}", results.string(filename));
 }
 
 int
 main(int argc, char *argv[]) {
   try {
     static constexpr auto buf_size_defulat = 512 * 1024 * 1024;
-    std::string input_filename;
-    std::string output_filename;
+    std::string infile;
+    std::string outfile;
     std::int64_t buf_size{buf_size_defulat};
     std::int64_t n_threads{1};
 
@@ -324,10 +330,10 @@ main(int argc, char *argv[]) {
 
     // clang-format off
     app.set_help_flag("-h,--help", "Print a detailed help message and exit");
-    app.add_option("-i,--input", input_filename, "FASTQ filename")
+    app.add_option("-i,--input", infile, "FASTQ filename")
       ->required()
       ->check(CLI::ExistingFile);
-    app.add_option("-o,--output", output_filename, "output filename")
+    app.add_option("-o,--output", outfile, "output filename")
       ->required();
     app.add_option("-s,--size", buf_size, "buffer size");
     app.add_option("-t,--threads", n_threads, "number of threads");
@@ -342,36 +348,36 @@ main(int argc, char *argv[]) {
     }
     CLI11_PARSE(app, argc, argv);
 
-    const auto [infmt, infmt_descr] = get_file_format(input_filename);
+    const auto [infmt, infmt_descr] = get_file_format(infile);
     if (verbose)
       std::println("input file: {}\n"
                    "input file format: {}",
-                   input_filename, infmt_descr);
+                   infile, infmt_descr);
 
-    const bool has_tiles = tile_processor::set_preceding_colons(input_filename);
+    const bool has_tiles = tile_processor::set_preceding_colons(infile);
     do_tiles = do_tiles && has_tiles;
 
     if (infmt == file_format::fastq_gz) {
-      fastq_gz_file reads_file(input_filename, buf_size, n_threads);
+      fastq_gz_file reads_file(infile, buf_size, n_threads);
       if (do_tiles && do_kmers)
-        run<falco_results_tile_kmer>(reads_file, n_threads, output_filename);
+        run<falco_results_tile_kmer>(infile, reads_file, n_threads, outfile);
       else if (do_tiles)
-        run<falco_results_tile>(reads_file, n_threads, output_filename);
+        run<falco_results_tile>(infile, reads_file, n_threads, outfile);
       else if (do_kmers)
-        run<falco_results_kmer>(reads_file, n_threads, output_filename);
+        run<falco_results_kmer>(infile, reads_file, n_threads, outfile);
       else
-        run<falco_results>(reads_file, n_threads, output_filename);
+        run<falco_results>(infile, reads_file, n_threads, outfile);
     }
     else if (infmt == file_format::fastq) {
-      fastq_file reads_file(input_filename, buf_size);
+      fastq_file reads_file(infile, buf_size);
       if (do_tiles && do_kmers)
-        run<falco_results_tile_kmer>(reads_file, n_threads, output_filename);
+        run<falco_results_tile_kmer>(infile, reads_file, n_threads, outfile);
       else if (do_tiles)
-        run<falco_results_tile>(reads_file, n_threads, output_filename);
+        run<falco_results_tile>(infile, reads_file, n_threads, outfile);
       else if (do_kmers)
-        run<falco_results_kmer>(reads_file, n_threads, output_filename);
+        run<falco_results_kmer>(infile, reads_file, n_threads, outfile);
       else
-        run<falco_results>(reads_file, n_threads, output_filename);
+        run<falco_results>(infile, reads_file, n_threads, outfile);
     }
     else {
       std::println("unsupported file format: {}", infmt_descr);
