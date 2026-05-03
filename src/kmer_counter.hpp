@@ -34,6 +34,12 @@
 #include <vector>
 
 struct kmer_counter {
+  static constexpr auto grade_cutoffs = std::array{
+    std::pair{0.02, "pass"},
+    std::pair{0.05, "warn"},
+    std::pair{1.00, "error"},
+  };
+
   static constexpr auto kmer_step = 50;
   static constexpr auto kmer_size = 7;
   static constexpr auto n_kmers = ipow(4, kmer_size);
