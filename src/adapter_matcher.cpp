@@ -33,8 +33,7 @@
 #include <vector>
 
 adapter_matcher::adapter_matcher(const std::uint32_t max_read_len) :
-  max_read_len{max_read_len},
-  adapter_counts(max_read_len, std::array<std::uint64_t, n_adapters>{}) {
+  max_read_len{max_read_len}, adapter_counts{max_read_len} {
   const auto encode_adap = [&](const auto &a) {
     std::uint64_t x{};
     for (const auto i : std::views::iota(0, adapter_size))
@@ -60,7 +59,12 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 [[nodiscard]] auto
 adapter_matcher::string(const std::uint64_t n_reads,
                         const std::uint32_t n_pos) const -> std::string {
-  auto r = std::format(">>Adapter Content\t{}\n", "pass");
+  static constexpr auto start_module_tag = ">>Adapter Content\t{}\n";
+  const auto mc =
+    std::ranges::max(adapter_counts | std::views::transform(std::ranges::max));
+  const auto mcf = as_frac(mc, n_reads);
+  const auto grade = get_grade(grade_cutoffs, mcf);
+  auto r = std::format(start_module_tag, grade);
   for (auto i = 0; i < std::min(n_pos, max_read_len); ++i) {
     r += std::format("{}", i + 1);
     for (const auto c : adapter_counts[i])
