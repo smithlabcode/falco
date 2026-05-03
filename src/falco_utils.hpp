@@ -288,8 +288,7 @@ get_grade_qual_by_pos(const auto &qual, const auto max_read_len) {
 [[nodiscard]] inline auto
 format_qual_by_pos(const auto &qual, const auto max_read_len,
                    const auto min_qual_val) {
-  static constexpr auto start_tag =
-    ">>Per base sequence quality\t{}\t(min={})\n";
+  static constexpr auto start_tag = ">>Per base sequence quality\t{}\n";
   static constexpr auto header = "#Base\tMean\tMedian\tLower Quartile\tUpper "
                                  "Quartile\t10th Percentile\t90th Percentile\n";
   const auto tab_sep = [](const auto &a) {
@@ -302,8 +301,7 @@ format_qual_by_pos(const auto &qual, const auto max_read_len,
     std::ranges::for_each(a, [&](auto &x) { x -= b; });
     return a;
   };
-  auto r = std::format(start_tag, get_grade_qual_by_pos(qual, max_read_len),
-                       min_qual_val);
+  auto r = std::format(start_tag, get_grade_qual_by_pos(qual, max_read_len));
   r += header;
   for (auto i = 0; i < max_read_len; ++i) {
     const auto q = sub_from_each(five_quants(qual[i]), min_qual_val);
