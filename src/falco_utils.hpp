@@ -24,6 +24,7 @@
 #ifndef SRC_FALCO_UTILS_HPP_
 #define SRC_FALCO_UTILS_HPP_
 
+#include "falco_file_format.hpp"
 #include "quality_score.hpp"
 
 #include <htslib/hts.h>
@@ -135,7 +136,7 @@ count_quals(auto qual_itr, const auto qual_end,
   return qual_tot;
 }
 
-[[nodiscard]] static inline auto
+[[nodiscard]] inline auto
 tabular_dot(const auto &a) {
   auto total = static_cast<std::remove_cvref_t<decltype(a)>::value_type>(0);
   for (const auto [i, x] : std::views::enumerate(a))
@@ -143,7 +144,7 @@ tabular_dot(const auto &a) {
   return total;
 }
 
-[[nodiscard]] static inline auto
+[[nodiscard]] inline auto
 mean_tabular(const auto &a) {
   const auto num = tabular_dot(a);
   const auto denom = std::reduce(std::cbegin(a), std::cend(a));
@@ -151,7 +152,7 @@ mean_tabular(const auto &a) {
 }
 
 // NOLINTBEGIN (cppcoreguidelines-avoid-magic-numbers)
-[[nodiscard]] static inline auto
+[[nodiscard]] inline auto
 five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
   const auto dlb = [](const auto &p, const auto x) {
     // get quantile as distance to insertion point
@@ -170,7 +171,7 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
 }
 // NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
 
-[[nodiscard]] static inline auto
+[[nodiscard]] inline auto
 get_grade(const auto &cutoffs, const auto c) {
   const auto a = std::pair{c, std::string{}};
   const auto b = std::ranges::lower_bound(cutoffs, a);
@@ -179,7 +180,7 @@ get_grade(const auto &cutoffs, const auto c) {
   return b->second;
 }
 
-[[nodiscard]] static inline auto
+[[nodiscard]] inline auto
 format_read_lengths(const auto &lengths, const auto max_read_len) {
   static constexpr auto start_tag = ">>Sequence Length Distribution\t{}\n";
   static constexpr auto header = "#Length Count\n";
@@ -192,7 +193,7 @@ format_read_lengths(const auto &lengths, const auto max_read_len) {
   return r;
 }
 
-[[nodiscard]] static inline auto
+[[nodiscard]] inline auto
 format_gc_content(const auto &gc_content, const auto max_read_len) {
   static constexpr auto start_tag = ">>Per sequence GC content\t{}\n";
   static constexpr auto header = "#GC\tContent\tCount\n";
@@ -204,7 +205,7 @@ format_gc_content(const auto &gc_content, const auto max_read_len) {
   return r;
 }
 
-[[nodiscard]] static inline auto
+[[nodiscard]] inline auto
 format_base_composition(const auto &nucs, const auto max_read_len) {
   static constexpr auto start_tag = ">>Per base sequence content\t{}\n";
   static constexpr auto header = "#Base\tG\tA\tT\tC\n";
@@ -223,7 +224,7 @@ format_base_composition(const auto &nucs, const auto max_read_len) {
   return r;
 }
 
-[[nodiscard]] static inline auto
+[[nodiscard]] inline auto
 format_n_counts(const auto &n_counts, const auto &nucs,
                 const auto max_read_len) {
   static constexpr auto start_tag = "Per base N content\t{}\n";
@@ -238,24 +239,57 @@ format_n_counts(const auto &n_counts, const auto &nucs,
   return r;
 }
 
-[[nodiscard]] static inline auto
-format_qual_by_read(const auto &qual, const auto max_read_len) {
+[[nodiscard]] inline auto
+format_qual_by_read(const auto &qual_by_read) {
   static constexpr auto start_tag = ">>Per sequence quality scores\t{}\n";
   static constexpr auto header = "#Quality\tCount\n";
-  const auto qual_itr = std::cbegin(qual);
   const auto qual_tot =
-    std::reduce(qual_itr + falco::min_qual_val, qual_itr + falco::max_qual_val);
+    std::reduce(std::cbegin(qual_by_read), std::cend(qual_by_read));
   auto r = std::format(start_tag, "pass");
   r += header;
-  for (auto i = falco::min_qual_val; i < falco::max_qual_val; ++i)
-    r += std::format("{}\t{:.6g}\n", i, as_frac(qual[i], qual_tot));
+  // output starting at qual_offset; that's where they are relevant
+  const auto qual_offset = identify_quality_score_offset(qual_by_read);
+  for (const auto i : std::views::iota(qual_offset, falco::max_qual_val))
+    r += std::format("{}\t{:.6g}\n", i, as_frac(qual_by_read[i], qual_tot));
   r += end_module_tag;
   return r;
 }
 
-[[nodiscard]] static inline auto
-format_qual_by_pos(const auto &qual, const auto max_read_len) {
-  static constexpr auto start_tag = ">>Per base sequence quality\t{}\n";
+[[nodiscard]] inline auto
+get_grade_qual_by_pos(const auto &qual, const auto max_read_len) {
+  static constexpr auto get_lower_quartile = [](const auto &quantiles) {
+    return quantiles[1];  // NOLINT (*-avoid-magic-numbers)
+  };
+  static constexpr auto get_median = [](const auto &quantiles) {
+    return quantiles[2];  // NOLINT (*-avoid-magic-numbers)
+  };
+  // ADS: not sure how this is used
+  [[maybe_unused]] static constexpr auto grade_cutoffs_lower = std::array{
+    std::pair{0.05, "error"},
+    std::pair{0.10, "warn"},
+    std::pair{1.00, "pass"},
+  };
+  static constexpr auto grade_cutoffs_median = std::array{
+    std::pair{0.20, "error"},
+    std::pair{0.25, "warn"},
+    std::pair{1.00, "pass"},
+  };
+  auto min_qual_median = 1.0;
+  for (const auto q : qual | std::views::take(max_read_len)) {
+    const auto quantiles = five_quants(q);
+    // ADS: lower quartile to ensure enough data?
+    const auto median =
+      get_lower_quartile(quantiles) > 0.0 ? get_median(quantiles) : 1.0;
+    min_qual_median = std::min(min_qual_median, median);
+  }
+  return get_grade(grade_cutoffs_median, min_qual_median);
+}
+
+[[nodiscard]] inline auto
+format_qual_by_pos(const auto &qual, const auto max_read_len,
+                   const auto min_qual_val) {
+  static constexpr auto start_tag =
+    ">>Per base sequence quality\t{}\t(min={})\n";
   static constexpr auto header = "#Base\tMean\tMedian\tLower Quartile\tUpper "
                                  "Quartile\t10th Percentile\t90th Percentile\n";
   const auto tab_sep = [](const auto &a) {
@@ -268,28 +302,30 @@ format_qual_by_pos(const auto &qual, const auto max_read_len) {
     std::ranges::for_each(a, [&](auto &x) { x -= b; });
     return a;
   };
-  auto r = std::format(start_tag, "pass");
+  auto r = std::format(start_tag, get_grade_qual_by_pos(qual, max_read_len),
+                       min_qual_val);
   r += header;
   for (auto i = 0; i < max_read_len; ++i) {
-    const auto q = sub_from_each(five_quants(qual[i]), falco::min_qual_val);
+    const auto q = sub_from_each(five_quants(qual[i]), min_qual_val);
     r += std::format("{}\t{:.6g}\t{}\n", i + 1,
-                     mean_tabular(qual[i]) - falco::min_qual_val, tab_sep(q));
+                     mean_tabular(qual[i]) - min_qual_val, tab_sep(q));
   }
   r += end_module_tag;
   return r;
 }
 
-[[nodiscard]] static inline auto
-format_basic_stats(/*const auto &filename,*/ const auto n_reads,
+[[nodiscard]] inline auto
+format_basic_stats(const auto &filename, const auto n_reads,
                    const auto max_read_len, const auto total_gc,
-                   const auto total_nucs) {
+                   const auto total_nucs, const auto &encoding) {
   static constexpr auto start_tag = "##Falco {}\n>>Basic Statistics\n";
   static constexpr auto header = "#Measure\tValue\n";
   auto r = std::format("##Falco {}\n", VERSION);
   r += header;
-  r += std::format("Filename\t{}\n", "asdf");
-  r += std::format("File type\t{}\n", "Conventional base calls");
-  r += std::format("Encoding\t{}\n", "Sanger / Illumina 1.9");
+  r += std::format("Filename\t{}\n", filename);
+  const auto [_, file_type] = get_file_format(filename);
+  r += std::format("File type\t{}\n", file_type);
+  r += std::format("Encoding\t{}\n", encoding);
   r += std::format("Total Sequences\t{}\n", n_reads);
   r += std::format("Sequences flagged as poor quality {}\n", 0);
   r += std::format("Sequence length\t{}\n", max_read_len);
