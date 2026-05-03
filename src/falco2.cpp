@@ -87,25 +87,23 @@ struct falco_results {
 
   template <typename self_t>
   auto
-  process_one_read(this self_t &&self, const auto &reads_buf,
-                   const auto &rec) -> void {
-    self.process_one_read_impl(reads_buf, rec);
+  process_one_read(this self_t &self, const auto &rec) -> void {
+    self.process_one_read_impl(rec);
   }
 
-  template <typename self_t>
+  template <typename rec_t, typename self_t>
   auto
-  process_reads(this self_t &&self, const auto &reads_buf, auto cursor,
-                const auto lim) {
-    using rec_t = std::decay_t<decltype(reads_buf)>::rec_t;
+  process_reads(this self_t &self, auto cursor, const auto lim) {
+    // using rec_t = fqrec;
     rec_t rec{};
     while (cursor < lim && (rec = get_next(cursor, lim))) {
-      self.process_one_read(reads_buf, rec);
+      self.process_one_read(rec);
       ++self.n_reads;
     }
   }
 
   auto
-  process_one_read_impl(const auto &reads_buf, const fqrec &rec) {
+  process_one_read_impl(const auto &rec) {
     // NOLINTBEGIN (*-pro-bounds-constant-array-index)
     static constexpr auto pct_int = [](const auto a, const auto b) {
       return (100 * a) / b;  // NOLINT (cppcoreguidelines-avoid-magic-numbers)
@@ -193,8 +191,8 @@ struct falco_results_tile : public falco_results {
   }
 
   auto
-  process_one_read_impl(const auto &reads_buf, const fqrec &rec) {
-    falco_results::process_one_read_impl(reads_buf, rec);
+  process_one_read_impl(const auto &rec) {
+    falco_results::process_one_read_impl(rec);
     if (n_reads == tp.next_tile_read) {
       tp.update_tile_id(get_name(rec), get_name_end(rec));
       tp(get_qual(rec), get_qual_end(rec));
@@ -227,8 +225,8 @@ struct falco_results_kmer : public falco_results {
   }
 
   auto
-  process_one_read_impl(const auto &reads_buf, const fqrec &rec) {
-    falco_results::process_one_read_impl(reads_buf, rec);
+  process_one_read_impl(const auto &rec) {
+    falco_results::process_one_read_impl(rec);
     if (n_reads == kc.next_kmer_read) {
       kc.count_kmers(n_reads, get_seq(rec), get_seq_size(rec));
       kc.next_kmer_read += kmer_counter::kmer_step;
@@ -260,8 +258,8 @@ struct falco_results_tile_kmer : public falco_results_tile {
   }
 
   auto
-  process_one_read_impl(const auto &reads_buf, const fqrec &rec) {
-    falco_results_tile::process_one_read_impl(reads_buf, rec);
+  process_one_read_impl(const auto &rec) {
+    falco_results_tile::process_one_read_impl(rec);
     if (n_reads == kc.next_kmer_read) {
       kc.count_kmers(n_reads, get_seq(rec), get_seq_size(rec));
       kc.next_kmer_read += kmer_counter::kmer_step;
@@ -287,15 +285,15 @@ static auto
 run(auto &reads_file, const auto n_threads, const auto &output_filename) {
   std::vector<results_t> fr(n_threads);
   while (reads_file) {
-    auto reads_buf = reads_file.get_next();
-    const auto chunks = get_chunks(reads_file, reads_buf, n_threads);
+    reads_file.load_next();
+    const auto chunks = get_chunks(reads_file, n_threads);
     {
       std::vector<std::jthread> workers;
       for (auto th_id = 0; th_id < n_threads; ++th_id)
         // NOLINTNEXTLINE (performance-inefficient-vector-operation)
         workers.emplace_back([&, th_id] {
-          fr[th_id].process_reads(reads_buf, chunks[th_id].first,
-                                  chunks[th_id].second);
+          fr[th_id].template process_reads<fqrec>(chunks[th_id].first,
+                                                  chunks[th_id].second);
         });
     }
   }
