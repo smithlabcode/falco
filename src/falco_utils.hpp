@@ -171,6 +171,15 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
 // NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
 
 [[nodiscard]] static inline auto
+get_grade(const auto &cutoffs, const auto c) {
+  const auto a = std::pair{c, std::string{}};
+  const auto b = std::ranges::lower_bound(cutoffs, a);
+  if (b == std::cend(cutoffs))
+    throw std::runtime_error("error in identifying grade");
+  return b->second;
+}
+
+[[nodiscard]] static inline auto
 format_read_lengths(const auto &lengths, const auto max_read_len) {
   static constexpr auto start_tag = ">>Sequence Length Distribution\t{}\n";
   static constexpr auto header = "#Length Count\n";
