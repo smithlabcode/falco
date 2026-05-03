@@ -44,6 +44,7 @@
 #include <string>
 #include <thread>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 enum class file_format : std::uint8_t {
