@@ -34,6 +34,11 @@
 #include <vector>
 
 struct adapter_matcher {
+  static constexpr auto grade_cutoffs = std::array{
+    std::pair{0.05, "pass"},
+    std::pair{0.10, "warn"},
+    std::pair{1.00, "error"},
+  };
   static constexpr auto n_adapters = 6;
   static constexpr auto adapter_size = 12;
   static constexpr auto adapter_names = std::array{
