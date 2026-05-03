@@ -169,8 +169,8 @@ struct fastq_file {
     return stop_offset - start_offset == buf_size;
   }
 
-  [[nodiscard]] auto
-  get_next() -> const fastq_buffer & {
+  auto
+  load_next() {
     start_offset += cursor;
     cursor = start_offset & mv.offset_mask;
     start_offset = start_offset & mv.page_mask;
@@ -178,7 +178,6 @@ struct fastq_file {
     if (buf.sz > 0)
       cleanup_mmap_fastq(buf);
     buf = mmap_fastq(fd, start_offset, stop_offset);
-    return buf;
   }
 };
 
@@ -227,8 +226,8 @@ struct fastq_gz_file {
 
   [[nodiscard]] operator bool() const { return stop_offset == buf_size; }
 
-  [[nodiscard]] auto
-  get_next() -> const fastq_buffer & {
+  auto
+  load_next() {
     if (cursor > 0) {
       std::memmove(buf.data, buf.data + cursor, buf.sz - cursor);
       cursor = buf.sz - cursor;
@@ -245,12 +244,11 @@ struct fastq_gz_file {
     stop_offset += start_offset;
     buf.sz = stop_offset;
     cursor = 0;  // cursor always moves back to zero if buffer is not mmapped
-    return buf;
   }
 };
 
 [[nodiscard]] static inline auto
-get_chunks_impl(auto &fq, const fastq_buffer &buf, const std::int64_t n_chunks)
+get_chunks_impl(auto &fq, const std::int64_t n_chunks)
   -> std::vector<std::pair<std::int64_t, std::int64_t>> {
   static constexpr auto lines_per_record = 4;
   const auto not_read_start = [](const auto &s, const auto p) {
@@ -267,6 +265,7 @@ get_chunks_impl(auto &fq, const fastq_buffer &buf, const std::int64_t n_chunks)
       --x;
     return x;
   };
+  const auto &buf = fq.buf;
   const auto start_idx = fq.cursor;
   const auto stop_idx = buf.sz;
   const auto n_elements = stop_idx - start_idx;
@@ -296,12 +295,13 @@ get_chunks_impl(auto &fq, const fastq_buffer &buf, const std::int64_t n_chunks)
 }
 
 [[nodiscard]] static inline auto
-get_chunks(auto &fq, const fastq_buffer &buf, const std::int64_t n_chunks)
+get_chunks(auto &fq, const std::int64_t n_chunks)
   -> std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> {
-  const auto orig_chunks = get_chunks_impl(fq, buf, n_chunks);
+  const auto orig_chunks = get_chunks_impl(fq, n_chunks);
+  const auto buffer = fq.buf.data;
   std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> chunks;
   for (const auto c : orig_chunks)
-    chunks.emplace_back(buf.data + c.first, buf.data + c.second);
+    chunks.emplace_back(buffer + c.first, buffer + c.second);
   return chunks;
 }
 
