@@ -36,6 +36,12 @@
 #include <vector>
 
 struct tile_processor {
+  static constexpr auto grade_cutoffs = std::array{
+    std::pair{0.05, "pass"},
+    std::pair{0.10, "warn"},
+    std::pair{1.00, "error"},
+  };
+
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
 
   static constexpr auto header = "#Tile\tBase\tMean\n";
