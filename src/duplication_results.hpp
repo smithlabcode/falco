@@ -34,6 +34,18 @@
 #include <utility>
 
 struct duplication_results {
+  static constexpr auto grade_cutoffs = std::array{
+    std::pair{0.50, "error"},
+    std::pair{0.70, "warn"},
+    std::pair{1.00, "pass"},
+  };
+
+  static constexpr auto overrep_cutoffs = std::array{
+    std::pair{0.01, "pass"},
+    std::pair{1.00, "warn"},
+    std::pair{1.00, "error"},
+  };
+
   static constexpr auto overrepresented_cutoff = 0.001;
   // only count first 100k unique sequences
   static constexpr auto max_unique{100'000};
