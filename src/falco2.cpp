@@ -95,7 +95,6 @@ struct falco_results {
   template <typename rec_t, typename self_t>
   auto
   process_reads(this self_t &self, auto cursor, const auto lim) {
-    // using rec_t = fqrec;
     rec_t rec{};
     while (cursor < lim && (rec = get_next(cursor, lim))) {
       self.process_one_read(rec);
@@ -154,12 +153,12 @@ struct falco_results {
 
   template <typename self_t>
   [[nodiscard]] auto
-  string(this const self_t &self, const std::string &filename) -> std::string {
-    return self.string_impl(filename);
+  string(this self_t &self) -> std::string {
+    return self.string_impl();
   }
 
   [[nodiscard]] auto
-  string_impl(const std::string &filename) const -> std::string {
+  string_impl() const -> std::string {
     const auto nucs_no_n = fix_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
     const auto total_gc = std::accumulate(
@@ -213,8 +212,8 @@ struct falco_results_tile : public falco_results {
   }
 
   [[nodiscard]] auto
-  string_impl(const std::string &filename) const -> std::string {
-    return falco_results::string_impl(filename) + tp.string(max_read_len);
+  string_impl() const -> std::string {
+    return falco_results::string_impl() + tp.string(max_read_len);
   }
 };
 
@@ -246,8 +245,8 @@ struct falco_results_kmer : public falco_results {
   }
 
   [[nodiscard]] auto
-  string_impl(const std::string &filename) const -> std::string {
-    return falco_results::string_impl(filename) + kc.string(n_reads);
+  string_impl() const -> std::string {
+    return falco_results::string_impl() + kc.string(n_reads);
   }
 };
 
@@ -280,15 +279,16 @@ struct falco_results_tile_kmer : public falco_results_tile {
   }
 
   [[nodiscard]] auto
-  string_impl(const std::string &filename) const -> std::string {
-    return falco_results_tile::string_impl(filename) + kc.string(n_reads);
+  string_impl() const -> std::string {
+    return falco_results_tile::string_impl() + kc.string(n_reads);
   }
 };
 
 template <typename results_t>
 static auto
-run(const std::string &filename, auto &reads_file, const auto n_threads,
+run(const std::string &infile, auto &reads_file, const auto n_threads,
     const auto &outfile) {
+  using rec_t = std::decay_t<decltype(reads_file)>::rec_t;
   std::vector<results_t> fr(n_threads);
   while (reads_file) {
     reads_file.load_next();
@@ -298,7 +298,7 @@ run(const std::string &filename, auto &reads_file, const auto n_threads,
       for (auto th_id = 0; th_id < n_threads; ++th_id)
         // NOLINTNEXTLINE (performance-inefficient-vector-operation)
         workers.emplace_back([&, th_id] {
-          fr[th_id].template process_reads<fqrec>(chunks[th_id].first,
+          fr[th_id].template process_reads<rec_t>(chunks[th_id].first,
                                                   chunks[th_id].second);
         });
     }
@@ -306,8 +306,9 @@ run(const std::string &filename, auto &reads_file, const auto n_threads,
   std::ofstream out(outfile);
   if (!out)
     throw std::runtime_error("failed to open file: " + outfile);
-  const auto results = std::reduce(std::cbegin(fr), std::cend(fr));
-  std::println(out, "{}", results.string(filename));
+  auto results = std::reduce(std::cbegin(fr), std::cend(fr));
+  results.filename = infile;
+  std::println(out, "{}", results.string());
 }
 
 int
