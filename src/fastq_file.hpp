@@ -41,6 +41,7 @@
 #include <utility>
 #include <vector>
 
+// clang-format off
 struct fqrec {
   using pos_t = char *;
   pos_t n{};  // start of "name"
@@ -48,27 +49,13 @@ struct fqrec {
   pos_t o{};  // start of "other"
   pos_t q{};  // start of "quality" scores
   pos_t e{};  // end of the record
-
   [[nodiscard]] auto
-  size() const -> std::uint32_t {
-    return std::distance(r, o) - 1;
-  }
-
+  size() const -> std::uint32_t { return std::distance(r, o) - 1; }
   [[nodiscard]] operator bool() const { return n != nullptr; }
-
   [[nodiscard]] auto
-  string() const -> std::string {
-    return {n, e};
-  }
+  string() const -> std::string { return {n, e}; }
 };
 
-struct fastq_buffer {
-  using rec_t = fqrec;
-  char *data{};
-  std::int64_t sz{};
-};
-
-// clang-format off
 [[nodiscard]] constexpr auto get_name(const fqrec &rec) { return rec.n; }
 [[nodiscard]] constexpr auto get_name_end(const fqrec &rec) { return rec.r - 1; }
 
@@ -83,9 +70,10 @@ struct fastq_buffer {
 
 [[nodiscard]] inline auto
 get_next(auto &&cursor, const auto end_itr) -> fqrec {
+  // ADS: need to make sure cursor < end_itr or we will move past
   const auto n = cursor;
-  auto itr = n;
-  itr = std::find(itr + 1, end_itr, '\n');
+  auto itr = n + 1;
+  itr = std::find(itr, end_itr, '\n');
   if (itr++ == end_itr)
     return {};
   const auto r = itr;
@@ -106,19 +94,16 @@ get_next(auto &&cursor, const auto end_itr) -> fqrec {
   const auto e = itr;
 
   cursor = e;
-
   return {n, r, o, q, e};
 }
 
-struct mmap_vals {
-  // ADS: need to check that buffer size is larger than page size
-  const std::int64_t page_size{};
-  // ADS: for below, I vaguely recall these values already exist as constants
-  const std::int64_t offset_mask{};
-  const std::int64_t page_mask{};
-  mmap_vals() :
-    page_size{sysconf(_SC_PAGESIZE)}, offset_mask{page_size - 1},
-    page_mask{~offset_mask} {}
+static const auto page_size = sysconf(_SC_PAGESIZE);
+static const auto offset_mask = page_size - 1;
+static const auto page_mask = ~offset_mask;
+
+struct fastq_buffer {
+  char *data{};
+  std::int64_t sz{};
 };
 
 [[nodiscard]] inline auto
@@ -142,13 +127,14 @@ cleanup_mmap_fastq(fastq_buffer &buf) {
 }
 
 struct fastq_file {
+  using rec_t = fqrec;
+  static constexpr auto min_buf_size = 16 * 4096;
   std::int64_t buf_size{};
   std::int64_t filesize{};
   fastq_buffer buf{};
   std::int64_t start_offset{};
   std::int64_t stop_offset{};
   std::int64_t cursor{};
-  mmap_vals mv{};
   int fd{};
 
   fastq_file(const std::string &filename, const std::int64_t buf_size) :
@@ -158,11 +144,16 @@ struct fastq_file {
     if (fd < 0)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
+    if (buf_size < min_buf_size)
+      throw std::runtime_error(
+        std::format("Requested buffer size {} smaller than required {}",
+                    buf_size, min_buf_size));
   }
 
   ~fastq_file() {
-    if (fd)
-      close(fd);  // done with file descriptor
+    if (buf.sz > 0)
+      cleanup_mmap_fastq(buf);
+    close(fd);
   }
 
   [[nodiscard]] operator bool() const {
@@ -172,8 +163,8 @@ struct fastq_file {
   auto
   load_next() {
     start_offset += cursor;
-    cursor = start_offset & mv.offset_mask;
-    start_offset = start_offset & mv.page_mask;
+    cursor = start_offset & offset_mask;
+    start_offset = start_offset & page_mask;
     stop_offset = std::min(filesize, start_offset + buf_size);
     if (buf.sz > 0)
       cleanup_mmap_fastq(buf);
@@ -192,6 +183,7 @@ struct falco_thread_pool {
 };
 
 struct fastq_gz_file {
+  using rec_t = fqrec;
   std::int64_t buf_size{};
   std::int64_t filesize{};
   fastq_buffer buf{};
@@ -235,7 +227,7 @@ struct fastq_gz_file {
     start_offset = cursor;
     const auto n_bytes = buf_size - start_offset;
     const auto r = bgzf_read(f.get(), buf.data + start_offset, n_bytes);
-    if (stop_offset < 0) {
+    if (r < 0) {
       // ADS: cleanup
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed reading gz input file");
@@ -255,12 +247,12 @@ get_chunks_impl(auto &fq, const std::int64_t n_chunks)
     return s[p] != '@' || s[p - 1] != '\n' ||
            (s[p - 2] == '+' && s[p - 3] == '\n');
   };
-  const auto forward_to_read_start = [&](const fastq_buffer &buf, auto x) {
+  const auto fwd_to_read_start = [&](const fastq_buffer &buf, auto x) {
     while (x < buf.sz && not_read_start(buf.data, x))
       ++x;
     return x;
   };
-  const auto backward_to_read_start = [&](const fastq_buffer &buf, auto x) {
+  const auto rev_to_read_start = [&](const fastq_buffer &buf, auto x) {
     while (x == buf.sz || not_read_start(buf.data, x))
       --x;
     return x;
@@ -275,17 +267,15 @@ get_chunks_impl(auto &fq, const std::int64_t n_chunks)
   std::int64_t block_beg{};
   for (auto i = 0u; i < n_chunks; ++i) {
     auto chunk_beg = start_idx + block_beg;
-    chunk_beg =
-      chunk_beg == 0 ? chunk_beg : forward_to_read_start(buf, chunk_beg);
+    chunk_beg = chunk_beg == 0 ? chunk_beg : fwd_to_read_start(buf, chunk_beg);
     const auto sz = i < r ? q + 1 : q;
     const auto block_end = block_beg + sz;
     const auto chunk_end =
-      forward_to_read_start(buf, std::max(chunk_beg, start_idx + block_end));
+      fwd_to_read_start(buf, std::max(chunk_beg, start_idx + block_end));
     chunks[i] = {chunk_beg, chunk_end};
     block_beg = block_end;
   }
-  const auto prev_read_start =
-    backward_to_read_start(buf, chunks.back().second);
+  const auto prev_read_start = rev_to_read_start(buf, chunks.back().second);
   const auto lines_remaining =
     std::ranges::count(buf.data + prev_read_start, buf.data + buf.sz, '\n');
   if (lines_remaining < lines_per_record)
