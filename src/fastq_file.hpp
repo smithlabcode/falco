@@ -55,14 +55,11 @@ struct fqrec {
   [[nodiscard]] auto
   string() const -> std::string { return {n, e}; }
 };
-
 [[nodiscard]] constexpr auto get_name(const fqrec &rec) { return rec.n; }
 [[nodiscard]] constexpr auto get_name_end(const fqrec &rec) { return rec.r - 1; }
-
 [[nodiscard]] constexpr auto get_seq(const fqrec &rec) { return rec.r; }
 [[nodiscard]] constexpr auto get_seq_end(const fqrec &rec) { return rec.o - 1; }
 [[nodiscard]] constexpr auto get_seq_size(const fqrec &rec) { return std::size(rec); }
-
 [[nodiscard]] constexpr auto get_qual(const fqrec &rec) { return rec.q; }
 [[nodiscard]] constexpr auto get_qual_end(const fqrec &rec) { return rec.e - 1; }
 [[nodiscard]] constexpr auto get_qual_size(const fqrec &rec) { return std::size(rec); }
@@ -97,23 +94,21 @@ get_next(auto &&cursor, const auto end_itr) -> fqrec {
   return {n, r, o, q, e};
 }
 
-// clang-format off
 struct fastq_buffer {
   char *data{};       // not necessarily owned
   std::int64_t sz{};  // slight redundancy with vars containing classes
 };
-// clang-format on
 
 [[nodiscard]] inline auto
 mmap_fastq(const int fd, const std::int64_t start_pos_in_file,
-           const std::int64_t stop_pos_in_file) -> fastq_buffer {
+           const std::int64_t stop_pos_in_file) {
   const auto n_bytes = stop_pos_in_file - start_pos_in_file;
   char *data = static_cast<char *>(
     mmap(nullptr, n_bytes, PROT_READ, MAP_PRIVATE, fd, start_pos_in_file));
   if (data == MAP_FAILED)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to mmap file");
-  return {data, n_bytes};
+  return fastq_buffer{data, n_bytes};
 }
 
 static inline auto
@@ -196,26 +191,24 @@ struct fastq_gz_file {
   falco_thread_pool t;
   std::unique_ptr<BGZF, int (*)(BGZF *)> f;
 
-  // clang-format off
   fastq_gz_file(const std::string &filename, const std::int64_t buf_size,
                 const std::uint32_t n_threads = 1) :
     buf_size{buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
-    stop_pos_in_file{buf_size},
-    t(n_threads),
-    f(bgzf_open(std::data(filename), "r"), &bgzf_close)
-  {
+    stop_pos_in_file{buf_size}, t(n_threads),
+    f(bgzf_open(std::data(filename), "r"), &bgzf_close) {
+    static constexpr auto bgzf_fmt_code = 2;  // from bgzf.h
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
-    if (n_threads > 0) {
+    if (n_threads > 1 && bgzf_compression(f.get()) == bgzf_fmt_code) {
+      // threads can be used
       const auto r = bgzf_thread_pool(f.get(), t.t.pool, t.t.qsize);
       if (r < 0)
         throw std::runtime_error("failed to set thread pool");
     }
     buf.data = new char[buf_size];
   }
-  // clang-format on
 
   ~fastq_gz_file() { delete[] buf.data; }
 
