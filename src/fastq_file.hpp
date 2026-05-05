@@ -97,21 +97,19 @@ get_next(auto &&cursor, const auto end_itr) -> fqrec {
   return {n, r, o, q, e};
 }
 
-static const auto page_size = sysconf(_SC_PAGESIZE);
-static const auto offset_mask = page_size - 1;
-static const auto page_mask = ~offset_mask;
-
+// clang-format off
 struct fastq_buffer {
-  char *data{};
-  std::int64_t sz{};
+  char *data{};       // not necessarily owned
+  std::int64_t sz{};  // slight redundancy with vars containing classes
 };
+// clang-format on
 
 [[nodiscard]] inline auto
-mmap_fastq(const int fd, const std::int64_t start_offset,
-           const std::int64_t stop_offset) -> fastq_buffer {
-  const auto n_bytes = stop_offset - start_offset;
+mmap_fastq(const int fd, const std::int64_t start_pos_in_file,
+           const std::int64_t stop_pos_in_file) -> fastq_buffer {
+  const auto n_bytes = stop_pos_in_file - start_pos_in_file;
   char *data = static_cast<char *>(
-    mmap(nullptr, n_bytes, PROT_READ, MAP_PRIVATE, fd, start_offset));
+    mmap(nullptr, n_bytes, PROT_READ, MAP_PRIVATE, fd, start_pos_in_file));
   if (data == MAP_FAILED)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to mmap file");
@@ -132,15 +130,16 @@ struct fastq_file {
   std::int64_t buf_size{};
   std::int64_t filesize{};
   fastq_buffer buf{};
-  std::int64_t start_offset{};
-  std::int64_t stop_offset{};
+  std::int64_t start_pos_in_file{};
+  std::int64_t stop_pos_in_file{};
   std::int64_t cursor{};
   int fd{};
 
   fastq_file(const std::string &filename, const std::int64_t buf_size) :
     buf_size{buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
-    stop_offset{buf_size}, fd{open(std::data(filename), O_RDONLY, 0)} {
+    stop_pos_in_file{buf_size},  // init this way because used as sentinel
+    fd{open(std::data(filename), O_RDONLY, 0)} {
     if (fd < 0)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
@@ -153,22 +152,26 @@ struct fastq_file {
   ~fastq_file() {
     if (buf.sz > 0)
       cleanup_mmap_fastq(buf);
-    close(fd);
+    close(fd);  // will always have been opened using a filename
   }
 
   [[nodiscard]] operator bool() const {
-    return stop_offset - start_offset == buf_size;
+    return stop_pos_in_file - start_pos_in_file == buf_size;
   }
 
   auto
   load_next() {
-    start_offset += cursor;
-    cursor = start_offset & offset_mask;
-    start_offset = start_offset & page_mask;
-    stop_offset = std::min(filesize, start_offset + buf_size);
+    // memory mapped data is page aligned; the data we need is not
+    static const auto page_mask = sysconf(_SC_PAGESIZE) - 1;
+    std::tie(start_pos_in_file, cursor) = [&] {
+      const auto cursor_pos_in_file = start_pos_in_file + cursor;
+      return std::tuple(cursor_pos_in_file & (~page_mask),
+                        cursor_pos_in_file & page_mask);
+    }();
+    stop_pos_in_file = std::min(filesize, start_pos_in_file + buf_size);
     if (buf.sz > 0)
       cleanup_mmap_fastq(buf);
-    buf = mmap_fastq(fd, start_offset, stop_offset);
+    buf = mmap_fastq(fd, start_pos_in_file, stop_pos_in_file);
   }
 };
 
@@ -184,12 +187,12 @@ struct falco_thread_pool {
 
 struct fastq_gz_file {
   using rec_t = fqrec;
-  std::int64_t buf_size{};
+  std::int64_t buf_size{};  // size of allocated buffer
   std::int64_t filesize{};
   fastq_buffer buf{};
-  std::int64_t start_offset{};
-  std::int64_t stop_offset{};
-  std::int64_t cursor{};
+  std::int64_t start_pos_in_file{};  // file offset for buffer start
+  std::int64_t stop_pos_in_file{};   // file offset for buffer stop
+  std::int64_t cursor{};             // position in buffer
   falco_thread_pool t;
   std::unique_ptr<BGZF, int (*)(BGZF *)> f;
 
@@ -198,7 +201,7 @@ struct fastq_gz_file {
                 const std::uint32_t n_threads = 1) :
     buf_size{buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
-    stop_offset{buf_size},
+    stop_pos_in_file{buf_size},
     t(n_threads),
     f(bgzf_open(std::data(filename), "r"), &bgzf_close)
   {
@@ -216,70 +219,62 @@ struct fastq_gz_file {
 
   ~fastq_gz_file() { delete[] buf.data; }
 
-  [[nodiscard]] operator bool() const { return stop_offset == buf_size; }
+  [[nodiscard]] operator bool() const { return stop_pos_in_file == buf_size; }
 
   auto
   load_next() {
     if (cursor > 0) {
       std::memmove(buf.data, buf.data + cursor, buf.sz - cursor);
-      cursor = buf.sz - cursor;
+      cursor = buf.sz - cursor;  // backup to after previous data
     }
-    start_offset = cursor;
-    const auto n_bytes = buf_size - start_offset;
-    const auto r = bgzf_read(f.get(), buf.data + start_offset, n_bytes);
+    start_pos_in_file = cursor;
+    const auto n_bytes = buf_size - start_pos_in_file;
+    const auto r = bgzf_read(f.get(), buf.data + start_pos_in_file, n_bytes);
     if (r < 0) {
       // ADS: cleanup
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed reading gz input file");
     }
-    stop_offset = r;
-    stop_offset += start_offset;
-    buf.sz = stop_offset;
-    cursor = 0;  // cursor always moves back to zero if buffer is not mmapped
+    stop_pos_in_file = start_pos_in_file + r;
+    buf.sz = stop_pos_in_file;
+    cursor = 0;  // cursor always moves to zero because buffer is not mmapped
   }
 };
 
 [[nodiscard]] static inline auto
 get_chunks_impl(auto &fq, const std::int64_t n_chunks)
   -> std::vector<std::pair<std::int64_t, std::int64_t>> {
-  static constexpr auto lines_per_record = 4;
-  const auto not_read_start = [](const auto &s, const auto p) {
-    return s[p] != '@' || s[p - 1] != '\n' ||
-           (s[p - 2] == '+' && s[p - 3] == '\n');
+  static constexpr auto rec_lines = 4;  // FASTQ
+  // clang-format off
+  const auto not_read_start = [](const auto s, const auto p) {
+    return s[p] != '@' || s[p-1] != '\n' || (s[p-2] == '+' && s[p-3] == '\n');
   };
   const auto fwd_to_read_start = [&](const fastq_buffer &buf, auto x) {
-    while (x < buf.sz && not_read_start(buf.data, x))
-      ++x;
+    if (x == 0) return x;
+    while (x < buf.sz && not_read_start(buf.data, x)) ++x;
     return x;
   };
   const auto rev_to_read_start = [&](const fastq_buffer &buf, auto x) {
-    while (x == buf.sz || not_read_start(buf.data, x))
-      --x;
+    while (x > 0 && (x == buf.sz || not_read_start(buf.data, x))) --x;
     return x;
   };
-  const auto &buf = fq.buf;
-  const auto start_idx = fq.cursor;
-  const auto stop_idx = buf.sz;
-  const auto n_elements = stop_idx - start_idx;
-  const auto q = n_elements / n_chunks;
-  const auto r = n_elements - q * n_chunks;
+  // clang-format on
+  const auto buf = fq.buf;
+  const auto n_bytes_available = buf.sz - fq.cursor;
+  const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   std::vector<std::pair<std::int64_t, std::int64_t>> chunks(n_chunks);
-  std::int64_t block_beg{};
-  for (auto i = 0u; i < n_chunks; ++i) {
-    auto chunk_beg = start_idx + block_beg;
-    chunk_beg = chunk_beg == 0 ? chunk_beg : fwd_to_read_start(buf, chunk_beg);
-    const auto sz = i < r ? q + 1 : q;
-    const auto block_end = block_beg + sz;
-    const auto chunk_end =
-      fwd_to_read_start(buf, std::max(chunk_beg, start_idx + block_end));
-    chunks[i] = {chunk_beg, chunk_end};
-    block_beg = block_end;
+  std::int64_t start_pos = fq.cursor;
+  for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
+    const auto chunk_beg = fwd_to_read_start(buf, start_pos);
+    const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
+    const auto chunk_end = fwd_to_read_start(buf, stop_pos);
+    chunks[chunk_idx] = {chunk_beg, chunk_end};
+    start_pos = stop_pos;
   }
-  const auto prev_read_start = rev_to_read_start(buf, chunks.back().second);
-  const auto lines_remaining =
-    std::ranges::count(buf.data + prev_read_start, buf.data + buf.sz, '\n');
-  if (lines_remaining < lines_per_record)
-    chunks.back().second = prev_read_start;
+  // make sure final chunk includes only full records
+  const auto prev_start = rev_to_read_start(buf, chunks.back().second);
+  if (std::count(buf.data + prev_start, buf.data + buf.sz, '\n') < rec_lines)
+    chunks.back().second = prev_start;
   fq.cursor = chunks.back().second;
   return chunks;
 }
@@ -287,11 +282,11 @@ get_chunks_impl(auto &fq, const std::int64_t n_chunks)
 [[nodiscard]] static inline auto
 get_chunks(auto &fq, const std::int64_t n_chunks)
   -> std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> {
-  const auto orig_chunks = get_chunks_impl(fq, n_chunks);
+  const auto idx_chunks = get_chunks_impl(fq, n_chunks);
   const auto buffer = fq.buf.data;
   std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> chunks;
-  for (const auto c : orig_chunks)
-    chunks.emplace_back(buffer + c.first, buffer + c.second);
+  for (const auto idx : idx_chunks)
+    chunks.emplace_back(buffer + idx.first, buffer + idx.second);
   return chunks;
 }
 
