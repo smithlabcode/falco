@@ -332,14 +332,14 @@ format_basic_stats(const auto &filename, const auto n_reads,
   return r;
 }
 
-struct hts_thread_pool_wrapper {
+struct falco_thread_pool {
   htsThreadPool t{};
-  explicit hts_thread_pool_wrapper(const std::uint32_t n_threads) :
+  explicit falco_thread_pool(const std::uint32_t n_threads) :
     t{hts_tpool_init(std::max(1u, n_threads)), 0} {
     if (t.pool == nullptr)
       throw std::runtime_error("failed to construct thread pool");
   }
-  ~hts_thread_pool_wrapper() { hts_tpool_destroy(t.pool); }
+  ~falco_thread_pool() { hts_tpool_destroy(t.pool); }
 };
 
 #endif  // SRC_FALCO_UTILS_HPP_
