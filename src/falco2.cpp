@@ -22,6 +22,7 @@
  */
 
 #include "adapter_matcher.hpp"
+#include "bam_file.hpp"
 #include "duplication_results.hpp"
 #include "falco_file_format.hpp"
 #include "falco_utils.hpp"
@@ -311,6 +312,20 @@ run(const std::string &infile, auto &reads_file, const auto n_threads,
   std::println(out, "{}", results.string());
 }
 
+static auto
+run_selector(const bool do_tiles, const bool do_kmers,
+             const std::string &infile, auto &reads_file, const auto n_threads,
+             const auto &outfile) {
+  if (do_tiles && do_kmers)
+    run<falco_results_tile_kmer>(infile, reads_file, n_threads, outfile);
+  else if (do_tiles)
+    run<falco_results_tile>(infile, reads_file, n_threads, outfile);
+  else if (do_kmers)
+    run<falco_results_kmer>(infile, reads_file, n_threads, outfile);
+  else
+    run<falco_results>(infile, reads_file, n_threads, outfile);
+}
+
 int
 main(int argc, char *argv[]) {
   try {
@@ -358,27 +373,17 @@ main(int argc, char *argv[]) {
     const bool has_tiles = tile_processor::set_preceding_colons(infile);
     do_tiles = do_tiles && has_tiles;
 
-    if (infmt == file_format::fastq_gz) {
+    if (infmt == file_format::bam) {
+      bam_file reads_file(infile, buf_size, n_threads);
+      run_selector(do_tiles, do_kmers, infile, reads_file, n_threads, outfile);
+    }
+    else if (infmt == file_format::fastq_gz) {
       fastq_gz_file reads_file(infile, buf_size, n_threads);
-      if (do_tiles && do_kmers)
-        run<falco_results_tile_kmer>(infile, reads_file, n_threads, outfile);
-      else if (do_tiles)
-        run<falco_results_tile>(infile, reads_file, n_threads, outfile);
-      else if (do_kmers)
-        run<falco_results_kmer>(infile, reads_file, n_threads, outfile);
-      else
-        run<falco_results>(infile, reads_file, n_threads, outfile);
+      run_selector(do_tiles, do_kmers, infile, reads_file, n_threads, outfile);
     }
     else if (infmt == file_format::fastq) {
       fastq_file reads_file(infile, buf_size);
-      if (do_tiles && do_kmers)
-        run<falco_results_tile_kmer>(infile, reads_file, n_threads, outfile);
-      else if (do_tiles)
-        run<falco_results_tile>(infile, reads_file, n_threads, outfile);
-      else if (do_kmers)
-        run<falco_results_kmer>(infile, reads_file, n_threads, outfile);
-      else
-        run<falco_results>(infile, reads_file, n_threads, outfile);
+      run_selector(do_tiles, do_kmers, infile, reads_file, n_threads, outfile);
     }
     else {
       std::println("unsupported file format: {}", infmt_descr);
