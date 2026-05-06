@@ -66,7 +66,7 @@ struct fqrec {
 // clang-format on
 
 [[nodiscard]] inline auto
-get_next(auto &&cursor, const auto end_itr) -> fqrec {
+get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
   // ADS: need to make sure cursor < end_itr or we will move past
   const auto n = cursor;
   auto itr = n + 1;
@@ -170,16 +170,6 @@ struct fastq_file {
   }
 };
 
-struct falco_thread_pool {
-  htsThreadPool t{};
-  explicit falco_thread_pool(const std::uint32_t n_threads) :
-    t{hts_tpool_init(std::max(1u, n_threads)), 0} {
-    if (t.pool == nullptr)
-      throw std::runtime_error("failed to construct thread pool");
-  }
-  ~falco_thread_pool() { hts_tpool_destroy(t.pool); }
-};
-
 struct fastq_gz_file {
   using rec_t = fqrec;
   std::int64_t buf_size{};  // size of allocated buffer
@@ -235,7 +225,7 @@ struct fastq_gz_file {
 };
 
 [[nodiscard]] static inline auto
-get_chunks_impl(auto &fq, const std::int64_t n_chunks)
+get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks)
   -> std::vector<std::pair<std::int64_t, std::int64_t>> {
   static constexpr auto rec_lines = 4;  // FASTQ
   // clang-format off
@@ -273,9 +263,20 @@ get_chunks_impl(auto &fq, const std::int64_t n_chunks)
 }
 
 [[nodiscard]] static inline auto
-get_chunks(auto &fq, const std::int64_t n_chunks)
+get_chunks(fastq_file &fq, const std::int64_t n_chunks)
   -> std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> {
-  const auto idx_chunks = get_chunks_impl(fq, n_chunks);
+  const auto idx_chunks = get_chunks_fastq_impl(fq, n_chunks);
+  const auto buffer = fq.buf.data;
+  std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> chunks;
+  for (const auto idx : idx_chunks)
+    chunks.emplace_back(buffer + idx.first, buffer + idx.second);
+  return chunks;
+}
+
+[[nodiscard]] static inline auto
+get_chunks(fastq_gz_file &fq, const std::int64_t n_chunks)
+  -> std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> {
+  const auto idx_chunks = get_chunks_fastq_impl(fq, n_chunks);
   const auto buffer = fq.buf.data;
   std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> chunks;
   for (const auto idx : idx_chunks)
