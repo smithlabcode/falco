@@ -31,6 +31,7 @@
 #include <format>
 #include <iterator>
 #include <string>
+#include <thread>  // IWYU pragma: keep
 #include <utility>
 #include <vector>
 
