@@ -106,8 +106,8 @@ tile_processor::string(const std::uint32_t len) const -> std::string {
   // auto to_sort = std::ranges::sort(quals | std::views::elements<0> |
   //                                  std::ranges::to<std::vector>());
   for (const auto &[i, q] : quals) {
-    auto idx = 0;
-    for (auto j = 0; j < std::size(q); ++j) {
+    auto idx = 0u;
+    for (auto j = 0u; j < std::size(q); ++j) {
       r += std::format("{}\t{}\t{:.6g}\n", i, j + 1,
                        as_frac(q[j].first, q[j].second));
       if (len > 0 && ++idx == len)

@@ -65,7 +65,7 @@ adapter_matcher::string(const std::uint64_t n_reads,
   const auto mcf = as_frac(mc, n_reads);
   const auto grade = get_grade(grade_cutoffs, mcf);
   auto r = std::format(start_module_tag, grade);
-  for (auto i = 0; i < std::min(n_pos, max_read_len); ++i) {
+  for (auto i = 0u; i < std::min(n_pos, max_read_len); ++i) {
     r += std::format("{}", i + 1);
     for (const auto c : adapter_counts[i])
       // cppcheck-suppress useStlAlgorithm

@@ -163,7 +163,8 @@ struct bam_buffer {
 };
 
 [[nodiscard]] inline auto
-get_next(bamrec::pos_t &cursor, const bamrec::pos_t end_itr) -> bamrec {
+get_next(bamrec::pos_t &cursor,
+         [[maybe_unused]] const bamrec::pos_t end_itr) -> bamrec {
   auto tmp = cursor;
   ++cursor;
   return bamrec(*tmp);
@@ -206,8 +207,8 @@ struct bam_file {
     const auto align = [](const auto l) {
       return static_cast<std::uint32_t>(l + 7) & ~7u;
     };
-    auto n_bytes = 0;
-    auto n_recs = 0;
+    auto n_bytes = 0u;
+    auto n_recs = 0u;
     // ADS: if data buffer capacity exceeded, BAM_USER_OWNS_DATA check fails and
     // loop terminates
     while (n_recs < std::size(buf.recs)) {

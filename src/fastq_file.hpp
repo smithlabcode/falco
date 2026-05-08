@@ -268,7 +268,7 @@ get_chunks(fastq_file &fq, const std::int64_t n_chunks)
   const auto idx_chunks = get_chunks_fastq_impl(fq, n_chunks);
   const auto buffer = fq.buf.data;
   std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> chunks;
-  for (const auto idx : idx_chunks)
+  for (const auto &idx : idx_chunks)
     chunks.emplace_back(buffer + idx.first, buffer + idx.second);
   return chunks;
 }
@@ -279,7 +279,7 @@ get_chunks(fastq_gz_file &fq, const std::int64_t n_chunks)
   const auto idx_chunks = get_chunks_fastq_impl(fq, n_chunks);
   const auto buffer = fq.buf.data;
   std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> chunks;
-  for (const auto idx : idx_chunks)
+  for (const auto &idx : idx_chunks)
     chunks.emplace_back(buffer + idx.first, buffer + idx.second);
   return chunks;
 }

@@ -67,7 +67,7 @@ struct tile_processor {
   auto
   update_tile_id(const auto name_beg, const auto name_end) {
     auto tile_itr = name_beg;
-    auto colon_count = 0;
+    auto colon_count = 0u;
     while (colon_count < preceding_colons && tile_itr != name_end)
       colon_count += (*tile_itr++ == ':');
     std::uint32_t curr_tile_id{};

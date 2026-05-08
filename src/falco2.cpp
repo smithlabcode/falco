@@ -111,7 +111,7 @@ struct falco_results {
     };
     const auto seq_itr = get_seq(rec);
     const auto seq_end = get_seq_end(rec);
-    const auto read_len = get_seq_size(rec);
+    const auto read_len = static_cast<std::uint32_t>(get_seq_size(rec));
     if (read_len > max_read_len)
       resize(read_len);
     max_read_len = read_len > max_read_len ? read_len : max_read_len;
@@ -124,7 +124,7 @@ struct falco_results {
     const auto qtot =
       count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos) / read_len;
     ++qual_by_read[qtot];
-    count_seqs(seq_itr, read_len, n_reads, dr);
+    count_seqs(seq_itr, read_len, dr);
     am.match_adapters(seq_itr, read_len);
     // NOLINTEND (*-pro-bounds-constant-array-index)
   }
@@ -147,7 +147,7 @@ struct falco_results {
   [[nodiscard]] auto
   fix_nucs_for_ns() const {  // Ns were counted among the C in nucs
     auto nucs_no_n = nucs;
-    for (auto i = 0; i < std::size(nucs_no_n); ++i)
+    for (auto i = 0u; i < std::size(nucs_no_n); ++i)
       nucs_no_n[i][3] -= n_counts[i];
     return nucs_no_n;
   };
@@ -233,7 +233,7 @@ struct falco_results_kmer : public falco_results {
   process_one_read_impl(const auto &rec) {
     falco_results::process_one_read_impl(rec);
     if (n_reads == kc.next_kmer_read) {
-      kc.count_kmers(n_reads, get_seq(rec), get_seq_size(rec));
+      kc.count_kmers(get_seq(rec), get_seq_size(rec));
       kc.next_kmer_read += kmer_counter::kmer_step;
     }
   }
@@ -266,7 +266,7 @@ struct falco_results_tile_kmer : public falco_results_tile {
   process_one_read_impl(const auto &rec) {
     falco_results_tile::process_one_read_impl(rec);
     if (n_reads == kc.next_kmer_read) {
-      kc.count_kmers(n_reads, get_seq(rec), get_seq_size(rec));
+      kc.count_kmers(get_seq(rec), get_seq_size(rec));
       kc.next_kmer_read += kmer_counter::kmer_step;
     }
   }

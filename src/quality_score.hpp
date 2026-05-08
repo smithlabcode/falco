@@ -63,7 +63,7 @@ identify_quality_score_idx(const auto &qual_counts) {
   // now find the index among minimum values for formats
   const auto itr = std::ranges::upper_bound(falco::min_qual_cutoffs, min_qual);
   auto idx = std::distance(std::cbegin(falco::min_qual_cutoffs), itr);
-  if (idx == std::size(falco::min_qual_cutoffs))
+  if (idx == std::ssize(falco::min_qual_cutoffs))
     --idx;
   return idx;
 }

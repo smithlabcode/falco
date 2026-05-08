@@ -76,8 +76,7 @@ struct std::formatter<duplication_results> : std::formatter<std::string> {
 };
 
 inline auto
-count_seqs_add(const auto seq_itr, const auto sz, const auto n_reads,
-               duplication_results &dr) {
+count_seqs_add(const auto seq_itr, const auto sz, duplication_results &dr) {
   const auto fw = falco_word(seq_itr, sz);
   const auto itr = dr.dups.find(fw);
   if (itr != std::cend(dr.dups)) {
@@ -92,8 +91,7 @@ count_seqs_add(const auto seq_itr, const auto sz, const auto n_reads,
 }
 
 inline auto
-count_seqs_dups(const auto seq_itr, const auto sz, const auto n_reads,
-                duplication_results &dr) {
+count_seqs_dups(const auto seq_itr, const auto sz, duplication_results &dr) {
   const auto fw = falco_word(seq_itr, sz);
   const auto itr = dr.dups.find(fw);
   if (itr != std::cend(dr.dups))
@@ -101,12 +99,11 @@ count_seqs_dups(const auto seq_itr, const auto sz, const auto n_reads,
 }
 
 inline auto
-count_seqs(const auto seq_itr, const auto sz, const auto n_reads,
-           duplication_results &dr) {
+count_seqs(const auto seq_itr, const auto sz, duplication_results &dr) {
   if (dr.add_unique_seqs)
-    count_seqs_add(seq_itr, sz, n_reads, dr);
+    count_seqs_add(seq_itr, sz, dr);
   else
-    count_seqs_dups(seq_itr, sz, n_reads, dr);
+    count_seqs_dups(seq_itr, sz, dr);
 }
 
 #endif  // SRC_DUPLICATION_RESULTS_HPP_

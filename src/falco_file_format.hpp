@@ -64,8 +64,7 @@ template <> struct std::formatter<file_format> : std::formatter<std::string> {
 
 [[nodiscard]] consteval auto
 is_sequence_data(const auto hts_fp) -> bool {
-  return htsFormatCategory(hts_get_format(hts_fp)->format) ==
-         static_cast<const htsFormatCategory>(sequence_data);
+  return htsFormatCategory(hts_get_format(hts_fp)->format) == sequence_data;
 }
 
 [[nodiscard]] consteval auto

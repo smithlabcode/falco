@@ -204,7 +204,7 @@ format_read_lengths(const auto &lengths, const auto max_read_len) {
   static constexpr auto header = "#Length Count\n";
   auto r = std::format(start_tag, "pass");
   r += header;
-  for (auto i = 0; i <= max_read_len; ++i)
+  for (auto i = 0u; i <= max_read_len; ++i)
     if (lengths[i] > 0)
       r += std::format("{}\t{}\n", i, lengths[i]);
   r += end_module_tag;
@@ -217,7 +217,7 @@ format_gc_content(const auto &gc_content, const auto max_read_len) {
   static constexpr auto header = "#GC\tContent\tCount\n";
   auto r = std::format(start_tag, "pass");
   r += header;
-  for (auto i = 0; i < max_read_len; ++i)
+  for (auto i = 0u; i < max_read_len; ++i)
     r += std::format("{}\t{}\n", i + 1, gc_content[i]);
   r += end_module_tag;
   return r;
@@ -230,7 +230,7 @@ format_base_composition(const auto &nucs, const auto max_read_len) {
   static constexpr auto base_permutation = {3, 0, 2, 1};
   auto r = std::format(start_tag, "fail");
   r += header;
-  for (auto i = 0; i < max_read_len; ++i) {
+  for (auto i = 0u; i < max_read_len; ++i) {
     r += std::format("{}", i + 1);
     const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
     for (const auto j : base_permutation)
@@ -249,7 +249,7 @@ format_n_counts(const auto &n_counts, const auto &nucs,
   static constexpr auto header = "#Base\tN-Count\n";
   auto r = std::format(start_tag, "pass");
   r += header;
-  for (auto i = 0; i < max_read_len; ++i) {
+  for (auto i = 0u; i < max_read_len; ++i) {
     const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
     r += std::format("{}\t{:.6g}\n", i + 1, pct(as_frac(n_counts[i], tot)));
   }
@@ -293,7 +293,7 @@ get_grade_qual_by_pos(const auto &qual, const auto max_read_len) {
     std::pair{1.00, "pass"},
   };
   auto min_qual_median = 1.0;
-  for (const auto q : qual | std::views::take(max_read_len)) {
+  for (const auto &q : qual | std::views::take(max_read_len)) {
     const auto quantiles = five_quants(q);
     // ADS: lower quartile to ensure enough data?
     const auto median =
@@ -321,7 +321,7 @@ format_qual_by_pos(const auto &qual, const auto max_read_len,
   };
   auto r = std::format(start_tag, get_grade_qual_by_pos(qual, max_read_len));
   r += header;
-  for (auto i = 0; i < max_read_len; ++i) {
+  for (auto i = 0u; i < max_read_len; ++i) {
     const auto q = sub_from_each(five_quants(qual[i]), min_qual_val);
     r += std::format("{}\t{:.6g}\t{}\n", i + 1,
                      mean_tabular(qual[i]) - min_qual_val, tab_sep(q));
@@ -336,7 +336,7 @@ format_basic_stats(const auto &filename, const auto n_reads,
                    const auto total_nucs, const auto &encoding) {
   static constexpr auto start_tag = "##Falco {}\n>>Basic Statistics\n";
   static constexpr auto header = "#Measure\tValue\n";
-  auto r = std::format("##Falco {}\n", VERSION);
+  auto r = std::format(start_tag, VERSION);
   r += header;
   r += std::format("Filename\t{}\n", filename);
   const auto [_, file_type] = get_file_format(filename);

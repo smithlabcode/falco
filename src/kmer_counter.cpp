@@ -35,7 +35,8 @@ kmer_counter::operator+=(const kmer_counter &rhs) -> const kmer_counter & {
 }
 
 [[nodiscard]] auto
-kmer_counter::string(const std::uint64_t n_reads) const -> std::string {
+kmer_counter::string([[maybe_unused]] const std::uint64_t n_reads) const
+  -> std::string {
   auto r = std::format(">>Kmer Content\t{}\n", "pass");
   auto total_kmer_count = 0ul;
   for (const auto &c : kmer_counts)
