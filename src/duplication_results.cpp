@@ -48,7 +48,6 @@ duplication_results::operator+=(const duplication_results &rhs)
 [[nodiscard]] auto
 duplication_results::format_overrepresented(const std::uint64_t n_reads) const
   -> std::string {
-  // overrepresented sequences
   auto r = std::format(">>Overrepresented sequences\t{}\n", "warn");
   // Keep only sequences that pass the input cutoff
   auto overrep_seqs = std::vector<std::pair<std::uint64_t, falco_word>>{};
@@ -87,10 +86,34 @@ duplication_results::summarize() {
 }
 
 [[nodiscard]] auto
-duplication_results::string() const -> std::string {
-  return std::format(">>Sequence Duplication Levels\t{}\n", "fail") +
-         std::format("n_unique: {}\n"
-                     "limit_count: {}\n",
-                     n_unique, limit_count) +
-         end_module_tag;
+duplication_results::format_duplication_levels() const -> std::string {
+  static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
+                                    "#Total Deduplicated Percentage\t{}\n";
+  static constexpr auto header = "#Duplication Level\t"
+                                 "Percentage of deduplicated\t"
+                                 "Percentage of total\n";
+  auto r = std::format(start_tag, "pass", 0.0);
+  r += header;
+
+  auto max_count = 0ul;
+  for (const auto &[_, seq_count] : dups)
+    max_count = std::max(max_count, seq_count);
+
+  std::vector<std::uint64_t> hist(max_count + 1);
+  for (const auto &[_, seq_count] : dups)
+    ++hist[seq_count];
+
+  auto seq_total = 0ul;
+  auto seq_dedup = 0ul;
+  for (const auto [times_duped, n_unique] : std::views::enumerate(hist)) {
+    seq_total += times_duped * n_unique;
+    seq_dedup += n_unique;
+  }
+
+  for (auto i = 0u; i <= max_count; ++i)
+    if (hist[i] > 0)
+      r +=
+        std::format("{}\t{}\t{:.6g}\t{:.6g}\n", i, hist[i],
+                    as_frac(hist[i], seq_total), as_frac(hist[i], seq_dedup));
+  return r;
 }

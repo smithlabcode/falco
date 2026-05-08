@@ -47,7 +47,7 @@ struct duplication_results {
     std::pair{1.00, "error"},
   };
 
-  static constexpr auto overrepresented_cutoff = 0.001;
+  static constexpr auto overrepresented_cutoff = 0.01;
   // only count first 100k unique sequences
   static constexpr auto max_unique{100'000};
   std::unordered_map<falco_word, std::uint64_t> dups;
@@ -55,14 +55,14 @@ struct duplication_results {
   std::uint64_t n_unique{};
   std::uint64_t limit_count{};
 
-  [[nodiscard]] auto
-  string() const -> std::string;
-
   auto
   summarize();
 
   [[nodiscard]] auto
   format_overrepresented(const std::uint64_t n_reads) const -> std::string;
+
+  [[nodiscard]] auto
+  format_duplication_levels() const -> std::string;
 
   auto
   operator+=(const duplication_results &rhs) -> const duplication_results &;
@@ -72,7 +72,8 @@ template <>
 struct std::formatter<duplication_results> : std::formatter<std::string> {
   auto
   format(const duplication_results &dr, auto &ctx) const {
-    return std::formatter<std::string>::format(dr.string(), ctx);
+    return std::formatter<std::string>::format(dr.format_duplication_levels(),
+                                               ctx);
   }
 };
 
