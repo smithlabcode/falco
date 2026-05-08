@@ -65,7 +65,7 @@ struct bam_seq_itr {
   // ADS: this class exists to model a char * as is used for the read sequence
   // in the case of FASTQ files. It doesn't have all the functions usually
   // defined for iterators, but this is by design.
-  std::uint8_t *p{};
+  const std::uint8_t *p{};
   std::uint64_t i{};
   explicit bam_seq_itr(const auto p) : p{p} {}
   [[nodiscard]] auto operator<=>(const bam_seq_itr &) const = default;
@@ -91,9 +91,9 @@ struct bamrec {
   using pos_t = std::vector<bam1_t>::const_iterator;
   std::int32_t l_qname{};
   std::int32_t l_qseq{};
-  char *n{};
-  std::uint8_t *r{};
-  std::uint8_t *q{};
+  const char *n{};
+  const std::uint8_t *r{};
+  const std::uint8_t *q{};
   bamrec() = default;
   bamrec(const bam1_t &b) :
     l_qname{b.core.l_qname},
@@ -117,15 +117,9 @@ struct bamrec {
 [[nodiscard]] constexpr auto get_qual_size(const bamrec &rec) { return rec.l_qseq; }
 // clang-format on
 
-[[nodiscard]] inline auto
-get_next(bamrec::pos_t &cursor, const bamrec::pos_t end_itr) -> bamrec {
-  auto tmp = cursor;
-  ++cursor;
-  return bamrec(*tmp);
-}
-
 [[nodiscard]] auto
 to_string(const bamrec &b) {
+  // converts the bam record to FASTQ format for visualization
   static constexpr auto quality_score_offset = 33;
   static constexpr auto other = "\n+\n";
   static constexpr auto qual_missing_code = 0xff;  // from sam.c
@@ -168,6 +162,13 @@ struct bam_buffer {
   // clang-format on
 };
 
+[[nodiscard]] inline auto
+get_next(bamrec::pos_t &cursor, const bamrec::pos_t end_itr) -> bamrec {
+  auto tmp = cursor;
+  ++cursor;
+  return bamrec(*tmp);
+}
+
 struct bam_file {
   using rec_t = bamrec;
   static constexpr auto min_buf_size = 16 * 4096;
@@ -201,7 +202,7 @@ struct bam_file {
 
   auto
   load_next() -> const bam_file & {
-    // ADS: make sure the buffer starts at the proper alignment
+    // ADS: need to make sure the buffer starts at the proper alignment
     const auto align = [](const auto l) {
       return static_cast<std::uint32_t>(l + 7) & ~7u;
     };
@@ -238,27 +239,17 @@ struct bam_file {
 };
 
 [[nodiscard]] static inline auto
-get_chunks_bam_impl(const auto n_elements, const auto n_chunks)
-  -> std::vector<std::pair<std::uint32_t, std::uint32_t>> {
-  std::vector<std::pair<std::uint32_t, std::uint32_t>> chunks(n_chunks);
-  const auto [chunk_size, remainder] = std::div(n_elements, n_chunks);
-  auto start_pos = 0;
-  for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
-    const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
-    chunks[chunk_idx] = {start_pos, stop_pos};
-    start_pos = stop_pos;
-  }
-  return chunks;
-}
-
-[[nodiscard]] static inline auto
 get_chunks(const bam_file &bf, const std::int32_t n_chunks)
   -> std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>> {
-  const auto idx_chunks = get_chunks_bam_impl(bf.buf.n_recs, n_chunks);
+  const auto [chunk_size, remainder] = std::div(bf.buf.n_recs, n_chunks);
   const auto buffer = std::cbegin(bf.buf);
+  auto start_pos = 0;
   std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>> chunks;
-  for (const auto idx : idx_chunks)
-    chunks.emplace_back(buffer + idx.first, buffer + idx.second);
+  for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
+    const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
+    chunks[chunk_idx] = {buffer + start_pos, buffer + stop_pos};
+    start_pos = stop_pos;
+  }
   return chunks;
 }
 
