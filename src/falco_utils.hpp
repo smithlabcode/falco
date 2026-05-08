@@ -218,6 +218,7 @@ format_gc_content(const auto &gc_content, const auto max_read_len) {
   auto r = std::format(start_tag, "pass");
   r += header;
   for (auto i = 0u; i < max_read_len; ++i)
+    // cppcheck-suppress useStlAlgorithm
     r += std::format("{}\t{}\n", i + 1, gc_content[i]);
   r += end_module_tag;
   return r;
@@ -268,6 +269,7 @@ format_qual_by_read(const auto &qual_by_read) {
   // output starting at qual_offset; that's where they are relevant
   const auto qual_offset = identify_quality_score_offset(qual_by_read);
   for (const auto i : std::views::iota(qual_offset, falco::max_qual_val))
+    // cppcheck-suppress useStlAlgorithm
     r += std::format("{}\t{:.6g}\n", i, as_frac(qual_by_read[i], qual_tot));
   r += end_module_tag;
   return r;
@@ -312,6 +314,7 @@ format_qual_by_pos(const auto &qual, const auto max_read_len,
   const auto tab_sep = [](const auto &a) {
     auto r = std::string{};
     for (const auto &value : a | std::views::take(std::size(a) - 1))
+      // cppcheck-suppress useStlAlgorithm
       r += std::format("{}\t", value);
     return r + std::format("{}", a.back());
   };
@@ -334,9 +337,9 @@ format_qual_by_pos(const auto &qual, const auto max_read_len,
 format_basic_stats(const auto &filename, const auto n_reads,
                    const auto max_read_len, const auto total_gc,
                    const auto total_nucs, const auto &encoding) {
-  static constexpr auto start_tag = "##Falco {}\n>>Basic Statistics\n";
+  static constexpr auto start_tag = "##Falco {}\n>>Basic Statistics\t{}\n";
   static constexpr auto header = "#Measure\tValue\n";
-  auto r = std::format(start_tag, VERSION);
+  auto r = std::format(start_tag, VERSION, "pass");
   r += header;
   r += std::format("Filename\t{}\n", filename);
   const auto [_, file_type] = get_file_format(filename);
