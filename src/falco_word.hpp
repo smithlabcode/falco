@@ -31,25 +31,32 @@
 #include <ranges>
 #include <string>
 
+// conversion for kmers to include 'N'
+// N (78)10 = (1001110)2 => 100
+// A (65)10 = (1000001)2 => 011
+// C (67)10 = (1000011)2 => 010
+// G (71)10 = (1000111)2 => 000
+// T (84)10 = (1010100)2 => 001
+
 struct falco_word {
   static constexpr auto shift_for_width_bits = 56u;
-  static constexpr auto bits_per_base = 2u;
-  static constexpr auto mask = 3u;
-  static constexpr auto max_lo_lim = 32u;
-  static constexpr auto max_hi_lim = 56u;
+  static constexpr auto width_bits_removal_mask = 0xffffffffffffff;
+  static constexpr auto max_lo_lim = 27u;
+  static constexpr auto max_hi_lim = 51u;
   std::uint64_t lo{};
   std::uint64_t hi{};
 
   [[nodiscard]] auto
   operator<=>(const falco_word &) const = default;
 
-  falco_word(auto b, const std::uint64_t w) {
+  falco_word(auto b, std::uint64_t w) {
     static constexpr auto fw_encode = [](const auto c) {
-      return (c >> 1) & mask;  // Ns are counted as G
+      return ((c >> 1) & 7) ^ 3;
     };
     static const auto enc_shift = [&](auto &x, auto &c) {
-      x = (x << bits_per_base) | fw_encode(*c++);
+      x = (x * 5) + fw_encode(*c++);
     };
+    w = w < max_hi_lim ? w : max_hi_lim;
     const auto lo_lim = b + (w > max_lo_lim ? max_lo_lim : w);
     const auto hi_lim = b + (w < max_hi_lim ? w : max_hi_lim);
     while (b < lo_lim)
@@ -61,10 +68,12 @@ struct falco_word {
 
   [[nodiscard]] static auto
   string_impl(auto word, auto n_bases) {
-    static constexpr auto bases = "ACTG";
+    static constexpr auto bases = "GTCAN";
     std::string r;
-    for (auto i = 0u; i < n_bases; ++i, word >>= bits_per_base)
-      r += bases[word & mask];
+    for (auto i = 0u; i < n_bases; ++i) {
+      r += bases[word % 5];
+      word /= 5;
+    }
     return r;
   }
 
@@ -73,16 +82,18 @@ struct falco_word {
     const std::uint32_t n_bases = (hi >> shift_for_width_bits);
     auto r_lo = string_impl(lo, std::min(n_bases, max_lo_lim));
     std::ranges::reverse(r_lo);
-    auto r_hi = string_impl(hi, n_bases - std::min(n_bases, max_lo_lim));
+    const auto hi_clean = hi & width_bits_removal_mask;
+    auto r_hi = string_impl(hi_clean, n_bases - std::min(n_bases, max_lo_lim));
     std::ranges::reverse(r_hi);
     return r_lo + r_hi;
   }
 
   [[nodiscard]] auto
   hash() const noexcept {
+    static constexpr auto magic = 0x517cc1b727220a95;
     static constexpr auto hashfun = std::hash<std::uint64_t>{};
     const auto h = hashfun(lo);
-    return h ^ ((hashfun(hi) + 0x517cc1b727220a95) + (h << 6) + (h >> 2));
+    return h ^ ((hashfun(hi) + magic) + (h << 6) + (h >> 2));
   }
 };
 
