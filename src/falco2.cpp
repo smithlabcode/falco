@@ -108,6 +108,9 @@ struct falco_results {
 
   // clang-format off
   [[nodiscard]] auto get_seq_begin_make(const fqrec &rec) { return get_seq(rec); }
+  [[nodiscard]] auto get_seq_begin(const fqrec &rec) { return get_seq(rec); }
+  // clang-format on
+
   [[nodiscard]] auto
   get_seq_begin_make(const bamrec &rec) {
     auto itr = std::begin(seq);
@@ -117,9 +120,10 @@ struct falco_results {
       *itr++ = *rec_seq_itr++;
     return std::data(seq);
   }
-  [[nodiscard]] auto get_seq_begin(const fqrec &rec) { return get_seq(rec); }
-  [[nodiscard]] auto get_seq_begin([[maybe_unused]] const bamrec &rec) { return std::cbegin(seq); }
-  // clang-format on
+  [[nodiscard]] auto
+  get_seq_begin([[maybe_unused]] const bamrec &rec) {
+    return std::cbegin(seq);
+  }
 
   auto
   process_one_read_impl(const auto &rec) {

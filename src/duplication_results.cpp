@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <format>
 #include <functional>
+#include <ranges>
 #include <string>
 #include <unordered_map>
 #include <vector>

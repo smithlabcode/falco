@@ -26,7 +26,6 @@
 
 #include <array>
 #include <cstdint>
-#include <utility>
 #include <vector>
 
 auto
