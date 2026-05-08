@@ -27,10 +27,10 @@
 #include "falco_file_format.hpp"
 #include "quality_score.hpp"
 
+#include <config.h>
+
 #include <htslib/hts.h>
 #include <htslib/thread_pool.h>
-
-#include <config.h>
 
 #include <algorithm>
 #include <array>
@@ -39,6 +39,24 @@
 #include <numeric>
 #include <ranges>
 #include <vector>
+
+struct run_mode {
+  bool do_tiles{};
+  bool do_kmers{};
+
+  // clang-format off
+  auto tiles(const bool x) { do_tiles = x; }
+  [[nodiscard]] auto tiles() const { return do_tiles; }
+  auto kmers(const bool x) { do_kmers = x; }
+  [[nodiscard]] auto kmers() const { return do_kmers; }
+  [[nodiscard]] auto string() const -> std::string { return {}; }
+  // clang-format on
+};
+
+// clang-format off
+[[nodiscard]] constexpr inline auto tiles(const run_mode &rm) { return rm.tiles(); }
+[[nodiscard]] constexpr inline auto kmers(const run_mode &rm) { return rm.kmers(); }
+// clang-format on
 
 inline constexpr auto end_module_tag = ">>END_MODULE\n";
 
