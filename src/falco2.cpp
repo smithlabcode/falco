@@ -68,6 +68,7 @@ struct falco_results {
   std::array<std::uint64_t, falco::max_qual_val> qual_by_read{};
   duplication_results dr;
   adapter_matcher am;
+  std::string seq;
   std::string filename;
 
   // clang-format off
@@ -105,19 +106,39 @@ struct falco_results {
     }
   }
 
+  // clang-format off
+  [[nodiscard]] auto get_seq_begin_make(const fqrec &rec) { return get_seq(rec); }
+  [[nodiscard]] auto
+  get_seq_begin_make(const bamrec &rec) {
+    auto itr = std::begin(seq);
+    auto rec_seq_itr = get_seq(rec);
+    const auto rec_seq_end = get_seq_end(rec);
+    while (rec_seq_itr != rec_seq_end)
+      *itr++ = *rec_seq_itr++;
+    return std::data(seq);
+  }
+  [[nodiscard]] auto get_seq_begin(const fqrec &rec) { return get_seq(rec); }
+  [[nodiscard]] auto get_seq_begin([[maybe_unused]] const bamrec &rec) { return std::cbegin(seq); }
+  // clang-format on
+
   auto
   process_one_read_impl(const auto &rec) {
     // NOLINTBEGIN (*-pro-bounds-constant-array-index)
     static constexpr auto pct_int = [](const auto a, const auto b) {
       return (100 * a) / b;  // NOLINT (cppcoreguidelines-avoid-magic-numbers)
     };
-    const auto seq_itr = get_seq(rec);
-    const auto seq_end = get_seq_end(rec);
     const auto read_len = static_cast<std::uint32_t>(get_seq_size(rec));
-    if (read_len > max_read_len)
-      resize(read_len);
-    max_read_len = read_len > max_read_len ? read_len : max_read_len;
     ++lengths[read_len];
+    if (read_len == 0) [[unlikely]]
+      return;
+    if (read_len > max_read_len) {
+      resize(read_len);
+      if constexpr (std::is_same_v<std::decay_t<decltype(rec)>, bamrec>)
+        seq.resize(read_len);
+    }
+    max_read_len = read_len > max_read_len ? read_len : max_read_len;
+    const auto seq_itr = get_seq_begin_make(rec);
+    const auto seq_end = seq_itr + read_len;
     count_nucs(seq_itr, seq_end, nucs);
     const auto curr_gc = count_gc(seq_itr, seq_end);
     ++gcs[pct_int(curr_gc, read_len)];
@@ -235,7 +256,8 @@ struct falco_results_kmer : public falco_results {
   process_one_read_impl(const auto &rec) {
     falco_results::process_one_read_impl(rec);
     if (n_reads == kc.next_kmer_read) {
-      kc.count_kmers(get_seq(rec), get_seq_size(rec));
+      const auto seq_itr = get_seq_begin(rec);
+      kc.count_kmers(seq_itr, get_seq_size(rec));
       kc.next_kmer_read += kmer_counter::kmer_step;
     }
   }
@@ -268,7 +290,8 @@ struct falco_results_tile_kmer : public falco_results_tile {
   process_one_read_impl(const auto &rec) {
     falco_results_tile::process_one_read_impl(rec);
     if (n_reads == kc.next_kmer_read) {
-      kc.count_kmers(get_seq(rec), get_seq_size(rec));
+      const auto seq_itr = get_seq_begin(rec);
+      kc.count_kmers(seq_itr, get_seq_size(rec));
       kc.next_kmer_read += kmer_counter::kmer_step;
     }
   }
