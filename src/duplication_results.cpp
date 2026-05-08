@@ -48,41 +48,22 @@ duplication_results::operator+=(const duplication_results &rhs)
 [[nodiscard]] auto
 duplication_results::format_overrepresented(const std::uint64_t n_reads) const
   -> std::string {
-  auto r = std::format(">>Overrepresented sequences\t{}\n", "warn");
-  // Keep only sequences that pass the input cutoff
-  auto overrep_seqs = std::vector<std::pair<std::uint64_t, falco_word>>{};
-  const auto overrep = static_cast<std::uint64_t>(
-    // NOLINTNEXTLINE (cppcoreguidelines-narrowing-conversions)
-    n_reads * duplication_results::overrepresented_cutoff);
+  static constexpr auto start_tag = ">>Overrepresented sequences\t{}\n";
+  static constexpr auto header =
+    "#Sequence\tCount\tPercentage\tPossible Source\n";
+  auto r = std::format(start_tag, "warn");
+  r += header;
+  const auto cutoff =
+    static_cast<double>(n_reads) * duplication_results::overrepresented_cutoff;
+  std::vector<std::pair<std::uint64_t, falco_word>> overrep_seqs;
   for (const auto &[seq, seq_count] : dups)
-    if (seq_count > overrep)
+    if (seq_count >= cutoff)
       overrep_seqs.emplace_back(seq_count, seq);
   std::ranges::sort(overrep_seqs, std::greater{});
   for (const auto &[seq_count, seq] : overrep_seqs)
     r += std::format("{}\t{}\t{}\n", seq, seq_count,
                      pct(as_frac(seq_count, n_reads)));
   return r + end_module_tag;
-}
-
-auto
-duplication_results::summarize() {
-  // Remove all but the top max_unique sequences
-  const auto dups_sz = std::size(dups);
-  if (dups_sz <= max_unique)
-    return;
-  std::vector<std::uint32_t> counter;
-  counter.resize(dups_sz);
-  std::ranges::transform(dups, std::begin(counter),
-                         [](const auto &d) { return d.second; });
-  std::ranges::sort(counter, std::ranges::greater{});
-  const auto cutoff = counter[max_unique];
-  auto dups_itr = std::cbegin(dups);
-  while (dups_itr != std::cend(dups))
-    if (dups_itr->second <= cutoff)
-      dups_itr = dups.erase(dups_itr);
-    else
-      ++dups_itr;
-  n_unique = std::size(dups);
 }
 
 [[nodiscard]] auto
@@ -100,20 +81,19 @@ duplication_results::format_duplication_levels() const -> std::string {
     max_count = std::max(max_count, seq_count);
 
   std::vector<std::uint64_t> hist(max_count + 1);
-  for (const auto &[_, seq_count] : dups)
+  for (const auto seq_count : dups | std::views::elements<1>)
     ++hist[seq_count];
 
   auto seq_total = 0ul;
   auto seq_dedup = 0ul;
-  for (const auto [times_duped, n_unique] : std::views::enumerate(hist)) {
-    seq_total += times_duped * n_unique;
-    seq_dedup += n_unique;
+  for (const auto [times_duped, seq_count] : std::views::enumerate(hist)) {
+    seq_total += times_duped * seq_count;
+    seq_dedup += seq_count;
   }
 
-  for (auto i = 0u; i <= max_count; ++i)
-    if (hist[i] > 0)
-      r +=
-        std::format("{}\t{}\t{:.6g}\t{:.6g}\n", i, hist[i],
-                    as_frac(hist[i], seq_total), as_frac(hist[i], seq_dedup));
+  static constexpr auto fmt = "{}\t{}\t{:.6g}\t{:.6g}\n";
+  for (const auto [i, h] : std::views::enumerate(hist))
+    if (h > 0)
+      r += std::format(fmt, i, h, as_frac(h, seq_dedup), as_frac(h, seq_total));
   return r;
 }

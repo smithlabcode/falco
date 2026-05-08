@@ -47,16 +47,13 @@ struct duplication_results {
     std::pair{1.00, "error"},
   };
 
-  static constexpr auto overrepresented_cutoff = 0.01;
+  static constexpr auto overrepresented_cutoff = 0.001;
   // only count first 100k unique sequences
   static constexpr auto max_unique{100'000};
   std::unordered_map<falco_word, std::uint64_t> dups;
   bool add_unique_seqs{true};
   std::uint64_t n_unique{};
   std::uint64_t limit_count{};
-
-  auto
-  summarize();
 
   [[nodiscard]] auto
   format_overrepresented(const std::uint64_t n_reads) const -> std::string;
