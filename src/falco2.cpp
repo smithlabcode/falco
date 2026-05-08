@@ -179,7 +179,7 @@ struct falco_results {
     r += format_gc_content(gcs, max_read_len);              // GC content
     r += format_n_counts(n_counts, nucs, max_read_len);     // N content
     r += format_read_lengths(lengths, max_read_len);        // read lengths
-    r += dr.string();                         // duplication results
+    r += dr.format_duplication_levels();      // duplication results
     r += dr.format_overrepresented(n_reads);  // overrepresented sequences
     r += am.string(n_reads, max_read_len);    // adapter content
     return r;
