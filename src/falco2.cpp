@@ -298,7 +298,7 @@ run(const std::string &infile, auto &reads_file, const auto n_threads,
     const auto chunks = get_chunks(reads_file, n_threads);
     {
       std::vector<std::jthread> workers;
-      for (auto th_id = 0; th_id < n_threads; ++th_id)
+      for (auto th_id = 0u; th_id < n_threads; ++th_id)
         // NOLINTNEXTLINE (performance-inefficient-vector-operation)
         workers.emplace_back([&, th_id] {
           fr[th_id].template process_reads<rec_t>(chunks[th_id].first,
@@ -333,8 +333,8 @@ main(int argc, char *argv[]) {
     static constexpr auto buf_size_defulat = 512 * 1024 * 1024;
     std::string infile;
     std::string outfile;
-    std::int64_t buf_size{buf_size_defulat};
-    std::int64_t n_threads{1};
+    std::int32_t buf_size{buf_size_defulat};
+    std::uint32_t n_threads{1};
 
     bool do_tiles{true};
     bool do_kmers{};
