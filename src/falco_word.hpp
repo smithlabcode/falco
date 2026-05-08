@@ -45,7 +45,7 @@ struct falco_word {
 
   falco_word(auto b, const std::uint64_t w) {
     static constexpr auto fw_encode = [](const auto c) {
-      return (c >> 1) & mask;  // Ns are counted as G so must be subtracted
+      return (c >> 1) & mask;  // Ns are counted as G
     };
     static const auto enc_shift = [&](auto &x, auto &c) {
       x = (x << bits_per_base) | fw_encode(*c++);
