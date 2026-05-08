@@ -95,7 +95,7 @@ struct bamrec {
   const std::uint8_t *r{};
   const std::uint8_t *q{};
   bamrec() = default;
-  bamrec(const bam1_t &b) :
+  explicit bamrec(const bam1_t &b) :
     l_qname{b.core.l_qname},
     l_qseq{b.core.l_qseq},
     n{bam_get_qname(&b)},
@@ -149,7 +149,7 @@ struct bam_buffer {
   // is not aligned to 8 bytes, but I can't find a reason to assume this happens
   std::vector<std::uint8_t, aligned_allocator<std::uint8_t>> data;
   // clang-format off
-  bam_buffer(const std::int32_t buf_size) :
+  explicit bam_buffer(const std::int32_t buf_size) :
     n_recs{buf_size / (bam1_t_size + min_bytes_per_record)},
     n_bytes{buf_size - n_recs * bam1_t_size},
     recs(n_recs),
@@ -245,7 +245,7 @@ get_chunks(const bam_file &bf, const std::int32_t n_chunks)
   const auto [chunk_size, remainder] = std::div(bf.buf.n_recs, n_chunks);
   const auto buffer = std::cbegin(bf.buf);
   auto start_pos = 0;
-  std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>> chunks;
+  std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>> chunks(n_chunks);
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
     const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
     chunks[chunk_idx] = {buffer + start_pos, buffer + stop_pos};
