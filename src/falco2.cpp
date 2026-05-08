@@ -313,14 +313,13 @@ run(const std::string &infile, auto &reads_file, const auto n_threads,
 }
 
 static auto
-run_selector(const bool do_tiles, const bool do_kmers,
-             const std::string &infile, auto &reads_file, const auto n_threads,
-             const auto &outfile) {
-  if (do_tiles && do_kmers)
+run_selector(const run_mode mode, const std::string &infile, auto &reads_file,
+             const auto n_threads, const auto &outfile) {
+  if (tiles(mode) && kmers(mode))
     run<falco_results_tile_kmer>(infile, reads_file, n_threads, outfile);
-  else if (do_tiles)
+  else if (tiles(mode))
     run<falco_results_tile>(infile, reads_file, n_threads, outfile);
-  else if (do_kmers)
+  else if (kmers(mode))
     run<falco_results_kmer>(infile, reads_file, n_threads, outfile);
   else
     run<falco_results>(infile, reads_file, n_threads, outfile);
@@ -335,7 +334,7 @@ main(int argc, char *argv[]) {
     std::int64_t buf_size{buf_size_defulat};
     std::int64_t n_threads{1};
 
-    bool do_tiles{};
+    bool do_tiles{true};
     bool do_kmers{};
     bool verbose{};
 
@@ -348,14 +347,17 @@ main(int argc, char *argv[]) {
     app.set_help_flag("-h,--help", "Print a detailed help message and exit");
     app.add_option("-i,--input", infile, "FASTQ filename")
       ->required()
+      ->option_text("FILE")
       ->check(CLI::ExistingFile);
     app.add_option("-o,--output", outfile, "output filename")
       ->required();
     app.add_option("-s,--size", buf_size, "buffer size");
     app.add_option("-t,--threads", n_threads, "number of threads");
-    app.add_flag("--tiles", do_tiles, "report results per tile");
-    app.add_flag("--kmers", do_kmers, "report results for kmers");
     app.add_flag("-v,--verbose", verbose, "print more run info");
+    app.add_flag("--tiles,!--no-tiles", do_tiles,
+                 std::format("toggle analysis per tiles (default: {})", do_tiles));
+    app.add_flag("--kmers,!--no-kmers", do_kmers,
+                 std::format("toggle analysis for kmers (default: {})", do_kmers));
     // clang-format on
 
     if (argc < 2) {
@@ -373,17 +375,21 @@ main(int argc, char *argv[]) {
     const bool has_tiles = tile_processor::set_preceding_colons(infile);
     do_tiles = do_tiles && has_tiles;
 
+    run_mode mode;
+    mode.tiles(do_tiles);
+    mode.kmers(do_kmers);
+
     if (infmt == file_format::bam) {
       bam_file reads_file(infile, buf_size, n_threads);
-      run_selector(do_tiles, do_kmers, infile, reads_file, n_threads, outfile);
+      run_selector(mode, infile, reads_file, n_threads, outfile);
     }
     else if (infmt == file_format::fastq_gz) {
       fastq_gz_file reads_file(infile, buf_size, n_threads);
-      run_selector(do_tiles, do_kmers, infile, reads_file, n_threads, outfile);
+      run_selector(mode, infile, reads_file, n_threads, outfile);
     }
     else if (infmt == file_format::fastq) {
       fastq_file reads_file(infile, buf_size);
-      run_selector(do_tiles, do_kmers, infile, reads_file, n_threads, outfile);
+      run_selector(mode, infile, reads_file, n_threads, outfile);
     }
     else {
       std::println("unsupported file format: {}", infmt_descr);
