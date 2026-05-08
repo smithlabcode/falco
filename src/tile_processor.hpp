@@ -24,6 +24,7 @@
 #ifndef SRC_TILE_PROCESSOR_HPP_
 #define SRC_TILE_PROCESSOR_HPP_
 
+#include <array>
 #include <charconv>
 #include <cstdint>
 #include <format>

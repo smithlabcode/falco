@@ -26,6 +26,7 @@
 
 #include "falco_word.hpp"
 
+#include <array>
 #include <cstdint>
 #include <format>
 #include <iterator>
