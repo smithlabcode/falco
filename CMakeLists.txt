@@ -40,6 +40,14 @@ list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/cmake")
 configure_file(config.h.in config.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
+add_compile_options(
+  -Wall
+  -Wextra
+  -Wpedantic
+  -Werror
+  -Wfatal-errors
+)
+
 if(STATIC_ANALYSIS)
   include(cmake/static_analysis.cmake)
 endif()
