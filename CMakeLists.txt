@@ -61,6 +61,9 @@ target_link_libraries(falco2 PUBLIC
   kmer_counter
 )
 
+find_package(Threads REQUIRED)
+target_link_libraries(falco2 PUBLIC Threads::Threads)
+
 find_package(HTSLIB REQUIRED)
 if(HTSLIB_FOUND)
   target_link_libraries(falco2 PUBLIC HTSLIB::HTSLIB)
