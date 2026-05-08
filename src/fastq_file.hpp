@@ -35,6 +35,7 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <system_error>
 #include <thread>
@@ -262,26 +263,18 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks)
   return chunks;
 }
 
+// specialization to these two classes
+template <class T>
+  requires std::same_as<T, fastq_file> || std::same_as<T, fastq_gz_file>
 [[nodiscard]] static inline auto
-get_chunks(fastq_file &fq, const std::int64_t n_chunks)
+get_chunks(T &fq, const std::int64_t n_chunks)
   -> std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> {
-  const auto idx_chunks = get_chunks_fastq_impl(fq, n_chunks);
-  const auto buffer = fq.buf.data;
-  std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> chunks;
-  for (const auto &idx : idx_chunks)
-    chunks.emplace_back(buffer + idx.first, buffer + idx.second);
-  return chunks;
-}
-
-[[nodiscard]] static inline auto
-get_chunks(fastq_gz_file &fq, const std::int64_t n_chunks)
-  -> std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> {
-  const auto idx_chunks = get_chunks_fastq_impl(fq, n_chunks);
-  const auto buffer = fq.buf.data;
-  std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> chunks;
-  for (const auto &idx : idx_chunks)
-    chunks.emplace_back(buffer + idx.first, buffer + idx.second);
-  return chunks;
+  // const auto chunks = get_chunks_fastq_impl(fq, n_chunks);
+  return get_chunks_fastq_impl(fq, n_chunks) |
+         std::views::transform([&](const auto &x) {
+           return std::pair{fq.buf.data + x.first, fq.buf.data + x.second};
+         }) |
+         std::ranges::to<std::vector>();
 }
 
 #endif  // SRC_FASTQ_FILE_HPP_
