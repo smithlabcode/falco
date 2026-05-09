@@ -92,9 +92,53 @@ duplication_results::format_duplication_levels() const -> std::string {
     seq_dedup += seq_count;
   }
 
-  static constexpr auto fmt = "{}\t{}\t{:.6g}\t{:.6g}\n";
-  for (const auto [i, h] : std::views::enumerate(hist))
-    if (h > 0)
-      r += std::format(fmt, i, h, as_frac(h, seq_dedup), as_frac(h, seq_total));
+  // clang-format off
+  const auto breaks = std::array{
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    50,
+    100,
+    500,
+    1'000,
+    5'000,
+    10'000,
+  };
+  const auto labels = std::array{
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    ">10",
+    ">50",
+    ">100",
+    ">500",
+    ">1'000",
+    ">5'000",
+    ">10'000",
+  };
+  // clang-format on
+
+  auto binned = std::vector<std::uint64_t>(std::size(breaks), 0);
+  for (const auto [i, h] : std::views::enumerate(hist)) {
+    const auto lb = std::lower_bound(std::cbegin(breaks), std::cend(breaks), i);
+    binned[std::distance(std::cbegin(breaks), lb)] += h;
+  }
+
+  for (const auto [l, b] : std::views::zip(labels, binned))
+    r += std::format("{}\t{:.6g}\n", l, as_frac(b, seq_dedup));
+
   return r;
 }
