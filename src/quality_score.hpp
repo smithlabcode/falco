@@ -32,21 +32,24 @@
 #include <stdexcept>
 
 namespace falco {
-static constexpr auto max_qual_val = 126;
-// clang-format off
-static constexpr auto min_qual_cutoffs = std::array{
-  33,  // Sanger / Illumina 1.9
-  64,  // Solexa / Illumina 1.3 / Illumina 1.5
+enum class encoding : std::uint8_t {
+  unknown = 0,
+  sanger = 1,
+  solexa = 2,
 };
+static constexpr auto max_qual_val = 126;
+static constexpr auto sanger_min_qual = 33;
+static constexpr auto solexa_min_qual = 64;
+// clang-format off
 static constexpr auto min_qual_offsets = std::array{
   0,
-  33,  // Sanger / Illumina 1.9
-  64,  // Solexa / Illumina 1.3 / Illumina 1.5
+  sanger_min_qual,  // Sanger / Illumina 1.9
+  solexa_min_qual,  // Solexa / Illumina 1.3 / Illumina 1.5
 };
 static constexpr auto format_labels = std::array{
   "Unknown",
   "Sanger / Illumina 1.9",
-  "Solexa / Illumina 1.3 / Illumina 1.5 / Illumina 1.8",
+  "Solexa / Illumina <= 1.8",
 };
 // clang-format on
 }  // namespace falco
@@ -60,22 +63,23 @@ identify_quality_score_idx(const auto &qual_counts) {
   if (min_qual > falco::max_qual_val)
     throw std::runtime_error(
       std::format("found invalid quality score: {}", min_qual));
-  // now find the index among minimum values for formats
-  const auto itr = std::ranges::upper_bound(falco::min_qual_cutoffs, min_qual);
-  auto idx = std::distance(std::cbegin(falco::min_qual_cutoffs), itr);
-  if (idx == std::ssize(falco::min_qual_cutoffs))
-    --idx;
-  return idx;
+  if (min_qual < falco::sanger_min_qual)
+    return falco::encoding::unknown;
+  if (min_qual < falco::solexa_min_qual)
+    return falco::encoding::sanger;
+  return falco::encoding::solexa;
 }
 
 [[nodiscard]] inline auto
 identify_quality_score_encoding(const auto &qual_counts) {
-  return falco::format_labels[identify_quality_score_idx(qual_counts)];
+  const auto idx = std::to_underlying(identify_quality_score_idx(qual_counts));
+  return falco::format_labels[idx];
 }
 
 [[nodiscard]] inline auto
 identify_quality_score_offset(const auto &qual_counts) {
-  return falco::min_qual_offsets[identify_quality_score_idx(qual_counts)];
+  const auto idx = std::to_underlying(identify_quality_score_idx(qual_counts));
+  return falco::min_qual_offsets[idx];
 }
 
 #endif  // SRC_QUALITY_SCORE_HPP_
