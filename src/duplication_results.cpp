@@ -50,8 +50,10 @@ duplication_results::operator+=(const duplication_results &rhs)
 duplication_results::format_overrepresented(const std::uint64_t n_reads) const
   -> std::string {
   static constexpr auto start_tag = ">>Overrepresented sequences\t{}\n";
-  static constexpr auto header =
-    "#Sequence\tCount\tPercentage\tPossible Source\n";
+  static constexpr auto header = "#Sequence\t"
+                                 "Count\t"
+                                 "Percentage\t"
+                                 "Possible Source\n";
   auto r = std::format(start_tag, "warn");
   r += header;
   const auto cutoff =
@@ -74,20 +76,8 @@ duplication_results::format_duplication_levels() const -> std::string {
   static constexpr auto header = "#Duplication Level\t"
                                  "Percentage of deduplicated\t"
                                  "Percentage of total\n";
-  auto r = std::format(start_tag, "pass", 0.0);
-  r += header;
-  const auto max_count = std::ranges::max(std::views::values(dups));
-  std::vector<std::uint64_t> hist(max_count + 1);
-  for (const auto seq_count : std::views::values(dups))
-    ++hist[seq_count];
-
-  auto seq_total = std::reduce(std::cbegin(hist), std::cend(hist));
-  auto seq_dedup = 0ul;
-  for (const auto [times_duped, seq_count] : std::views::enumerate(hist))
-    seq_total += times_duped * seq_count;
-
   // clang-format off
-  const auto breaks = std::array{
+  static constexpr auto bin_breaks = std::array{
     1,
     2,
     3,
@@ -105,7 +95,7 @@ duplication_results::format_duplication_levels() const -> std::string {
     5'000,
     10'000,
   };
-  const auto labels = std::array{
+  static constexpr auto bin_labels = std::array{
     "1",
     "2",
     "3",
@@ -119,20 +109,33 @@ duplication_results::format_duplication_levels() const -> std::string {
     ">50",
     ">100",
     ">500",
-    ">1'000",
-    ">5'000",
-    ">10'000",
+    ">1k",
+    ">5k",
+    ">10k",
   };
   // clang-format on
+  auto r = std::format(start_tag, "pass", 0.0);
+  r += header;
+  const auto max_count = std::ranges::max(std::views::values(dups));
+  std::vector<std::uint64_t> hist(max_count + 1);
+  for (const auto seq_count : std::views::values(dups))
+    ++hist[seq_count];
 
-  std::vector<std::uint64_t> binned(std::size(breaks), 0);
+  const auto seq_total = std::reduce(std::cbegin(hist), std::cend(hist));
+  [[maybe_unused]] auto seq_dedup = 0ul;
+  for (const auto [times_duped, seq_count] : std::views::enumerate(hist))
+    seq_dedup += times_duped * seq_count;
+
+  std::vector<std::uint64_t> binned(std::size(bin_breaks), 0);
+  auto bin_id = 0ul;
   for (const auto [i, h] : std::views::enumerate(hist)) {
-    const auto lb = std::lower_bound(std::cbegin(breaks), std::cend(breaks), i);
-    binned[std::distance(std::cbegin(breaks), lb)] += h;
+    if (bin_id + 1 < std::size(bin_breaks) && i > bin_breaks[bin_id])
+      ++bin_id;
+    binned[bin_id] += h;
   }
 
-  for (const auto [lbl, bin] : std::views::zip(labels, binned))
-    r += std::format("{}\t{:.6g}\n", lbl, as_frac(bin, seq_dedup));
+  for (const auto [lbl, bin] : std::views::zip(bin_labels, binned))
+    r += std::format("{}\t{:.6g}\n", lbl, as_frac(bin, seq_total));
 
   return r;
 }
