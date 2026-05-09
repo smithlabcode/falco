@@ -259,18 +259,15 @@ format_n_counts(const auto &n_counts, const auto &nucs,
 }
 
 [[nodiscard]] inline auto
-format_qual_by_read(const auto &qual_by_read) {
+format_qual_by_read(const auto &qual_by_read, const auto qual_offset) {
   static constexpr auto start_tag = ">>Per sequence quality scores\t{}\n";
   static constexpr auto header = "#Quality\tCount\n";
-  const auto qual_tot =
-    std::reduce(std::cbegin(qual_by_read), std::cend(qual_by_read));
   auto r = std::format(start_tag, "pass");
   r += header;
   // output starting at qual_offset; that's where they are relevant
-  const auto qual_offset = identify_quality_score_offset(qual_by_read);
-  for (const auto i : std::views::iota(qual_offset, falco::max_qual_val))
-    // cppcheck-suppress useStlAlgorithm
-    r += std::format("{}\t{:.6g}\n", i, as_frac(qual_by_read[i], qual_tot));
+  for (const auto q : std::views::iota(qual_offset, falco::max_qual_val))
+    if (qual_by_read[q] > 0)
+      r += std::format("{}\t{}\n", q - qual_offset, qual_by_read[q]);
   r += end_module_tag;
   return r;
 }
@@ -307,7 +304,7 @@ get_grade_qual_by_pos(const auto &qual, const auto max_read_len) {
 
 [[nodiscard]] inline auto
 format_qual_by_pos(const auto &qual, const auto max_read_len,
-                   const auto min_qual_val) {
+                   const auto qual_offset) {
   static constexpr auto start_tag = ">>Per base sequence quality\t{}\n";
   static constexpr auto header = "#Base\tMean\tMedian\tLower Quartile\tUpper "
                                  "Quartile\t10th Percentile\t90th Percentile\n";
@@ -325,9 +322,9 @@ format_qual_by_pos(const auto &qual, const auto max_read_len,
   auto r = std::format(start_tag, get_grade_qual_by_pos(qual, max_read_len));
   r += header;
   for (auto i = 0u; i < max_read_len; ++i) {
-    const auto q = sub_from_each(five_quants(qual[i]), min_qual_val);
+    const auto q = sub_from_each(five_quants(qual[i]), qual_offset);
     r += std::format("{}\t{:.6g}\t{}\n", i + 1,
-                     mean_tabular(qual[i]) - min_qual_val, tab_sep(q));
+                     mean_tabular(qual[i]) - qual_offset, tab_sep(q));
   }
   r += end_module_tag;
   return r;
