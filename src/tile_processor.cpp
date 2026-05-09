@@ -29,10 +29,10 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 std::uint32_t tile_processor::preceding_colons = 0;
@@ -101,19 +101,33 @@ tile_processor::set_preceding_colons(const std::string &filename)
 
 [[nodiscard]] auto
 tile_processor::string(const std::uint32_t len) const -> std::string {
-  auto r = std::format(">>Per tile sequence quality\t{}\n", "pass");
+  static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
+  static constexpr auto header = "#Tile\tBase\tMean\n";
+  auto r = std::format(start_tag, "pass");
   r += header;
-  // auto to_sort = std::ranges::sort(quals | std::views::elements<0> |
-  //                                  std::ranges::to<std::vector>());
-  for (const auto &[i, q] : quals) {
-    auto idx = 0u;
-    for (auto j = 0u; j < std::size(q); ++j) {
-      r += std::format("{}\t{}\t{:.6g}\n", i, j + 1,
-                       as_frac(q[j].first, q[j].second));
-      if (len > 0 && ++idx == len)
-        break;
-    }
-  }
+  const auto pair_plus = [](const auto &a, const auto &b) {
+    return std::pair{a.first + b.first, a.second + b.second};
+  };
+  qual_vec totals(max_read_len);
+  for (const auto &tile : quals | std::views::values)
+    std::ranges::transform(tile, totals, std::begin(totals), pair_plus);
+
+  auto means = std::vector<double>(max_read_len, 0.0);
+  for (auto i = 0u; i < max_read_len; ++i)
+    means[i] = as_frac(totals[i].first, totals[i].second);
+
+  // also sorting tiles
+  std::map<std::uint32_t, std::vector<double>> centered;
+  const auto cent = [](const auto &a, const auto b) {
+    return as_frac(a.first, a.second) - b;
+  };
+  for (const auto &[tile_id, tile_vals] : quals)
+    centered.emplace(tile_id,
+                     std::views::zip_transform(cent, tile_vals, means) |
+                       std::ranges::to<std::vector>());
+  for (const auto &[i, q] : centered | std::views::take(len))
+    for (auto j = 0u; j < std::size(q); ++j)
+      r += std::format("{}\t{}\t{:.6g}\n", i, j + 1, q[j]);
   return r + end_module_tag;
 }
 
