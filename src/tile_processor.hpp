@@ -45,7 +45,6 @@ struct tile_processor {
 
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
 
-  static constexpr auto header = "#Tile\tBase\tMean\n";
   static constexpr auto tile_step = 10;
   static std::uint32_t preceding_colons;
 
