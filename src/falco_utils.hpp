@@ -346,6 +346,7 @@ format_basic_stats(const auto &filename, const auto n_reads,
   r += std::format("File type\t{}\n", file_type);
   r += std::format("Encoding\t{}\n", encoding);
   r += std::format("Total Sequences\t{}\n", n_reads);
+  r += std::format("Total Bases\t{}\n", total_nucs);
   r += std::format("Sequences flagged as poor quality {}\n", 0);
   r += std::format("Sequence length\t{}\n", max_read_len);
   r += std::format("%GC\t{:.1f}\n", pct(as_frac(total_gc, total_nucs)));
