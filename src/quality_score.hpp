@@ -37,6 +37,7 @@ enum class encoding : std::uint8_t {
   sanger = 1,
   solexa = 2,
 };
+static constexpr auto bam_qual_offset = 33;
 static constexpr auto max_qual_val = 126;
 static constexpr auto sanger_min_qual = 33;
 static constexpr auto solexa_min_qual = 64;
@@ -56,13 +57,14 @@ static constexpr auto format_labels = std::array{
 
 [[nodiscard]] inline auto
 identify_quality_score_idx(const auto &qual_counts) {
-  // get minimum quality score seen from an array of counts of observed scores
   const auto gt0 = [](const auto c) { return c > 0; };
-  const auto min_qual_itr = std::ranges::find_if(qual_counts, gt0);
-  auto min_qual = std::distance(std::cbegin(qual_counts), min_qual_itr);
+  const auto first_non_zero = [&](const auto &v) {
+    return std::distance(std::cbegin(v), std::ranges::find_if(v, gt0));
+  };
+  const auto min_qual =
+    std::ranges::min(qual_counts | std::views::transform(first_non_zero));
   if (min_qual > falco::max_qual_val)
-    throw std::runtime_error(
-      std::format("found invalid quality score: {}", min_qual));
+    throw std::runtime_error("invalid qual score: " + std::to_string(min_qual));
   if (min_qual < falco::sanger_min_qual)
     return falco::encoding::unknown;
   if (min_qual < falco::solexa_min_qual)
