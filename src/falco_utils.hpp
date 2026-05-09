@@ -337,6 +337,13 @@ format_qual_by_pos(const auto &qual, const auto max_read_len,
 format_basic_stats(const auto &filename, const auto n_reads,
                    const auto max_read_len, const auto total_gc,
                    const auto total_nucs, const auto &encoding) {
+  const auto with_suffix = [&](const auto x) {
+    if (x > 1'000'000'000)
+      return std::format("{:.1f} {}bp", as_frac(x, 1'000'000'000), "G");
+    if (x > 1'000'000)
+      return std::format("{:.1f} {}bp", as_frac(x, 1'000'000), "M");
+    return std::format("{:.1f} {}bp", as_frac(x, 1'000), "K");
+  };
   static constexpr auto start_tag = "##Falco {}\n>>Basic Statistics\t{}\n";
   static constexpr auto header = "#Measure\tValue\n";
   auto r = std::format(start_tag, VERSION, "pass");
@@ -346,7 +353,7 @@ format_basic_stats(const auto &filename, const auto n_reads,
   r += std::format("File type\t{}\n", file_type);
   r += std::format("Encoding\t{}\n", encoding);
   r += std::format("Total Sequences\t{}\n", n_reads);
-  r += std::format("Total Bases\t{}\n", total_nucs);
+  r += std::format("Total Bases\t{}\n", with_suffix(total_nucs));
   r += std::format("Sequences flagged as poor quality {}\n", 0);
   r += std::format("Sequence length\t{}\n", max_read_len);
   r += std::format("%GC\t{:.1f}\n", pct(as_frac(total_gc, total_nucs)));
