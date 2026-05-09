@@ -47,6 +47,7 @@
 #include <iterator>
 #include <numeric>
 #include <print>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -148,9 +149,8 @@ struct falco_results {
     ++gcs[pct_int(curr_gc, read_len)];
     gc += curr_gc;
     count_ns(seq_itr, seq_end, n_counts);
-    const auto qtot =
-      count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos) / read_len;
-    ++qual_by_read[qtot];
+    const auto tot = count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
+    ++qual_by_read[tot / read_len];
     count_seqs(seq_itr, read_len, dr);
     am.match_adapters(seq_itr, read_len);
     // NOLINTEND (*-pro-bounds-constant-array-index)
@@ -179,6 +179,16 @@ struct falco_results {
     return nucs_no_n;
   };
 
+  [[nodiscard]] auto
+  fix_bam_qual_encoding() {  // BAM has no +33 for printable encoding
+    const auto shift_and_fill = [&](auto &x) {
+      std::shift_right(std::begin(x), std::end(x), falco::bam_qual_offset);
+      std::ranges::fill_n(std::begin(x), falco::bam_qual_offset, 0);
+    };
+    shift_and_fill(qual_by_read);
+    std::ranges::for_each(qual_by_pos, shift_and_fill);
+  };
+
   template <typename self_t>
   [[nodiscard]] auto
   string(this self_t &self) -> std::string {
@@ -192,14 +202,14 @@ struct falco_results {
     const auto total_gc = std::accumulate(
       std::cbegin(nucs_no_n), std::cend(nucs_no_n), 0ul,
       [](const auto a, const auto &nuc) { return a + nuc[1] + nuc[3]; });
-    const auto encoding = identify_quality_score_encoding(qual_by_read);
+    const auto encoding = identify_quality_score_encoding(qual_by_pos);
     auto r = format_basic_stats(filename, n_reads, max_read_len, total_gc,
                                 total_nucs, encoding);
-    const auto qual_offset = identify_quality_score_offset(qual_by_read);
+    const auto qual_offset = identify_quality_score_offset(qual_by_pos);
     // qual by pos
     r += format_qual_by_pos(qual_by_pos, max_read_len, qual_offset);
     // qual by read
-    r += format_qual_by_read(qual_by_read);
+    r += format_qual_by_read(qual_by_read, qual_offset);
     r += format_base_composition(nucs_no_n, max_read_len);  // base composition
     r += format_gc_content(gcs, max_read_len);              // GC content
     r += format_n_counts(n_counts, nucs, max_read_len);     // N content
@@ -337,6 +347,8 @@ run(const std::string &infile, auto &reads_file, const auto n_threads,
   if (!out)
     throw std::runtime_error("failed to open file: " + outfile);
   auto results = std::reduce(std::cbegin(fr), std::cend(fr));
+  if constexpr (std::is_same_v<std::decay_t<decltype(reads_file)>, bam_file>)
+    results.fix_bam_qual_encoding();
   results.filename = infile;
   std::println(out, "{}", results.string());
 }
