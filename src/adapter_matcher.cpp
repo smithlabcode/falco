@@ -65,11 +65,16 @@ adapter_matcher::string(const std::uint64_t n_reads,
   const auto mcf = as_frac(mc, n_reads);
   const auto grade = get_grade(grade_cutoffs, mcf);
   auto r = std::format(start_module_tag, grade);
+
+  auto cumul = adapter_counts;
+  for (auto i = 1u; i < std::size(cumul); ++i)
+    std::ranges::transform(cumul[i], cumul[i - 1], std::begin(cumul[i]),
+                           std::plus{});
   for (auto i = 0u; i < std::min(n_pos, max_read_len); ++i) {
     r += std::format("{}", i + 1);
-    for (const auto c : adapter_counts[i])
+    for (const auto c : cumul[i])
       // cppcheck-suppress useStlAlgorithm
-      r += std::format("\t{:.6g}", as_frac(c, n_reads));
+      r += std::format("\t{:.6f}", pct(as_frac(c, n_reads)));
     r += '\n';
   }
   return r + end_module_tag;
