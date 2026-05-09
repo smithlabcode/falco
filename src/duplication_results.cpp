@@ -76,21 +76,15 @@ duplication_results::format_duplication_levels() const -> std::string {
                                  "Percentage of total\n";
   auto r = std::format(start_tag, "pass", 0.0);
   r += header;
-
-  auto max_count = 0ul;
-  for (const auto &[_, seq_count] : dups)
-    max_count = std::max(max_count, seq_count);
-
+  const auto max_count = std::ranges::max(std::views::values(dups));
   std::vector<std::uint64_t> hist(max_count + 1);
-  for (const auto seq_count : dups | std::views::elements<1>)
+  for (const auto seq_count : std::views::values(dups))
     ++hist[seq_count];
 
-  auto seq_total = 0ul;
+  auto seq_total = std::reduce(std::cbegin(hist), std::cend(hist));
   auto seq_dedup = 0ul;
-  for (const auto [times_duped, seq_count] : std::views::enumerate(hist)) {
+  for (const auto [times_duped, seq_count] : std::views::enumerate(hist))
     seq_total += times_duped * seq_count;
-    seq_dedup += seq_count;
-  }
 
   // clang-format off
   const auto breaks = std::array{
@@ -131,14 +125,14 @@ duplication_results::format_duplication_levels() const -> std::string {
   };
   // clang-format on
 
-  auto binned = std::vector<std::uint64_t>(std::size(breaks), 0);
+  std::vector<std::uint64_t> binned(std::size(breaks), 0);
   for (const auto [i, h] : std::views::enumerate(hist)) {
     const auto lb = std::lower_bound(std::cbegin(breaks), std::cend(breaks), i);
     binned[std::distance(std::cbegin(breaks), lb)] += h;
   }
 
-  for (const auto [l, b] : std::views::zip(labels, binned))
-    r += std::format("{}\t{:.6g}\n", l, as_frac(b, seq_dedup));
+  for (const auto [lbl, bin] : std::views::zip(labels, binned))
+    r += std::format("{}\t{:.6g}\n", lbl, as_frac(bin, seq_dedup));
 
   return r;
 }
