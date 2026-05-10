@@ -202,7 +202,11 @@ get_grade(const auto &cutoffs, const auto c) {
 format_read_lengths(const auto &lengths, const auto max_read_len) {
   static constexpr auto start_tag = ">>Sequence Length Distribution\t{}\n";
   static constexpr auto header = "#Length Count\n";
-  auto r = std::format(start_tag, "pass");
+  const bool has_empty_reads = std::size(lengths) > 0 && lengths[0] > 0;
+  const auto n_lengths =
+    std::ranges::count_if(lengths, [](const auto x) { return x > 0; });
+  const auto grade = has_empty_reads ? "fail" : n_lengths > 1 ? "warn" : "pass";
+  auto r = std::format(start_tag, grade);
   r += header;
   for (auto i = 0u; i <= max_read_len; ++i)
     if (lengths[i] > 0)
