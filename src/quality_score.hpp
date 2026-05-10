@@ -30,6 +30,7 @@
 #include <iterator>
 #include <ranges>
 #include <stdexcept>
+#include <utility>
 
 namespace falco {
 enum class encoding : std::uint8_t {
