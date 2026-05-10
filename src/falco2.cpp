@@ -38,6 +38,7 @@
 #include <algorithm>
 #include <array>
 #include <compare>
+#include <condition_variable>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
@@ -45,8 +46,10 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <mutex>
 #include <numeric>
 #include <print>
+#include <queue>
 #include <ranges>
 #include <stdexcept>
 #include <string>
@@ -60,7 +63,6 @@ struct falco_results {
 
   std::uint64_t n_reads{};
   std::uint64_t max_read_len{};
-  std::uint64_t gc{};
   std::vector<std::array<std::uint64_t, alphabet_size>> nucs;
   std::array<std::uint64_t, 101> gcs{};  // NOLINT (*-avoid-magic-numbers)
   std::vector<std::uint64_t> n_counts;
@@ -133,21 +135,20 @@ struct falco_results {
       return (100 * a) / b;  // NOLINT (cppcoreguidelines-avoid-magic-numbers)
     };
     const auto read_len = static_cast<std::uint32_t>(get_seq_size(rec));
-    ++lengths[read_len];
-    if (read_len == 0) [[unlikely]]
-      return;
     if (read_len > max_read_len) {
       resize(read_len);
       if constexpr (std::is_same_v<std::decay_t<decltype(rec)>, bamrec>)
         seq.resize(read_len);
     }
+    ++lengths[read_len];
+    if (read_len == 0) [[unlikely]]
+      return;
     max_read_len = read_len > max_read_len ? read_len : max_read_len;
     const auto seq_itr = get_seq_begin_make(rec);
     const auto seq_end = seq_itr + read_len;
     count_nucs(seq_itr, seq_end, nucs);
-    const auto curr_gc = count_gc(seq_itr, seq_end);
-    ++gcs[pct_int(curr_gc, read_len)];
-    gc += curr_gc;
+    const auto gc = count_gc(seq_itr, seq_end);
+    ++gcs[pct_int(gc, read_len)];
     count_ns(seq_itr, seq_end, n_counts);
     const auto tot = count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
     ++qual_by_read[tot / read_len];
@@ -206,9 +207,7 @@ struct falco_results {
     auto r = format_basic_stats(filename, n_reads, max_read_len, total_gc,
                                 total_nucs, encoding);
     const auto qual_offset = identify_quality_score_offset(qual_by_pos);
-    // qual by pos
     r += format_qual_by_pos(qual_by_pos, max_read_len, qual_offset);
-    // qual by read
     r += format_qual_by_read(qual_by_read, qual_offset);
     r += format_base_composition(nucs_no_n, max_read_len);  // base composition
     r += format_gc_content(gcs, max_read_len);              // GC content
@@ -324,29 +323,113 @@ struct falco_results_tile_kmer : public falco_results_tile {
   }
 };
 
+template <typename results_t, typename rec_t> struct thread_pool {
+  // mutex and cond var for tasks available
+  std::mutex task_available_mtx;
+  std::condition_variable_any task_available;
+  // mutex and cond var to wait for task completion
+  std::mutex n_tasks_mtx;
+  std::condition_variable finished;
+
+  std::uint32_t n_tasks{};  // unfinished tasks (not same as pending tasks)
+  using task_t = std::pair<typename rec_t::pos_t, typename rec_t::pos_t>;
+  std::queue<task_t> tasks;
+  std::vector<results_t> results;
+  std::vector<std::jthread> workers;
+
+  // clang-format off
+  thread_pool(const thread_pool &) = delete;
+  auto operator=(const thread_pool &) -> thread_pool & = delete;
+  // clang-format on
+
+  explicit thread_pool(std::uint32_t n_threads) : results(n_threads) {
+    workers.reserve(n_threads);
+    for (auto th_id = 0u; th_id < n_threads; ++th_id) {
+      workers.emplace_back([th_id, this](std::stop_token stop) {
+        auto &r = results[th_id];
+        while (true) {
+          std::pair<typename rec_t::pos_t, typename rec_t::pos_t> task;
+          {
+            std::unique_lock l(task_available_mtx);
+            task_available.wait(l, stop, [this] { return !tasks.empty(); });
+            if (stop.stop_requested() && tasks.empty())
+              return;
+            task = std::move(tasks.front());
+            tasks.pop();
+          }
+          r.template process_reads<rec_t>(task.first, task.second);
+          if (std::lock_guard l(n_tasks_mtx); --n_tasks == 0)
+            finished.notify_all();
+        }
+      });
+    }
+  }
+
+  void
+  push_task(const task_t &chunk) {
+    {
+      std::scoped_lock lk(task_available_mtx, n_tasks_mtx);
+      tasks.emplace(chunk);
+      ++n_tasks;
+    }
+    task_available.notify_one();
+  }
+
+  void
+  wait() {
+    std::unique_lock l(n_tasks_mtx);
+    finished.wait(l, [this] { return n_tasks == 0; });
+  }
+};
+
+template <typename results_t>
+[[nodiscard]] static inline auto
+accumulate_results(std::vector<results_t> &r) {
+  auto id = std::views::iota(0, std::ssize(r)) | std::ranges::to<std::vector>();
+  while (std::size(id) > 1) {
+    {
+      std::vector<std::jthread> workers;
+      for (auto i = 0u; i + 1 < std::size(id); i += 2)
+        // NOLINTNEXTLINE (performance-inefficient-vector-operation)
+        workers.emplace_back([&, i] { r[id[i]] += r[id[i + 1]]; });
+    }
+    auto j = 0;
+    for (auto i = 0; i + 1 < std::ssize(id); i += 2)
+      id[j++] = id[i];
+    if (std::ssize(id) % 2 == 1)
+      id[j++] = id.back();
+    id.resize(j);
+  }
+}
+
 template <typename results_t>
 static auto
 run(const std::string &infile, auto &reads_file, const auto n_threads,
     const auto &outfile) {
   using rec_t = std::decay_t<decltype(reads_file)>::rec_t;
-  std::vector<results_t> fr(n_threads);
+  thread_pool<results_t, rec_t> tpool(n_threads);
   while (reads_file) {
     reads_file.load_next();
     const auto chunks = get_chunks(reads_file, n_threads);
-    {
-      std::vector<std::jthread> workers;
-      for (auto th_id = 0u; th_id < n_threads; ++th_id)
-        // NOLINTNEXTLINE (performance-inefficient-vector-operation)
-        workers.emplace_back([&, th_id] {
-          fr[th_id].template process_reads<rec_t>(chunks[th_id].first,
-                                                  chunks[th_id].second);
-        });
-    }
+
+    std::ranges::for_each(chunks, [&](const auto &c) { tpool.push_task(c); });
+    tpool.wait();
+    // {
+    //   std::vector<std::jthread> workers;
+    //   for (auto th_id = 0u; th_id < n_threads; ++th_id)
+    //     // NOLINTNEXTLINE (performance-inefficient-vector-operation)
+    //     workers.emplace_back([&, th_id] {
+    //       fr[th_id].template process_reads<rec_t>(chunks[th_id].first,
+    //                                               chunks[th_id].second);
+    //     });
+    // }
   }
   std::ofstream out(outfile);
   if (!out)
     throw std::runtime_error("failed to open file: " + outfile);
-  auto results = std::reduce(std::cbegin(fr), std::cend(fr));
+
+  accumulate_results(tpool.results);
+  auto &results = tpool.results.front();
   if constexpr (std::is_same_v<std::decay_t<decltype(reads_file)>, bam_file>)
     results.fix_bam_qual_encoding();
   results.filename = infile;
@@ -375,7 +458,7 @@ main(int argc, char *argv[]) {
     std::int32_t buf_size{buf_size_defulat};
     std::uint32_t n_threads{1};
 
-    bool do_tiles{true};
+    bool do_tiles{};
     bool do_kmers{};
     bool verbose{};
 
