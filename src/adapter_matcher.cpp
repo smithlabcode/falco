@@ -60,11 +60,19 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 adapter_matcher::string(const std::uint64_t n_reads,
                         const std::uint32_t n_pos) const -> std::string {
   static constexpr auto start_module_tag = ">>Adapter Content\t{}\n";
+  static constexpr auto header = "#Position";
+
+  // need grade first to format module start
   const auto mc =
     std::ranges::max(adapter_counts | std::views::transform(std::ranges::max));
   const auto mcf = as_frac(mc, n_reads);
   const auto grade = get_grade(grade_cutoffs, mcf);
+
   auto r = std::format(start_module_tag, grade);
+  r += header;
+  for (const auto name : adapter_names)
+    r += std::format("\t{}", name);
+  r += '\n';
 
   auto cumul = adapter_counts;
   for (auto i = 1u; i < std::size(cumul); ++i)
