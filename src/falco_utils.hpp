@@ -353,12 +353,10 @@ format_qual_by_read(const auto &qual_by_read, const auto qual_offset) {
 
 [[nodiscard]] inline auto
 get_grade_qual_by_pos(const auto &qual, const auto max_read_len) {
-  static constexpr auto get_lower_quartile = [](const auto &quantiles) {
-    return quantiles[1];  // NOLINT (*-avoid-magic-numbers)
-  };
-  static constexpr auto get_median = [](const auto &quantiles) {
-    return quantiles[2];  // NOLINT (*-avoid-magic-numbers)
-  };
+  // NOLINTBEGIN (*-avoid-magic-numbers)
+  static constexpr auto lower_quartile = [](const auto &q) { return q[1]; };
+  static constexpr auto get_median = [](const auto &q) { return q[2]; };
+  // NOLINTEND (*-avoid-magic-numbers)
   // ADS: not sure how this is used
   [[maybe_unused]] static constexpr auto grade_cutoffs_lower = std::array{
     std::pair{0.05, "error"},
@@ -375,7 +373,7 @@ get_grade_qual_by_pos(const auto &qual, const auto max_read_len) {
     const auto quantiles = five_quants(q);
     // ADS: lower quartile to ensure enough data?
     const auto median =
-      get_lower_quartile(quantiles) > 0.0 ? get_median(quantiles) : 1.0;
+      lower_quartile(quantiles) > 0.0 ? get_median(quantiles) : 1.0;
     min_qual_median = std::min(min_qual_median, median);
   }
   return get_grade(grade_cutoffs_median, min_qual_median);
