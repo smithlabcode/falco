@@ -32,8 +32,7 @@
 #include <string>
 #include <vector>
 
-adapter_matcher::adapter_matcher(const std::uint32_t max_read_len) :
-  max_read_len{max_read_len}, adapter_counts{max_read_len} {
+adapter_matcher::adapter_matcher() {
   const auto encode_adap = [&](const auto &a) {
     std::uint64_t x{};
     for (const auto i : std::views::iota(0, adapter_size))
@@ -52,7 +51,6 @@ auto
 adapter_matcher::operator+=(const adapter_matcher &rhs)
   -> const adapter_matcher & {
   two_dim_add(adapter_counts, rhs.adapter_counts);
-  max_read_len = std::max(max_read_len, rhs.max_read_len);
   return *this;
 }
 
@@ -78,7 +76,9 @@ adapter_matcher::string(const std::uint64_t n_reads,
   for (auto i = 1u; i < std::size(cumul); ++i)
     std::ranges::transform(cumul[i], cumul[i - 1], std::begin(cumul[i]),
                            std::plus{});
-  for (auto i = 0u; i < std::min(n_pos, max_read_len); ++i) {
+  const auto lim =
+    n_pos < std::size(adapter_counts) ? n_pos : std::size(adapter_counts);
+  for (auto i = 0u; i < lim; ++i) {
     r += std::format("{}", i + 1);
     for (const auto c : cumul[i])
       // cppcheck-suppress useStlAlgorithm

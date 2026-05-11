@@ -63,11 +63,10 @@ struct adapter_matcher {
     "GGGGGGGGGGGG",  // PolyG
     // clang-format on
   };
-  std::uint32_t max_read_len{};
   std::array<std::uint64_t, n_adapters> encoded_adapters{};
   std::vector<std::array<std::uint64_t, n_adapters>> adapter_counts;
 
-  explicit adapter_matcher(const std::uint32_t max_read_len);
+  adapter_matcher();
 
   [[nodiscard]] static auto
   match_adapter(const auto &t, const auto m, auto adap) -> std::uint32_t {
@@ -93,7 +92,6 @@ struct adapter_matcher {
 
   auto
   resize(const std::uint32_t updated_length) {
-    max_read_len = updated_length;
     adapter_counts.resize(updated_length);
   }
 
