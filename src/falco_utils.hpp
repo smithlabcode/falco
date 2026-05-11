@@ -201,7 +201,7 @@ get_grade(const auto &cutoffs, const auto c) {
 }
 
 [[nodiscard]] inline auto
-format_read_lengths(const auto &lengths, const auto max_read_len) {
+format_read_lengths(const auto &lengths) {
   static constexpr auto start_tag = ">>Sequence Length Distribution\t{}\n";
   static constexpr auto header = "#Length\t"
                                  "Count\n";
@@ -211,7 +211,7 @@ format_read_lengths(const auto &lengths, const auto max_read_len) {
   const auto grade = has_empty_reads ? "fail" : n_lengths > 1 ? "warn" : "pass";
   auto r = std::format(start_tag, grade);
   r += header;
-  for (auto i = 0u; i <= max_read_len; ++i)
+  for (auto i = 0u; i < std::size(lengths); ++i)
     if (lengths[i] > 0)
       r += std::format("{}\t{}\n", i, lengths[i]);
   r += end_module_tag;
@@ -285,14 +285,14 @@ format_gc_content(const auto &gc_content) {
 }
 
 [[nodiscard]] inline auto
-format_base_composition(const auto &nucs, const auto max_read_len) {
+format_base_composition(const auto &nucs) {
   static constexpr auto start_tag = ">>Per base sequence content\t{}\n";
   static constexpr auto header = "#Base\t"
                                  "G\tA\tT\tC\n";
   static constexpr auto base_permutation = {3, 0, 2, 1};
   auto r = std::format(start_tag, "fail");
   r += header;
-  for (auto i = 0u; i < max_read_len; ++i) {
+  for (auto i = 0u; i < std::size(nucs); ++i) {
     r += std::format("{}", i + 1);
     const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
     for (const auto j : base_permutation)
@@ -305,8 +305,7 @@ format_base_composition(const auto &nucs, const auto max_read_len) {
 }
 
 [[nodiscard]] inline auto
-format_n_counts(const auto &n_counts, const auto &nucs,
-                const auto max_read_len) {
+format_n_counts(const auto &n_counts, const auto &nucs) {
   static constexpr auto start_tag = "Per base N content\t{}\n";
   static constexpr auto header = "#Base\t"
                                  "N-Count\n";
@@ -322,7 +321,7 @@ format_n_counts(const auto &n_counts, const auto &nucs,
             std::reduce(std::cbegin(nucs[max_idx]), std::cend(nucs[max_idx])));
   auto r = std::format(start_tag, get_grade(grade_cutoffs, max_n));
   r += header;
-  for (auto i = 0u; i < max_read_len; ++i) {
+  for (auto i = 0u; i < std::size(n_counts); ++i) {
     const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
     r += std::format("{}\t{:.6g}\n", i + 1, pct(as_frac(n_counts[i], tot)));
   }
@@ -384,8 +383,7 @@ get_grade_qual_by_pos(const auto &qual, const auto max_read_len) {
 }
 
 [[nodiscard]] inline auto
-format_qual_by_pos(const auto &qual, const auto max_read_len,
-                   const auto qual_offset) {
+format_qual_by_pos(const auto &qual, const auto qual_offset) {
   static constexpr auto start_tag = ">>Per base sequence quality\t{}\n";
   static constexpr auto header = "#Base\t"
                                  "Mean\t"
@@ -405,6 +403,7 @@ format_qual_by_pos(const auto &qual, const auto max_read_len,
     std::ranges::for_each(a, [&](auto &x) { x -= b; });
     return a;
   };
+  const auto max_read_len = std::size(qual);
   auto r = std::format(start_tag, get_grade_qual_by_pos(qual, max_read_len));
   r += header;
   for (auto i = 0u; i < max_read_len; ++i) {
@@ -418,8 +417,9 @@ format_qual_by_pos(const auto &qual, const auto max_read_len,
 
 [[nodiscard]] inline auto
 format_basic_stats(const auto &filename, const auto n_reads,
-                   const auto max_read_len, const auto total_gc,
-                   const auto total_nucs, const auto &encoding) {
+                   const auto min_read_len, const auto max_read_len,
+                   const auto total_gc, const auto total_nucs,
+                   const auto &encoding) {
   static constexpr auto grade = "pass";  // always a pass
   static constexpr auto start_tag = "##Falco {}\n"
                                     ">>Basic Statistics\t{}\n";
@@ -441,7 +441,10 @@ format_basic_stats(const auto &filename, const auto n_reads,
   r += std::format("Total Sequences\t{}\n", n_reads);
   r += std::format("Total Bases\t{}\n", total_nucs);
   r += std::format("Sequences flagged as poor quality {}\n", 0);
-  r += std::format("Sequence length\t{}\n", max_read_len);
+  r += std::format("Sequence length\t{}\n",
+                   min_read_len == max_read_len
+                     ? std::format("{}", max_read_len)
+                     : std::format("{}-{}", min_read_len, max_read_len));
   r += std::format("%GC\t{:.1f}\n", pct(as_frac(total_gc, total_nucs)));
   r += end_module_tag;
   return r;
