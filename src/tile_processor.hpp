@@ -49,19 +49,19 @@ struct tile_processor {
   static std::uint32_t preceding_colons;
 
   std::uint32_t next_tile_read{};
+  std::uint32_t max_read_len{};
   std::uint32_t tile_id{};
   qual_vec::iterator qual{};
   std::unordered_map<std::uint32_t, qual_vec> quals;
-  std::uint32_t max_read_len{};
-
-  explicit tile_processor(const std::uint32_t max_read_len) :
-    max_read_len{max_read_len} {}
 
   auto
   resize(const std::uint32_t updated_length) {
     max_read_len = updated_length;
     for (auto &q : quals | std::views::values)
       q.resize(max_read_len);
+    const auto tile_id_itr = quals.find(tile_id);
+    if (tile_id_itr != std::cend(quals))
+      qual = std::begin(quals[tile_id]);  // resize invalidates iterators
   }
 
   auto
@@ -78,7 +78,7 @@ struct tile_processor {
     if (curr_tile_id != tile_id) {
       tile_id = curr_tile_id;
       if (!quals.contains(tile_id))
-        quals[tile_id] = qual_vec(max_read_len, {0, 0});
+        quals.emplace(tile_id, qual_vec(max_read_len, {0, 0}));
       qual = std::begin(quals[tile_id]);
     }
   }
