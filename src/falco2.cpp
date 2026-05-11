@@ -58,9 +58,7 @@
 #include <vector>
 
 struct falco_results {
-  static constexpr auto init_read_len = 256;
   static constexpr auto alphabet_size = 4;
-
   std::uint64_t n_reads{};
   std::uint64_t max_read_len{};
   std::vector<std::array<std::uint64_t, alphabet_size>> nucs;
@@ -73,16 +71,6 @@ struct falco_results {
   adapter_matcher am;
   std::string seq;
   std::string filename;
-
-  // clang-format off
-  falco_results() :
-    nucs(init_read_len, std::array<std::uint64_t, alphabet_size>{}),
-    n_counts(init_read_len, 0),
-    lengths(init_read_len + 1, 0),
-    qual_by_pos(init_read_len, std::array<std::uint64_t, falco::max_qual_val>{}),
-    am(init_read_len)
-  {}
-  // clang-format on
 
   auto
   resize(const std::uint32_t updated_length) {
@@ -110,12 +98,12 @@ struct falco_results {
   }
 
   // clang-format off
-  [[nodiscard]] auto get_seq_begin_make(const fqrec &rec) { return get_seq(rec); }
+  [[nodiscard]] auto make_seq_begin(const fqrec &rec) { return get_seq(rec); }
   [[nodiscard]] auto get_seq_begin(const fqrec &rec) { return get_seq(rec); }
   // clang-format on
 
   [[nodiscard]] auto
-  get_seq_begin_make(const bamrec &rec) {
+  make_seq_begin(const bamrec &rec) {
     auto itr = std::begin(seq);
     auto rec_seq_itr = get_seq(rec);
     const auto rec_seq_end = get_seq_end(rec);
@@ -123,6 +111,7 @@ struct falco_results {
       *itr++ = *rec_seq_itr++;
     return std::data(seq);
   }
+
   [[nodiscard]] auto
   get_seq_begin([[maybe_unused]] const bamrec &rec) {
     return std::cbegin(seq);
@@ -144,7 +133,7 @@ struct falco_results {
     if (read_len == 0) [[unlikely]]
       return;
     max_read_len = read_len > max_read_len ? read_len : max_read_len;
-    const auto seq_itr = get_seq_begin_make(rec);
+    const auto seq_itr = make_seq_begin(rec);
     const auto seq_end = seq_itr + read_len;
     count_nucs(seq_itr, seq_end, nucs);
     const auto gc = count_gc(seq_itr, seq_end);
@@ -200,9 +189,11 @@ struct falco_results {
   string_impl() const -> std::string {
     const auto nucs_no_n = fix_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
-    const auto total_gc = std::accumulate(
-      std::cbegin(nucs_no_n), std::cend(nucs_no_n), 0ul,
-      [](const auto a, const auto &nuc) { return a + nuc[1] + nuc[3]; });
+    const auto gc_acc = [](const auto a, const auto &nuc) {
+      return a + nuc[1] + nuc[3];
+    };
+    const auto total_gc = std::accumulate(std::cbegin(nucs_no_n),
+                                          std::cend(nucs_no_n), 0ul, gc_acc);
     const auto encoding = identify_quality_score_encoding(qual_by_pos);
     auto r = format_basic_stats(filename, n_reads, max_read_len, total_gc,
                                 total_nucs, encoding);
@@ -210,7 +201,7 @@ struct falco_results {
     r += format_qual_by_pos(qual_by_pos, max_read_len, qual_offset);
     r += format_qual_by_read(qual_by_read, qual_offset);
     r += format_base_composition(nucs_no_n, max_read_len);  // base composition
-    r += format_gc_content(gcs, max_read_len);              // GC content
+    r += format_gc_content(gcs);                            // GC content
     r += format_n_counts(n_counts, nucs, max_read_len);     // N content
     r += format_read_lengths(lengths, max_read_len);        // read lengths
     r += dr.format_duplication_levels();      // duplication results
@@ -223,18 +214,12 @@ struct falco_results {
 struct falco_results_tile : public falco_results {
   tile_processor tp;
 
-  falco_results_tile() : tp(init_read_len) {}
-
-  auto
-  resize(const std::uint32_t updated_length) {
-    falco_results::resize(updated_length);
-    tp.resize(updated_length);
-  }
-
   auto
   process_one_read_impl(const auto &rec) {
     falco_results::process_one_read_impl(rec);
     if (n_reads == tp.next_tile_read) {
+      if (max_read_len > tp.max_read_len)
+        tp.resize(max_read_len);
       tp.update_tile_id(get_name(rec), get_name_end(rec));
       tp(get_qual(rec), get_qual_end(rec));
       tp.next_tile_read += tp.tile_step;
@@ -257,20 +242,13 @@ struct falco_results_tile : public falco_results {
 struct falco_results_kmer : public falco_results {
   kmer_counter kc;
 
-  falco_results_kmer() : kc(init_read_len) {}
-
-  auto
-  resize(const std::uint32_t updated_length) {
-    falco_results::resize(updated_length);
-    kc.resize(updated_length);
-  }
-
   auto
   process_one_read_impl(const auto &rec) {
     falco_results::process_one_read_impl(rec);
     if (n_reads == kc.next_kmer_read) {
-      const auto seq_itr = get_seq_begin(rec);
-      kc.count_kmers(seq_itr, get_seq_size(rec));
+      if (max_read_len > kc.max_read_len)
+        kc.resize(max_read_len);
+      kc.count_kmers(get_seq_begin(rec), get_seq_size(rec));
       kc.next_kmer_read += kmer_counter::kmer_step;
     }
   }
@@ -291,20 +269,13 @@ struct falco_results_kmer : public falco_results {
 struct falco_results_tile_kmer : public falco_results_tile {
   kmer_counter kc;
 
-  falco_results_tile_kmer() : kc(init_read_len) {}
-
-  auto
-  resize(const std::uint32_t updated_length) {
-    falco_results_tile::resize(updated_length);
-    kc.resize(updated_length);
-  }
-
   auto
   process_one_read_impl(const auto &rec) {
     falco_results_tile::process_one_read_impl(rec);
     if (n_reads == kc.next_kmer_read) {
-      const auto seq_itr = get_seq_begin(rec);
-      kc.count_kmers(seq_itr, get_seq_size(rec));
+      if (max_read_len > kc.max_read_len)
+        kc.resize(max_read_len);
+      kc.count_kmers(get_seq_begin(rec), get_seq_size(rec));
       kc.next_kmer_read += kmer_counter::kmer_step;
     }
   }
@@ -324,14 +295,11 @@ struct falco_results_tile_kmer : public falco_results_tile {
 };
 
 template <typename results_t, typename rec_t> struct thread_pool {
-  // mutex and cond var for tasks available
   std::mutex task_available_mtx;
   std::condition_variable_any task_available;
-  // mutex and cond var to wait for task completion
   std::mutex n_tasks_mtx;
   std::condition_variable finished;
-
-  std::uint32_t n_tasks{};  // unfinished tasks (not same as pending tasks)
+  std::uint32_t n_tasks{};  // unfinished tasks (not same as unstarted)
   using task_t = std::pair<typename rec_t::pos_t, typename rec_t::pos_t>;
   std::queue<task_t> tasks;
   std::vector<results_t> results;
@@ -417,7 +385,6 @@ run(const std::string &infile, auto &reads_file, const auto n_threads,
     // {
     //   std::vector<std::jthread> workers;
     //   for (auto th_id = 0u; th_id < n_threads; ++th_id)
-    //     // NOLINTNEXTLINE (performance-inefficient-vector-operation)
     //     workers.emplace_back([&, th_id] {
     //       fr[th_id].template process_reads<rec_t>(chunks[th_id].first,
     //                                               chunks[th_id].second);
