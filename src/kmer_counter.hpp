@@ -50,13 +50,12 @@ struct kmer_counter {
   static constexpr auto max_kmers_to_plot = 10;
 
   std::uint64_t next_kmer_read{};
+  std::uint64_t max_read_len{};
   std::vector<std::array<std::uint64_t, n_kmers>> kmer_counts;
-
-  explicit kmer_counter(const std::uint32_t init_read_len) :
-    kmer_counts(init_read_len, std::array<std::uint64_t, n_kmers>{}) {}
 
   auto
   resize(const std::uint32_t updated_length) {
+    max_read_len = updated_length;
     kmer_counts.resize(updated_length);
   }
 
