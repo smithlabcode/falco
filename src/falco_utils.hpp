@@ -307,7 +307,17 @@ format_n_counts(const auto &n_counts, const auto &nucs,
                 const auto max_read_len) {
   static constexpr auto start_tag = "Per base N content\t{}\n";
   static constexpr auto header = "#Base\tN-Count\n";
-  auto r = std::format(start_tag, "pass");
+  static constexpr auto grade_cutoffs = std::array{
+    std::pair{0.05, "pass"},
+    std::pair{0.20, "warn"},
+    std::pair{1.00, "error"},
+  };
+  const auto max_idx =
+    std::distance(std::cbegin(n_counts), std::ranges::max_element(n_counts));
+  const auto max_n =
+    as_frac(n_counts[max_idx],
+            std::reduce(std::cbegin(nucs[max_idx]), std::cend(nucs[max_idx])));
+  auto r = std::format(start_tag, get_grade(grade_cutoffs, max_n));
   r += header;
   for (auto i = 0u; i < max_read_len; ++i) {
     const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
