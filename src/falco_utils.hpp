@@ -331,7 +331,17 @@ format_n_counts(const auto &n_counts, const auto &nucs,
 format_qual_by_read(const auto &qual_by_read, const auto qual_offset) {
   static constexpr auto start_tag = ">>Per sequence quality scores\t{}\n";
   static constexpr auto header = "#Quality\tCount\n";
-  auto r = std::format(start_tag, "pass");
+  static constexpr auto grade_cutoffs = std::array{
+    std::pair{20, "error"},
+    std::pair{27, "warn"},
+    std::pair{falco::max_qual_val, "pass"},
+  };
+  // get mode
+  const auto max_qual_val =
+    std::distance(std::cbegin(qual_by_read),
+                  std::ranges::max_element(qual_by_read)) -
+    qual_offset;
+  auto r = std::format(start_tag, get_grade(grade_cutoffs, max_qual_val));
   r += header;
   // output starting at qual_offset; that's where they are relevant
   for (const auto q : std::views::iota(qual_offset, falco::max_qual_val))
@@ -403,6 +413,10 @@ format_qual_by_pos(const auto &qual, const auto max_read_len,
 format_basic_stats(const auto &filename, const auto n_reads,
                    const auto max_read_len, const auto total_gc,
                    const auto total_nucs, const auto &encoding) {
+  static constexpr auto grade = "pass";  // always a pass
+  static constexpr auto start_tag = "##Falco {}\n"
+                                    ">>Basic Statistics\t{}\n";
+  static constexpr auto header = "#Measure\tValue\n";
   [[maybe_unused]] const auto with_suffix = [&](const auto x) {
     if (x > 1'000'000'000)
       return std::format("{:.1f} {}bp", as_frac(x, 1'000'000'000), "G");
@@ -410,9 +424,7 @@ format_basic_stats(const auto &filename, const auto n_reads,
       return std::format("{:.1f} {}bp", as_frac(x, 1'000'000), "M");
     return std::format("{:.1f} {}bp", as_frac(x, 1'000), "K");
   };
-  static constexpr auto start_tag = "##Falco {}\n>>Basic Statistics\t{}\n";
-  static constexpr auto header = "#Measure\tValue\n";
-  auto r = std::format(start_tag, VERSION, "pass");
+  auto r = std::format(start_tag, VERSION, grade);
   r += header;
   r += std::format("Filename\t{}\n", filename);
   const auto [_, file_type] = get_file_format(filename);
