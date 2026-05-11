@@ -72,6 +72,8 @@ struct falco_results {
   std::string seq;
   std::string filename;
 
+  falco_results() : lengths(1) {}
+
   auto
   resize(const std::uint32_t updated_length) {
     nucs.resize(updated_length);
@@ -181,12 +183,12 @@ struct falco_results {
 
   template <typename self_t>
   [[nodiscard]] auto
-  string(this self_t &self) -> std::string {
+  string(this self_t &self) {
     return self.string_impl();
   }
 
   [[nodiscard]] auto
-  string_impl() const -> std::string {
+  string_impl() const {
     const auto nucs_no_n = fix_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
     const auto gc_acc = [](const auto a, const auto &nuc) {
@@ -195,15 +197,18 @@ struct falco_results {
     const auto total_gc = std::accumulate(std::cbegin(nucs_no_n),
                                           std::cend(nucs_no_n), 0ul, gc_acc);
     const auto encoding = identify_quality_score_encoding(qual_by_pos);
-    auto r = format_basic_stats(filename, n_reads, max_read_len, total_gc,
-                                total_nucs, encoding);
+    const auto gt0 = [](const auto c) { return c > 0; };
+    const std::uint64_t min_read_len =
+      std::distance(std::cbegin(lengths), std::ranges::find_if(lengths, gt0));
+    auto r = format_basic_stats(filename, n_reads, min_read_len, max_read_len,
+                                total_gc, total_nucs, encoding);
     const auto qual_offset = identify_quality_score_offset(qual_by_pos);
-    r += format_qual_by_pos(qual_by_pos, max_read_len, qual_offset);
+    r += format_qual_by_pos(qual_by_pos, qual_offset);
     r += format_qual_by_read(qual_by_read, qual_offset);
-    r += format_base_composition(nucs_no_n, max_read_len);  // base composition
-    r += format_gc_content(gcs);                            // GC content
-    r += format_n_counts(n_counts, nucs, max_read_len);     // N content
-    r += format_read_lengths(lengths, max_read_len);        // read lengths
+    r += format_base_composition(nucs_no_n);  // base composition
+    r += format_gc_content(gcs);              // GC content
+    r += format_n_counts(n_counts, nucs);     // N content
+    r += format_read_lengths(lengths);        // read lengths
     r += dr.format_duplication_levels();      // duplication results
     r += dr.format_overrepresented(n_reads);  // overrepresented sequences
     r += am.string(n_reads, max_read_len);    // adapter content
@@ -234,7 +239,7 @@ struct falco_results_tile : public falco_results {
   }
 
   [[nodiscard]] auto
-  string_impl() const -> std::string {
+  string_impl() const {
     return falco_results::string_impl() + tp.string(max_read_len);
   }
 };
@@ -256,12 +261,14 @@ struct falco_results_kmer : public falco_results {
   auto
   operator+=(const falco_results_kmer &rhs) -> const falco_results_kmer & {
     falco_results::operator+=(rhs);
+    std::println("{}\t{}", this->kc.string(1), rhs.kc.string(1));
     kc += rhs.kc;
+    std::println("{}\t{}", this->kc.string(1), rhs.kc.string(1));
     return *this;
   }
 
   [[nodiscard]] auto
-  string_impl() const -> std::string {
+  string_impl() const {
     return falco_results::string_impl() + kc.string(n_reads);
   }
 };
@@ -289,18 +296,18 @@ struct falco_results_tile_kmer : public falco_results_tile {
   }
 
   [[nodiscard]] auto
-  string_impl() const -> std::string {
+  string_impl() const {
     return falco_results_tile::string_impl() + kc.string(n_reads);
   }
 };
 
 template <typename results_t, typename rec_t> struct thread_pool {
+  using task_t = std::pair<typename rec_t::pos_t, typename rec_t::pos_t>;
   std::mutex task_available_mtx;
   std::condition_variable_any task_available;
   std::mutex n_tasks_mtx;
   std::condition_variable finished;
   std::uint32_t n_tasks{};  // unfinished tasks (not same as unstarted)
-  using task_t = std::pair<typename rec_t::pos_t, typename rec_t::pos_t>;
   std::queue<task_t> tasks;
   std::vector<results_t> results;
   std::vector<std::jthread> workers;
@@ -353,6 +360,7 @@ template <typename results_t, typename rec_t> struct thread_pool {
 template <typename results_t>
 [[nodiscard]] static inline auto
 accumulate_results(std::vector<results_t> &r) {
+  // pointer jumping strategy
   auto id = std::views::iota(0, std::ssize(r)) | std::ranges::to<std::vector>();
   while (std::size(id) > 1) {
     {
@@ -378,9 +386,8 @@ run(const std::string &infile, auto &reads_file, const auto n_threads,
   thread_pool<results_t, rec_t> tpool(n_threads);
   while (reads_file) {
     reads_file.load_next();
-    const auto chunks = get_chunks(reads_file, n_threads);
-
-    std::ranges::for_each(chunks, [&](const auto &c) { tpool.push_task(c); });
+    std::ranges::for_each(get_chunks(reads_file, n_threads),
+                          [&](const auto &c) { tpool.push_task(c); });
     tpool.wait();
     // {
     //   std::vector<std::jthread> workers;
@@ -464,6 +471,8 @@ main(int argc, char *argv[]) {
                    infile, infmt_descr);
 
     const bool has_tiles = tile_processor::set_preceding_colons(infile);
+    if (verbose && do_tiles && !has_tiles)
+      std::println("running without tiles: tile ids not found in data");
     do_tiles = do_tiles && has_tiles;
 
     run_mode mode;
