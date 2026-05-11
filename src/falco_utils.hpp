@@ -203,7 +203,8 @@ get_grade(const auto &cutoffs, const auto c) {
 [[nodiscard]] inline auto
 format_read_lengths(const auto &lengths, const auto max_read_len) {
   static constexpr auto start_tag = ">>Sequence Length Distribution\t{}\n";
-  static constexpr auto header = "#Length Count\n";
+  static constexpr auto header = "#Length\t"
+                                 "Count\n";
   const bool has_empty_reads = std::size(lengths) > 0 && lengths[0] > 0;
   const auto n_lengths =
     std::ranges::count_if(lengths, [](const auto x) { return x > 0; });
@@ -217,9 +218,9 @@ format_read_lengths(const auto &lengths, const auto max_read_len) {
   return r;
 }
 
-// calculate deviation of a hist from a "normal" with same mode and sd
 [[nodiscard]] static inline auto
 sum_deviation_from_normal(const auto &gc) {
+  // calculate deviation of a hist from a "normal" with same mode and sd
   const auto n_bins = std::size(gc);
   const auto gc_beg = std::cbegin(gc);
   const auto gc_end = std::cend(gc);
@@ -264,9 +265,10 @@ sum_deviation_from_normal(const auto &gc) {
 }
 
 [[nodiscard]] inline auto
-format_gc_content(const auto &gc_content, const auto max_read_len) {
+format_gc_content(const auto &gc_content) {
   static constexpr auto start_tag = ">>Per sequence GC content\t{}\n";
-  static constexpr auto header = "#GC\tContent\tCount\n";
+  static constexpr auto header = "#GC Content\t"
+                                 "Count\n";
   static constexpr auto grade_cutoffs = std::array{
     std::pair{15.0, "pass"},
     std::pair{30.0, "warn"},
@@ -275,9 +277,8 @@ format_gc_content(const auto &gc_content, const auto max_read_len) {
   const auto deviation = sum_deviation_from_normal(gc_content);
   auto r = std::format(start_tag, get_grade(grade_cutoffs, deviation));
   r += header;
-  for (auto i = 0u; i < max_read_len; ++i)
-    // cppcheck-suppress useStlAlgorithm
-    r += std::format("{}\t{}\n", i + 1, gc_content[i]);
+  for (const auto [i, c] : std::views::enumerate(gc_content))
+    r += std::format("{}\t{}\n", i, c);
   r += end_module_tag;
 
   return r;
@@ -286,7 +287,8 @@ format_gc_content(const auto &gc_content, const auto max_read_len) {
 [[nodiscard]] inline auto
 format_base_composition(const auto &nucs, const auto max_read_len) {
   static constexpr auto start_tag = ">>Per base sequence content\t{}\n";
-  static constexpr auto header = "#Base\tG\tA\tT\tC\n";
+  static constexpr auto header = "#Base\t"
+                                 "G\tA\tT\tC\n";
   static constexpr auto base_permutation = {3, 0, 2, 1};
   auto r = std::format(start_tag, "fail");
   r += header;
@@ -306,7 +308,8 @@ format_base_composition(const auto &nucs, const auto max_read_len) {
 format_n_counts(const auto &n_counts, const auto &nucs,
                 const auto max_read_len) {
   static constexpr auto start_tag = "Per base N content\t{}\n";
-  static constexpr auto header = "#Base\tN-Count\n";
+  static constexpr auto header = "#Base\t"
+                                 "N-Count\n";
   static constexpr auto grade_cutoffs = std::array{
     std::pair{0.05, "pass"},
     std::pair{0.20, "warn"},
@@ -330,7 +333,8 @@ format_n_counts(const auto &n_counts, const auto &nucs,
 [[nodiscard]] inline auto
 format_qual_by_read(const auto &qual_by_read, const auto qual_offset) {
   static constexpr auto start_tag = ">>Per sequence quality scores\t{}\n";
-  static constexpr auto header = "#Quality\tCount\n";
+  static constexpr auto header = "#Quality\t"
+                                 "Count\n";
   static constexpr auto grade_cutoffs = std::array{
     std::pair{20, "error"},
     std::pair{27, "warn"},
@@ -383,8 +387,13 @@ get_grade_qual_by_pos(const auto &qual, const auto max_read_len) {
 format_qual_by_pos(const auto &qual, const auto max_read_len,
                    const auto qual_offset) {
   static constexpr auto start_tag = ">>Per base sequence quality\t{}\n";
-  static constexpr auto header = "#Base\tMean\tMedian\tLower Quartile\tUpper "
-                                 "Quartile\t10th Percentile\t90th Percentile\n";
+  static constexpr auto header = "#Base\t"
+                                 "Mean\t"
+                                 "Median\t"
+                                 "Lower Quartile\t"
+                                 "Upper Quartile\t"
+                                 "10th Percentile\t"
+                                 "90th Percentile\n";
   const auto tab_sep = [](const auto &a) {
     auto r = std::string{};
     for (const auto &value : a | std::views::take(std::size(a) - 1))
@@ -414,7 +423,8 @@ format_basic_stats(const auto &filename, const auto n_reads,
   static constexpr auto grade = "pass";  // always a pass
   static constexpr auto start_tag = "##Falco {}\n"
                                     ">>Basic Statistics\t{}\n";
-  static constexpr auto header = "#Measure\tValue\n";
+  static constexpr auto header = "#Measure\t"
+                                 "Value\n";
   [[maybe_unused]] const auto with_suffix = [&](const auto x) {
     if (x > 1'000'000'000)
       return std::format("{:.1f} {}bp", as_frac(x, 1'000'000'000), "G");
