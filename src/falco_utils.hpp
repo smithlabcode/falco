@@ -34,6 +34,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <cmath>
 #include <format>
 #include <iterator>
 #include <numeric>
@@ -215,16 +217,69 @@ format_read_lengths(const auto &lengths, const auto max_read_len) {
   return r;
 }
 
+// calculate deviation of a hist from a "normal" with same mode and sd
+[[nodiscard]] static inline auto
+sum_deviation_from_normal(const auto &gc) {
+  const auto n_bins = std::size(gc);
+  const auto gc_beg = std::cbegin(gc);
+  const auto gc_end = std::cend(gc);
+  const auto total_count = std::reduce(gc_beg, gc_end);
+  assert(n_bins > 1 && total_count > 1);
+
+  // get mode
+  const auto mode_itr = std::ranges::max_element(gc);
+  const std::uint64_t mode_pos = std::distance(gc_beg, mode_itr);
+  const auto mode_val = *mode_itr;
+
+  // ADS: in case mode is not sharp average nearby values (not clear on why)
+  const auto gt_cut = [&](const double x) { return x < (0.90 * mode_val); };
+  const auto right_itr = std::find_if(mode_itr, std::cend(gc), gt_cut);
+  const auto left_itr =
+    std::find_if(std::reverse_iterator(mode_itr), std::crend(gc), gt_cut);
+  const auto n = std::distance(std::reverse_iterator(right_itr), left_itr);
+  const auto mode = mode_pos + (n - 1) / 2.0;
+
+  // theoretical distribution
+  const auto cntr_sq = [m = mode](const auto z) { return (z - m) * (z - m); };
+  const auto sd_term = [&](const auto &x) {
+    return cntr_sq(std::get<0>(x)) * std::get<1>(x);
+  };
+  const auto id_gc = std::views::enumerate(gc) | std::views::transform(sd_term);
+  const auto sd = std::sqrt(std::reduce(std::cbegin(id_gc), std::cend(id_gc))) /
+                  (total_count - 1);
+
+  const auto norm = [&](const auto i) {
+    return std::exp(-cntr_sq(i) / (2.0 * sd * sd));
+  };
+  auto th = std::views::iota(0u, n_bins) | std::views::transform(norm) |
+            std::ranges::to<std::vector>();
+  const auto tot = std::reduce(std::cbegin(th), std::cend(th));
+  std::ranges::transform(th, std::begin(th),
+                         [&](const auto x) { return x * total_count / tot; });
+  const auto diff = [](const auto a, const auto b) { return std::fabs(a - b); };
+  const auto r = std::transform_reduce(gc_beg, gc_end, std::cbegin(th), 0.0,
+                                       std::plus{}, diff);
+
+  return pct(as_frac(r, total_count));
+}
+
 [[nodiscard]] inline auto
 format_gc_content(const auto &gc_content, const auto max_read_len) {
   static constexpr auto start_tag = ">>Per sequence GC content\t{}\n";
   static constexpr auto header = "#GC\tContent\tCount\n";
-  auto r = std::format(start_tag, "pass");
+  static constexpr auto grade_cutoffs = std::array{
+    std::pair{15.0, "pass"},
+    std::pair{30.0, "warn"},
+    std::pair{std::numeric_limits<double>::max(), "error"},
+  };
+  const auto deviation = sum_deviation_from_normal(gc_content);
+  auto r = std::format(start_tag, get_grade(grade_cutoffs, deviation));
   r += header;
   for (auto i = 0u; i < max_read_len; ++i)
     // cppcheck-suppress useStlAlgorithm
     r += std::format("{}\t{}\n", i + 1, gc_content[i]);
   r += end_module_tag;
+
   return r;
 }
 
