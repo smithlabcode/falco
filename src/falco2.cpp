@@ -65,15 +65,13 @@ struct falco_results {
   std::vector<std::array<std::uint64_t, alphabet_size>> nucs;
   std::array<std::uint64_t, 101> gcs{};  // NOLINT (*-avoid-magic-numbers)
   std::vector<std::uint64_t> n_counts;
-  std::vector<std::uint64_t> lengths;
+  std::vector<std::uint64_t> lengths{1};  // in case all reads have length 0
   std::vector<std::array<std::uint64_t, falco::max_qual_val>> qual_by_pos;
   std::array<std::uint64_t, falco::max_qual_val> qual_by_read{};
   duplication_results dr;
   adapter_matcher am;
   std::string seq;
   std::string filename;
-
-  falco_results() : lengths(1) {}
 
   auto
   resize(const std::uint32_t updated_length) {
@@ -112,12 +110,26 @@ struct falco_results {
     const auto rec_seq_end = get_seq_end(rec);
     while (rec_seq_itr != rec_seq_end)
       *itr++ = *rec_seq_itr++;
+    if (rec.is_rev)
+      revcomp(std::begin(seq), std::end(seq));
     return std::data(seq);
   }
 
   [[nodiscard]] auto
   get_seq_begin([[maybe_unused]] const bamrec &rec) {
     return std::cbegin(seq);
+  }
+
+  [[nodiscard]] auto
+  process_qual(const bamrec &rec) {
+    return rec.is_rev
+             ? count_quals_rev(get_qual(rec), get_qual_end(rec), qual_by_pos)
+             : count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
+  }
+
+  [[nodiscard]] auto
+  process_qual(const fqrec &rec) {
+    return count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
   }
 
   auto
@@ -142,7 +154,7 @@ struct falco_results {
     const auto gc = count_gc(seq_itr, seq_end);
     ++gcs[pct_int(gc, read_len)];
     count_ns(seq_itr, seq_end, n_counts);
-    const auto tot = count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
+    const auto tot = process_qual(rec);
     ++qual_by_read[tot / read_len];
     count_seqs(seq_itr, read_len, dr);
     am.match_adapters(seq_itr, read_len);
@@ -227,7 +239,7 @@ struct falco_results_tile : public falco_results {
       if (max_read_len > tp.max_read_len)
         tp.resize(max_read_len);
       tp.update_tile_id(get_name(rec), get_name_end(rec));
-      tp(get_qual(rec), get_qual_end(rec));
+      tp(rec);
       tp.next_tile_read += tp.tile_step;
     }
   }
