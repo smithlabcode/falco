@@ -156,6 +156,36 @@ count_quals(auto qual_itr, const auto qual_end,
   return qual_tot;
 }
 
+[[nodiscard]] static inline auto
+count_quals_rev(auto qual_itr, const auto qual_end,
+                auto &tab) {  // cppcheck-suppress constParameterReference
+  auto out_itr = std::begin(tab) + std::distance(qual_itr, qual_end);
+  auto qual_tot = 0;
+  while (qual_itr != qual_end) {
+    const auto q = *qual_itr++;
+    ++(*(--out_itr))[q];
+    qual_tot += q;
+  }
+  return qual_tot;
+}
+
+static inline auto
+count_quals_itr(auto qual_itr, const auto qual_end, auto tab_itr) {
+  while (qual_itr != qual_end) {
+    tab_itr->first += *qual_itr++;
+    ++(*tab_itr++).second;
+  }
+}
+
+static inline auto
+count_quals_itr_rev(auto qual_itr, const auto qual_end, auto tab_itr) {
+  tab_itr += std::distance(qual_itr, qual_end);
+  while (qual_itr != qual_end) {
+    tab_itr->first += *qual_itr++;
+    ++(*(--tab_itr)).second;
+  }
+}
+
 [[nodiscard]] inline auto
 tabular_dot(const auto &a) {
   auto total = static_cast<std::remove_cvref_t<decltype(a)>::value_type>(0);
@@ -209,5 +239,28 @@ struct falco_thread_pool {
   }
   ~falco_thread_pool() { hts_tpool_destroy(t.pool); }
 };
+
+static inline constexpr auto
+falco_reverse(auto first, auto last) {
+  for (--last; first < last; ++first, --last)
+    std::iter_swap(first, last);
+}
+
+static inline constexpr auto
+falco_complement(auto first, auto last) {
+  const auto complement = [](auto &a) {
+    a = "TNGNNNCNNNNNNNNNNNNANNNNNN"[a - 'A'];
+  };
+  while (first != last)
+    complement(*first++);
+}
+
+static inline constexpr auto
+revcomp(auto first, auto last) {
+  if (first == last) [[unlikely]]
+    return;
+  falco_reverse(first, last);
+  falco_complement(first, last);
+}
 
 #endif  // SRC_FALCO_UTILS_HPP_
