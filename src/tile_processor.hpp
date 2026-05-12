@@ -24,6 +24,9 @@
 #ifndef SRC_TILE_PROCESSOR_HPP_
 #define SRC_TILE_PROCESSOR_HPP_
 
+#include "bam_file.hpp"
+#include "fastq_file.hpp"
+
 #include <array>
 #include <charconv>
 #include <cstdint>
@@ -100,6 +103,19 @@ struct tile_processor {
       tab_itr->first += *q_itr++;
       ++(*tab_itr++).second;
     }
+  }
+
+  auto
+  operator()(const bamrec &rec) {
+    if (rec.is_rev)
+      count_quals_itr_rev(get_qual(rec), get_qual_end(rec), qual);
+    else
+      count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
+  }
+
+  auto
+  operator()(const fqrec &rec) {
+    count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
   }
 };
 
