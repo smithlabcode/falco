@@ -27,6 +27,7 @@
 #include "falco_file_format.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
+#include "format_output.hpp"
 #include "kmer_counter.hpp"
 #include "quality_score.hpp"
 #include "tile_processor.hpp"
