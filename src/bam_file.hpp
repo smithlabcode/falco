@@ -91,6 +91,7 @@ struct bamrec {
   using pos_t = std::vector<bam1_t>::const_iterator;
   std::int32_t l_qname{};
   std::int32_t l_qseq{};
+  bool is_rev{};
   const char *n{};
   const std::uint8_t *r{};
   const std::uint8_t *q{};
@@ -98,6 +99,7 @@ struct bamrec {
   explicit bamrec(const bam1_t &b) :
     l_qname{b.core.l_qname},
     l_qseq{b.core.l_qseq},
+    is_rev{bam_is_rev(&b)},
     n{bam_get_qname(&b)},
     r{bam_get_seq(&b)},
     q{bam_get_qual(&b)}
@@ -117,7 +119,7 @@ struct bamrec {
 [[nodiscard]] constexpr auto get_qual_size(const bamrec &rec) { return rec.l_qseq; }
 // clang-format on
 
-[[nodiscard]] auto
+[[nodiscard]] inline auto
 to_string(const bamrec &b) {
   // converts the bam record to FASTQ format for visualization
   static constexpr auto quality_score_offset = 33;
