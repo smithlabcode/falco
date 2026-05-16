@@ -64,7 +64,7 @@ struct adapter_matcher {
     // clang-format on
   };
   std::array<std::uint64_t, n_adapters> encoded_adapters{};
-  std::vector<std::array<std::uint64_t, n_adapters>> adapter_counts;
+  std::vector<std::array<std::uint64_t, n_adapters>> adap_counts;
 
   adapter_matcher();
 
@@ -87,12 +87,12 @@ struct adapter_matcher {
   match_adapters(const auto seq, const auto len) {
     for (auto i = 0; i < n_adapters; ++i)
       if (const auto p = match_adapter(seq, len, encoded_adapters[i]); p < len)
-        ++adapter_counts[p][i];
+        ++adap_counts[p][i];
   }
 
   auto
   resize(const std::uint32_t updated_length) {
-    adapter_counts.resize(updated_length);
+    adap_counts.resize(updated_length);
   }
 
   auto

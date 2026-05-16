@@ -28,8 +28,11 @@
 #include <array>
 #include <cstdint>
 #include <format>
+#include <functional>
+#include <iterator>
 #include <ranges>
 #include <string>
+#include <tuple>
 #include <vector>
 
 adapter_matcher::adapter_matcher() {
@@ -50,7 +53,7 @@ adapter_matcher::adapter_matcher() {
 auto
 adapter_matcher::operator+=(const adapter_matcher &rhs)
   -> const adapter_matcher & {
-  two_dim_add(adapter_counts, rhs.adapter_counts);
+  two_dim_add(adap_counts, rhs.adap_counts);
   return *this;
 }
 
@@ -58,32 +61,35 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 adapter_matcher::string(const std::uint64_t n_reads,
                         const std::uint32_t n_pos) const -> std::string {
   static constexpr auto start_module_tag = ">>Adapter Content\t{}\n";
-  static constexpr auto header = "#Position";
+  static constexpr auto header = "#Position\t";
+  static const auto to_flat = [](const auto &fmt, const auto data) {
+    return data | std::views::transform(fmt) | std::views::join |
+           std::ranges::to<std::string>();
+  };
 
   // need grade first to format module start
   const auto mc =
-    std::ranges::max(adapter_counts | std::views::transform(std::ranges::max));
+    std::ranges::max(adap_counts | std::views::transform(std::ranges::max));
   const auto mcf = as_frac(mc, n_reads);
   const auto grade = get_grade(grade_cutoffs, mcf);
 
   auto r = std::format(start_module_tag, grade);
-  r += header;
-  for (const auto name : adapter_names)
-    r += std::format("\t{}", name);
+  r += header + to_flat([](const auto x) { return std::format("\t{}", x); },
+                        adapter_names);
   r += '\n';
 
-  auto cumul = adapter_counts;
-  for (auto i = 1u; i < std::size(cumul); ++i)
-    std::ranges::transform(cumul[i], cumul[i - 1], std::begin(cumul[i]),
-                           std::plus{});
+  auto cumulative = adap_counts;
+  for (auto [prev, curr] : cumulative | std::views::pairwise)
+    std::ranges::transform(curr, prev, std::begin(curr), std::plus{});
+
   const auto lim =
-    n_pos < std::size(adapter_counts) ? n_pos : std::size(adapter_counts);
-  for (auto i = 0u; i < lim; ++i) {
-    r += std::format("{}", i + 1);
-    for (const auto c : cumul[i])
-      // cppcheck-suppress useStlAlgorithm
-      r += std::format("\t{:.6f}", pct(as_frac(c, n_reads)));
-    r += '\n';
-  }
+    n_pos < std::size(adap_counts) ? n_pos : std::size(adap_counts);
+  cumulative.resize(lim);
+  const auto fmt_pct_of_reads = [n_reads](const auto c) {
+    return std::format("\t{:.6f}", pct(as_frac(c, n_reads)));
+  };
+  for (const auto [idx, cumul] : std::views::enumerate(cumulative))
+    r += std::format("{}{}\n", idx + 1, to_flat(fmt_pct_of_reads, cumul));
+
   return r + end_module_tag;
 }
