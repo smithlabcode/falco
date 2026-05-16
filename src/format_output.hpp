@@ -191,6 +191,7 @@ format_qual_by_read(const auto &qual_by_read, const auto qual_offset) {
   // output starting at qual_offset; that's where they are relevant
   for (const auto q : std::views::iota(qual_offset, falco::max_qual_val))
     if (qual_by_read[q] > 0)
+      // cppcheck-suppress useStlAlgorithm
       r += std::format("{}\t{}\n", q - qual_offset, qual_by_read[q]);
   r += end_module_tag;
   return r;
