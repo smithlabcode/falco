@@ -121,10 +121,9 @@ tile_processor::string(const std::uint32_t len) const -> std::string {
   const auto cent = [](const auto &a, const auto b) {
     return as_frac(a.first, a.second) - b;
   };
-  for (const auto &[tile_id, tile_vals] : quals)
-    centered.emplace(tile_id,
-                     std::views::zip_transform(cent, tile_vals, means) |
-                       std::ranges::to<std::vector>());
+  for (const auto &[id, vals] : quals)
+    centered.emplace(id, std::views::zip_transform(cent, vals, means) |
+                           std::ranges::to<std::vector>());
   for (const auto &[i, q] : centered | std::views::take(len))
     for (auto j = 0u; j < std::size(q); ++j)
       r += std::format("{}\t{}\t{:.6g}\n", i, j + 1, q[j]);

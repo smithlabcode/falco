@@ -25,6 +25,7 @@
 #define SRC_TILE_PROCESSOR_HPP_
 
 #include "bam_file.hpp"
+#include "falco_utils.hpp"
 #include "fastq_file.hpp"
 
 #include <array>
@@ -32,9 +33,11 @@
 #include <cstdint>
 #include <format>
 #include <iterator>
+#include <limits>
 #include <ranges>
 #include <string>
 #include <system_error>
+#include <thread>  // IWYU pragma: keep
 #include <unordered_map>
 #include <utility>
 #include <vector>
