@@ -53,9 +53,11 @@
 #include <queue>
 #include <ranges>
 #include <stdexcept>
+#include <stop_token>
 #include <string>
 #include <thread>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 struct falco_results {
@@ -65,13 +67,15 @@ struct falco_results {
   std::vector<std::array<std::uint64_t, alphabet_size>> nucs;
   std::array<std::uint64_t, 101> gcs{};  // NOLINT (*-avoid-magic-numbers)
   std::vector<std::uint64_t> n_counts;
-  std::vector<std::uint64_t> lengths{1};  // in case all reads have length 0
+  std::vector<std::uint64_t> lengths;
   std::vector<std::array<std::uint64_t, falco::max_qual_val>> qual_by_pos;
   std::array<std::uint64_t, falco::max_qual_val> qual_by_read{};
   duplication_results dr;
   adapter_matcher am;
   std::string seq;
   std::string filename;
+
+  falco_results() : lengths(1, 0) {}  // in case all reads have length 0
 
   auto
   resize(const std::uint32_t updated_length) {
@@ -184,8 +188,9 @@ struct falco_results {
     return nucs_no_n;
   };
 
-  [[nodiscard]] auto
+  auto
   fix_bam_qual_encoding() {  // BAM has no +33 for printable encoding
+    // cppcheck-suppress constParameterReference
     const auto shift_and_fill = [&](auto &x) {
       std::shift_right(std::begin(x), std::end(x), falco::bam_qual_offset);
       std::ranges::fill_n(std::begin(x), falco::bam_qual_offset, 0);
@@ -218,13 +223,13 @@ struct falco_results {
     const auto qual_offset = identify_quality_score_offset(qual_by_pos);
     r += format_qual_by_pos(qual_by_pos, qual_offset);
     r += format_qual_by_read(qual_by_read, qual_offset);
-    r += format_base_composition(nucs_no_n);  // base composition
-    r += format_gc_content(gcs);              // GC content
-    r += format_n_counts(n_counts, nucs);     // N content
-    r += format_read_lengths(lengths);        // read lengths
-    r += dr.format_duplication_levels();      // duplication results
-    r += dr.format_overrepresented(n_reads);  // overrepresented sequences
-    r += am.string(n_reads, max_read_len);    // adapter content
+    r += format_base_composition(nucs_no_n);     // base composition
+    r += format_gc_content(gcs);                 // GC content
+    r += format_n_counts(n_counts, nucs);        // N content
+    r += format_read_lengths(lengths);           // read lengths
+    r += dr.format_duplication_levels(n_reads);  // duplication results
+    r += dr.format_overrepresented(n_reads);     // overrepresented sequences
+    r += am.string(n_reads, max_read_len);       // adapter content
     return r;
   }
 };
@@ -325,15 +330,10 @@ template <typename results_t, typename rec_t> struct thread_pool {
   std::vector<results_t> results;
   std::vector<std::jthread> workers;
 
-  // clang-format off
-  thread_pool(const thread_pool &) = delete;
-  auto operator=(const thread_pool &) -> thread_pool & = delete;
-  // clang-format on
-
   explicit thread_pool(std::uint32_t n_threads) : results(n_threads) {
     workers.reserve(n_threads);
     for (auto th_id = 0u; th_id < n_threads; ++th_id) {
-      workers.emplace_back([th_id, this](std::stop_token stop) {
+      workers.emplace_back([th_id, this](const std::stop_token &stop) {
         auto &r = results[th_id];
         while (true) {
           std::pair<typename rec_t::pos_t, typename rec_t::pos_t> task;
@@ -371,7 +371,7 @@ template <typename results_t, typename rec_t> struct thread_pool {
 };
 
 template <typename results_t>
-[[nodiscard]] static inline auto
+static inline auto
 accumulate_results(std::vector<results_t> &r) {
   // pointer jumping strategy
   auto id = std::views::iota(0, std::ssize(r)) | std::ranges::to<std::vector>();
@@ -420,7 +420,7 @@ run(const std::string &infile, auto &reads_file, const auto n_threads,
   if constexpr (std::is_same_v<std::decay_t<decltype(reads_file)>, bam_file>)
     results.fix_bam_qual_encoding();
   results.filename = infile;
-  std::println(out, "{}", results.string());
+  std::print(out, "{}", results.string());
 }
 
 static auto
