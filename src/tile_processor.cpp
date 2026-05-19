@@ -101,6 +101,7 @@ tile_processor::set_preceding_colons(const std::string &filename)
 
 [[nodiscard]] auto
 tile_processor::string(const std::uint32_t len) const -> std::string {
+  static constexpr auto max_precision{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
   static constexpr auto header = "#Tile\tBase\tMean\n";
   auto r = std::format(start_tag, "pass");
@@ -126,7 +127,7 @@ tile_processor::string(const std::uint32_t len) const -> std::string {
                            std::ranges::to<std::vector>());
   for (const auto &[i, q] : centered | std::views::take(len))
     for (auto j = 0u; j < std::size(q); ++j)
-      r += std::format("{}\t{}\t{:.6g}\n", i, j + 1, q[j]);
+      r += std::format("{}\t{}\t{:.{}f}\n", i, j + 1, q[j], max_precision);
   return r + end_module_tag;
 }
 
