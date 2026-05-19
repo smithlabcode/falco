@@ -279,9 +279,7 @@ struct falco_results_kmer : public falco_results {
   auto
   operator+=(const falco_results_kmer &rhs) -> const falco_results_kmer & {
     falco_results::operator+=(rhs);
-    std::println("{}\t{}", this->kc.string(1), rhs.kc.string(1));
     kc += rhs.kc;
-    std::println("{}\t{}", this->kc.string(1), rhs.kc.string(1));
     return *this;
   }
 
