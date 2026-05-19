@@ -80,29 +80,27 @@ sum_deviation_from_normal(const auto &gc) {
   const auto left_itr =
     std::find_if(std::reverse_iterator(mode_itr), std::crend(gc), gt_cut);
   const auto n = std::distance(std::reverse_iterator(right_itr), left_itr);
-  const auto mode = mode_pos + (n - 1) / 2.0;
+  const double mode = mode_pos + (n - 1) / 2.0;
 
   // theoretical distribution
-  const auto cntr_sq = [m = mode](const auto z) { return (z - m) * (z - m); };
+  const auto cntr_sq = [m = mode](const auto v) { return (v - m) * (v - m); };
   const auto sd_term = [&](const auto &x) {
     return cntr_sq(std::get<0>(x)) * std::get<1>(x);
   };
   const auto id_gc = std::views::enumerate(gc) | std::views::transform(sd_term);
-  const auto sd = std::sqrt(std::reduce(std::cbegin(id_gc), std::cend(id_gc))) /
-                  (total_count - 1);
-
-  const auto norm = [&](const auto i) {
-    return std::exp(-cntr_sq(i) / (2.0 * sd * sd));
+  const auto sd = std::sqrt(std::reduce(std::cbegin(id_gc), std::cend(id_gc)) /
+                            (total_count - 1));
+  const auto to_normal = [&](const auto val) {
+    return std::exp(-cntr_sq(val) / (2.0 * sd * sd));
   };
-  auto th = std::views::iota(0u, n_bins) | std::views::transform(norm) |
-            std::ranges::to<std::vector>();
-  const auto tot = std::reduce(std::cbegin(th), std::cend(th));
-  std::ranges::transform(th, std::begin(th),
-                         [&](const auto x) { return x * total_count / tot; });
+  auto theor = std::views::iota(0u, n_bins) | std::views::transform(to_normal) |
+               std::ranges::to<std::vector>();
+  const auto denom = std::reduce(std::cbegin(theor), std::cend(theor));
+  std::ranges::transform(theor, std::begin(theor),
+                         [&](const auto x) { return x * total_count / denom; });
   const auto diff = [](const auto a, const auto b) { return std::fabs(a - b); };
-  const auto r = std::transform_reduce(gc_beg, gc_end, std::cbegin(th), 0.0,
+  const auto r = std::transform_reduce(gc_beg, gc_end, std::cbegin(theor), 0.0,
                                        std::plus{}, diff);
-
   return pct(as_frac(r, total_count));
 }
 
@@ -114,25 +112,41 @@ format_gc_content(const auto &gc_content) {
   static constexpr auto grade_cutoffs = std::array{
     std::pair{15.0, "pass"},
     std::pair{30.0, "warn"},
-    std::pair{std::numeric_limits<double>::max(), "error"},
+    std::pair{std::numeric_limits<double>::max(), "fail"},
   };
   const auto deviation = sum_deviation_from_normal(gc_content);
+  std::println("deviation={}", deviation);
   auto r = std::format(start_tag, get_grade(grade_cutoffs, deviation));
   r += header;
   for (const auto [i, c] : std::views::enumerate(gc_content))
     r += std::format("{}\t{}\n", i, c);
   r += end_module_tag;
-
   return r;
 }
 
 [[nodiscard]] inline auto
 format_base_composition(const auto &nucs) {
+  static constexpr auto grade_cutoffs = std::array{
+    std::pair{10.0, "pass"},
+    std::pair{20.0, "warn"},
+    std::pair{std::numeric_limits<double>::max(), "fail"},
+  };
   static constexpr auto start_tag = ">>Per base sequence content\t{}\n";
   static constexpr auto header = "#Base\t"
                                  "G\tA\tT\tC\n";
   static constexpr auto base_permutation = {3, 0, 2, 1};
-  auto r = std::format(start_tag, "fail");
+  const auto compl_diff = [](const auto &by_pos) {
+    // (A,C,G,T)=(0,1,3,2)
+    const auto tot = std::reduce(std::cbegin(by_pos), std::cend(by_pos));
+    const auto delta = [tot](const auto a, const auto b) {
+      return pct(as_frac(a, tot)) - pct(as_frac(b, tot));
+    };
+    return std::max(std::fabs(delta(by_pos[0], by_pos[2])),
+                    std::fabs(delta(by_pos[1], by_pos[3])));
+  };
+  const auto max_diff =
+    std::ranges::max(nucs | std::views::transform(compl_diff));
+  auto r = std::format(start_tag, get_grade(grade_cutoffs, max_diff));
   r += header;
   for (auto i = 0u; i < std::size(nucs); ++i) {
     r += std::format("{}", i + 1);
@@ -148,13 +162,13 @@ format_base_composition(const auto &nucs) {
 
 [[nodiscard]] inline auto
 format_n_counts(const auto &n_counts, const auto &nucs) {
-  static constexpr auto start_tag = "Per base N content\t{}\n";
+  static constexpr auto start_tag = ">>Per base N content\t{}\n";
   static constexpr auto header = "#Base\t"
                                  "N-Count\n";
   static constexpr auto grade_cutoffs = std::array{
     std::pair{0.05, "pass"},
     std::pair{0.20, "warn"},
-    std::pair{1.00, "error"},
+    std::pair{1.00, "fail"},
   };
   const auto max_idx =
     std::distance(std::cbegin(n_counts), std::ranges::max_element(n_counts));
@@ -177,7 +191,7 @@ format_qual_by_read(const auto &qual_by_read, const auto qual_offset) {
   static constexpr auto header = "#Quality\t"
                                  "Count\n";
   static constexpr auto grade_cutoffs = std::array{
-    std::pair{20, "error"},
+    std::pair{20, "fail"},
     std::pair{27, "warn"},
     std::pair{falco::max_qual_val, "pass"},
   };
@@ -205,12 +219,12 @@ get_grade_qual_by_pos(const auto &qual, const auto max_read_len) {
   // NOLINTEND (*-avoid-magic-numbers)
   // ADS: not sure how this is used
   [[maybe_unused]] static constexpr auto grade_cutoffs_lower = std::array{
-    std::pair{0.05, "error"},
+    std::pair{0.05, "fail"},
     std::pair{0.10, "warn"},
     std::pair{1.00, "pass"},
   };
   static constexpr auto grade_cutoffs_median = std::array{
-    std::pair{0.20, "error"},
+    std::pair{0.20, "fail"},
     std::pair{0.25, "warn"},
     std::pair{1.00, "pass"},
   };
@@ -227,6 +241,7 @@ get_grade_qual_by_pos(const auto &qual, const auto max_read_len) {
 
 [[nodiscard]] inline auto
 format_qual_by_pos(const auto &qual, const auto qual_offset) {
+  static constexpr auto max_precision{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per base sequence quality\t{}\n";
   static constexpr auto header = "#Base\t"
                                  "Mean\t"
@@ -236,11 +251,9 @@ format_qual_by_pos(const auto &qual, const auto qual_offset) {
                                  "10th Percentile\t"
                                  "90th Percentile\n";
   const auto tab_sep = [](const auto &a) {
-    auto r = std::string{};
-    for (const auto &value : a | std::views::take(std::size(a) - 1))
-      // cppcheck-suppress useStlAlgorithm
-      r += std::format("{}\t", value);
-    return r + std::format("{}", a.back());
+    const auto fmt = [](const auto x) { return std::format("\t{}", x); };
+    return std::views::transform(a, fmt) | std::views::join |
+           std::ranges::to<std::string>();
   };
   const auto sub_from_each = [](auto a, const auto b) {
     std::ranges::for_each(a, [&](auto &x) { x -= b; });
@@ -251,8 +264,14 @@ format_qual_by_pos(const auto &qual, const auto qual_offset) {
   r += header;
   for (auto i = 0u; i < max_read_len; ++i) {
     const auto q = sub_from_each(five_quants(qual[i]), qual_offset);
-    r += std::format("{}\t{:.6g}\t{}\n", i + 1,
-                     mean_tabular(qual[i]) - qual_offset, tab_sep(q));
+    // ADS: format expanded to max_precision to easily compare with earlier
+    // versions
+    //
+    // r += std::format("{}\t{:.6g}{}\n", i + 1,
+    //               mean_tabular(qual[i]) - qual_offset, tab_sep(q));
+    r +=
+      std::format("{}\t{:.{}g}{}\n", i + 1, mean_tabular(qual[i]) - qual_offset,
+                  max_precision, tab_sep(q));
   }
   r += end_module_tag;
   return r;
