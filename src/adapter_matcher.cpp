@@ -61,7 +61,7 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 adapter_matcher::string(const std::uint64_t n_reads,
                         const std::uint32_t n_pos) const -> std::string {
   static constexpr auto start_module_tag = ">>Adapter Content\t{}\n";
-  static constexpr auto header = "#Position\t";
+  static constexpr auto header = "#Position";
   static const auto to_flat = [](const auto &fmt, const auto data) {
     return data | std::views::transform(fmt) | std::views::join |
            std::ranges::to<std::string>();
@@ -86,7 +86,7 @@ adapter_matcher::string(const std::uint64_t n_reads,
     n_pos < std::size(adap_counts) ? n_pos : std::size(adap_counts);
   cumulative.resize(lim);
   const auto fmt_pct_of_reads = [n_reads](const auto c) {
-    return std::format("\t{:.6f}", pct(as_frac(c, n_reads)));
+    return std::format("\t{:.6g}", pct(as_frac(c, n_reads)));
   };
   for (const auto [idx, cumul] : std::views::enumerate(cumulative))
     r += std::format("{}{}\n", idx + 1, to_flat(fmt_pct_of_reads, cumul));
