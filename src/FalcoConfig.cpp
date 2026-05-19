@@ -221,7 +221,8 @@ static const auto adapter_names = std::vector<std::string>{
   "Illumina Small RNA 3 prime Adapter",
   "Illumina Small RNA 5 prime Adapter",
   "Nextera Transposase Sequence",
-  "SOLID Small RNA Adapter",
+  "PolyA",
+  "PolyG",
 };
 
 // Actual string sequence (eg: ATTGCCACA)
@@ -231,7 +232,8 @@ static const auto adapter_seqs = std::vector<std::string>{
   "TGGAATTCTCGG",
   "GATCGTCGGACT",
   "CTGTCTCTTATA",
-  "CGCCTTGGCCGT",
+  "AAAAAAAAAAAA",
+  "GGGGGGGGGGGG",
 };
 // clang-format on
 
