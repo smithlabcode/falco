@@ -70,9 +70,11 @@ duplication_results::format_overrepresented(const std::uint64_t n_reads) const
   const auto tot = reduce(std::views::values(dups));
   const auto grade = get_grade(overrep_grade_cutoffs, as_frac(max_n_obs, tot));
   auto r = std::format(start_tag, grade);
-  r += header;
-  for (const auto &[n_obs, seq] : overrep)
-    r += std::format("{}\t{}\t{}\n", seq, n_obs, pct(as_frac(n_obs, tot)));
+  if (!overrep.empty()) {
+    r += header;
+    for (const auto &[n_obs, seq] : overrep)
+      r += std::format("{}\t{}\t{}\n", seq, n_obs, pct(as_frac(n_obs, tot)));
+  }
   return r + end_module_tag;
 }
 
@@ -80,7 +82,7 @@ duplication_results::format_overrepresented(const std::uint64_t n_reads) const
 duplication_results::format_duplication_levels(
   [[maybe_unused]] const std::uint64_t n_reads) const -> std::string {
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
-                                    "#Total Deduplicated Percentage\t{}\n";
+                                    "#Total Deduplicated Percentage\t{:.6f}\n";
   static constexpr auto header = "#Duplication Level\t"
                                  "Percentage of deduplicated\t"
                                  "Percentage of total\n";
