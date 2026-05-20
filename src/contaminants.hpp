@@ -30,36 +30,29 @@
 
 // gets the largest suffix of left which is a prefix of right
 // returns 0 if none exist
-[[nodiscard]] inline auto
+[[nodiscard]] static inline auto
 get_overlap(const auto &left, const auto &right) {
-  const auto left_beg = std::cbegin(left);
-  const auto left_end = std::cend(left);
   const auto right_beg = std::cbegin(right);
   const auto right_end = std::cend(right);
-  auto best_n_matches = 0ul;
-  const auto sz = std::size(left);
-  for (std::size_t offset = 0; offset < sz; ++offset) {
-    auto n_matches = 0ul;
-    auto left_itr = left_beg + offset;
-    auto right_itr = right_beg;
-    while (left_itr != left_end && right_itr != right_end &&
-           *left_itr == *right_itr) {
-      ++left_itr;
-      ++right_itr;
-      ++n_matches;
-    }
-    // does not accept if overlap does not cover a suffix or the entirety of
-    // right
-    if (left_itr == left_end || right_itr == right_end)
+  const auto left_beg = std::cbegin(left);
+  const auto left_end = std::cend(left);
+  auto best_n_matches = 0l;
+  for (auto left_itr = left_beg; left_itr != left_end; ++left_itr) {
+    const auto mm_res = std::mismatch(left_itr, left_end, right_beg, right_end);
+    // overlap must cover a suffix of left or the entirety of right
+    if (mm_res.first == left_end || mm_res.second == right_end) {
+      const auto n_matches = std::distance(left_itr, mm_res.first);
       best_n_matches = std::max(best_n_matches, n_matches);
+    }
   }
   return best_n_matches;
 }
 
 [[nodiscard]] inline auto
 match_contaminant(const auto &query, const auto &contams) -> std::string {
+  static constexpr auto no_hit_label = "No Hit";
   std::string best_name;
-  auto best_match = 0ul;
+  auto best_match = 0l;
   auto best_match_len = 0ul;
   for (const auto &[name, seq] : contams) {
     const auto n_match =
@@ -70,10 +63,9 @@ match_contaminant(const auto &query, const auto &contams) -> std::string {
       best_match_len = std::size(seq);
     }
   }
+  const auto match_cutoff = std::min(best_match_len, std::size(query)) / 2.0;
   // If any sequence is a match, return the best one
-  return (2 * best_match >= std::min(best_match_len, std::size(query)))
-           ? best_name
-           : "No Hit";
+  return best_match < match_cutoff ? no_hit_label : best_name;
 }
 
 using std::string_view_literals::operator""sv;
