@@ -56,10 +56,20 @@ if(CMAKE_BUILD_TYPE STREQUAL Release)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
+find_package(HTSLIB REQUIRED)
+find_package(Threads REQUIRED)
+
 add_library(tile_processor OBJECT src/tile_processor.cpp)
+target_link_libraries(tile_processor PRIVATE HTSLIB::HTSLIB)
+
 add_library(kmer_counter OBJECT src/kmer_counter.cpp)
+target_link_libraries(kmer_counter PRIVATE HTSLIB::HTSLIB)
+
 add_library(duplication_results OBJECT src/duplication_results.cpp)
+target_link_libraries(duplication_results PRIVATE HTSLIB::HTSLIB)
+
 add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
+target_link_libraries(adapter_matcher PRIVATE HTSLIB::HTSLIB)
 
 add_executable(falco2 src/falco2.cpp)
 target_link_libraries(falco2 PUBLIC
@@ -67,14 +77,6 @@ target_link_libraries(falco2 PUBLIC
   adapter_matcher
   duplication_results
   kmer_counter
+  HTSLIB::HTSLIB
+  Threads::Threads
 )
-
-find_package(Threads REQUIRED)
-target_link_libraries(falco2 PUBLIC Threads::Threads)
-
-find_package(HTSLIB REQUIRED)
-if(HTSLIB_FOUND)
-  target_link_libraries(falco2 PUBLIC HTSLIB::HTSLIB)
-else()
-  message(FATAL_ERROR "HTSLib required but not found")
-endif()
