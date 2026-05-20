@@ -42,7 +42,7 @@ struct falco_word {
   static constexpr auto shift_for_width_bits = 56u;
   static constexpr auto width_bits_removal_mask = 0xffffffffffffff;
   static constexpr auto max_lo_lim = 27u;
-  static constexpr auto max_hi_lim = 51u;
+  static constexpr auto max_hi_lim = 50u;  // ADS: we could go to 51 bp
   std::uint64_t lo{};
   std::uint64_t hi{};
 
