@@ -23,6 +23,7 @@
 
 #include "duplication_results.hpp"
 
+#include "contaminants.hpp"
 #include "falco_utils.hpp"
 #include "falco_word.hpp"
 
@@ -73,7 +74,8 @@ duplication_results::format_overrepresented(const std::uint64_t n_reads) const
   if (!overrep.empty()) {
     r += header;
     for (const auto &[n_obs, seq] : overrep)
-      r += std::format("{}\t{}\t{}\n", seq, n_obs, pct(as_frac(n_obs, tot)));
+      r += std::format("{}\t{}\t{}\t{}\n", seq, n_obs, pct(as_frac(n_obs, tot)),
+                       match_contaminant(seq.string(), contaminants));
   }
   return r + end_module_tag;
 }
