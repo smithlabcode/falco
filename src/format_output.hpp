@@ -115,7 +115,6 @@ format_gc_content(const auto &gc_content) {
     std::pair{std::numeric_limits<double>::max(), "fail"},
   };
   const auto deviation = sum_deviation_from_normal(gc_content);
-  std::println("deviation={}", deviation);
   auto r = std::format(start_tag, get_grade(grade_cutoffs, deviation));
   r += header;
   for (const auto [i, c] : std::views::enumerate(gc_content))
