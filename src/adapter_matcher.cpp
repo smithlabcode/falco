@@ -58,8 +58,7 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 }
 
 [[nodiscard]] auto
-adapter_matcher::string(const std::uint64_t n_reads,
-                        const std::uint32_t n_pos) const -> std::string {
+adapter_matcher::string(const std::uint64_t n_reads) const -> std::string {
   static constexpr auto start_module_tag = ">>Adapter Content\t{}\n";
   static constexpr auto header = "#Position";
   static const auto to_flat = [](const auto &fmt, const auto data) {
@@ -82,8 +81,8 @@ adapter_matcher::string(const std::uint64_t n_reads,
   for (auto [prev, curr] : cumulative | std::views::pairwise)
     std::ranges::transform(curr, prev, std::begin(curr), std::plus{});
 
-  const auto lim =
-    n_pos < std::size(adap_counts) ? n_pos : std::size(adap_counts);
+  const auto n_pos = std::size(adap_counts);
+  const auto lim = n_pos + 1 >= adapter_size ? n_pos - adapter_size + 1 : n_pos;
   cumulative.resize(lim);
   const auto fmt_pct_of_reads = [n_reads](const auto c) {
     return std::format("\t{:.6g}", pct(as_frac(c, n_reads)));
