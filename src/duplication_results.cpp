@@ -75,7 +75,7 @@ duplication_results::format_overrepresented(const std::uint64_t n_reads) const
     r += header;
     for (const auto &[n_obs, seq] : overrep)
       r += std::format("{}\t{}\t{}\t{}\n", seq, n_obs, pct(as_frac(n_obs, tot)),
-                       match_contaminant(seq.string(), contaminants));
+                       match_contaminant(seq.string(), contaminants_default));
   }
   return r + end_module_tag;
 }
