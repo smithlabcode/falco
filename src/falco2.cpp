@@ -115,7 +115,8 @@ struct falco_results {
     while (rec_seq_itr != rec_seq_end)
       *itr++ = *rec_seq_itr++;
     if (rec.is_rev)
-      revcomp(std::begin(seq), std::end(seq));
+      // ADS: only revcomp the prefix that will be used for this read
+      revcomp(std::begin(seq), std::begin(seq) + get_seq_size(rec));
     return std::data(seq);
   }
 
