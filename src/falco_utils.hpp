@@ -240,27 +240,4 @@ struct falco_thread_pool {
   ~falco_thread_pool() { hts_tpool_destroy(t.pool); }
 };
 
-static inline constexpr auto
-falco_reverse(auto first, auto last) {
-  for (--last; first < last; ++first, --last)
-    std::iter_swap(first, last);
-}
-
-static inline constexpr auto
-falco_complement(auto first, auto last) {
-  const auto complement = [](auto &a) {
-    a = "TNGNNNCNNNNNNNNNNNNANNNNNN"[a - 'A'];
-  };
-  while (first != last)
-    complement(*first++);
-}
-
-static inline constexpr auto
-revcomp(auto first, auto last) {
-  if (first == last) [[unlikely]]
-    return;
-  falco_reverse(first, last);
-  falco_complement(first, last);
-}
-
 #endif  // SRC_FALCO_UTILS_HPP_
