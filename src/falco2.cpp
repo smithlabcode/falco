@@ -230,7 +230,7 @@ struct falco_results {
     r += format_read_lengths(lengths);           // read lengths
     r += dr.format_duplication_levels(n_reads);  // duplication results
     r += dr.format_overrepresented(n_reads);     // overrepresented sequences
-    r += am.string(n_reads, max_read_len);       // adapter content
+    r += am.string(n_reads);                     // adapter content
     return r;
   }
 };
