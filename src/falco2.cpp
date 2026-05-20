@@ -103,44 +103,47 @@ struct falco_results {
   }
 
   // clang-format off
-  [[nodiscard]] auto make_seq_begin(const fqrec &rec) { return get_seq(rec); }
   [[nodiscard]] auto get_seq_begin(const fqrec &rec) { return get_seq(rec); }
+  [[nodiscard]] auto make_seq_begin(const fqrec &rec) { return get_seq(rec); }
+  [[nodiscard]] auto get_seq_begin(const bamrec &) { return std::data(seq); }
   // clang-format on
 
   [[nodiscard]] auto
   make_seq_begin(const bamrec &rec) {
-    auto itr = std::begin(seq);
+    const auto complement = [](const auto a) {
+      return "TNGNNNCNNNNNNNNNNNNA"[a - 'A'];
+    };
     auto rec_seq_itr = get_seq(rec);
     const auto rec_seq_end = get_seq_end(rec);
-    while (rec_seq_itr != rec_seq_end)
-      *itr++ = *rec_seq_itr++;
-    if (rec.is_rev)
-      // ADS: only revcomp the prefix that will be used for this read
-      revcomp(std::begin(seq), std::begin(seq) + get_seq_size(rec));
+    if (rec.is_rev) {
+      auto itr = std::end(seq);
+      while (rec_seq_itr != rec_seq_end)
+        *(--itr) = complement(*rec_seq_itr++);
+    }
+    else {
+      auto itr = std::begin(seq);
+      while (rec_seq_itr != rec_seq_end)
+        *itr++ = *rec_seq_itr++;
+    }
     return std::data(seq);
   }
 
   [[nodiscard]] auto
-  get_seq_begin([[maybe_unused]] const bamrec &rec) {
-    return std::cbegin(seq);
-  }
-
-  [[nodiscard]] auto
-  process_qual(const bamrec &rec) {
+  process_quality_scores(const bamrec &rec) {
     return rec.is_rev
              ? count_quals_rev(get_qual(rec), get_qual_end(rec), qual_by_pos)
              : count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
   }
 
   [[nodiscard]] auto
-  process_qual(const fqrec &rec) {
+  process_quality_scores(const fqrec &rec) {
     return count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
   }
 
   auto
   process_one_read_impl(const auto &rec) {
     // NOLINTBEGIN (*-pro-bounds-constant-array-index)
-    static constexpr auto pct_int = [](const auto a, const auto b) {
+    static constexpr auto discrete_pct = [](const auto a, const auto b) {
       return (100 * a) / b;  // NOLINT (cppcoreguidelines-avoid-magic-numbers)
     };
     const auto read_len = static_cast<std::uint32_t>(get_seq_size(rec));
@@ -157,9 +160,9 @@ struct falco_results {
     const auto seq_end = seq_itr + read_len;
     count_nucs(seq_itr, seq_end, nucs);
     const auto gc = count_gc(seq_itr, seq_end);
-    ++gcs[pct_int(gc, read_len)];
+    ++gcs[discrete_pct(gc, read_len)];
     count_ns(seq_itr, seq_end, n_counts);
-    const auto tot = process_qual(rec);
+    const auto tot = process_quality_scores(rec);
     ++qual_by_read[tot / read_len];
     count_seqs(seq_itr, read_len, dr);
     am.match_adapters(seq_itr, read_len);
