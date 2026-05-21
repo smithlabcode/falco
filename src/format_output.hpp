@@ -53,9 +53,12 @@ format_read_lengths(const auto &lengths) {
   const auto grade = has_empty_reads ? "fail" : n_lengths > 1 ? "warn" : "pass";
   auto r = std::format(start_tag, grade);
   r += header;
-  for (auto i = 0u; i < std::size(lengths); ++i)
-    if (lengths[i] > 0)
+  bool found_first = false;
+  for (auto i = 0u; i < std::size(lengths); ++i) {
+    found_first = found_first || lengths[i] > 0;
+    if (found_first)
       r += std::format("{}\t{}\n", i, lengths[i]);
+  }
   r += end_module_tag;
   return r;
 }
