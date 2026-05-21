@@ -62,6 +62,8 @@ find_package(Threads REQUIRED)
 add_library(tile_processor OBJECT src/tile_processor.cpp)
 target_link_libraries(tile_processor PRIVATE HTSLIB::HTSLIB)
 
+add_library(contaminants OBJECT src/contaminants.cpp)
+
 add_library(kmer_counter OBJECT src/kmer_counter.cpp)
 target_link_libraries(kmer_counter PRIVATE HTSLIB::HTSLIB)
 
@@ -74,6 +76,7 @@ target_link_libraries(adapter_matcher PRIVATE HTSLIB::HTSLIB)
 add_executable(falco2 src/falco2.cpp)
 target_link_libraries(falco2 PUBLIC
   tile_processor
+  contaminants
   adapter_matcher
   duplication_results
   kmer_counter
