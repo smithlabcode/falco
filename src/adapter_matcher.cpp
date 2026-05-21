@@ -36,18 +36,13 @@
 #include <vector>
 
 adapter_matcher::adapter_matcher() {
-  const auto encode_adap = [&](const auto &a) {
-    std::uint64_t x{};
-    for (const auto i : std::views::iota(0, adapter_size))
-      // cppcheck-suppress useStlAlgorithm
-      x = (x << nibble_size) + encode_nibble(a[i]);
-    return x;
+  static constexpr auto shift_plus = [&](const auto r, const auto c) {
+    return (r << nibble_size) + encode_nibble(c);
   };
-  // NOLINTBEGIN (*-pro-bounds-constant-array-index)
-  for (const auto i : std::views::iota(0, n_adapters))
-    // cppcheck-suppress useStlAlgorithm
-    encoded_adapters[i] = encode_adap(adapters[i]);
-  // NOLINTEND (*-pro-bounds-constant-array-index)
+  std::ranges::transform(
+    adapters, std::begin(encoded_adapters), [&](const auto &a) {
+      return std::accumulate(a, a + adapter_size, 0ul, shift_plus);
+    });
 }
 
 auto
