@@ -23,6 +23,7 @@
 
 #include "adapter_matcher.hpp"
 #include "bam_file.hpp"
+#include "contaminants.hpp"
 #include "duplication_results.hpp"
 #include "falco_file_format.hpp"
 #include "falco_utils.hpp"
@@ -443,6 +444,7 @@ main(int argc, char *argv[]) {
   try {
     static constexpr auto buf_size_defulat = 512 * 1024 * 1024;
     std::string infile;
+    std::string contam_file;
     std::string outfile;
     std::int32_t buf_size{buf_size_defulat};
     std::uint32_t n_threads{1};
@@ -462,6 +464,9 @@ main(int argc, char *argv[]) {
       ->required()
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
+    app.add_option("-c,--contaminants", contam_file, "contaminans file")
+      ->option_text("FILE")
+      ->check(CLI::ExistingFile);
     app.add_option("-o,--output", outfile, "output filename")
       ->required();
     app.add_option("-s,--size", buf_size, "buffer size");
@@ -478,6 +483,12 @@ main(int argc, char *argv[]) {
       return EXIT_SUCCESS;
     }
     CLI11_PARSE(app, argc, argv);
+
+    if (!contam_file.empty()) {
+      load_contaminants(contam_file);
+      if (verbose)
+        std::println("number of contaminants: {}", std::size(contaminants));
+    }
 
     const auto [infmt, infmt_descr] = get_file_format(infile);
     if (verbose)
