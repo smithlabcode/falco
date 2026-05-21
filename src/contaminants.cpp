@@ -215,8 +215,8 @@ load_contaminants(const std::string &filename) {
     line.remove_suffix(std::size(line) - to_keep_suffix - 1);
     std::string cleaned_line;
     for (auto itr = std::cbegin(line); itr != std::cend(line); ++itr)
-      if (!std::isblank(*itr) || std::next(itr) == std::cend(line) ||
-          *itr != *std::next(itr))
+      if (!std::isblank(*itr) ||
+          (std::next(itr) != std::cend(line) && *itr != *std::next(itr)))
         cleaned_line += *itr;
     const auto tab_pos = cleaned_line.find('\t');
     if (tab_pos == std::string::npos ||
