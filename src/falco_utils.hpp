@@ -90,18 +90,18 @@ pct(const double a) {
   return 100.0 * a;
 }
 
-[[nodiscard]] inline constexpr auto
+inline constexpr auto
 add(auto &a1, auto &a2) {
   std::ranges::transform(a1, a2, std::begin(a1), std::plus{});
 };
 
-[[nodiscard]] inline constexpr auto
+inline constexpr auto
 vec_add(auto &v1, const auto &v2) {
   v1.resize(std::max(std::size(v1), std::size(v2)));
   add(v1, v2);
 };
 
-[[nodiscard]] inline constexpr auto
+inline constexpr auto
 two_dim_add(auto &v1, const auto &v2) {
   v1.resize(std::max(std::size(v1), std::size(v2)));
   for (auto [a1, a2] : std::views::zip(v1, v2))

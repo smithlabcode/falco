@@ -29,6 +29,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <format>
+#include <limits>
 #include <map>
 #include <memory>
 #include <stdexcept>

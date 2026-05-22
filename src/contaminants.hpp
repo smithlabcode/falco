@@ -24,9 +24,9 @@
 #ifndef SRC_CONTAMINANTS_HPP_
 #define SRC_CONTAMINANTS_HPP_
 
+#include <algorithm>
 #include <iterator>
 #include <string>
-#include <utility>
 #include <vector>
 
 extern std::vector<std::pair<std::string, std::string>> contaminants;

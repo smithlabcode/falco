@@ -24,15 +24,16 @@
 #include "contaminants.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
-#include <print>
-#include <ranges>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 // clang-format off
-std::vector<std::pair<std::string, std::string>> contaminants = {
+std::vector<std::pair<std::string, std::string>> contaminants = {  // NOLINT(cert-err58-cpp,cppcoreguidelines-avoid-non-const-global-variables)
   {"Illumina Single End Adapter 1", "GATCGGAAGAGCTCGTATGCCGTCTTCTGCTTG"},
   {"Illumina Single End Adapter 2", "CAAGCAGAAGACGGCATACGAGCTCTTCCGATCT"},
   {"Illumina Single End PCR Primer 1", "AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT"},
@@ -220,7 +221,7 @@ load_contaminants(const std::string &filename) {
         cleaned_line += *itr;
     const auto tab_pos = cleaned_line.find('\t');
     if (tab_pos == std::string::npos ||
-        tab_pos != cleaned_line.find_last_of("\t"))
+        tab_pos != cleaned_line.find_last_of('\t'))
       throw std::runtime_error("malformed line: " + line_data);
     const auto is_print = [](const auto c) { return std::isprint(c); };
     const auto name = cleaned_line.substr(0, tab_pos);

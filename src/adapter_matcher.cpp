@@ -30,6 +30,7 @@
 #include <format>
 #include <functional>
 #include <iterator>
+#include <numeric>
 #include <ranges>
 #include <string>
 #include <tuple>
