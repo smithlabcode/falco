@@ -85,18 +85,24 @@ encode_nibble(const char c) {
   return (c >> 1) & 15;  // N gets separate encoding
 }
 
-inline constexpr auto pct = [](const double a) { return 100.0 * a; };
+[[nodiscard]] inline constexpr auto
+pct(const double a) {
+  return 100.0 * a;
+}
 
-const auto add = [](auto &a1, auto &a2) {
+[[nodiscard]] inline constexpr auto
+add(auto &a1, auto &a2) {
   std::ranges::transform(a1, a2, std::begin(a1), std::plus{});
 };
 
-const auto vec_add = [](auto &v1, const auto &v2) {
+[[nodiscard]] inline constexpr auto
+vec_add(auto &v1, const auto &v2) {
   v1.resize(std::max(std::size(v1), std::size(v2)));
   add(v1, v2);
 };
 
-const auto two_dim_add = [](auto &v1, const auto &v2) {
+[[nodiscard]] inline constexpr auto
+two_dim_add(auto &v1, const auto &v2) {
   v1.resize(std::max(std::size(v1), std::size(v2)));
   for (auto [a1, a2] : std::views::zip(v1, v2))
     add(a1, a2);
@@ -117,7 +123,7 @@ ipow(const auto b, const auto e) -> std::remove_cvref_t<decltype(b)> {
   return e == 0 ? 1 : (e & 1 ? b : 1) * ipow(b * b, e >> 1);
 }
 
-static inline auto
+inline constexpr auto
 count_nucs(auto seq_itr, const auto seq_end,
            auto &tab) {  // cppcheck-suppress constParameterReference
   auto out_itr = std::begin(tab);
@@ -125,7 +131,7 @@ count_nucs(auto seq_itr, const auto seq_end,
     ++(*out_itr++)[encode(*seq_itr++)];
 }
 
-static inline auto
+inline constexpr auto
 count_ns(auto seq_itr, const auto seq_end,
          auto &tab) {  // cppcheck-suppress constParameterReference
   auto out_itr = std::begin(tab);
@@ -204,19 +210,20 @@ mean_tabular(const auto &a) {
 // NOLINTBEGIN (cppcoreguidelines-avoid-magic-numbers)
 [[nodiscard]] inline auto
 five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
-  const auto dlb = [](const auto &p, const auto x) {
-    // get quantile as distance to insertion point
-    return static_cast<std::uint32_t>(
-      std::distance(std::begin(p), std::ranges::lower_bound(p, x)));
+  const auto dist_to_insertion_point = [](const auto &p, const auto x) {
+    // get quantile as distance to insertion point in cumulative counts; using
+    // upper bound for the case of very few counts
+    const auto ub = std::ranges::upper_bound(p, x);
+    return static_cast<std::uint32_t>(std::distance(std::begin(p), ub));
   };
-  std::vector<std::uint64_t> p(std::size(a), 0);
-  std::inclusive_scan(std::cbegin(a), std::cend(a), std::begin(p));
+  std::vector<std::uint64_t> cumul(std::size(a), 0);
+  std::inclusive_scan(std::cbegin(a), std::cend(a), std::begin(cumul));
   return {
-    dlb(p, p.back() / 2),      // median
-    dlb(p, p.back() / 4),      // lower quartile
-    dlb(p, 3 * p.back() / 4),  // upper quartile
-    dlb(p, p.back() / 10),     // 10th percentile
-    dlb(p, 9 * p.back() / 10)  // 90th percentile
+    dist_to_insertion_point(cumul, cumul.back() / 2),      // median
+    dist_to_insertion_point(cumul, cumul.back() / 4),      // lower quartile
+    dist_to_insertion_point(cumul, 3 * cumul.back() / 4),  // upper quartile
+    dist_to_insertion_point(cumul, cumul.back() / 10),     // 10th percentile
+    dist_to_insertion_point(cumul, 9 * cumul.back() / 10)  // 90th percentile
   };
 }
 // NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
