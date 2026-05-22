@@ -117,7 +117,7 @@ struct falco_results {
     auto rec_seq_itr = get_seq(rec);
     const auto rec_seq_end = get_seq_end(rec);
     if (rec.is_rev) {
-      auto itr = std::end(seq);
+      auto itr = std::begin(seq) + get_seq_size(rec);
       while (rec_seq_itr != rec_seq_end)
         *(--itr) = complement(*rec_seq_itr++);
     }
@@ -215,7 +215,7 @@ struct falco_results {
     const auto nucs_no_n = fix_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
     const auto gc_acc = [](const auto a, const auto &nuc) {
-      return a + nuc[1] + nuc[3];
+      return a + nuc[1] + nuc[3];  // NOLINT (*-avoid-magic-numbers)
     };
     const auto total_gc = std::accumulate(std::cbegin(nucs_no_n),
                                           std::cend(nucs_no_n), 0ul, gc_acc);
