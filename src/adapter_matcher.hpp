@@ -85,6 +85,8 @@ struct adapter_matcher {
 
   auto
   match_adapters(const auto seq, const auto len) {
+    if (len < adapter_size) [[unlikely]]
+      return;
     for (auto i = 0; i < n_adapters; ++i)
       if (const auto p = match_adapter(seq, len, encoded_adapters[i]); p < len)
         ++adap_counts[p][i];
@@ -100,14 +102,6 @@ struct adapter_matcher {
 
   [[nodiscard]] auto
   string(const std::uint64_t n_reads) const -> std::string;
-};
-
-template <>
-struct std::formatter<adapter_matcher> : std::formatter<std::string> {
-  auto
-  format(const adapter_matcher &am, auto &ctx) const {
-    return std::formatter<std::string>::format(am.string(1), ctx);
-  }
 };
 
 #endif  // SRC_ADAPTER_MATCHER_HPP_
