@@ -34,7 +34,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <cmath>
 #include <format>
 #include <iterator>
@@ -70,7 +69,8 @@ sum_deviation_from_normal(const auto &gc) {
   const auto gc_beg = std::cbegin(gc);
   const auto gc_end = std::cend(gc);
   const auto total_count = std::reduce(gc_beg, gc_end);
-  assert(n_bins > 1 && total_count > 1);
+  if (total_count <= 1)  // we will be dividing by (total_count - 1)
+    return 0.0;
 
   // get mode
   const auto mode_itr = std::ranges::max_element(gc);
