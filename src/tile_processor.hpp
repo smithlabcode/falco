@@ -93,8 +93,7 @@ struct tile_processor {
   set_preceding_colons(const std::string &fastq_filename) -> std::uint32_t;
 
   [[nodiscard]] auto
-  string(const std::uint32_t len =
-           std::numeric_limits<std::uint32_t>::max()) const -> std::string;
+  string(const std::uint32_t len) const -> std::string;
 
   auto
   operator+=(const tile_processor &rhs) -> const tile_processor &;
@@ -119,14 +118,6 @@ struct tile_processor {
   auto
   operator()(const fqrec &rec) {
     count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
-  }
-};
-
-template <>
-struct std::formatter<tile_processor> : std::formatter<std::string> {
-  auto
-  format(const tile_processor &tp, auto &ctx) const {
-    return std::formatter<std::string>::format(tp.string(), ctx);
   }
 };
 

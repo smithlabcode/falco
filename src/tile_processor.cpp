@@ -103,19 +103,19 @@ tile_processor::set_preceding_colons(const std::string &filename)
 tile_processor::string(const std::uint32_t len) const -> std::string {
   static constexpr auto max_precision{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
-  static constexpr auto header = "#Tile\tBase\tMean\n";
+  static constexpr auto header = "#Tile\t"
+                                 "Base\t"
+                                 "Mean\n";
   auto r = std::format(start_tag, "pass");
   r += header;
-  const auto pair_plus = [](const auto &a, const auto &b) {
-    return std::pair{a.first + b.first, a.second + b.second};
-  };
-  qual_vec totals(max_read_len);
-  for (const auto &tile : quals | std::views::values)
-    std::ranges::transform(tile, totals, std::begin(totals), pair_plus);
 
   auto means = std::vector<double>(max_read_len, 0.0);
   for (auto i = 0u; i < max_read_len; ++i)
-    means[i] = as_frac(totals[i].first, totals[i].second);
+    for (const auto &q : quals | std::views::values)
+      means[i] += as_frac(q[i].first, q[i].second);
+
+  std::ranges::transform(means, std::begin(means),
+                         [&](const auto x) { return x / std::size(quals); });
 
   // also sorting tiles
   std::map<std::uint32_t, std::vector<double>> centered;
