@@ -48,10 +48,21 @@ add_compile_options(
   -Wfatal-errors
 )
 
+option(STATIC_ANALYSIS "Enable static analysis" off)
 if(STATIC_ANALYSIS)
   include(cmake/static_analysis.cmake)
-elseif(PACKAGE)
-  message(STATUS "Enabling packaging mode (experts only)")
+endif()
+
+option(FULL_LICENSE "Include full license (for static linking)" off)
+if(FULL_LICENSE)
+  set(FULL_LICENSE 1)
+  file(READ data/LICENSE LICENSE_TEXT)
+  configure_file(data/LICENSES.inc.in license.h @ONLY)
+  add_compile_definitions(FULL_LICENSE)
+endif()
+
+option(PACKAGE "Enabling packaging mode (experts only)" off)
+if(PACKAGE)
   set(ZLIB_USE_STATIC_LIBS on)
   set(LIBDEFLATE_USE_STATIC_LIBS on)
   set(HTSLIB_USE_STATIC_LIBS on)
