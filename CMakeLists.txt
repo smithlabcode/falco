@@ -50,14 +50,28 @@ add_compile_options(
 
 if(STATIC_ANALYSIS)
   include(cmake/static_analysis.cmake)
+elseif(PACKAGE)
+  message(STATUS "Enabling packaging mode (experts only)")
+  set(ZLIB_USE_STATIC_LIBS on)
+  set(LIBDEFLATE_USE_STATIC_LIBS on)
+  set(HTSLIB_USE_STATIC_LIBS on)
+  add_link_options(-static-libgcc -static-libstdc++ -s)
 endif()
 
-if(CMAKE_BUILD_TYPE STREQUAL Release)
-  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-endif()
-
+find_package(LIBDEFLATE REQUIRED)
+find_package(ZLIB REQUIRED)
 find_package(HTSLIB REQUIRED)
 find_package(Threads REQUIRED)
+
+if(CMAKE_BUILD_TYPE STREQUAL Release)
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT result OUTPUT output)
+  if(result)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+  else()
+    message(FATAL_ERROR "IPO is not supported: ${output}")
+  endif()
+endif()
 
 add_library(tile_processor OBJECT src/tile_processor.cpp)
 target_link_libraries(tile_processor PRIVATE HTSLIB::HTSLIB)
@@ -81,5 +95,9 @@ target_link_libraries(falco2 PUBLIC
   duplication_results
   kmer_counter
   HTSLIB::HTSLIB
+  LIBDEFLATE::LIBDEFLATE
+  ZLIB::ZLIB
   Threads::Threads
 )
+
+install(TARGETS falco2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
