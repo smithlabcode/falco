@@ -53,6 +53,7 @@ jobs:
           cmake -B build -DPACKAGE=on -DFULL_LICENSE=on \
           -DHTSLIB_ROOT=/opt/falco2 \
           -DLIBDEFLATE_ROOT=/opt/falco2 \
+          -DZLIB_ROOT=/opt/falco2 \
           -DCMAKE_BUILD_TYPE=Release && \
           cmake --build build -j4
       - name: Rename the binary
