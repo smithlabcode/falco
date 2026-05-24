@@ -1,0 +1,97 @@
+name: Release (macOS)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-macos-binaries:
+    strategy:
+      matrix:
+        os: [macos-13, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Make falco2 dependency directories
+        run: sudo mkdir -p /opt/falco2/lib /opt/falco2/include
+      - name: Install dependency headers and static libs
+        run: |
+          brew install zlib automake
+          sudo cp $(brew --prefix zlib)/lib/*.a /opt/falco2/lib
+          sudo cp -r $(brew --prefix zlib)/include/* /opt/falco2/include
+      - name: Build and install libdeflate
+        run: |
+          git clone https://github.com/ebiggers/libdeflate.git && \
+          cd libdeflate && \
+          cmake -B build \
+              -DLIBDEFLATE_BUILD_GZIP=off \
+              -DLIBDEFLATE_BUILD_TESTS=off \
+              -DLIBDEFLATE_BUILD_SHARED_LIB=off \
+              -DCMAKE_VERBOSE_MAKEFILE=on \
+              -DCMAKE_BUILD_TYPE=Release && \
+          cmake --build build -j4 && \
+          sudo cmake --install build --prefix=/opt/falco2
+      - name: Build and install HTSlib
+        run: |
+          git clone --recursive https://github.com/samtools/htslib.git
+          cd htslib
+          sudo cp -r htslib /opt/falco2/include
+          autoreconf -i
+          mkdir build && cd build
+          ../configure \
+            --disable-bz2 \
+            --disable-libcurl \
+            --disable-lzma \
+            --disable-ref-cache \
+            --with-libdeflate \
+            LDFLAGS="-L/opt/falco2/lib" CPPFLAGS="-I/opt/falco2/include"
+          make -j4 CFLAGS="-Wall -O2 -fvisibility=hidden" libhts.a
+          sudo cp libhts.a /opt/falco2/lib
+      - name: Build falco2
+        run: |
+          cmake -B build -DPACKAGE=on -DFULL_LICENSE=on -DCMAKE_BUILD_TYPE=Release && \
+          cmake --build build -j4
+      - name: Rename the binary
+        run: mv build/falco2 falco2_$(uname -m)
+      - name: Get version number
+        id: get-vn
+        run: |
+          awk '/^  VERSION [0-9.]+$/ {print "vn="$NF}' CMakeLists.txt >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Upload the binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: falco2-${{ steps.vars.outputs.arch }}
+          path: |
+            falco2_${{ steps.vars.outputs.arch }}
+  make-lipo:
+    needs: build-macos-binaries
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Get version number
+        id: get-vn
+        run: |
+          awk '/^  VERSION [0-9.]+$/ {print "vn="$NF}' CMakeLists.txt >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: binaries
+          pattern: falco2-*
+          merge-multiple: false
+      - name: Create universal binary
+        run: |
+          lipo -create \
+          binaries/falco2-*/falco2_* \
+          -output falco2
+          chmod +x falco2
+          tar -cf falco2-${{ steps.vn.outputs.vn }}-macOS.tar.gz falco2
+      - name: Upload the lipo binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: falco2-${{ steps.vn.outputs.vn }}-macOS.tar.gz
+          path: falco2-${{ steps.vn.outputs.vn }}-macOS.tar.gz
