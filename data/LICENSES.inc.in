@@ -1,0 +1,3 @@
+static constexpr auto license_text = R"(
+@LICENSE_TEXT@
+)";
