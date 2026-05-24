@@ -10,34 +10,58 @@ jobs:
   linux-releases:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
       - name: Start docker container
         # Pull the container, run it in detached mode, mount the workspace
         run: |
           docker pull $CONTAINER
           docker run --name build-container \
           -d -v ${{ github.workspace }}:/workspace $CONTAINER tail -f /dev/null
-      - name: Configure, build and package
-        env:
-          SCRIPT: |
-            cd /workspace
-            cmake -B build \
-            -DCMAKE_VERBOSE_MAKEFILE=on \
-            -DCMAKE_CXX_COMPILER=g++ \
-            -DPACKAGE=on \
-            -DCMAKE_BUILD_TYPE=Release
-            cmake --build build -j4
-            cpack -B build --config build/CPackConfig.cmake
-        run: |
-          docker exec build-container bash -c "$SCRIPT"
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
       - name: Get version number
         id: get-vn
         run: |
           awk '/^  VERSION [0-9.]+$/ {print "vn="$NF}' CMakeLists.txt >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Configure and build
+        env:
+          SCRIPT: |
+            export DEBIAN_FRONTEND=noninteractive && \
+            apt-get update && apt-get install --no-install-recommends -y automake && \
+            git clone https://github.com/ebiggers/libdeflate.git && \
+            cd libdeflate && \
+            cmake -B build \
+                -DLIBDEFLATE_BUILD_GZIP=off \
+                -DLIBDEFLATE_BUILD_TESTS=off \
+                -DLIBDEFLATE_BUILD_SHARED_LIB=off \
+                -DCMAKE_VERBOSE_MAKEFILE=on \
+                -DCMAKE_BUILD_TYPE=Release && \
+            cmake --build build -j4 && \
+            cmake --install build --prefix=/usr/local && \
+            cd .. && \
+            git clone --recursive https://github.com/samtools/htslib.git && \
+            cd htslib && \
+            autoreconf -i && \
+            mkdir build && cd build && \
+            ../configure \
+                --disable-bz2 \
+                --disable-libcurl \
+                --disable-lzma \
+                --disable-ref-cache \
+                --with-libdeflate && \
+            make -j4 CFLAGS="-Wall -O2 -fvisibility=hidden" libhts.a && \
+            cp libhts.a /usr/local/lib/ && \
+            cp -r ../htslib /usr/local/include/ && \
+            cd /workspace && \
+            cmake -B build -DPACKAGE=on -DFULL_LICENSE=on -DCMAKE_BUILD_TYPE=Release && \
+            cmake --build build -j4 && \
+            tar -cf falco2-${{ steps.get-vn.outputs.vn }}-Linux.tar.gz -C build falco2
+        run: |
+          docker exec build-container bash -c "$SCRIPT"
       - name: Upload the packages
         uses: actions/upload-artifact@v6
         with:
-          name: falco2-${{ steps.get-vn.outputs.vn }}-Linux
-          path: build/falco2-${{ steps.get-vn.outputs.vn }}-Linux.*
+          name: falco2-${{ steps.get-vn.outputs.vn }}-Linux.tar.gz
+          path: build/falco2-${{ steps.get-vn.outputs.vn }}-Linux.tar.gz
