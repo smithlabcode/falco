@@ -37,6 +37,10 @@
 
 #include <config.h>
 
+#ifdef FULL_LICENSE
+#include <license.h>
+#endif
+
 #include <algorithm>
 #include <array>
 #include <compare>
@@ -459,7 +463,7 @@ main(int argc, char *argv[]) {
       app.footer(PROJECT_NAME);
 
     // clang-format off
-    app.set_help_flag("-h,--help", "Print a detailed help message and exit");
+    app.set_version_flag("--version", VERSION);
     app.add_option("-i,--input", infile, "FASTQ filename")
       ->required()
       ->option_text("FILE")
@@ -476,6 +480,11 @@ main(int argc, char *argv[]) {
                  std::format("toggle analysis per tiles (default: {})", do_tiles));
     app.add_flag("--kmers,!--no-kmers", do_kmers,
                  std::format("toggle analysis for kmers (default: {})", do_kmers));
+#ifdef FULL_LICENSE
+    app.add_flag("--license",
+                 [&](auto){ std::print("{}", license_text); throw CLI::Success(); },
+                 "show full license info");
+#endif
     // clang-format on
 
     if (argc < 2) {
