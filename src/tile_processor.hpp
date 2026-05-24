@@ -45,7 +45,7 @@
 // - The number of tiles should never exceed 2500
 // - Among the first 10k reads should, all should contribute to tiles
 // - The means quality score offset should be subtracted but with enough data it
-// - doesn't seem to matter
+//   doesn't seem to matter
 
 struct tile_processor {
   static constexpr auto grade_cutoffs = std::array{
