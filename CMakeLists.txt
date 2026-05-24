@@ -24,8 +24,8 @@
 # $ cmake --version
 cmake_minimum_required(VERSION 3.30)
 project(
-  falco
-  VERSION 2.0.0
+  falco2
+  VERSION 0.1.0
   LANGUAGES CXX)
 
 # Set language version used
