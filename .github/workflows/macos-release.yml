@@ -95,9 +95,9 @@ jobs:
           binaries/falco2-*/falco2_* \
           -output falco2
           chmod +x falco2
-          tar -cf falco2-${{ steps.vn.outputs.vn }}-macOS.tar.gz falco2
+          tar -cf falco2-${{ steps.get-vn.outputs.vn }}-macOS.tar.gz falco2
       - name: Upload the lipo binary
         uses: actions/upload-artifact@v7
         with:
-          name: falco2-${{ steps.vn.outputs.vn }}-macOS.tar.gz
-          path: falco2-${{ steps.vn.outputs.vn }}-macOS.tar.gz
+          name: falco2-${{ steps.get-vn.outputs.vn }}-macOS.tar.gz
+          path: falco2-${{ steps.get-vn.outputs.vn }}-macOS.tar.gz
