@@ -64,4 +64,4 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: falco2-${{ steps.get-vn.outputs.vn }}-Linux.tar.gz
-          path: build/falco2-${{ steps.get-vn.outputs.vn }}-Linux.tar.gz
+          path: falco2-${{ steps.get-vn.outputs.vn }}-Linux.tar.gz
