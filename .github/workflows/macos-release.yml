@@ -51,6 +51,7 @@ jobs:
       - name: Build falco2
         run: |
           cmake -B build -DPACKAGE=on -DFULL_LICENSE=on \
+          -DCMAKE_CXX_COMPILER=g++-15 \
           -DHTSLIB_ROOT=/opt/falco2 \
           -DLIBDEFLATE_ROOT=/opt/falco2 \
           -DZLIB_ROOT=/opt/falco2 \
