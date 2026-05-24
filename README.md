@@ -1,6 +1,24 @@
 # falco2
 A revision of falco
 
+# Building
+
+A compiler that can do c++23 is needed, for example GCC >= 14.2.0, along with
+cmake.
+
+Dependencies:
+- ZLib: which is likely already installed on your system
+- HTSLib: for handling BAM, SAM and BGZF files
+- Libdeflate: to make HTSLib faster. This is not strictly needed, for example if
+  you use an HTSLib that wasn't built to use it.
+
+From the root of the repo:
+```
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j8
+```
+Then `falco2` will be in the `build` directory.
+
 # Note about threads
 
 The following results categories can be impacted by thread use:
