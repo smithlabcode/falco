@@ -58,7 +58,12 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release && \
           cmake --build build -j4
       - name: Rename the binary
-        run: mv build/falco2 falco2_$(uname -m)
+        run: |
+          uname -m
+          ls build
+          mv build/falco2 falco2_$(uname -m)
+          ls build
+          ls falco2_$(uname -m)
       - name: Get version number
         id: get-vn
         run: |
