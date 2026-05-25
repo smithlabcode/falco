@@ -37,8 +37,10 @@
 #include <cmath>
 #include <format>
 #include <iterator>
+#include <limits>  // IWYU pragma: keep
 #include <numeric>
 #include <ranges>
+#include <string>
 #include <vector>
 
 [[nodiscard]] inline auto
@@ -205,10 +207,13 @@ format_qual_by_read(const auto &qual_by_read, const auto qual_offset) {
   auto r = std::format(start_tag, get_grade(grade_cutoffs, max_qual_val));
   r += header;
   // output starting at qual_offset; that's where they are relevant
-  for (const auto q : std::views::iota(qual_offset, falco::max_qual_val))
-    if (qual_by_read[q] > 0)
+  bool found_first = false;
+  for (const auto q : std::views::iota(qual_offset, falco::max_qual_val)) {
+    found_first = found_first || qual_by_read[q] > 0;
+    if (found_first)
       // cppcheck-suppress useStlAlgorithm
       r += std::format("{}\t{}\n", q - qual_offset, qual_by_read[q]);
+  }
   r += end_module_tag;
   return r;
 }
