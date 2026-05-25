@@ -61,5 +61,5 @@ estimate_n_reads_bam(const std::string &filename) -> std::uint64_t {
   const auto pos_after_reads = htell(fp);
   const auto n_compressed_bytes = pos_after_reads - pos_after_header;
   const auto filesize = std::filesystem::file_size(filename);
-  return n_reads * as_frac(filesize - pos_after_reads, n_compressed_bytes);
+  return n_reads * as_frac(filesize - pos_after_header, n_compressed_bytes);
 }
