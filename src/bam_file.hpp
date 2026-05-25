@@ -140,18 +140,17 @@ to_string(const bamrec &b) {
   return name + read + other + qual + '\n';
 }
 
-static inline constexpr std::int32_t bam1_t_size = sizeof(bam1_t);
-
 struct bam_buffer {
+  static inline constexpr std::int32_t bam1_t_size = sizeof(bam1_t);
   static constexpr auto min_bytes_per_record = 256;
-  std::int32_t n_recs{};
-  std::int32_t n_bytes{};
+  std::int64_t n_recs{};
+  std::int64_t n_bytes{};
   std::vector<bam1_t> recs;
   // ADS: ensure alignment within the vector; I can't produce an allocation that
   // is not aligned to 8 bytes, but I can't find a reason to assume this happens
   std::vector<std::uint8_t, aligned_allocator<std::uint8_t>> data;
   // clang-format off
-  explicit bam_buffer(const std::int32_t buf_size) :
+  explicit bam_buffer(const std::int64_t buf_size) :
     n_recs{buf_size / (bam1_t_size + min_bytes_per_record)},
     n_bytes{buf_size - n_recs * bam1_t_size},
     recs(n_recs),
@@ -174,15 +173,15 @@ get_next(bamrec::pos_t &cursor,
 
 struct bam_file {
   using rec_t = bamrec;
-  static constexpr auto min_buf_size = 16 * 4096;
-  static constexpr auto max_buf_size = std::numeric_limits<std::int32_t>::max();
+  static constexpr auto min_buf_size = 16 * 4096l;
+  static constexpr auto max_buf_size = std::numeric_limits<std::int64_t>::max();
   bam_buffer buf;
   falco_thread_pool t;
   std::unique_ptr<htsFile, int (*)(htsFile *)> f;
   std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h;
   bool hit_eof{};
 
-  bam_file(const std::string &filename, const std::int32_t buf_size,
+  bam_file(const std::string &filename, const std::int64_t buf_size,
            const std::uint32_t n_threads = 1) :
     buf(std::clamp(buf_size, min_buf_size, max_buf_size)), t(n_threads),
     f(hts_open(std::data(filename), "r"), &hts_close),
@@ -212,7 +211,7 @@ struct bam_file {
     auto n_bytes = 0u;
     auto n_recs = 0u;
     // ADS: if data buffer capacity exceeded, BAM_USER_OWNS_DATA check fails and
-    // loop terminates
+    // loop terminates; one record will allocate space for data from the heap
     while (n_recs < std::size(buf.recs)) {
       auto &rec = buf.recs[n_recs];
       bam_set_mempolicy(&rec, BAM_USER_OWNS_STRUCT | BAM_USER_OWNS_DATA);
@@ -242,7 +241,7 @@ struct bam_file {
 };
 
 [[nodiscard]] static inline auto
-get_chunks(const bam_file &bf, const std::int32_t n_chunks)
+get_chunks(const bam_file &bf, const std::int64_t n_chunks)
   -> std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>> {
   const auto [chunk_size, remainder] = std::div(bf.buf.n_recs, n_chunks);
   const auto buffer = std::cbegin(bf.buf);
@@ -255,5 +254,8 @@ get_chunks(const bam_file &bf, const std::int32_t n_chunks)
   }
   return chunks;
 }
+
+[[nodiscard]] auto
+estimate_n_reads_bam(const std::string &filename) -> std::uint64_t;
 
 #endif  // SRC_BAM_FILE_HPP_
