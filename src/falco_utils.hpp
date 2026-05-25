@@ -40,6 +40,7 @@
 #include <iterator>
 #include <numeric>
 #include <ranges>
+#include <string>
 #include <vector>
 
 struct run_mode {
