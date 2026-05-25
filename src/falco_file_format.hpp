@@ -21,8 +21,8 @@
  * SOFTWARE.
  */
 
-#ifndef SRC_FASTQ_FILE_FORMAT_HPP_
-#define SRC_FASTQ_FILE_FORMAT_HPP_
+#ifndef SRC_FALCO_FILE_FORMAT_HPP_
+#define SRC_FALCO_FILE_FORMAT_HPP_
 
 #include <htslib/hts.h>
 #include <htslib/sam.h>
@@ -37,12 +37,14 @@
 #include <initializer_list>
 #include <iostream>
 #include <iterator>
+#include <memory>  // IWYU pragma: keep
 #include <numeric>
 #include <print>
 #include <ranges>
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <tuple>  // IWYU pragma: keep
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -98,4 +100,4 @@ get_file_format(const std::string &filename)
   return {file_format::unknown, descr};
 }
 
-#endif  // SRC_FASTQ_FILE_FORMAT_HPP_
+#endif  // SRC_FALCO_FILE_FORMAT_HPP_
