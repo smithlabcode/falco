@@ -22,15 +22,14 @@
  */
 
 #include "bam_file.hpp"
-#include "falco_utils.hpp"
+#include "falco_utils.hpp"  // for as_frac
 
-#include <htslib/bgzf.h>
-#include <htslib/hfile.h>
+#include <htslib/bgzf.h>   // for BGZF
+#include <htslib/hfile.h>  // for htell
 
 #include <cstdint>
 #include <filesystem>
 #include <memory>
-#include <ranges>
 #include <string>
 #include <system_error>
 
@@ -47,6 +46,7 @@ estimate_n_reads_bam(const std::string &filename) -> std::uint64_t {
   if (!h)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to read header: " + filename);
+  // NOLINTNEXTLINE (cppcoreguidelines-pro-type-union-access)
   const auto &fp = f.get()->fp.bgzf->fp;
   const auto pos_after_header = htell(fp);
   bam1_t rec{};
@@ -61,5 +61,6 @@ estimate_n_reads_bam(const std::string &filename) -> std::uint64_t {
   const auto pos_after_reads = htell(fp);
   const auto n_compressed_bytes = pos_after_reads - pos_after_header;
   const auto filesize = std::filesystem::file_size(filename);
-  return n_reads * as_frac(filesize - pos_after_header, n_compressed_bytes);
+  return static_cast<std::uint64_t>(
+    as_frac(n_reads * (filesize - pos_after_header), n_compressed_bytes));
 }
