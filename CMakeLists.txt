@@ -95,6 +95,12 @@ target_link_libraries(kmer_counter PRIVATE HTSLIB::HTSLIB)
 add_library(duplication_results OBJECT src/duplication_results.cpp)
 target_link_libraries(duplication_results PRIVATE HTSLIB::HTSLIB)
 
+add_library(fastq_file OBJECT src/fastq_file.cpp)
+target_link_libraries(fastq_file PRIVATE HTSLIB::HTSLIB)
+
+add_library(bam_file OBJECT src/bam_file.cpp)
+target_link_libraries(bam_file PRIVATE HTSLIB::HTSLIB)
+
 add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
 target_link_libraries(adapter_matcher PRIVATE HTSLIB::HTSLIB)
 
@@ -105,6 +111,8 @@ target_link_libraries(falco2 PUBLIC
   adapter_matcher
   duplication_results
   kmer_counter
+  fastq_file
+  bam_file
   HTSLIB::HTSLIB
   LIBDEFLATE::LIBDEFLATE
   ZLIB::ZLIB
