@@ -24,6 +24,8 @@
 #ifndef SRC_FASTQ_FILE_HPP_
 #define SRC_FASTQ_FILE_HPP_
 
+#include "falco_utils.hpp"  // for falco_thread_pool
+
 #include <htslib/bgzf.h>
 #include <htslib/thread_pool.h>
 
@@ -276,5 +278,11 @@ get_chunks(T &fq, const std::int64_t n_chunks)
          }) |
          std::ranges::to<std::vector>();
 }
+
+[[nodiscard]] auto
+estimate_n_reads_fastq(const std::string &filename) -> std::uint64_t;
+
+[[nodiscard]] auto
+estimate_n_reads_fastq_gz(const std::string &filename) -> std::uint64_t;
 
 #endif  // SRC_FASTQ_FILE_HPP_
