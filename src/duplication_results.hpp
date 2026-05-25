@@ -28,71 +28,47 @@
 
 #include <array>
 #include <cstdint>
-#include <iterator>
 #include <string>
 #include <unordered_map>
 #include <utility>
 
 struct duplication_results {
+  static constexpr auto max_n_reads_total{1'000'000};
+  static constexpr auto default_read_step{10};
+  static constexpr auto overrep_cutoff = 0.001;
   static constexpr auto grade_cutoffs = std::array{
     std::pair{0.50, "fail"},
     std::pair{0.70, "warn"},
     std::pair{1.00, "pass"},
   };
-
   static constexpr auto overrep_grade_cutoffs = std::array{
     std::pair{0.10, "pass"},
     std::pair{1.00, "warn"},
     std::pair{1.00, "fail"},
   };
-
-  static constexpr auto overrep_cutoff = 0.001;
-  // only count first 100k unique sequences
-  static constexpr auto max_unique{100'000};
+  static std::int32_t read_step;
+  std::int32_t read_idx{};
   std::unordered_map<falco_word, std::uint64_t> dups;
-  bool add_unique_seqs{true};
-  std::uint64_t n_unique{};
-  std::uint64_t limit_count{};
+
+  static auto
+  initialize(const std::uint64_t est_n_reads) -> void;
 
   [[nodiscard]] auto
-  format_overrepresented(const std::uint64_t n_reads) const -> std::string;
+  format_overrepresented() const -> std::string;
 
   [[nodiscard]] auto
-  format_duplication_levels(const std::uint64_t n_reads) const -> std::string;
+  format_duplication_levels() const -> std::string;
 
   auto
   operator+=(const duplication_results &rhs) -> const duplication_results &;
-};
 
-inline auto
-count_seqs_add(const auto seq_itr, const auto sz, duplication_results &dr) {
-  const auto fw = falco_word(seq_itr, sz);
-  const auto itr = dr.dups.find(fw);
-  if (itr != std::cend(dr.dups)) {
-    ++itr->second;
-    ++dr.limit_count;
-    return;
+  auto
+  count_seqs(const auto seq_itr, const auto sz) {
+    if (read_idx-- == 0) [[unlikely]] {
+      read_idx = read_step;
+      ++dups[falco_word(seq_itr, sz)];
+    }
   }
-  dr.dups.emplace(fw, 1);
-  ++dr.n_unique;
-  ++dr.limit_count;
-  dr.add_unique_seqs = (dr.n_unique < duplication_results::max_unique);
-}
-
-inline auto
-count_seqs_dups(const auto seq_itr, const auto sz, duplication_results &dr) {
-  const auto fw = falco_word(seq_itr, sz);
-  const auto itr = dr.dups.find(fw);
-  if (itr != std::cend(dr.dups))
-    ++itr->second;
-}
-
-inline auto
-count_seqs(const auto seq_itr, const auto sz, duplication_results &dr) {
-  if (dr.add_unique_seqs)
-    count_seqs_add(seq_itr, sz, dr);
-  else
-    count_seqs_dups(seq_itr, sz, dr);
-}
+};
 
 #endif  // SRC_DUPLICATION_RESULTS_HPP_

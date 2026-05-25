@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <format>
 #include <functional>
+#include <iterator>
 #include <limits>
 #include <numeric>
 #include <ranges>
@@ -39,25 +40,32 @@
 #include <unordered_map>
 #include <vector>
 
+std::int32_t duplication_results::read_step = default_read_step;
+
+auto
+duplication_results::initialize(const std::uint64_t est_n_reads) -> void {
+  read_step = est_n_reads < max_n_reads_total
+                ? 1
+                : static_cast<std::int32_t>(est_n_reads / max_n_reads_total);
+}
+
 auto
 duplication_results::operator+=(const duplication_results &rhs)
   -> const duplication_results & {
   for (const auto &[k, v] : rhs.dups)
     dups[k] += v;
-  add_unique_seqs = add_unique_seqs && rhs.add_unique_seqs;
-  n_unique = std::size(dups);
-  limit_count += rhs.limit_count;
   return *this;
 }
 
 [[nodiscard]] auto
-duplication_results::format_overrepresented(const std::uint64_t n_reads) const
-  -> std::string {
+duplication_results::format_overrepresented() const -> std::string {
   static constexpr auto start_tag = ">>Overrepresented sequences\t{}\n";
   static constexpr auto header = "#Sequence\t"
                                  "Count\t"
                                  "Percentage\t"
                                  "Possible Source\n";
+  const auto n_reads = std::reduce(std::cbegin(std::views::values(dups)),
+                                   std::cend(std::views::values(dups)));
   const auto cutoff = static_cast<double>(n_reads) * overrep_cutoff;
   const auto max_n_obs = std::ranges::max(std::views::values(dups));
   const auto gt_cutoff = [&](const auto p) { return p.second >= cutoff; };
@@ -81,12 +89,10 @@ duplication_results::format_overrepresented(const std::uint64_t n_reads) const
 }
 
 [[nodiscard]] auto
-duplication_results::format_duplication_levels(
-  [[maybe_unused]] const std::uint64_t n_reads) const -> std::string {
+duplication_results::format_duplication_levels() const -> std::string {
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
                                     "#Total Deduplicated Percentage\t{:.6f}\n";
   static constexpr auto header = "#Duplication Level\t"
-                                 "Percentage of deduplicated\t"
                                  "Percentage of total\n";
   // clang-format off
   static constexpr auto bin_breaks = std::array{
@@ -146,37 +152,33 @@ duplication_results::format_duplication_levels(
     std::reduce(std::cbegin(hist_mass), std::cend(hist_mass));
 
   const auto frac_dedup = as_frac(dedup_sum, mass_sum);
+  const auto grade = get_grade(grade_cutoffs, frac_dedup);
+  auto r = std::format(start_tag, grade, pct(frac_dedup));
+  r += header;
 
   const auto make_bins = [&](const auto &hist) {
     std::vector<std::uint64_t> binned(std::size(bin_breaks), 0);
-    auto bin_id = 0ul;
+    auto b_itr = std::cbegin(bin_breaks);
     for (const auto [i, h] : std::views::enumerate(hist)) {
-      // NOLINTNEXTLINE (*-pro-bounds-constant-array-index)
-      if (bin_id < std::size(bin_breaks) && i >= bin_breaks[bin_id])
-        ++bin_id;
-      binned[bin_id] += h;
+      // ADS: clang-tidy false positive?
+      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      b_itr += (b_itr < std::cend(bin_breaks) && i >= *b_itr);
+      binned[std::distance(std::cbegin(bin_breaks), b_itr)] += h;
     }
     return binned;
   };
 
-  [[maybe_unused]] const auto to_pct = [make_bins](const auto &v) {
+  const auto to_pct = [make_bins](const auto &v) {
     const auto sum = std::reduce(std::cbegin(v), std::cend(v));
     const auto p = [&](const auto d) { return pct(as_frac(d, sum)); };
     return make_bins(v) | std::views::transform(p) |
            std::ranges::to<std::vector>();
   };
 
-  const auto binned_dedup = make_bins(hist_dedup);
-  const auto binned_mass = make_bins(hist_mass);
-
-  const auto grade = get_grade(grade_cutoffs, frac_dedup);
-  auto r = std::format(start_tag, grade, pct(frac_dedup));
-  r += header;
-  auto not_first = 0;  // ADS: start output at 1 and not 0
-  for (auto [label, dedup, mass] :
-       std::views::zip(bin_labels, binned_dedup, binned_mass))
-    if (not_first++)
-      r += std::format("{}\t{}\t{}\n", label, dedup, mass);
+  const auto binned_mass = to_pct(hist_mass);
+  for (const auto [label, mass] :
+       std::views::zip(bin_labels, binned_mass) | std::views::drop(1))
+    r += std::format("{}\t{:.6g}\n", label, mass);
 
   return r + end_module_tag;
 }
