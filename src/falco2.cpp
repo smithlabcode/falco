@@ -169,7 +169,7 @@ struct falco_results {
     count_ns(seq_itr, seq_end, n_counts);
     const auto tot = process_quality_scores(rec);
     ++qual_by_read[tot / read_len];
-    count_seqs(seq_itr, read_len, dr);
+    dr.count_seqs(seq_itr, read_len);
     am.match_adapters(seq_itr, read_len);
     // NOLINTEND (*-pro-bounds-constant-array-index)
   }
@@ -232,13 +232,13 @@ struct falco_results {
     const auto qual_offset = identify_quality_score_offset(qual_by_pos);
     r += format_qual_by_pos(qual_by_pos, qual_offset);
     r += format_qual_by_read(qual_by_read, qual_offset);
-    r += format_base_composition(nucs_no_n);     // base composition
-    r += format_gc_content(gcs);                 // GC content
-    r += format_n_counts(n_counts, nucs);        // N content
-    r += format_read_lengths(lengths);           // read lengths
-    r += dr.format_duplication_levels(n_reads);  // duplication results
-    r += dr.format_overrepresented(n_reads);     // overrepresented sequences
-    r += am.string(n_reads);                     // adapter content
+    r += format_base_composition(nucs_no_n);  // base composition
+    r += format_gc_content(gcs);              // GC content
+    r += format_n_counts(n_counts, nucs);     // N content
+    r += format_read_lengths(lengths);        // read lengths
+    r += dr.format_duplication_levels();      // duplication results
+    r += dr.format_overrepresented();         // overrepresented sequences
+    r += am.string(n_reads);                  // adapter content
     return r;
   }
 };
@@ -409,6 +409,9 @@ run(const std::string &infile, auto &reads_file, const auto n_threads,
     std::ranges::for_each(get_chunks(reads_file, n_threads),
                           [&](const auto &c) { tpool.push_task(c); });
     tpool.wait();
+    // ADS: below is how we'd do it without a pool, and it's likely as fast with
+    // current bottlencks being elsewhere.
+
     // {
     //   std::vector<std::jthread> workers;
     //   for (auto th_id = 0u; th_id < n_threads; ++th_id)
@@ -431,8 +434,8 @@ run(const std::string &infile, auto &reads_file, const auto n_threads,
 }
 
 static auto
-run_selector(const run_mode mode, const std::string &infile, auto &reads_file,
-             const auto n_threads, const auto &outfile) {
+run_mode_selector(const run_mode mode, const std::string &infile,
+                  auto &reads_file, const auto n_threads, const auto &outfile) {
   if (tiles(mode) && kmers(mode))
     run<falco_results_tile_kmer>(infile, reads_file, n_threads, outfile);
   else if (tiles(mode))
@@ -450,7 +453,7 @@ main(int argc, char *argv[]) {
     std::string infile;
     std::string contam_file;
     std::string outfile;
-    std::int32_t buf_size{buf_size_defulat};
+    std::int64_t buf_size{buf_size_defulat};
     std::uint32_t n_threads{1};
 
     bool do_tiles{};
@@ -499,11 +502,11 @@ main(int argc, char *argv[]) {
         std::println("number of contaminants: {}", std::size(contaminants));
     }
 
-    const auto [infmt, infmt_descr] = get_file_format(infile);
+    const auto [input_format, format_description] = get_file_format(infile);
     if (verbose)
       std::println("input file: {}\n"
                    "input file format: {}",
-                   infile, infmt_descr);
+                   infile, format_description);
 
     const bool has_tiles = tile_processor::set_preceding_colons(infile);
     if (verbose && do_tiles && !has_tiles)
@@ -514,20 +517,32 @@ main(int argc, char *argv[]) {
     mode.tiles(do_tiles);
     mode.kmers(do_kmers);
 
-    if (infmt == file_format::bam) {
+    const auto est_n_reads = [&] {
+      if (input_format == file_format::bam)
+        return estimate_n_reads_bam(infile);
+      if (input_format == file_format::fastq_gz)
+        return estimate_n_reads_fastq_gz(infile);
+      if (input_format == file_format::fastq)
+        return estimate_n_reads_fastq(infile);
+      std::unreachable();
+    }();
+
+    duplication_results::initialize(est_n_reads);
+
+    if (input_format == file_format::bam) {
       bam_file reads_file(infile, buf_size, n_threads);
-      run_selector(mode, infile, reads_file, n_threads, outfile);
+      run_mode_selector(mode, infile, reads_file, n_threads, outfile);
     }
-    else if (infmt == file_format::fastq_gz) {
+    else if (input_format == file_format::fastq_gz) {
       fastq_gz_file reads_file(infile, buf_size, n_threads);
-      run_selector(mode, infile, reads_file, n_threads, outfile);
+      run_mode_selector(mode, infile, reads_file, n_threads, outfile);
     }
-    else if (infmt == file_format::fastq) {
+    else if (input_format == file_format::fastq) {
       fastq_file reads_file(infile, buf_size);
-      run_selector(mode, infile, reads_file, n_threads, outfile);
+      run_mode_selector(mode, infile, reads_file, n_threads, outfile);
     }
     else {
-      std::println("unsupported file format: {}", infmt_descr);
+      std::println("unsupported file format: {}", format_description);
     }
   }
   catch (const std::exception &e) {
