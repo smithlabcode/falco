@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <iterator>
 #include <string>
+#include <utility>  // IWYU pragma: keep
 #include <vector>
 
 extern std::vector<std::pair<std::string, std::string>> contaminants;
