@@ -27,20 +27,27 @@
 #include "falco_utils.hpp"  // for falco_thread_pool
 
 #include <htslib/bgzf.h>
-#include <htslib/thread_pool.h>
+#include <htslib/sam.h>
 
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
+#include <fcntl.h>     // for open, O_RDONLY
+#include <sys/mman.h>  // for mmap, munmap, MAP_FAILED, MAP_PRIVATE
+#include <unistd.h>    // for close, sysconf, _SC_PAGESIZE
 
+#include <algorithm>
+#include <cerrno>
+#include <concepts>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <format>
+#include <iterator>
 #include <memory>
 #include <ranges>
+#include <stdexcept>
 #include <string>
 #include <system_error>
-#include <thread>
+#include <tuple>
 #include <utility>
 #include <vector>
 

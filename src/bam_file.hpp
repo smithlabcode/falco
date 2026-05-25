@@ -24,22 +24,23 @@
 #ifndef SRC_BAM_FILE_HPP_
 #define SRC_BAM_FILE_HPP_
 
-#include "falco_utils.hpp"
+#include "falco_utils.hpp"  // for falco_thread_pool
 
 #include <htslib/sam.h>
-#include <htslib/thread_pool.h>
 
+#include <algorithm>
+#include <cerrno>
 #include <cstdint>
-#include <cstring>
-#include <filesystem>
+#include <cstdlib>
+#include <format>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <new>
-#include <numeric>
 #include <ranges>
+#include <stdexcept>
 #include <string>
 #include <system_error>
-#include <thread>
 #include <utility>
 #include <vector>
 
