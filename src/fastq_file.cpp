@@ -23,35 +23,34 @@
 
 #include "fastq_file.hpp"
 
+#include <htslib/bgzf.h>  // for BGZF
 #include <htslib/hfile.h>
 
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include <cstdint>
-#include <cstring>
 #include <filesystem>
 #include <memory>
-#include <ranges>
+#include <ranges>  // IWYU pragma: keep
 #include <string>
 #include <system_error>
-#include <thread>
-#include <utility>
 #include <vector>
+
+static constexpr auto fastq_lines_per_read = 4;
 
 [[nodiscard]] auto
 estimate_n_reads_fastq(const std::string &filename) -> std::uint64_t {
   static constexpr auto n_parts = 10;
   static constexpr auto max_part_size = 1024 * 1024;
   static const auto page_mask = ~(sysconf(_SC_PAGESIZE) - 1);
-  int fd{open(std::data(filename), O_RDONLY, 0)};
+  const int fd = open(std::data(filename), O_RDONLY, 0);
   if (fd < 0)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to open file: " + filename);
-  struct stat buf;
+  struct stat buf{};
   fstat(fd, &buf);
   const auto filesize = buf.st_size;
 
@@ -66,14 +65,18 @@ estimate_n_reads_fastq(const std::string &filename) -> std::uint64_t {
     if (data == MAP_FAILED)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to mmap file");
+    // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
     total_newlines += std::ranges::count(data, data + part_size, '\n');
-    [[maybe_unused]] const int rc =
-      munmap(static_cast<void *>(data), part_size);
+    if (munmap(static_cast<void *>(data), part_size))
+      throw std::system_error(std::make_error_code(std::errc(errno)),
+                              "failed to unmap memory");
   }
   close(fd);
 
-  return (total_newlines / 4.0) *
-         (static_cast<double>(filesize) / (part_size * n_parts));
+  const auto n_reads_est =
+    as_frac(total_newlines, fastq_lines_per_read) *
+    as_frac(static_cast<double>(filesize), (part_size * n_parts));
+  return static_cast<std::uint64_t>(n_reads_est);
 }
 
 [[nodiscard]] auto
@@ -89,10 +92,11 @@ estimate_n_reads_fastq_gz(const std::string &filename) -> std::uint64_t {
   // ADS: 'htell' function works below because 'f' has no threadpool
   const auto n_compressed_bytes = htell(f.get()->fp);
   const auto total_newlines = std::ranges::count(buf, '\n');
-  const double inflation_factor =
-    static_cast<double>(n_bytes) / static_cast<double>(n_compressed_bytes);
-  const auto filesize = std::filesystem::file_size(filename);
+  const auto inflation_factor = as_frac(n_bytes, n_compressed_bytes);
   const auto estimated_uncompressed_file_size =
-    std::ceil(inflation_factor * filesize);
-  return ((total_newlines / 4.0) / n_bytes) * estimated_uncompressed_file_size;
+    inflation_factor *
+    static_cast<double>(std::filesystem::file_size(filename));
+  const auto n_reads_est = as_frac(total_newlines, fastq_lines_per_read) *
+                           as_frac(estimated_uncompressed_file_size, n_bytes);
+  return static_cast<std::uint64_t>(n_reads_est);
 }
