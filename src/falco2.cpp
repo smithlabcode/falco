@@ -21,6 +21,16 @@
  * SOFTWARE.
  */
 
+static constexpr auto about =
+  R"(Falco2: an in-progress redesign and rewrite of falco
+)";
+
+static constexpr auto description =
+  R"(falco2 is aims to improve speed while still doing the same analysis as in
+falco. There will likely be changes to some of the statistics, including the way
+read duplication is analyzed (borrowing from preseq)
+)";
+
 #include "adapter_matcher.hpp"
 #include "bam_file.hpp"
 #include "contaminants.hpp"
@@ -43,6 +53,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <compare>
 #include <condition_variable>
 #include <cstdint>
@@ -50,7 +61,6 @@
 #include <exception>
 #include <format>
 #include <fstream>
-#include <iostream>
 #include <iterator>
 #include <mutex>
 #include <numeric>
@@ -449,57 +459,112 @@ run_mode_selector(const run_mode mode, const std::string &infile,
 int
 main(int argc, char *argv[]) {
   try {
-    static constexpr auto buf_size_defulat = 512 * 1024 * 1024;
+    static constexpr auto gigabytes = 1024 * 1024 * 1024;
+    static constexpr auto megabytes = 1024 * 1024;
+    static constexpr auto kilobytes = 1024;
+
+    static constexpr auto buf_size_default = 256 * 1024 * 1024;
     std::string infile;
     std::string contam_file;
     std::string outfile;
-    std::int64_t buf_size{buf_size_defulat};
+    std::int64_t buf_size{buf_size_default};
     std::uint32_t n_threads{1};
 
     bool do_tiles{};
     bool do_kmers{};
     bool verbose{};
 
-    CLI::App app{PROJECT_NAME};
-    argv = app.ensure_utf8(argv);
-    if (argc >= 2)
-      app.footer(PROJECT_NAME);
+    const auto size_to_units = [](const auto s) -> std::string {
+      const auto as_frac_3 = [](const auto a, const auto b) {
+        return std::floor(100 * as_frac(a, b)) / 100;
+      };
+      if (s >= gigabytes)
+        return std::format("{}GiB", as_frac_3(s, gigabytes));
+      if (s >= megabytes)
+        return std::format("{}MiB", as_frac_3(s, megabytes));
+      if (s >= kilobytes)
+        return std::format("{}KiB", as_frac_3(s, kilobytes));
+      return std::format("{}", s);
+    };
 
-    // clang-format off
+    const auto size_from_units =
+      CLI::AsNumberWithUnit(std::map<std::string, std::int64_t>{
+        // clang-format off
+          {"G", gigabytes},
+          {"M", megabytes},
+          {"k", kilobytes}
+        // clang-format on
+      });
+
+    CLI::App app{about};
+    argv = app.ensure_utf8(argv);
+    app.usage(
+      std::format("Usage: {} [options] -o OUTFILE -i INFILE", PROJECT_NAME));
+    if (argc >= 2)
+      app.footer(description);
+
+    app.get_formatter()->long_option_alignment_ratio(0.2);
     app.set_version_flag("--version", VERSION);
-    app.add_option("-i,--input", infile, "FASTQ filename")
+    app
+      .add_option("-i,--input", infile,
+                  "Input file: FASTQ (plain, gz or bgzf) or BAM/SAM")
       ->required()
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
-    app.add_option("-c,--contaminants", contam_file, "contaminans file")
+    app.add_option("-o,--output", outfile, "Output file")
+      ->required()
+      ->option_text("FILE");
+    app
+      .add_option("-c,--contaminants", contam_file,
+                  "File of contaminant sequences to use")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
-    app.add_option("-o,--output", outfile, "output filename")
-      ->required();
-    app.add_option("-s,--size", buf_size, "buffer size");
-    app.add_option("-t,--threads", n_threads, "number of threads");
-    app.add_flag("-v,--verbose", verbose, "print more run info");
-    app.add_flag("--tiles,!--no-tiles", do_tiles,
-                 std::format("toggle analysis per tiles (default: {})", do_tiles));
-    app.add_flag("--kmers,!--no-kmers", do_kmers,
-                 std::format("toggle analysis for kmers (default: {})", do_kmers));
+    app.add_option("-t,--threads", n_threads,
+                   std::format("Threads to use (this machine supports: {})",
+                               std::thread::hardware_concurrency()));
+    app
+      .add_option("-m,--mem", buf_size,
+                  "Memory buffer size for IO (G/M/K units ok)")
+      ->option_text(std::format("{}", size_to_units(buf_size_default)))
+      ->capture_default_str()
+      ->transform(size_from_units);
+    app.add_flag("-v,--verbose", verbose, "Print more info while running.");
+    app.add_flag("--tiles", do_tiles, "Enable per-tile analysis");
+    app.add_flag("--kmers", do_kmers, "Enable k-mer analysis");
 #ifdef FULL_LICENSE
+    // clang-format off
     app.add_flag("--license",
-                 [&](auto){ std::print("{}", license_text); throw CLI::Success(); },
-                 "show full license info");
-#endif
+      [&](auto) { std::print("{}", license_text); throw CLI::Success(); },
+      "Show full license.");
     // clang-format on
+#endif
+    const auto start_time{std::chrono::high_resolution_clock::now()};
 
     if (argc < 2) {
-      std::cout << app.help() << '\n';
+      std::println("{}", app.help());
       return EXIT_SUCCESS;
     }
     CLI11_PARSE(app, argc, argv);
 
+    if (n_threads > std::thread::hardware_concurrency())
+      n_threads = std::thread::hardware_concurrency();
+
+    if (verbose)
+      std::print("input file: {}\n"
+                 "output file: {}\n"
+                 "memory requested: {}\n"
+                 "threads requested: {}\n"
+                 "tile analysis requested: {}\n"
+                 "k-mer analysis requested: {}\n",
+                 infile, outfile, size_to_units(buf_size), n_threads, do_tiles,
+                 do_kmers);
+
     if (!contam_file.empty()) {
       load_contaminants(contam_file);
       if (verbose)
-        std::println("number of contaminants: {}", std::size(contaminants));
+        std::print("contaminants file: {}\n"
+                   "number of contaminants: {}\n",
+                   contam_file, std::size(contaminants));
     }
 
     const auto [input_format, format_description] = get_file_format(infile);
@@ -543,6 +608,14 @@ main(int argc, char *argv[]) {
     }
     else {
       std::println("unsupported file format: {}", format_description);
+    }
+
+    if (verbose) {
+      const auto dur = [](const auto d) {
+        return std::chrono::duration_cast<std::chrono::duration<double>>(d);
+      };
+      const auto stop_time{std::chrono::high_resolution_clock::now()};
+      std::print("total run time: {}\n", dur(stop_time - start_time));
     }
   }
   catch (const std::exception &e) {
