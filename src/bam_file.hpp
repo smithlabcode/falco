@@ -174,7 +174,7 @@ get_next(bamrec::pos_t &cursor,
 
 struct bam_file {
   using rec_t = bamrec;
-  static constexpr auto min_buf_size = 16 * 4096l;
+  static constexpr auto min_buf_size = static_cast<std::int64_t>(16 * 4096);
   static constexpr auto max_buf_size = std::numeric_limits<std::int64_t>::max();
   bam_buffer buf;
   falco_thread_pool t;
