@@ -35,22 +35,17 @@ extern std::vector<std::pair<std::string, std::string>> contaminants;
 void
 load_contaminants(const std::string &filename);
 
-// gets the largest suffix of left which is a prefix of right
-// returns 0 if none exist
+// get the longest substring of left that is a prefix of right
 [[nodiscard]] static inline auto
 get_overlap(const auto &left, const auto &right) {
-  const auto right_beg = std::cbegin(right);
-  const auto right_end = std::cend(right);
   const auto left_beg = std::cbegin(left);
   const auto left_end = std::cend(left);
   auto best_n_matches = 0l;
   for (auto left_itr = left_beg; left_itr != left_end; ++left_itr) {
-    const auto mm_res = std::mismatch(left_itr, left_end, right_beg, right_end);
-    // overlap must cover a suffix of left or the entirety of right
-    if (mm_res.first == left_end || mm_res.second == right_end) {
-      const auto n_matches = std::distance(left_itr, mm_res.first);
-      best_n_matches = std::max(best_n_matches, n_matches);
-    }
+    const auto [mm_left, _] =
+      std::ranges::mismatch(std::ranges::subrange(left_itr, left_end), right);
+    const auto n_matches = std::distance(left_itr, mm_left);
+    best_n_matches = std::max(best_n_matches, n_matches);
   }
   return best_n_matches;
 }
