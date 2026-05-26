@@ -34,6 +34,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cmath>
 #include <format>
 #include <iterator>
@@ -199,21 +200,24 @@ format_qual_by_read(const auto &qual_by_read, const auto qual_offset) {
     std::pair{27, "warn"},
     std::pair{falco::max_qual_val, "pass"},
   };
-  // get mode
-  const auto max_qual_val =
-    std::distance(std::cbegin(qual_by_read),
-                  std::ranges::max_element(qual_by_read)) -
-    qual_offset;
-  auto r = std::format(start_tag, get_grade(grade_cutoffs, max_qual_val));
+  // get mode for grade
+  const auto q_beg = std::cbegin(qual_by_read);
+  const auto max_itr = std::ranges::max_element(qual_by_read);
+  const auto qual_val_mode = std::distance(q_beg, max_itr) - qual_offset;
+  auto r = std::format(start_tag, get_grade(grade_cutoffs, qual_val_mode));
   r += header;
-  // output starting at qual_offset; that's where they are relevant
-  bool found_first = false;
-  for (const auto q : std::views::iota(qual_offset, falco::max_qual_val)) {
-    found_first = found_first || qual_by_read[q] > 0;
-    if (found_first)
-      // cppcheck-suppress useStlAlgorithm
-      r += std::format("{}\t{}\n", q - qual_offset, qual_by_read[q]);
-  }
+
+  // output quality values between first non-zero and last zero
+  const auto gt0 = [&](const auto x) { return x > 0; };
+  const auto first_obs_itr = std::ranges::find_if(qual_by_read, gt0);
+  const std::int64_t first_obs = std::distance(q_beg, first_obs_itr);
+  const auto last_obs_subrange = std::ranges::find_last_if(qual_by_read, gt0);
+  const auto trailing_zeros = std::size(last_obs_subrange);
+  const std::int64_t last_obs = std::size(qual_by_read) - trailing_zeros;
+  assert(first_obs >= qual_offset && last_obs <= falco::max_qual_val);
+  for (const auto q : std::views::iota(first_obs, last_obs + 1))
+    // cppcheck-suppress useStlAlgorithm
+    r += std::format("{}\t{}\n", q - qual_offset, qual_by_read[q]);
   r += end_module_tag;
   return r;
 }
