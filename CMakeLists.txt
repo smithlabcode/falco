@@ -80,7 +80,7 @@ if(CMAKE_BUILD_TYPE STREQUAL Release)
   if(result)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
   else()
-    message(FATAL_ERROR "IPO is not supported: ${output}")
+    message(STATUS "IPO is not supported in your build environment")
   endif()
 endif()
 
