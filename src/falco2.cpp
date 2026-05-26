@@ -22,11 +22,10 @@
  */
 
 static constexpr auto about =
-  R"(Falco2: an in-progress redesign and rewrite of falco
-)";
+  R"(Falco2: an in-progress redesign and rewrite of falco)";
 
 static constexpr auto description =
-  R"(falco2 is aims to improve speed while still doing the same analysis as in
+  R"(Falco2 aims to improve speed while still doing the same analysis as in
 falco. There will likely be changes to some of the statistics, including the way
 read duplication is analyzed (borrowing from preseq)
 )";
