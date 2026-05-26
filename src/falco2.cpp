@@ -52,7 +52,7 @@ read duplication is analyzed (borrowing from preseq)
 
 #include <algorithm>
 #include <array>
-#include <chrono>
+// #include <chrono>
 #include <compare>
 #include <condition_variable>
 #include <cstdint>
@@ -537,7 +537,7 @@ main(int argc, char *argv[]) {
       "Show full license.");
     // clang-format on
 #endif
-    const auto start_time{std::chrono::high_resolution_clock::now()};
+    // const auto start_time{std::chrono::high_resolution_clock::now()};
 
     if (argc < 2) {
       std::println("{}", app.help());
@@ -609,13 +609,13 @@ main(int argc, char *argv[]) {
       std::println("unsupported file format: {}", format_description);
     }
 
-    if (verbose) {
-      const auto dur = [](const auto d) {
-        return std::chrono::duration_cast<std::chrono::duration<double>>(d);
-      };
-      const auto stop_time{std::chrono::high_resolution_clock::now()};
-      std::print("total run time: {}\n", dur(stop_time - start_time));
-    }
+    // if (verbose) {
+    //   const auto dur = [](const auto d) {
+    //     return std::chrono::duration_cast<std::chrono::duration<double>>(d);
+    //   };
+    //   const auto stop_time{std::chrono::high_resolution_clock::now()};
+    //   std::print("total run time: {}\n", dur(stop_time - start_time));
+    // }
   }
   catch (const std::exception &e) {
     std::println("{}", e.what());
