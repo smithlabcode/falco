@@ -21,14 +21,16 @@
  * SOFTWARE.
  */
 
+// clang-format off
 static constexpr auto about =
   R"(Falco2: an in-progress redesign and rewrite of falco)";
 
 static constexpr auto description =
-  R"(Falco2 aims to improve speed while still doing the same analysis as in
-falco. There will likely be changes to some of the statistics, including the way
-read duplication is analyzed (borrowing from preseq)
+  R"(Falco2 aims to improve speed while still doing the same analysis as in falco.
+There will likely be changes to some of the statistics, including the way
+read duplication is analyzed (borrowing from preseq).
 )";
+// clang-format on
 
 #include "adapter_matcher.hpp"
 #include "bam_file.hpp"
@@ -503,7 +505,16 @@ main(int argc, char *argv[]) {
       app.footer(description);
 
     app.get_formatter()->long_option_alignment_ratio(0.2);
-    app.set_version_flag("--version", VERSION);
+    app.set_help_flag("-h,--help", "Print more detailed help");
+    app.set_version_flag("--version", VERSION, "Print program version");
+#ifdef FULL_LICENSE
+    // clang-format off
+    app.add_flag("--license",
+                 [&](auto) { std::print("{}", license_text); throw CLI::Success(); },
+                 "Print full license")
+      ->callback_priority(CLI::CallbackPriority::First);
+    // clang-format on
+#endif
     app
       .add_option("-i,--input", infile,
                   "Input file: FASTQ (plain, gz or bgzf) or BAM/SAM")
@@ -518,25 +529,20 @@ main(int argc, char *argv[]) {
                   "File of contaminant sequences to use")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
-    app.add_option("-t,--threads", n_threads,
-                   std::format("Threads to use (this machine supports: {})",
-                               std::thread::hardware_concurrency()));
+    app
+      .add_option("-t,--threads", n_threads,
+                  std::format("Threads to use (this machine supports: {})",
+                              std::thread::hardware_concurrency()))
+      ->option_text(std::format("[{}]", n_threads));
     app
       .add_option("-m,--mem", buf_size,
                   "Memory buffer size for IO (G/M/K units ok)")
-      ->option_text(std::format("{}", size_to_units(buf_size_default)))
+      ->option_text(std::format("[{}]", size_to_units(buf_size_default)))
       ->capture_default_str()
       ->transform(size_from_units);
     app.add_flag("-v,--verbose", verbose, "Print more info while running.");
     app.add_flag("--tiles", do_tiles, "Enable per-tile analysis");
     app.add_flag("--kmers", do_kmers, "Enable k-mer analysis");
-#ifdef FULL_LICENSE
-    // clang-format off
-    app.add_flag("--license",
-      [&](auto) { std::print("{}", license_text); throw CLI::Success(); },
-      "Show full license.");
-    // clang-format on
-#endif
     // const auto start_time{std::chrono::high_resolution_clock::now()};
 
     if (argc < 2) {
