@@ -55,6 +55,7 @@ read duplication is analyzed (borrowing from preseq).
 #include <algorithm>
 #include <array>
 // #include <chrono>
+#include <cmath>
 #include <compare>
 #include <condition_variable>
 #include <cstdint>
@@ -62,7 +63,10 @@ read duplication is analyzed (borrowing from preseq).
 #include <exception>
 #include <format>
 #include <fstream>
+#include <functional>
 #include <iterator>
+#include <map>
+#include <memory>
 #include <mutex>
 #include <numeric>
 #include <print>

@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <ranges>
 #include <string>
 #include <utility>  // IWYU pragma: keep
 #include <vector>
