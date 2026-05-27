@@ -44,6 +44,8 @@
 #include <utility>
 #include <vector>
 
+static constexpr auto qual_missing_code = 0xff;  // from sam.c
+
 template <class T> struct aligned_allocator {
   static constexpr std::size_t align_at = 8;
   typedef T value_type;
@@ -51,12 +53,14 @@ template <class T> struct aligned_allocator {
   allocate(const std::size_t n) -> T * {
     if (n > std::numeric_limits<std::size_t>::max() / sizeof(T))
       throw std::bad_array_new_length();
+    // NOLINTNEXTLINE (cppcoreguidelines-owning-memory)
     if (auto p = static_cast<T *>(std::aligned_alloc(align_at, n * sizeof(T))))
       return p;
     throw std::bad_alloc();
   }
   auto
   deallocate(T *p, [[maybe_unused]] const std::size_t n) noexcept {
+    // NOLINTNEXTLINE (cppcoreguidelines-owning-memory)
     std::free(p);
   }
 };
@@ -108,6 +112,7 @@ struct bamrec {
   [[nodiscard]] operator bool() const { return n != nullptr; }
 };
 
+// NOLINTBEGIN (cppcoreguidelines-pro-bounds-pointer-arithmetic)
 [[nodiscard]] constexpr auto get_name(const bamrec &rec) { return rec.n; }
 [[nodiscard]] constexpr auto get_name_end(const bamrec &rec) { return rec.n + rec.l_qname; }
 
@@ -116,8 +121,11 @@ struct bamrec {
 [[nodiscard]] constexpr auto get_seq_size(const bamrec &rec) { return rec.l_qseq; }
 
 [[nodiscard]] constexpr auto get_qual(const bamrec &rec) { return rec.q; }
-[[nodiscard]] constexpr auto get_qual_end(const bamrec &rec) { return *rec.q == 0xff ? rec.q : rec.q + rec.l_qseq; }
+[[nodiscard]] constexpr auto get_qual_end(const bamrec &rec) {
+  return *rec.q == qual_missing_code ? rec.q : rec.q + rec.l_qseq;
+}
 [[nodiscard]] constexpr auto get_qual_size(const bamrec &rec) { return rec.l_qseq; }
+// NOLINTEND (cppcoreguidelines-pro-bounds-pointer-arithmetic)
 // clang-format on
 
 [[nodiscard]] inline auto
@@ -125,7 +133,6 @@ to_string(const bamrec &b) {
   // converts the bam record to FASTQ format for visualization
   static constexpr auto quality_score_offset = 33;
   static constexpr auto other = "\n+\n";
-  static constexpr auto qual_missing_code = 0xff;  // from sam.c
   auto name = std::format("@{}\n", std::string(b.n, b.l_qname));
   std::string read;
   auto seq_itr = get_seq(b);
@@ -137,7 +144,7 @@ to_string(const bamrec &b) {
     qual = std::string(get_qual_size(b), 'B');
   else
     while (qual_itr != get_qual_end(b))
-      qual += (quality_score_offset + *qual_itr++);
+      qual += static_cast<char>(quality_score_offset + *qual_itr++);
   return name + read + other + qual + '\n';
 }
 
@@ -207,6 +214,7 @@ struct bam_file {
   load_next() -> const bam_file & {
     // ADS: need to make sure the buffer starts at the proper alignment
     const auto align = [](const auto l) {
+      // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
       return static_cast<std::uint32_t>(l + 7) & ~7u;
     };
     auto n_bytes = 0u;
@@ -216,6 +224,7 @@ struct bam_file {
     while (n_recs < std::size(buf.recs)) {
       auto &rec = buf.recs[n_recs];
       bam_set_mempolicy(&rec, BAM_USER_OWNS_STRUCT | BAM_USER_OWNS_DATA);
+      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
       rec.data = std::data(buf.data) + n_bytes;
       rec.m_data = std::size(buf.data) - n_bytes;
       const auto r = sam_read1(f.get(), h.get(), &rec);
@@ -246,7 +255,7 @@ get_chunks(const bam_file &bf, const std::int64_t n_chunks)
   -> std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>> {
   const auto [chunk_size, remainder] = std::div(bf.buf.n_recs, n_chunks);
   const auto buffer = std::cbegin(bf.buf);
-  auto start_pos = 0;
+  std::int64_t start_pos{};
   std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>> chunks(n_chunks);
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
     const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
