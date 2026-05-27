@@ -55,7 +55,6 @@ read duplication is analyzed (borrowing from preseq).
 #include <algorithm>
 #include <array>
 // #include <chrono>
-#include <cmath>
 #include <compare>
 #include <condition_variable>
 #include <cstdint>
@@ -464,10 +463,6 @@ run_mode_selector(const run_mode mode, const std::string &infile,
 int
 main(int argc, char *argv[]) {
   try {
-    static constexpr auto gigabytes = 1024 * 1024 * 1024;
-    static constexpr auto megabytes = 1024 * 1024;
-    static constexpr auto kilobytes = 1024;
-
     static constexpr auto buf_size_default = 256 * 1024 * 1024;
     std::string infile;
     std::string contam_file;
@@ -479,27 +474,12 @@ main(int argc, char *argv[]) {
     bool do_kmers{};
     bool verbose{};
 
-    const auto size_to_units = [](const auto s) -> std::string {
-      const auto as_frac_3 = [](const auto a, const auto b) {
-        return std::floor(100 * as_frac(a, b)) / 100;
-      };
-      if (s >= gigabytes)
-        return std::format("{}GiB", as_frac_3(s, gigabytes));
-      if (s >= megabytes)
-        return std::format("{}MiB", as_frac_3(s, megabytes));
-      if (s >= kilobytes)
-        return std::format("{}KiB", as_frac_3(s, kilobytes));
-      return std::format("{}", s);
-    };
-
-    const auto size_from_units =
-      CLI::AsNumberWithUnit(std::map<std::string, std::int64_t>{
-        // clang-format off
-          {"G", gigabytes},
-          {"M", megabytes},
-          {"k", kilobytes}
-        // clang-format on
-      });
+    using std::literals::string_literals::operator""s;
+    const auto size_from_units = CLI::AsNumberWithUnit(std::map{
+      std::pair{"G"s, gigabytes},
+      {"M"s, megabytes},
+      {"k"s, kilobytes},
+    });
 
     CLI::App app{about};
     argv = app.ensure_utf8(argv);
@@ -508,6 +488,7 @@ main(int argc, char *argv[]) {
     if (argc >= 2)
       app.footer(description);
 
+    // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
     app.get_formatter()->long_option_alignment_ratio(0.2);
     app.set_help_flag("-h,--help", "Print more detailed help");
     app.set_version_flag("--version", VERSION, "Print program version");

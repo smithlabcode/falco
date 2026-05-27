@@ -86,6 +86,7 @@ struct adapter_matcher {
     if (len < adapter_size) [[unlikely]]
       return;
     for (auto i = 0; i < n_adapters; ++i)
+      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
       if (const auto p = match_adapter(seq, len, encoded_adapters[i]); p < len)
         ++adap_counts[p][i];
   }

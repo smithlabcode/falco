@@ -31,6 +31,7 @@
 #include <utility>  // IWYU pragma: keep
 #include <vector>
 
+// NOLINTNEXTLINE (cppcoreguidelines-avoid-non-const-global-variables)
 extern std::vector<std::pair<std::string, std::string>> contaminants;
 
 void
@@ -41,7 +42,7 @@ load_contaminants(const std::string &filename);
 get_overlap(const auto &left, const auto &right) {
   const auto left_beg = std::cbegin(left);
   const auto left_end = std::cend(left);
-  auto best_n_matches = 0l;
+  auto best_n_matches = 0L;
   for (auto left_itr = left_beg; left_itr != left_end; ++left_itr) {
     const auto [mm_left, _] =
       std::ranges::mismatch(std::ranges::subrange(left_itr, left_end), right);
@@ -55,8 +56,8 @@ get_overlap(const auto &left, const auto &right) {
 match_contaminant(const auto &query, const auto &contams) -> std::string {
   static constexpr auto no_hit_label = "No Hit";
   std::string best_name;
-  auto best_match = 0l;
-  auto best_match_len = 0ul;
+  auto best_match = 0L;
+  auto best_match_len = 0LU;
   for (const auto &[name, seq] : contams) {
     const auto n_match =
       std::max(get_overlap(query, seq), get_overlap(seq, query));

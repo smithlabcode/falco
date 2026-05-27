@@ -51,9 +51,11 @@ struct falco_word {
 
   falco_word(auto b, std::uint64_t w) {
     static constexpr auto fw_encode = [](const auto c) {
+      // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
       return ((c >> 1) & 7) ^ 3;
     };
     static const auto enc_shift = [&](auto &x, auto &c) {
+      // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
       x = (x * 5) + fw_encode(*c++);
     };
     w = w < max_hi_lim ? w : max_hi_lim;
@@ -69,10 +71,12 @@ struct falco_word {
   [[nodiscard]] static auto
   string_impl(auto word, auto n_bases) {
     static constexpr auto bases = "GTCAN";
+    static constexpr auto alpha_size = 5;
     std::string r;
     for (auto i = 0u; i < n_bases; ++i) {
-      r += bases[word % 5];
-      word /= 5;
+      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      r += bases[word % alpha_size];
+      word /= alpha_size;
     }
     return r;
   }
@@ -90,9 +94,11 @@ struct falco_word {
 
   [[nodiscard]] auto
   hash() const noexcept {
+    // ADS: from boost multiprecision hash, but for 64 bits
     static constexpr auto magic = 0x517cc1b727220a95;
     static constexpr auto hashfun = std::hash<std::uint64_t>{};
     const auto h = hashfun(lo);
+    // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return h ^ ((hashfun(hi) + magic) + (h << 6) + (h >> 2));
   }
 };

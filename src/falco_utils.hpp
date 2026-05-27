@@ -83,6 +83,8 @@ inline constexpr auto nibble_size = 4;
 
 [[nodiscard]] inline constexpr auto
 encode_nibble(const char c) {
+  // ADS: 15 is to keep 4 bits
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
   return (c >> 1) & 15;  // N gets separate encoding
 }
 
@@ -241,11 +243,37 @@ get_grade(const auto &cutoffs, const auto c) {
 struct falco_thread_pool {
   htsThreadPool t{};
   explicit falco_thread_pool(const std::uint32_t n_threads) :
-    t{hts_tpool_init(std::max(1u, n_threads)), 0} {
+    t{hts_tpool_init(static_cast<std::int32_t>(std::max(1U, n_threads))), 0} {
     if (t.pool == nullptr)
       throw std::runtime_error("failed to construct thread pool");
   }
+  // clang-format off
+  falco_thread_pool(const falco_thread_pool &) = delete;
+  auto operator=(const falco_thread_pool &) -> falco_thread_pool & = delete;
+  falco_thread_pool(falco_thread_pool &&) noexcept = delete;
+  auto operator=(falco_thread_pool &&) noexcept -> falco_thread_pool & = delete;
+  // clang-format on
+
   ~falco_thread_pool() { hts_tpool_destroy(t.pool); }
 };
+
+static constexpr auto gigabytes = 1024 * 1024 * 1024;
+static constexpr auto megabytes = 1024 * 1024;
+static constexpr auto kilobytes = 1024;
+
+[[nodiscard]] inline auto
+size_to_units(const auto s) -> std::string {
+  const auto as_frac_3 = [](const auto a, const auto b) {
+    // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
+    return std::floor(100 * as_frac(a, b)) / 100;
+  };
+  if (s >= gigabytes)
+    return std::format("{}GiB", as_frac_3(s, gigabytes));
+  if (s >= megabytes)
+    return std::format("{}MiB", as_frac_3(s, megabytes));
+  if (s >= kilobytes)
+    return std::format("{}KiB", as_frac_3(s, kilobytes));
+  return std::format("{}", s);
+}
 
 #endif  // SRC_FALCO_UTILS_HPP_

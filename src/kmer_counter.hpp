@@ -73,6 +73,7 @@ struct kmer_counter {
       shift_kmer(kmer, *seq_itr++);
     while (seq_itr != seq_end) {
       shift_kmer(kmer, *seq_itr++);
+      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
       ++(*out_itr++)[kmer];
     }
     next_kmer_read += kmer_step;

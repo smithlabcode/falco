@@ -79,7 +79,7 @@ struct fqrec {
 get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
   // ADS: need to make sure cursor < end_itr or we will move past
   const auto n = cursor;
-  auto itr = n + 1;
+  auto itr = n + 1;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   itr = std::find(itr, end_itr, '\n');
   if (itr++ == end_itr)
     return {};
@@ -153,6 +153,12 @@ struct fastq_file {
         std::format("Requested buffer size {} smaller than required {}",
                     buf_size, min_buf_size));
   }
+  // clang-format off
+  fastq_file(const fastq_file &) = delete;
+  auto operator=(const fastq_file &) -> fastq_file & = delete;
+  fastq_file(fastq_file &&) noexcept = delete;
+  auto operator=(fastq_file &&) noexcept -> fastq_file & = delete;
+  // clang-format on
 
   ~fastq_file() {
     if (buf.sz > 0)
@@ -207,8 +213,14 @@ struct fastq_gz_file {
       if (r < 0)
         throw std::runtime_error("failed to set thread pool");
     }
-    buf.data = new char[buf_size];
+    buf.data = new char[buf_size];  // NOLINT (cppcoreguidelines-owning-memory)
   }
+  // clang-format off
+  fastq_gz_file(const fastq_gz_file &) = delete;
+  auto operator=(const fastq_gz_file &) -> fastq_gz_file & = delete;
+  fastq_gz_file(fastq_gz_file &&) noexcept = delete;
+  auto operator=(fastq_gz_file &&) noexcept -> fastq_gz_file & = delete;
+  // clang-format on
 
   ~fastq_gz_file() { delete[] buf.data; }
 
@@ -217,11 +229,13 @@ struct fastq_gz_file {
   auto
   load_next() {
     if (cursor > 0) {
+      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
       std::memmove(buf.data, buf.data + cursor, buf.sz - cursor);
       cursor = buf.sz - cursor;  // backup to after previous data
     }
     start_pos_in_file = cursor;
     const auto n_bytes = buf_size - start_pos_in_file;
+    // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const auto r = bgzf_read(f.get(), buf.data + start_pos_in_file, n_bytes);
     if (r < 0) {
       // ADS: cleanup

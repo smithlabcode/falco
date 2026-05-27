@@ -25,6 +25,7 @@
 #define SRC_FORMAT_OUTPUT_HPP_
 
 #include "falco_file_format.hpp"
+#include "falco_utils.hpp"
 #include "quality_score.hpp"
 
 #include <config.h>
@@ -67,6 +68,7 @@ format_read_lengths(const auto &lengths) {
 
 [[nodiscard]] static inline auto
 sum_deviation_from_normal(const auto &gc) {
+  static constexpr auto mode_width = 0.90;  // ADS: where does this come from?
   // calculate deviation of a hist from a "normal" with same mode and sd
   const auto n_bins = std::size(gc);
   const auto gc_beg = std::cbegin(gc);
@@ -81,7 +83,7 @@ sum_deviation_from_normal(const auto &gc) {
   const auto mode_val = *mode_itr;
 
   // ADS: in case mode is not sharp average nearby values (not clear on why)
-  const auto gt_cut = [&](const double x) { return x < (0.90 * mode_val); };
+  const auto gt_cut = [&](const double x) { return x < mode_width * mode_val; };
   const auto right_itr = std::find_if(mode_itr, std::cend(gc), gt_cut);
   const auto left_itr =
     std::find_if(std::reverse_iterator(mode_itr), std::crend(gc), gt_cut);
@@ -97,6 +99,7 @@ sum_deviation_from_normal(const auto &gc) {
   const auto sd = std::sqrt(std::reduce(std::cbegin(id_gc), std::cend(id_gc)) /
                             (total_count - 1));
   const auto to_normal = [&](const auto val) {
+    // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
     return std::exp(-cntr_sq(val) / (2.0 * sd * sd));
   };
   auto theor = std::views::iota(0u, n_bins) | std::views::transform(to_normal) |
@@ -299,11 +302,13 @@ format_basic_stats(const auto &filename, const auto n_reads,
   static constexpr auto header = "#Measure\t"
                                  "Value\n";
   [[maybe_unused]] const auto with_suffix = [&](const auto x) {
+    // NOLINTBEGIN (cppcoreguidelines-avoid-magic-numbers)
     if (x > 1'000'000'000)
       return std::format("{:.1f} {}bp", as_frac(x, 1'000'000'000), "G");
     if (x > 1'000'000)
       return std::format("{:.1f} {}bp", as_frac(x, 1'000'000), "M");
     return std::format("{:.1f} {}bp", as_frac(x, 1'000), "K");
+    // NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
   };
   auto r = std::format(start_tag, VERSION, grade);
   r += header;
