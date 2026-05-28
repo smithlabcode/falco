@@ -79,9 +79,6 @@ kmer_counter::string([[maybe_unused]] const std::uint64_t n_reads) const
     kmer_counts, std::begin(count_by_pos),
     [](const auto &x) { return std::reduce(std::cbegin(x), std::cend(x)); });
 
-  const auto n_kmers_observed =
-    std::ranges::count_if(counts_by_kmer, [](const auto x) { return x > 0; });
-
   std::vector<kmer_result> kmer_info(n_kmers);
   for (const auto [kmer, count] : std::views::enumerate(counts_by_kmer)) {
     kmer_info[kmer].kmer = kmer;
@@ -90,18 +87,18 @@ kmer_counter::string([[maybe_unused]] const std::uint64_t n_reads) const
 
   for (const auto [pos, pos_counts] : std::views::enumerate(kmer_counts))
     for (const auto [ki, kmer_count] : std::views::zip(kmer_info, pos_counts)) {
-      const auto expected = as_frac(count_by_pos[pos], n_kmers_observed);
+      // expected is expected for the current position
+      const auto expected = as_frac(count_by_pos[pos], n_kmers);
       if (const auto oe = as_frac(kmer_count, expected); oe > ki.obs_exp) {
         ki.obs_exp = oe;
         ki.pos = pos;
       }
     }
 
-  const auto [erase_beg, erase_end] =
-    std::ranges::remove_if(kmer_info, [&](const auto &x) {
-      return x.obs_exp < min_obs_exp_to_report;
-    });
-  kmer_info.erase(erase_beg, erase_end);
+  const auto to_erase = std::ranges::remove_if(kmer_info, [&](const auto &x) {
+    return x.obs_exp < min_obs_exp_to_report;
+  });
+  kmer_info.erase(std::cbegin(to_erase), std::cend(to_erase));
   std::ranges::sort(kmer_info, std::greater{});
 
   const auto max_obs_exp = kmer_info.empty() ? 0.0 : kmer_info.front().obs_exp;
