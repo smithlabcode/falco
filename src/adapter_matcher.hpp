@@ -28,6 +28,7 @@
 
 #include <array>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <thread>  // IWYU pragma: keep
 #include <utility>
