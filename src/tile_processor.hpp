@@ -43,15 +43,15 @@
 // ADS: notes
 //
 // - The number of tiles should never exceed 2500
-// - Among the first 10k reads should, all should contribute to tiles
-// - The means quality score offset should be subtracted but with enough data it
-//   doesn't seem to matter
+// - Among the first 10k reads, all should contribute to tiles
+// - The quality score offset should be subtracted before any summary analysis
+//   (e.g., computing the mean), but with enough data it doesn't seem to matter
 
 struct tile_processor {
   static constexpr auto grade_cutoffs = std::array{
     std::pair{0.05, "pass"},
     std::pair{0.10, "warn"},
-    std::pair{1.00, "error"},
+    std::pair{std::numeric_limits<double>::max(), "fail"},
   };
 
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
