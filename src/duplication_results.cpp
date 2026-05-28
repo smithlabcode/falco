@@ -40,12 +40,12 @@
 #include <unordered_map>
 #include <vector>
 
-std::int32_t duplication_results::read_step = default_read_step;
+std::int32_t duplication_results::read_skip = default_read_skip;
 
 auto
 duplication_results::initialize(const std::uint64_t est_n_reads) -> void {
-  read_step = est_n_reads < max_n_reads_total
-                ? 1
+  read_skip = est_n_reads < max_n_reads_total
+                ? 0
                 : static_cast<std::int32_t>(est_n_reads / max_n_reads_total);
 }
 
