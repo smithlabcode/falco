@@ -32,6 +32,7 @@
 #include <charconv>
 #include <cstdint>
 #include <iterator>
+#include <limits>
 #include <ranges>
 #include <string>
 #include <system_error>
