@@ -25,7 +25,10 @@
 #include "falco_utils.hpp"
 
 #include <array>
+#include <compare>
 #include <cstdint>
+#include <format>
+#include <string>
 #include <vector>
 
 auto
@@ -34,25 +37,90 @@ kmer_counter::operator+=(const kmer_counter &rhs) -> const kmer_counter & {
   return *this;
 }
 
+struct kmer_result {
+  std::uint64_t kmer{};
+  std::uint64_t count{};
+  double pval{};
+  double obs_exp{};
+  std::uint64_t pos{};
+  [[nodiscard]] auto
+  operator<=>(const kmer_result &rhs) const {
+    return obs_exp < rhs.obs_exp   ? std::strong_ordering::less
+           : obs_exp > rhs.obs_exp ? std::strong_ordering::greater
+                                   : std::strong_ordering::equal;
+  }
+  [[nodiscard]] auto
+  string() const {
+    return std::format("{}\t{}\t{}\t{}\t{}",
+                       kmer_counter::decode_kmer(kmer, kmer_counter::kmer_size),
+                       count, pval, obs_exp, pos);
+  }
+};
+
 [[nodiscard]] auto
 kmer_counter::string([[maybe_unused]] const std::uint64_t n_reads) const
   -> std::string {
-  auto r = std::format(">>Kmer Content\t{}\n", "pass");
-  auto total_kmer_count = 0ul;
-  for (const auto &c : kmer_counts)
-    for (auto i = 0; i < n_kmers; ++i)
-      total_kmer_count += c[i];  // NOLINT (*-pro-bounds-constant-array-index)
-  r += std::format("total kmers: {}\n", total_kmer_count);
+  static constexpr auto start_tag = ">>Kmer Content\t{}\n";
+  static constexpr auto header = "#Sequence\t"
+                                 "Count\t"
+                                 "PValue\t"
+                                 "Obs/Exp Max\t"
+                                 "Max Obs/Exp Position\n";
+  [[maybe_unused]] static constexpr auto max_kmers_to_plot = 10;
+  static constexpr auto n_kmers_to_report = 20;
+  static constexpr auto min_obs_exp_to_report = 5.0;
+
+  auto counts_by_kmer = std::vector<std::uint64_t>(n_kmers);
+  std::ranges::for_each(kmer_counts,
+                        [&](const auto &k) { add(counts_by_kmer, k); });
+
+  auto count_by_pos = std::vector<std::uint64_t>(max_read_len);
+  std::ranges::transform(
+    kmer_counts, std::begin(count_by_pos),
+    [](const auto &x) { return std::reduce(std::cbegin(x), std::cend(x)); });
+
+  const auto n_kmers_observed =
+    std::ranges::count_if(counts_by_kmer, [](const auto x) { return x > 0; });
+
+  std::vector<kmer_result> kmer_info(n_kmers);
+  for (const auto [kmer, count] : std::views::enumerate(counts_by_kmer)) {
+    kmer_info[kmer].kmer = kmer;
+    kmer_info[kmer].count = count;
+  }
+
+  for (const auto [pos, pos_counts] : std::views::enumerate(kmer_counts))
+    for (const auto [ki, kmer_count] : std::views::zip(kmer_info, pos_counts)) {
+      const auto expected = as_frac(count_by_pos[pos], n_kmers_observed);
+      if (const auto oe = as_frac(kmer_count, expected); oe > ki.obs_exp) {
+        ki.obs_exp = oe;
+        ki.pos = pos;
+      }
+    }
+
+  const auto [erase_beg, erase_end] =
+    std::ranges::remove_if(kmer_info, [&](const auto &x) {
+      return x.obs_exp < min_obs_exp_to_report;
+    });
+  kmer_info.erase(erase_beg, erase_end);
+  std::ranges::sort(kmer_info, std::greater{});
+
+  const auto max_obs_exp = kmer_info.empty() ? 0.0 : kmer_info.front().obs_exp;
+  auto r = std::format(start_tag, get_grade(grade_cutoffs, max_obs_exp));
+  r += header;
+  for (const auto &info : kmer_info | std::views::take(n_kmers_to_report))
+    r += std::format("{}\n", info.string());
   return r + end_module_tag;
 }
 
 [[nodiscard]] auto
-kmer_counter::decode_kmer(auto word, const auto n_bases) {
+kmer_counter::decode_kmer(auto word, const auto n_bases) -> std::string {
   static constexpr auto mask = 3u;
   static constexpr auto bits_per_base = 2u;
   static constexpr auto bases = "ACTG";
   std::string r;
-  for (auto i = 0u; i < n_bases; ++i, word >>= bits_per_base)
+  using pos_t = std::decay_t<decltype(n_bases)>;
+  for (pos_t i = 0; i < n_bases; ++i, word >>= bits_per_base)
     r += bases[word & mask];
+  std::ranges::reverse(r);
   return r;
 }
