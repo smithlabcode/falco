@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <format>
 #include <iterator>
+#include <limits>
 #include <string>
 #include <thread>  // IWYU pragma: keep
 #include <utility>
