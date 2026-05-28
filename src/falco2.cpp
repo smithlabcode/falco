@@ -161,7 +161,7 @@ struct falco_results {
 
   auto
   process_one_read_impl(const auto &rec) {
-    // NOLINTBEGIN (*-pro-bounds-constant-array-index)
+    // NOLINTBEGIN (cppcoreguidelines-pro-bounds-constant-array-index)
     static constexpr auto discrete_pct = [](const auto a, const auto b) {
       return (100 * a) / b;  // NOLINT (cppcoreguidelines-avoid-magic-numbers)
     };
@@ -185,7 +185,7 @@ struct falco_results {
     ++qual_by_read[tot / read_len];
     dr.count_seqs(seq_itr, read_len);
     am.match_adapters(seq_itr, read_len);
-    // NOLINTEND (*-pro-bounds-constant-array-index)
+    // NOLINTEND (cppcoreguidelines-pro-bounds-constant-array-index)
   }
 
   auto
@@ -291,12 +291,7 @@ struct falco_results_kmer : public falco_results {
   auto
   process_one_read_impl(const auto &rec) {
     falco_results::process_one_read_impl(rec);
-    if (n_reads == kc.next_kmer_read) {
-      if (max_read_len > kc.max_read_len)
-        kc.resize(max_read_len);
-      kc.count_kmers(get_seq_begin(rec), get_seq_size(rec));
-      kc.next_kmer_read += kmer_counter::kmer_step;
-    }
+    kc.count_kmers(get_seq_begin(rec), get_seq_size(rec));
   }
 
   auto
@@ -318,12 +313,7 @@ struct falco_results_tile_kmer : public falco_results_tile {
   auto
   process_one_read_impl(const auto &rec) {
     falco_results_tile::process_one_read_impl(rec);
-    if (n_reads == kc.next_kmer_read) {
-      if (max_read_len > kc.max_read_len)
-        kc.resize(max_read_len);
-      kc.count_kmers(get_seq_begin(rec), get_seq_size(rec));
-      kc.next_kmer_read += kmer_counter::kmer_step;
-    }
+    kc.count_kmers(get_seq_begin(rec), get_seq_size(rec));
   }
 
   auto
