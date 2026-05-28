@@ -37,7 +37,7 @@ struct adapter_matcher {
   static constexpr auto grade_cutoffs = std::array{
     std::pair{0.05, "pass"},
     std::pair{0.10, "warn"},
-    std::pair{1.00, "error"},
+    std::pair{std::numeric_limits<double>::max(), "fail"},
   };
   static constexpr auto n_adapters = 6;
   static constexpr auto adapter_size = 12;
