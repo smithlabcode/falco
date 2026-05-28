@@ -22,7 +22,7 @@
  */
 
 #include "bam_file.hpp"
-#include "falco_utils.hpp"  // for as_frac
+#include "falco_utils.hpp"
 
 #include <htslib/bgzf.h>   // for BGZF
 #include <htslib/hfile.h>  // for htell
@@ -46,8 +46,13 @@ estimate_n_reads_bam(const std::string &filename) -> std::uint64_t {
   if (!h)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to read header: " + filename);
+
+  const auto format = hts_get_format(f.get());
+  if (!format)
+    throw std::runtime_error("failed to identify file format: " + filename);
+
   // NOLINTNEXTLINE (cppcoreguidelines-pro-type-union-access)
-  const auto &fp = f.get()->fp.bgzf->fp;
+  const auto &fp = format->format == bam ? f->fp.bgzf->fp : f->fp.hfile;
   const auto pos_after_header = htell(fp);
   bam1_t rec{};
   std::uint64_t n_reads{};
