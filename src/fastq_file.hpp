@@ -60,7 +60,7 @@ struct fqrec {
   pos_t q{};  // start of "quality" scores
   pos_t e{};  // end of the record
   [[nodiscard]] auto
-  size() const -> std::uint32_t { return std::distance(r, o) - 1; }
+  size() const -> std::int32_t { return std::distance(r, o) - 1; }
   [[nodiscard]] operator bool() const { return n != nullptr; }
   [[nodiscard]] auto
   string() const -> std::string { return {n, e}; }
