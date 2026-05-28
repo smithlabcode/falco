@@ -34,7 +34,7 @@
 
 struct duplication_results {
   static constexpr auto max_n_reads_total{1'000'000};
-  static constexpr auto default_read_step{10};
+  static constexpr auto default_read_skip{10};
   static constexpr auto overrep_cutoff = 0.001;
   static constexpr auto grade_cutoffs = std::array{
     std::pair{0.50, "fail"},
@@ -46,7 +46,7 @@ struct duplication_results {
     std::pair{1.00, "warn"},
     std::pair{1.00, "fail"},
   };
-  static std::int32_t read_step;
+  static std::int32_t read_skip;
   std::int32_t read_idx{};
   std::unordered_map<falco_word, std::uint64_t> dups;
 
@@ -65,7 +65,7 @@ struct duplication_results {
   auto
   count_seqs(const auto seq_itr, const auto sz) {
     if (read_idx-- == 0) [[unlikely]] {
-      read_idx = read_step;
+      read_idx = read_skip;
       ++dups[falco_word(seq_itr, sz)];
     }
   }
