@@ -77,6 +77,7 @@ safe_floor(const auto x, const auto floor_val) {
 // ADS: continued fraction representation for the upper incomplete gamma Q(a,x)
 [[nodiscard]] static inline auto
 gamma_q_contfrac(const double a, const double x) -> double {
+  // ADS: fpmin is 2.2e-16 above smallest positive double
   static constexpr auto epsilon = std::numeric_limits<double>::epsilon();
   static constexpr auto fpmin = std::numeric_limits<double>::min() / epsilon;
   static constexpr auto max_iter = 100;
