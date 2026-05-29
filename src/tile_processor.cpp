@@ -108,25 +108,30 @@ tile_processor::string(const std::uint32_t len) const -> std::string {
   static constexpr auto header = "#Tile\t"
                                  "Base\t"
                                  "Mean\n";
-  auto r = std::format(start_tag, "pass");
-  r += header;
 
-  auto means = std::vector<double>(max_read_len, 0.0);
-  for (auto i = 0u; i < max_read_len; ++i)
-    for (const auto &q : quals | std::views::values)
-      means[i] += as_frac(q[i].first, q[i].second);
+  std::vector<double> means(max_read_len);
+  for (const auto &tile_quals : quals | std::views::values)
+    for (const auto [i, q] : std::views::enumerate(tile_quals))
+      means[i] += as_frac(q.first, q.second);
 
   std::ranges::transform(means, std::begin(means),
                          [&](const auto x) { return x / std::size(quals); });
 
-  // also sorting tiles
+  // using map to get sorted order by tile id
   std::map<std::uint32_t, std::vector<double>> centered;
-  const auto cent = [](const auto &a, const auto b) {
-    return as_frac(a.first, a.second) - b;
+  const auto cent = [](const auto &a, const auto mean) {
+    const auto [qual_sum, n_obs] = a;
+    return as_frac(qual_sum, n_obs) - mean;
   };
   for (const auto &[id, vals] : quals)
     centered.emplace(id, std::views::zip_transform(cent, vals, means) |
                            std::ranges::to<std::vector>());
+
+  const auto neg_min_cent_qual =
+    -std::ranges::min(centered | std::views::values | std::views::join);
+
+  auto r = std::format(start_tag, get_grade(grade_cutoffs, neg_min_cent_qual));
+  r += header;
   for (const auto &[i, q] : centered | std::views::take(len))
     for (auto j = 0u; j < std::size(q); ++j)
       r += std::format("{}\t{}\t{:.{}f}\n", i, j + 1, q[j], max_precision);
