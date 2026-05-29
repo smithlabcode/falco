@@ -303,7 +303,7 @@ struct falco_results_kmer : public falco_results {
 
   [[nodiscard]] auto
   string_impl() const {
-    return falco_results::string_impl() + kc.string(n_reads);
+    return falco_results::string_impl() + kc.string();
   }
 };
 
@@ -326,7 +326,7 @@ struct falco_results_tile_kmer : public falco_results_tile {
 
   [[nodiscard]] auto
   string_impl() const {
-    return falco_results_tile::string_impl() + kc.string(n_reads);
+    return falco_results_tile::string_impl() + kc.string();
   }
 };
 
