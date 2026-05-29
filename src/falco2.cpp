@@ -592,6 +592,7 @@ main(int argc, char *argv[]) {
     }
 
     if (verbose) {
+      // ADS: using 'count()' because macos has locale issues formatting times
       const auto dur = [](const auto d) {
         return std::chrono::duration_cast<std::chrono::duration<double>>(d)
           .count();
