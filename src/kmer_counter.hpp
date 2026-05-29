@@ -62,6 +62,9 @@ struct kmer_counter {
   [[maybe_unused]] static constexpr auto max_kmers_to_plot = 10;
   static constexpr auto n_kmers_to_report = 20;
 
+  // don't count kmers past this length of read prefix
+  static constexpr auto max_len_for_analysis = 500;
+
   static constexpr auto read_skip = 50 - 1;
   static constexpr auto kmer_size = 7;
   static constexpr auto n_kmers = ipow(4, kmer_size);
@@ -83,9 +86,10 @@ struct kmer_counter {
   };
 
   auto
-  count_kmers(auto seq_itr, const auto sz) {
+  count_kmers(auto seq_itr, auto sz) {
     if (read_idx-- == 0) [[unlikely]] {
       read_idx = read_skip;
+      sz = sz > max_len_for_analysis ? max_len_for_analysis : sz;
       if (sz > max_read_len) [[unlikely]]
         resize(sz);
       const auto seq_end = seq_itr + sz;
