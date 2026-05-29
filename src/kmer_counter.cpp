@@ -125,8 +125,8 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
                          [&](const auto &a) { return range_reduce(a); });
   const auto total = range_reduce(counts_by_kmer);
   const auto to_probs = [&](const auto &v) {
-    const auto to_prob = [&](const auto x) { return as_frac(x, total); };
-    return v | std::views::transform(to_prob) | std::ranges::to<std::vector>();
+    const auto p = [&](const auto x) { return as_frac(x, total); };
+    return v | std::views::transform(p) | std::ranges::to<std::vector>();
   };
 
   const auto kmer_probs = to_probs(counts_by_kmer);
@@ -144,11 +144,13 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
     const auto per_kmer = std::views::zip(pos_counts, kmer_probs, results);
     for (auto [count, prob, res] : per_kmer) {
       const auto expected = total * prob * pos_prob;
-      if (const auto oe = as_frac(count, expected); oe > res.obs_exp) {
-        res.obs_exp = oe;
+      if (const auto obs_exp = as_frac(count, expected);
+          obs_exp > res.obs_exp) {
+        res.obs_exp = obs_exp;
         res.pos = pos;
-        res.pval = poisson_q(count, prob * count_for_pos) * n_kmers;
       }
+      const auto pval = poisson_q(count, prob * count_for_pos) * n_kmers;
+      res.pval = pval < res.pval ? pval : res.pval;
     }
   }
 
@@ -171,8 +173,9 @@ kmer_counter::string() const -> std::string {
   [[maybe_unused]] static constexpr auto max_kmers_to_plot = 10;
   static constexpr auto n_kmers_to_report = 20;
   const auto results = get_kmer_results();
-  const auto max_obs_exp = results.empty() ? 0.0 : results.front().obs_exp;
-  auto r = std::format(start_tag, get_grade(grade_cutoffs, max_obs_exp));
+
+  const auto neg_log_p_val = -std::log10(results.front().pval);
+  auto r = std::format(start_tag, get_grade(grade_cutoffs, neg_log_p_val));
   r += header;
   for (const auto &res : results | std::views::take(n_kmers_to_report))
     r += std::format("{}\n", res.string());
