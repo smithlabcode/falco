@@ -44,23 +44,23 @@
 // ADS: notes
 //
 // - The number of tiles should never exceed 2500
-// - Among the first 10k reads, all should contribute to tiles
+// - Among the first 10k reads, all should contribute to tiles?
 // - The quality score offset should be subtracted before any summary analysis
 //   (e.g., computing the mean), but with enough data it doesn't seem to matter
 
 struct tile_processor {
   static constexpr auto grade_cutoffs = std::array{
-    std::pair{0.05, "pass"},
-    std::pair{0.10, "warn"},
+    std::pair{5.0, "pass"},
+    std::pair{10.0, "warn"},
     std::pair{std::numeric_limits<double>::max(), "fail"},
   };
 
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
+  static constexpr auto read_skip = 10 - 1;
 
-  static constexpr auto tile_step = 10;
   static std::uint32_t preceding_colons;
 
-  std::uint32_t next_tile_read{};
+  std::int32_t read_idx{};
   std::uint32_t max_read_len{};
   std::uint32_t tile_id{};
   qual_vec::iterator qual{};
@@ -105,25 +105,22 @@ struct tile_processor {
   operator+=(const tile_processor &rhs) -> const tile_processor &;
 
   auto
-  operator()(auto q_itr, const auto q_end) {
-    auto tab_itr = qual;
-    while (q_itr != q_end) {
-      tab_itr->first += *q_itr++;
-      ++(*tab_itr++).second;
+  operator()(const auto &rec) {
+    if (read_idx-- == 0) [[unlikely]] {
+      read_idx = read_skip;
+      const auto curr_len = static_cast<std::uint32_t>(get_seq_size(rec));
+      if (curr_len > max_read_len)
+        resize(curr_len);
+      update_tile_id(get_name(rec), get_name_end(rec));
+      if constexpr (std::is_same_v<std::decay_t<decltype(rec)>, bamrec>) {
+        if (rec.is_rev)
+          count_quals_itr_rev(get_qual(rec), get_qual_end(rec), qual);
+        else
+          count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
+      }
+      else
+        count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
     }
-  }
-
-  auto
-  operator()(const bamrec &rec) {
-    if (rec.is_rev)
-      count_quals_itr_rev(get_qual(rec), get_qual_end(rec), qual);
-    else
-      count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
-  }
-
-  auto
-  operator()(const fqrec &rec) {
-    count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
   }
 };
 
