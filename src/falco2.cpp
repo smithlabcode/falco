@@ -263,13 +263,7 @@ struct falco_results_tile : public falco_results {
   auto
   process_one_read_impl(const auto &rec) {
     falco_results::process_one_read_impl(rec);
-    if (n_reads == tp.next_tile_read) {
-      if (max_read_len > tp.max_read_len)
-        tp.resize(max_read_len);
-      tp.update_tile_id(get_name(rec), get_name_end(rec));
-      tp(rec);
-      tp.next_tile_read += tp.tile_step;
-    }
+    tp(rec);
   }
 
   auto
