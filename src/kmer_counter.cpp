@@ -41,6 +41,7 @@ kmer_result::operator<=>(const kmer_result &rhs) const {
 
 [[nodiscard]] auto
 kmer_result::string() const {
+  // ADS: format a row for output of a kmer
   return std::format("{}\t{}\t{:.6g}\t{:.6g}\t{}",
                      kmer_counter::decode_kmer(kmer, kmer_counter::kmer_size),
                      count, pval, obs_exp, pos);
@@ -112,7 +113,6 @@ poisson_q(const std::uint64_t k, const double mu) {
 
 [[nodiscard]] auto
 kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
-  static constexpr auto min_obs_exp_to_report = 5.0;
   const auto range_reduce = [](const auto &v) {
     return std::reduce(std::cbegin(v), std::cend(v));
   };
@@ -155,7 +155,7 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
   }
 
   const auto to_erase = std::ranges::remove_if(results, [&](const auto &x) {
-    return x.obs_exp < min_obs_exp_to_report || x.pval > 0.01;
+    return x.obs_exp < min_obs_exp_to_report || x.pval > max_pval_to_report;
   });
   results.erase(std::cbegin(to_erase), std::cend(to_erase));
   std::ranges::sort(results, std::greater{});
@@ -170,10 +170,7 @@ kmer_counter::string() const -> std::string {
                                  "PValue\t"
                                  "Obs/Exp Max\t"
                                  "Max Obs/Exp Position\n";
-  [[maybe_unused]] static constexpr auto max_kmers_to_plot = 10;
-  static constexpr auto n_kmers_to_report = 20;
   const auto results = get_kmer_results();
-
   const auto neg_log_p_val = -std::log10(results.front().pval);
   auto r = std::format(start_tag, get_grade(grade_cutoffs, neg_log_p_val));
   r += header;

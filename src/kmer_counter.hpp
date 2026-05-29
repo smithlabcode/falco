@@ -56,6 +56,12 @@ struct kmer_counter {
     std::pair{std::numeric_limits<double>::max(), "fail"},
   };
 
+  // cutoffs for what to report
+  static constexpr auto min_obs_exp_to_report = 5.0;
+  static constexpr auto max_pval_to_report = 0.01;
+  [[maybe_unused]] static constexpr auto max_kmers_to_plot = 10;
+  static constexpr auto n_kmers_to_report = 20;
+
   static constexpr auto read_skip = 50 - 1;
   static constexpr auto kmer_size = 7;
   static constexpr auto n_kmers = ipow(4, kmer_size);
