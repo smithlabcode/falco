@@ -36,6 +36,19 @@
 #include <utility>
 #include <vector>
 
+struct kmer_result {
+  // holds info for {kmer} x {position} to be sorted, filtered and output
+  std::uint64_t kmer{};
+  std::uint64_t count{};
+  double pval{1.0};
+  double obs_exp{};
+  std::uint64_t pos{};
+  [[nodiscard]] auto
+  operator<=>(const kmer_result &rhs) const;
+  [[nodiscard]] auto
+  string() const;
+};
+
 struct kmer_counter {
   static constexpr auto grade_cutoffs = std::array{
     std::pair{2.0, "pass"},
@@ -86,7 +99,10 @@ struct kmer_counter {
   operator+=(const kmer_counter &rhs) -> const kmer_counter &;
 
   [[nodiscard]] auto
-  string(const std::uint64_t n_reads = 1) const -> std::string;
+  get_kmer_results() const -> std::vector<kmer_result>;
+
+  [[nodiscard]] auto
+  string() const -> std::string;
 
   [[nodiscard]] static auto
   decode_kmer(auto word, const auto n_bases) -> std::string;
