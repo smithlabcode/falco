@@ -257,9 +257,9 @@ struct falco_thread_pool {
   ~falco_thread_pool() { hts_tpool_destroy(t.pool); }
 };
 
-static constexpr auto gigabytes = 1024 * 1024 * 1024;
-static constexpr auto megabytes = 1024 * 1024;
-static constexpr auto kilobytes = 1024;
+static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
+static constexpr std::int64_t megabytes = 1024 * 1024;
+static constexpr std::int64_t kilobytes = 1024;
 
 [[nodiscard]] inline auto
 size_to_units(const auto s) -> std::string {
