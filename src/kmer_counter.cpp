@@ -44,7 +44,7 @@ kmer_result::string() const {
   // ADS: format a row for output of a kmer
   return std::format("{}\t{}\t{:.6g}\t{:.6g}\t{}",
                      kmer_counter::decode_kmer(kmer, kmer_counter::kmer_size),
-                     count, pval, obs_exp, pos);
+                     count, pval, obs_exp, pos + 1);
 }
 
 auto
