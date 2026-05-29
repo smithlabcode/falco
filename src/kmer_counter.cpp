@@ -171,7 +171,9 @@ kmer_counter::string() const -> std::string {
                                  "Obs/Exp Max\t"
                                  "Max Obs/Exp Position\n";
   const auto results = get_kmer_results();
-  const auto neg_log_p_val = -std::log10(results.front().pval);
+  const auto pval = results.front().pval;
+  const auto neg_log_p_val =
+    pval > 0.0 ? -std::log10(pval) : std::numeric_limits<double>::max();
   auto r = std::format(start_tag, get_grade(grade_cutoffs, neg_log_p_val));
   r += header;
   for (const auto &res : results | std::views::take(n_kmers_to_report))
