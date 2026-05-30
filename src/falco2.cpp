@@ -400,12 +400,14 @@ template <typename results_t>
 static auto
 run(const std::string &infile, auto &reads_file, const auto n_threads,
     const auto &outfile) {
+  static constexpr auto n_chunks_per_thread = 2;
   using rec_t = std::decay_t<decltype(reads_file)>::rec_t;
   thread_pool<results_t, rec_t> tpool(n_threads);
   while (reads_file) {
     reads_file.load_next();
-    std::ranges::for_each(get_chunks(reads_file, n_threads),
-                          [&](const auto &c) { tpool.push_task(c); });
+    std::ranges::for_each(
+      get_chunks(reads_file, n_threads * n_chunks_per_thread),
+      [&](const auto &c) { tpool.push_task(c); });
     tpool.wait();
     // ADS: below is how we'd do it without a pool, and it's likely as fast with
     // current bottlencks being elsewhere.
