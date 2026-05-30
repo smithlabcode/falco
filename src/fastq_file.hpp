@@ -34,6 +34,7 @@
 #include <unistd.h>    // for close, sysconf, _SC_PAGESIZE
 
 #include <algorithm>
+#include <cassert>
 #include <cerrno>
 #include <concepts>
 #include <cstdint>
@@ -60,7 +61,7 @@ struct fqrec {
   pos_t q{};  // start of "quality" scores
   pos_t e{};  // end of the record
   [[nodiscard]] auto
-  size() const -> std::int32_t { return std::distance(r, o) - 1; }
+  size() const { return static_cast<std::int32_t>(std::distance(r, o)) - 1; }
   [[nodiscard]] operator bool() const { return n != nullptr; }
   [[nodiscard]] auto
   string() const -> std::string { return {n, e}; }
@@ -117,6 +118,7 @@ struct fastq_buffer {
   auto operator=(const fastq_buffer &) -> fastq_buffer & = delete;
   fastq_buffer(fastq_buffer &&) noexcept = delete;
   auto operator=(fastq_buffer &&) noexcept -> fastq_buffer & = delete;
+  ~fastq_buffer() = default;
   // clang-format on
 };
 
@@ -298,11 +300,15 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   return chunks;
 }
 
-// specialization to these two classes
-template <class T>
-  requires std::same_as<T, fastq_file> || std::same_as<T, fastq_gz_file>
+// specialization to these two classes to distinguish from BAM/SAM
+template <typename T>
+concept fastq_like =
+  std::same_as<T, fastq_file> || std::same_as<T, fastq_gz_file>;
+
+template <fastq_like T>
 [[nodiscard]] static inline auto
 get_chunks(T &fq, const std::int64_t n_chunks) {
+  assert(n_chunks > 0);
   const auto add_offset = [d = fq.buf.data](const auto &x) {
     return std::pair{d + x.first, d + x.second};
   };
