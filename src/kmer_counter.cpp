@@ -24,12 +24,19 @@
 #include "kmer_counter.hpp"
 #include "falco_utils.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <compare>
 #include <cstdint>
+#include <cstdlib>
 #include <format>
+#include <functional>
+#include <numeric>
+#include <ranges>
 #include <string>
+#include <tuple>
+#include <type_traits>
 #include <vector>
 
 [[nodiscard]] auto
@@ -56,8 +63,8 @@ kmer_counter::operator+=(const kmer_counter &rhs) -> const kmer_counter & {
 // ADS: series representation for the lower incomplete gamma P(a,x)
 [[nodiscard]] static inline auto
 gamma_p_series(const double a, const double x) -> double {
-  constexpr auto eps = std::numeric_limits<double>::epsilon();
-  constexpr auto max_iter = 100;
+  static constexpr auto eps = std::numeric_limits<double>::epsilon();
+  static constexpr auto max_iter = 100;
   double sum = 1.0 / a;
   double term = sum;
   for (auto n = 1; n < max_iter; ++n) {
@@ -69,14 +76,14 @@ gamma_p_series(const double a, const double x) -> double {
   return sum * std::exp(-x + a * std::log(x) - std::lgamma(a));
 }
 
-[[nodiscard]] static inline auto
+[[nodiscard]] static constexpr inline auto
 safe_floor(const auto x, const auto floor_val) {
   return std::abs(x) < floor_val ? floor_val : x;
 }
 
 // ADS: continued fraction representation for the upper incomplete gamma Q(a,x)
 [[nodiscard]] static inline auto
-gamma_q_contfrac(const double a, const double x) -> double {
+gamma_q_contfrac(const double a, const double x) {
   // ADS: fpmin is 2.2e-16 above smallest positive double
   static constexpr auto epsilon = std::numeric_limits<double>::epsilon();
   static constexpr auto fpmin = std::numeric_limits<double>::min() / epsilon;
@@ -109,7 +116,7 @@ gamma_p(const double a, const double x) {
 
 [[nodiscard]] static inline auto
 poisson_q(const std::uint64_t k, const double mu) {
-  return mu > 0.0 ? gamma_p(static_cast<double>(k + 1.0), mu) : 1.0;
+  return mu > 0.0 ? gamma_p(static_cast<double>(k) + 1.0, mu) : 1.0;
 }
 
 [[nodiscard]] auto
@@ -124,7 +131,7 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
   auto counts_by_pos = std::vector<std::uint64_t>(max_read_len);
   std::ranges::transform(kmer_counts, std::begin(counts_by_pos),
                          [&](const auto &a) { return range_reduce(a); });
-  const auto total = range_reduce(counts_by_kmer);
+  const auto total = static_cast<double>(range_reduce(counts_by_kmer));
   const auto to_probs = [&](const auto &v) {
     const auto p = [&](const auto x) { return as_frac(x, total); };
     return v | std::views::transform(p) | std::ranges::to<std::vector>();
@@ -140,7 +147,7 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
                  std::ranges::to<std::vector>();
 
   for (const auto [pos, pos_counts] : std::views::enumerate(kmer_counts)) {
-    const auto count_for_pos = counts_by_pos[pos];
+    const auto count_for_pos = static_cast<double>(counts_by_pos[pos]);
     const auto pos_prob = pos_probs[pos];
     const auto per_kmer = std::views::zip(pos_counts, kmer_probs, results);
     for (auto [count, prob, res] : per_kmer) {
@@ -178,6 +185,7 @@ kmer_counter::string() const -> std::string {
   auto r = std::format(start_tag, get_grade(grade_cutoffs, neg_log_p_val));
   r += header;
   for (const auto &res : results | std::views::take(n_kmers_to_report))
+    // cppcheck-suppress useStlAlgorithm
     r += std::format("{}\n", res.string());
   return r + end_module_tag;
 }
@@ -190,6 +198,7 @@ kmer_counter::decode_kmer(auto word, const auto n_bases) -> std::string {
   std::string r;
   using pos_t = std::decay_t<decltype(n_bases)>;
   for (pos_t i = 0; i < n_bases; ++i, word >>= bits_per_base)
+    // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
     r += bases[word & mask];
   std::ranges::reverse(r);
   return r;
