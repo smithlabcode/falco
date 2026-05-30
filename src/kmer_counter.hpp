@@ -75,7 +75,7 @@ struct kmer_counter {
   std::vector<std::array<std::uint64_t, n_kmers>> kmer_counts;
 
   auto
-  resize(const std::uint32_t updated_length) {
+  resize(const std::int32_t updated_length) {
     max_read_len = updated_length;
     kmer_counts.resize(updated_length);
   }
