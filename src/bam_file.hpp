@@ -251,8 +251,8 @@ struct bam_file {
 };
 
 [[nodiscard]] static inline auto
-get_chunks(const bam_file &bf, const std::int64_t n_chunks)
-  -> std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>> {
+get_chunks(const bam_file &bf, std::int64_t n_chunks) {
+  n_chunks = std::min(n_chunks, bf.buf.n_recs);
   const auto [chunk_size, remainder] = std::div(bf.buf.n_recs, n_chunks);
   const auto buffer = std::cbegin(bf.buf);
   std::int64_t start_pos{};
