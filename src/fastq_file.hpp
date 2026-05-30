@@ -120,7 +120,7 @@ struct fastq_buffer {
   // clang-format on
 };
 
-[[nodiscard]] inline auto
+static inline auto
 mmap_fastq(const int fd, const std::int64_t start_pos_in_file,
            const std::int64_t stop_pos_in_file, fastq_buffer &buf) {
   const auto n_bytes = stop_pos_in_file - start_pos_in_file;
