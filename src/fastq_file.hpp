@@ -80,25 +80,28 @@ get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
   // ADS: need to make sure cursor < end_itr or we will move past
   const auto n = cursor;
   auto itr = n + 1;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  itr = std::find(itr, end_itr, '\n');
-  if (itr++ == end_itr)
-    return {};
+
+  const auto next_newline = [end_itr](auto &itr) {
+    itr = std::find(itr, end_itr, '\n');
+  };
+
+  // clang-format off
+  next_newline(itr);
+  if (itr++ == end_itr) return {};
   const auto r = itr;
 
-  itr = std::find(itr, end_itr, '\n');
-  if (itr++ == end_itr)
-    return {};
+  next_newline(itr);
+  if (itr++ == end_itr) return {};
   const auto o = itr;
 
-  itr = std::find(itr, end_itr, '\n');
-  if (itr++ == end_itr)
-    return {};
+  next_newline(itr);
+  if (itr++ == end_itr) return {};
   const auto q = itr;
 
-  itr = std::find(itr, end_itr, '\n');
-  if (itr++ == end_itr)
-    return {};
+  next_newline(itr);
+  if (itr++ == end_itr) return {};
   const auto e = itr;
+  // clang-format on
 
   cursor = e;
   return {n, r, o, q, e};
@@ -107,18 +110,27 @@ get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
 struct fastq_buffer {
   char *data{};       // not necessarily owned
   std::int64_t sz{};  // slight redundancy with vars containing classes
+
+  fastq_buffer() = default;
+  // clang-format off
+  fastq_buffer(const fastq_buffer &) = delete;
+  auto operator=(const fastq_buffer &) -> fastq_buffer & = delete;
+  fastq_buffer(fastq_buffer &&) noexcept = delete;
+  auto operator=(fastq_buffer &&) noexcept -> fastq_buffer & = delete;
+  // clang-format on
 };
 
 [[nodiscard]] inline auto
 mmap_fastq(const int fd, const std::int64_t start_pos_in_file,
-           const std::int64_t stop_pos_in_file) {
+           const std::int64_t stop_pos_in_file, fastq_buffer &buf) {
   const auto n_bytes = stop_pos_in_file - start_pos_in_file;
   char *data = static_cast<char *>(
     mmap(nullptr, n_bytes, PROT_READ, MAP_PRIVATE, fd, start_pos_in_file));
   if (data == MAP_FAILED)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to mmap file");
-  return fastq_buffer{data, n_bytes};
+  buf.data = data;
+  buf.sz = n_bytes;
 }
 
 static inline auto
@@ -126,7 +138,8 @@ cleanup_mmap_fastq(fastq_buffer &buf) {
   if (buf.data == nullptr)
     return;
   [[maybe_unused]] const int rc = munmap(static_cast<void *>(buf.data), buf.sz);
-  buf = {nullptr, 0};
+  buf.data = nullptr;
+  buf.sz = 0;
 }
 
 struct fastq_file {
@@ -172,17 +185,16 @@ struct fastq_file {
 
   auto
   load_next() {
-    // memory mapped data is page aligned; the data we need is not
+    // memory mapped data is page aligned but the data we need is not
     static const auto page_mask = sysconf(_SC_PAGESIZE) - 1;
     std::tie(start_pos_in_file, cursor) = [&] {
-      const auto cursor_pos_in_file = start_pos_in_file + cursor;
-      return std::tuple(cursor_pos_in_file & (~page_mask),
-                        cursor_pos_in_file & page_mask);
+      const auto pos_in_file = start_pos_in_file + cursor;
+      return std::tuple(pos_in_file & (~page_mask), pos_in_file & page_mask);
     }();
     stop_pos_in_file = std::min(filesize, start_pos_in_file + buf_size);
     if (buf.sz > 0)
       cleanup_mmap_fastq(buf);
-    buf = mmap_fastq(fd, start_pos_in_file, stop_pos_in_file);
+    mmap_fastq(fd, start_pos_in_file, stop_pos_in_file, buf);
   }
 };
 
@@ -249,24 +261,24 @@ struct fastq_gz_file {
 };
 
 [[nodiscard]] static inline auto
-get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks)
-  -> std::vector<std::pair<std::int64_t, std::int64_t>> {
+get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   static constexpr auto rec_lines = 4;  // FASTQ
   // clang-format off
   const auto not_read_start = [](const auto s, const auto p) {
+    // ADS: could get confused if '+' lines have full name info
     return s[p] != '@' || s[p-1] != '\n' || (s[p-2] == '+' && s[p-3] == '\n');
   };
-  const auto fwd_to_read_start = [&](const fastq_buffer &buf, auto x) {
-    if (x == 0) return x;
-    while (x < buf.sz && not_read_start(buf.data, x)) ++x;
-    return x;
+  const auto fwd_to_read_start = [&](const auto &buf, auto pos) {
+    if (pos == 0) return pos;
+    while (pos < buf.sz && not_read_start(buf.data, pos)) ++pos;
+    return pos;
   };
-  const auto rev_to_read_start = [&](const fastq_buffer &buf, auto x) {
-    while (x > 0 && (x == buf.sz || not_read_start(buf.data, x))) --x;
-    return x;
+  const auto rev_to_read_start = [&](const auto &buf, auto pos) {
+    while (pos > 0 && (pos == buf.sz || not_read_start(buf.data, pos))) --pos;
+    return pos;
   };
   // clang-format on
-  const auto buf = fq.buf;
+  const auto &buf = fq.buf;  // non-copyable
   const auto n_bytes_available = buf.sz - fq.cursor;
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   std::vector<std::pair<std::int64_t, std::int64_t>> chunks(n_chunks);
@@ -290,14 +302,12 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks)
 template <class T>
   requires std::same_as<T, fastq_file> || std::same_as<T, fastq_gz_file>
 [[nodiscard]] static inline auto
-get_chunks(T &fq, const std::int64_t n_chunks)
-  -> std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>> {
-  // const auto chunks = get_chunks_fastq_impl(fq, n_chunks);
+get_chunks(T &fq, const std::int64_t n_chunks) {
+  const auto add_offset = [d = fq.buf.data](const auto &x) {
+    return std::pair{d + x.first, d + x.second};
+  };
   return get_chunks_fastq_impl(fq, n_chunks) |
-         std::views::transform([&](const auto &x) {
-           return std::pair{fq.buf.data + x.first, fq.buf.data + x.second};
-         }) |
-         std::ranges::to<std::vector>();
+         std::views::transform(add_offset) | std::ranges::to<std::vector>();
 }
 
 [[nodiscard]] auto
