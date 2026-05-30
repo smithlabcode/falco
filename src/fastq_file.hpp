@@ -144,7 +144,7 @@ cleanup_mmap_fastq(fastq_buffer &buf) {
 
 struct fastq_file {
   using rec_t = fqrec;
-  static constexpr auto min_buf_size = 16 * 4096;
+  static constexpr auto min_buf_size = 64 * 1024;
   std::int64_t buf_size{};
   std::int64_t filesize{};
   fastq_buffer buf{};
