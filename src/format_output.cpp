@@ -46,11 +46,11 @@
 [[nodiscard]] auto
 get_grade_read_lengths(const std::vector<std::uint64_t> &lengths)
   -> std::string {
+  using std::literals::string_literals::operator""s;
   const bool has_empty_reads = std::size(lengths) > 0 && lengths[0] > 0;
   const auto n_lengths =
     std::ranges::count_if(lengths, [](const auto x) { return x > 0; });
-  const auto grade = has_empty_reads ? "fail" : n_lengths > 1 ? "warn" : "pass";
-  return grade;
+  return has_empty_reads ? "fail"s : (n_lengths > 1 ? "warn"s : "pass"s);
 }
 
 [[nodiscard]] auto
@@ -175,6 +175,7 @@ format_base_composition(const std::vector<falco::nuc_array> &nucs)
     const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
     for (const auto j : base_permutation)
       // cppcheck-suppress useStlAlgorithm
+      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
       r += std::format("\t{:2.4f}", pct(as_frac(nucs[i][j], tot)));
     r += '\n';
   }
@@ -242,11 +243,12 @@ format_qual_by_read(const falco::qual_array &qual_by_read) -> std::string {
   const auto q_beg = std::cbegin(qual_by_read);
   const std::int64_t first_obs = std::distance(q_beg, first_obs_itr);
   const auto last_obs_subrange = std::ranges::find_last_if(qual_by_read, gt0);
-  const auto trailing_zeros = std::size(last_obs_subrange);
-  const std::int64_t last_obs = std::size(qual_by_read) - trailing_zeros;
+  const auto trailing_zeros = std::ssize(last_obs_subrange);
+  const std::int64_t last_obs = std::ssize(qual_by_read) - trailing_zeros;
   assert(first_obs >= 0 && last_obs <= falco::max_qual_val);
   for (const auto q : std::views::iota(first_obs, last_obs + 1))
     // cppcheck-suppress useStlAlgorithm
+    // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
     r += std::format("{}\t{}\n", q, qual_by_read[q]);
   r += end_module_tag;
   return r;

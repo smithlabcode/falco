@@ -21,28 +21,28 @@
  * SOFTWARE.
  */
 
-#include "bam_file.hpp"
+#include "tile_processor.hpp"
 #include "falco_utils.hpp"
-#include "fastq_file.hpp"
+#include "quality_score.hpp"
 
+#include <htslib/bgzf.h>
+#include <htslib/sam.h>
+
+#include <algorithm>
 #include <array>
-#include <charconv>
 #include <cstdint>
 #include <format>
 #include <iterator>
 #include <limits>
+#include <map>
+#include <memory>
+#include <numeric>
 #include <ranges>
+#include <stdexcept>
 #include <string>
-#include <system_error>
-#include <thread>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-namespace falco {
-enum class encoding : std::uint8_t;
-}
 
 std::uint32_t tile_processor::preceding_colons = 0;
 
@@ -119,7 +119,7 @@ tile_processor::set_preceding_colons(const std::string &filename)
 auto
 tile_processor::trim() -> void {
   for (auto &tile_quals : quals | std::views::values) {
-    auto first_trailing_zero = 0;
+    auto first_trailing_zero = 0L;
     for (const auto [i, q] : std::views::enumerate(tile_quals))
       first_trailing_zero = q.second > 0 ? i + 1 : first_trailing_zero;
     tile_quals.resize(first_trailing_zero);

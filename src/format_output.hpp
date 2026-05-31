@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <format>
 #include <limits>
+#include <limits>  // IWYU pragma: keep
 #include <string>
 
 [[nodiscard]] auto
