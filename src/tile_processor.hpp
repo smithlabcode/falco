@@ -27,11 +27,11 @@
 #include "bam_file.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
-#include "quality_score.hpp"
 
 #include <array>
 #include <charconv>
 #include <cstdint>
+#include <format>
 #include <iterator>
 #include <limits>
 #include <ranges>
@@ -42,6 +42,10 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+namespace falco {
+enum class encoding : std::uint8_t;
+}
 
 // ADS: notes
 //

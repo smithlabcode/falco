@@ -24,26 +24,13 @@
 #ifndef SRC_FORMAT_OUTPUT_HPP_
 #define SRC_FORMAT_OUTPUT_HPP_
 
-#include "falco_file_format.hpp"
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
-#include <config.h>
-
-#include <htslib/hts.h>
-#include <htslib/thread_pool.h>
-
-#include <algorithm>
-#include <array>
-#include <cassert>
-#include <cmath>
+#include <cstdint>
 #include <format>
-#include <iterator>
-#include <limits>  // IWYU pragma: keep
-#include <numeric>
-#include <ranges>
+#include <limits>
 #include <string>
-#include <vector>
 
 [[nodiscard]] auto
 get_grade_read_lengths(const std::vector<std::uint64_t> &lengths)

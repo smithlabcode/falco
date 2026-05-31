@@ -21,21 +21,28 @@
  * SOFTWARE.
  */
 
-#include "tile_processor.hpp"
+#include "bam_file.hpp"
 #include "falco_utils.hpp"
+#include "fastq_file.hpp"
 
-#include <htslib/bgzf.h>
-#include <htslib/sam.h>
-
-#include <algorithm>
+#include <array>
+#include <charconv>
 #include <cstdint>
 #include <format>
+#include <iterator>
 #include <limits>
-#include <map>
-#include <memory>
-#include <stdexcept>
+#include <ranges>
 #include <string>
+#include <system_error>
+#include <thread>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
 #include <vector>
+
+namespace falco {
+enum class encoding : std::uint8_t;
+}
 
 std::uint32_t tile_processor::preceding_colons = 0;
 

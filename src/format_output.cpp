@@ -22,24 +22,25 @@
  */
 
 #include "format_output.hpp"
+#include "falco_file_format.hpp"
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
-
-#include <config.h>
-
-#include <htslib/hts.h>
-#include <htslib/thread_pool.h>
 
 #include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <config.h>
 #include <format>
+#include <functional>
+#include <initializer_list>
 #include <iterator>
-#include <limits>  // IWYU pragma: keep
+#include <limits>
 #include <numeric>
 #include <ranges>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 [[nodiscard]] auto

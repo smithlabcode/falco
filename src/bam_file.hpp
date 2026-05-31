@@ -41,7 +41,9 @@
 #include <stdexcept>
 #include <string>
 #include <system_error>
+#include <tuple>
 #include <utility>
+#include <variant>
 #include <vector>
 
 static constexpr auto qual_missing_code = 0xff;  // from sam.c
