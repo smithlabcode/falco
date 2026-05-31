@@ -45,6 +45,7 @@ read duplication is analyzed (borrowing from preseq).
 #include "tile_processor.hpp"
 
 #include "CLI11/CLI11.hpp"
+#include "nlohmann/json.hpp"
 
 #include <config.h>
 
@@ -79,6 +80,25 @@ read duplication is analyzed (borrowing from preseq).
 #include <utility>
 #include <vector>
 
+struct file_info {
+  std::string name;
+  falco::file_format format{};
+  std::string description;
+  std::uint64_t size{};
+  falco::encoding encoding{};
+  bool has_tiles{};
+
+  [[nodiscard]] auto
+  string() const -> std::string {
+    static constexpr auto n_indent = 4;
+    nlohmann::json data = *this;
+    return data.dump(n_indent);
+  }
+
+  NLOHMANN_DEFINE_TYPE_INTRUSIVE(file_info, name, format, description, size,
+                                 encoding, has_tiles);
+};
+
 struct falco_results {
   static constexpr auto alphabet_size = 4;
   std::uint64_t n_reads{};
@@ -87,12 +107,11 @@ struct falco_results {
   std::array<std::uint64_t, 101> gcs{};  // NOLINT (*-avoid-magic-numbers)
   std::vector<std::uint64_t> n_counts;
   std::vector<std::uint64_t> lengths;
-  std::vector<std::array<std::uint64_t, falco::max_qual_val>> qual_by_pos;
-  std::array<std::uint64_t, falco::max_qual_val> qual_by_read{};
+  std::vector<falco::qual_array> qual_by_pos;
+  falco::qual_array qual_by_read{};
   duplication_results dr;
   adapter_matcher am;
   std::string seq;
-  std::string filename;
 
   falco_results() : lengths(1, 0) {}  // in case all reads have length 0
 
@@ -103,6 +122,17 @@ struct falco_results {
     lengths.resize(updated_length + 1);  // need one extra here
     qual_by_pos.resize(updated_length);
     am.resize(updated_length);
+  }
+
+  template <typename self_t>
+  auto
+  finalize_qual_encoding(this self_t &self, const auto enc) {
+    self.finalize_qual_encoding_impl(enc);
+  }
+
+  auto
+  finalize_qual_encoding_impl(const auto enc) {
+    adjust_fastq_qual_encoding(qual_by_pos, qual_by_read, enc);
   }
 
   template <typename self_t>
@@ -204,48 +234,36 @@ struct falco_results {
   }
 
   [[nodiscard]] auto
-  fix_nucs_for_ns() const {  // Ns were counted among the C in nucs
+  adjust_nucs_for_ns() const {  // Ns were counted among the C in nucs
     auto nucs_no_n = nucs;
     for (auto i = 0u; i < std::size(nucs_no_n); ++i)
       nucs_no_n[i][3] -= n_counts[i];
     return nucs_no_n;
   };
 
-  auto
-  fix_bam_qual_encoding() {  // BAM has no +33 for printable encoding
-    // cppcheck-suppress constParameterReference
-    const auto shift_and_fill = [&](auto &x) {
-      std::shift_right(std::begin(x), std::end(x), falco::bam_qual_offset);
-      std::ranges::fill_n(std::begin(x), falco::bam_qual_offset, 0);
-    };
-    shift_and_fill(qual_by_read);
-    std::ranges::for_each(qual_by_pos, shift_and_fill);
-  };
-
   template <typename self_t>
   [[nodiscard]] auto
-  string(this self_t &self) {
-    return self.string_impl();
+  string(this self_t &self, const file_info &info) {
+    return self.string_impl(info);
   }
 
   [[nodiscard]] auto
-  string_impl() const {
-    const auto nucs_no_n = fix_nucs_for_ns();
+  string_impl(const file_info &info) const {
+    const auto nucs_no_n = adjust_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
     const auto gc_acc = [](const auto a, const auto &nuc) {
       return a + nuc[1] + nuc[3];  // NOLINT (*-avoid-magic-numbers)
     };
     const auto total_gc = std::accumulate(std::cbegin(nucs_no_n),
                                           std::cend(nucs_no_n), 0ul, gc_acc);
-    const auto encoding = identify_quality_score_encoding(qual_by_pos);
     const auto gt0 = [](const auto c) { return c > 0; };
     const std::uint64_t min_read_len =
       std::distance(std::cbegin(lengths), std::ranges::find_if(lengths, gt0));
-    auto r = format_basic_stats(filename, n_reads, min_read_len, max_read_len,
-                                total_gc, total_nucs, encoding);
-    const auto qual_offset = identify_quality_score_offset(qual_by_pos);
-    r += format_qual_by_pos(qual_by_pos, qual_offset);
-    r += format_qual_by_read(qual_by_read, qual_offset);
+    const auto encoding_label = get_quality_score_label(info.encoding);
+    auto r = format_basic_stats(info.name, n_reads, min_read_len, max_read_len,
+                                total_gc, total_nucs, encoding_label);
+    r += format_qual_by_pos(qual_by_pos);
+    r += format_qual_by_read(qual_by_read);
     r += format_base_composition(nucs_no_n);  // base composition
     r += format_gc_content(gcs);              // GC content
     r += format_n_counts(n_counts, nucs);     // N content
@@ -261,6 +279,13 @@ struct falco_results_tile : public falco_results {
   tile_processor tp;
 
   auto
+  finalize_qual_encoding_impl(const auto enc) {
+    falco_results::finalize_qual_encoding_impl(enc);
+    tp.trim();
+    tp.adjust_fastq_qual_encoding(enc);
+  }
+
+  auto
   process_one_read_impl(const auto &rec) {
     falco_results::process_one_read_impl(rec);
     tp(rec);
@@ -274,8 +299,8 @@ struct falco_results_tile : public falco_results {
   }
 
   [[nodiscard]] auto
-  string_impl() const {
-    return falco_results::string_impl() + tp.string(max_read_len);
+  string_impl(const file_info &info) const {
+    return falco_results::string_impl(info) + tp.string(max_read_len);
   }
 };
 
@@ -296,13 +321,18 @@ struct falco_results_kmer : public falco_results {
   }
 
   [[nodiscard]] auto
-  string_impl() const {
-    return falco_results::string_impl() + kc.string();
+  string_impl(const file_info &info) const {
+    return falco_results::string_impl(info) + kc.string();
   }
 };
 
 struct falco_results_tile_kmer : public falco_results_tile {
   kmer_counter kc;
+
+  auto
+  finalize_qual_encoding_impl(const auto enc) {
+    falco_results_tile::finalize_qual_encoding_impl(enc);
+  }
 
   auto
   process_one_read_impl(const auto &rec) {
@@ -319,8 +349,8 @@ struct falco_results_tile_kmer : public falco_results_tile {
   }
 
   [[nodiscard]] auto
-  string_impl() const {
-    return falco_results_tile::string_impl() + kc.string();
+  string_impl(const file_info &info) const {
+    return falco_results_tile::string_impl(info) + kc.string();
   }
 };
 
@@ -398,7 +428,7 @@ accumulate_results(std::vector<results_t> &r) {
 
 template <typename results_t>
 static auto
-run(const std::string &infile, auto &reads_file, const auto n_threads,
+run(file_info &info, auto &reads_file, const auto n_threads,
     const auto &outfile) {
   static constexpr auto n_chunks_per_thread = 2;
   using rec_t = std::decay_t<decltype(reads_file)>::rec_t;
@@ -427,23 +457,24 @@ run(const std::string &infile, auto &reads_file, const auto n_threads,
 
   accumulate_results(tpool.results);
   auto &results = tpool.results.front();
-  if constexpr (std::is_same_v<std::decay_t<decltype(reads_file)>, bam_file>)
-    results.fix_bam_qual_encoding();
-  results.filename = infile;
-  std::print(out, "{}", results.string());
+
+  set_quality_score_encoding(results.qual_by_pos, info);
+  if (!is_mapped_reads(info.format))
+    results.finalize_qual_encoding(info.encoding);
+  std::print(out, "{}", results.string(info));
 }
 
 static auto
-run_mode_selector(const run_mode mode, const std::string &infile,
-                  auto &reads_file, const auto n_threads, const auto &outfile) {
+run_mode_selector(const run_mode mode, file_info &info, auto &reads_file,
+                  const auto n_threads, const auto &outfile) {
   if (tiles(mode) && kmers(mode))
-    run<falco_results_tile_kmer>(infile, reads_file, n_threads, outfile);
+    run<falco_results_tile_kmer>(info, reads_file, n_threads, outfile);
   else if (tiles(mode))
-    run<falco_results_tile>(infile, reads_file, n_threads, outfile);
+    run<falco_results_tile>(info, reads_file, n_threads, outfile);
   else if (kmers(mode))
-    run<falco_results_kmer>(infile, reads_file, n_threads, outfile);
+    run<falco_results_kmer>(info, reads_file, n_threads, outfile);
   else
-    run<falco_results>(infile, reads_file, n_threads, outfile);
+    run<falco_results>(info, reads_file, n_threads, outfile);
 }
 
 int
@@ -559,29 +590,37 @@ main(int argc, char *argv[]) {
     mode.tiles(do_tiles);
     mode.kmers(do_kmers);
 
-    const auto est_n_reads = [&] {
-      if (input_format == file_format::bam)
+    const auto [est_n_reads, filesize] = [&] {
+      if (input_format == falco::file_format::bam)
         return estimate_n_reads_bam(infile);
-      if (input_format == file_format::fastq_gz)
+      if (input_format == falco::file_format::fastq_gz)
         return estimate_n_reads_fastq_gz(infile);
-      if (input_format == file_format::fastq)
+      if (input_format == falco::file_format::fastq)
         return estimate_n_reads_fastq(infile);
       std::unreachable();
     }();
 
+    file_info info{
+      .name = infile,
+      .format = input_format,
+      .description = format_description,
+      .size = filesize,
+      .has_tiles = has_tiles,
+    };
+
     duplication_results::initialize(est_n_reads);
 
-    if (input_format == file_format::bam) {
+    if (is_mapped_reads(input_format)) {
       bam_file reads_file(infile, buf_size, n_threads);
-      run_mode_selector(mode, infile, reads_file, n_threads, outfile);
+      run_mode_selector(mode, info, reads_file, n_threads, outfile);
     }
-    else if (input_format == file_format::fastq_gz) {
+    else if (input_format == falco::file_format::fastq_gz) {
       fastq_gz_file reads_file(infile, buf_size, n_threads);
-      run_mode_selector(mode, infile, reads_file, n_threads, outfile);
+      run_mode_selector(mode, info, reads_file, n_threads, outfile);
     }
-    else if (input_format == file_format::fastq) {
+    else if (input_format == falco::file_format::fastq) {
       fastq_file reads_file(infile, buf_size);
-      run_mode_selector(mode, infile, reads_file, n_threads, outfile);
+      run_mode_selector(mode, info, reads_file, n_threads, outfile);
     }
     else {
       std::println("unsupported file format: {}", format_description);
