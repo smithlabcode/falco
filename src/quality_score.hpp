@@ -33,6 +33,7 @@
 #include <ranges>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace falco {
 enum class encoding : std::uint8_t {
@@ -95,6 +96,7 @@ set_quality_score_encoding(const auto &qual_counts, auto &info) {
 
 [[nodiscard]] inline auto
 get_quality_score_offset(const auto encoding) {
+  // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
   return falco::min_qual_offsets[std::to_underlying(encoding)];
 }
 

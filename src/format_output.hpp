@@ -29,9 +29,9 @@
 
 #include <cstdint>
 #include <format>
-#include <limits>
 #include <limits>  // IWYU pragma: keep
 #include <string>
+#include <vector>  // IWYU pragma: keep
 
 [[nodiscard]] auto
 get_grade_read_lengths(const std::vector<std::uint64_t> &lengths)

@@ -46,7 +46,7 @@
 namespace falco {
 static constexpr auto alphabet_size = 4;
 using nuc_array = std::array<std::uint64_t, alphabet_size>;
-// NOLINT (cppcoreguidelines-avoid-magic-numbers)
+// NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
 using gc_content_array = std::array<std::uint64_t, 101>;
 }  // namespace falco
 
