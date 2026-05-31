@@ -45,287 +45,53 @@
 #include <string>
 #include <vector>
 
-[[nodiscard]] inline auto
-format_read_lengths(const auto &lengths) {
-  static constexpr auto start_tag = ">>Sequence Length Distribution\t{}\n";
-  static constexpr auto header = "#Length\t"
-                                 "Count\n";
-  const bool has_empty_reads = std::size(lengths) > 0 && lengths[0] > 0;
-  const auto n_lengths =
-    std::ranges::count_if(lengths, [](const auto x) { return x > 0; });
-  const auto grade = has_empty_reads ? "fail" : n_lengths > 1 ? "warn" : "pass";
-  auto r = std::format(start_tag, grade);
-  r += header;
-  bool found_first = false;
-  for (auto i = 0u; i < std::size(lengths); ++i) {
-    found_first = found_first || lengths[i] > 0;
-    if (found_first)
-      r += std::format("{}\t{}\n", i, lengths[i]);
-  }
-  r += end_module_tag;
-  return r;
-}
+[[nodiscard]] auto
+get_grade_read_lengths(const std::vector<std::uint64_t> &lengths)
+  -> std::string;
 
-[[nodiscard]] static inline auto
-sum_deviation_from_normal(const auto &gc) {
-  static constexpr auto mode_width = 0.90;  // ADS: where does this come from?
-  // calculate deviation of a hist from a "normal" with same mode and sd
-  const auto n_bins = std::size(gc);
-  const auto gc_beg = std::cbegin(gc);
-  const auto gc_end = std::cend(gc);
-  const auto total_count = std::reduce(gc_beg, gc_end);
-  if (total_count <= 1)  // we will be dividing by (total_count - 1)
-    return 0.0;
+[[nodiscard]] auto
+format_read_lengths(const std::vector<std::uint64_t> &lengths) -> std::string;
 
-  // get mode
-  const auto mode_itr = std::ranges::max_element(gc);
-  const std::uint64_t mode_pos = std::distance(gc_beg, mode_itr);
-  const auto mode_val = *mode_itr;
+[[nodiscard]] auto
+get_grade_gc_content(const falco::gc_content_array &gc_content) -> std::string;
 
-  // ADS: in case mode is not sharp average nearby values (not clear on why)
-  const auto gt_cut = [&](const double x) { return x < mode_width * mode_val; };
-  const auto right_itr = std::find_if(mode_itr, std::cend(gc), gt_cut);
-  const auto left_itr =
-    std::find_if(std::reverse_iterator(mode_itr), std::crend(gc), gt_cut);
-  const auto n = std::distance(std::reverse_iterator(right_itr), left_itr);
-  const double mode = mode_pos + (n - 1) / 2.0;
+[[nodiscard]] auto
+format_gc_content(const falco::gc_content_array &gc_content) -> std::string;
 
-  // theoretical distribution
-  const auto cntr_sq = [m = mode](const auto v) { return (v - m) * (v - m); };
-  const auto sd_term = [&](const auto &x) {
-    return cntr_sq(std::get<0>(x)) * std::get<1>(x);
-  };
-  const auto id_gc = std::views::enumerate(gc) | std::views::transform(sd_term);
-  const auto sd = std::sqrt(std::reduce(std::cbegin(id_gc), std::cend(id_gc)) /
-                            (total_count - 1));
-  const auto to_normal = [&](const auto val) {
-    // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
-    return std::exp(-cntr_sq(val) / (2.0 * sd * sd));
-  };
-  auto theor = std::views::iota(0u, n_bins) | std::views::transform(to_normal) |
-               std::ranges::to<std::vector>();
-  const auto denom = std::reduce(std::cbegin(theor), std::cend(theor));
-  std::ranges::transform(theor, std::begin(theor),
-                         [&](const auto x) { return x * total_count / denom; });
-  const auto diff = [](const auto a, const auto b) { return std::fabs(a - b); };
-  const auto r = std::transform_reduce(gc_beg, gc_end, std::cbegin(theor), 0.0,
-                                       std::plus{}, diff);
-  return pct(as_frac(r, total_count));
-}
+[[nodiscard]] auto
+get_grade_base_composition(const std::vector<falco::nuc_array> &nucs)
+  -> std::string;
 
-[[nodiscard]] inline auto
-format_gc_content(const auto &gc_content) {
-  static constexpr auto start_tag = ">>Per sequence GC content\t{}\n";
-  static constexpr auto header = "#GC Content\t"
-                                 "Count\n";
-  static constexpr auto grade_cutoffs = std::array{
-    std::pair{15.0, "pass"},
-    std::pair{30.0, "warn"},
-    std::pair{std::numeric_limits<double>::max(), "fail"},
-  };
-  const auto deviation = sum_deviation_from_normal(gc_content);
-  auto r = std::format(start_tag, get_grade(grade_cutoffs, deviation));
-  r += header;
-  for (const auto [i, c] : std::views::enumerate(gc_content))
-    r += std::format("{}\t{}\n", i, c);
-  r += end_module_tag;
-  return r;
-}
+[[nodiscard]] auto
+format_base_composition(const std::vector<falco::nuc_array> &nucs)
+  -> std::string;
 
-[[nodiscard]] inline auto
-format_base_composition(const auto &nucs) {
-  static constexpr auto grade_cutoffs = std::array{
-    std::pair{10.0, "pass"},
-    std::pair{20.0, "warn"},
-    std::pair{std::numeric_limits<double>::max(), "fail"},
-  };
-  static constexpr auto start_tag = ">>Per base sequence content\t{}\n";
-  static constexpr auto header = "#Base\t"
-                                 "G\tA\tT\tC\n";
-  static constexpr auto base_permutation = {3, 0, 2, 1};
-  const auto compl_diff = [](const auto &by_pos) {
-    // (A,C,G,T)=(0,1,3,2)
-    const auto tot = std::reduce(std::cbegin(by_pos), std::cend(by_pos));
-    const auto delta = [tot](const auto a, const auto b) {
-      return pct(as_frac(a, tot)) - pct(as_frac(b, tot));
-    };
-    return std::max(std::fabs(delta(by_pos[0], by_pos[2])),
-                    std::fabs(delta(by_pos[1], by_pos[3])));
-  };
-  const auto max_diff =
-    std::ranges::max(nucs | std::views::transform(compl_diff));
-  auto r = std::format(start_tag, get_grade(grade_cutoffs, max_diff));
-  r += header;
-  for (auto i = 0u; i < std::size(nucs); ++i) {
-    r += std::format("{}", i + 1);
-    const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
-    for (const auto j : base_permutation)
-      // cppcheck-suppress useStlAlgorithm
-      r += std::format("\t{:2.4f}", pct(as_frac(nucs[i][j], tot)));
-    r += '\n';
-  }
-  r += end_module_tag;
-  return r;
-}
+[[nodiscard]] auto
+get_grade_n_counts(const std::vector<std::uint64_t> &n_counts,
+                   const std::vector<falco::nuc_array> &nucs) -> std::string;
 
-[[nodiscard]] inline auto
-format_n_counts(const auto &n_counts, const auto &nucs) {
-  static constexpr auto start_tag = ">>Per base N content\t{}\n";
-  static constexpr auto header = "#Base\t"
-                                 "N-Count\n";
-  static constexpr auto grade_cutoffs = std::array{
-    std::pair{0.05, "pass"},
-    std::pair{0.20, "warn"},
-    std::pair{1.00, "fail"},
-  };
-  const auto max_idx =
-    std::distance(std::cbegin(n_counts), std::ranges::max_element(n_counts));
-  const auto max_n =
-    as_frac(n_counts[max_idx],
-            std::reduce(std::cbegin(nucs[max_idx]), std::cend(nucs[max_idx])));
-  auto r = std::format(start_tag, get_grade(grade_cutoffs, max_n));
-  r += header;
-  for (auto i = 0u; i < std::size(n_counts); ++i) {
-    const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
-    r += std::format("{}\t{:.6g}\n", i + 1, pct(as_frac(n_counts[i], tot)));
-  }
-  r += end_module_tag;
-  return r;
-}
+[[nodiscard]] auto
+format_n_counts(const std::vector<std::uint64_t> &n_counts,
+                const std::vector<falco::nuc_array> &nucs) -> std::string;
 
-[[nodiscard]] inline auto
-format_qual_by_read(const auto &qual_by_read, const auto qual_offset) {
-  static constexpr auto start_tag = ">>Per sequence quality scores\t{}\n";
-  static constexpr auto header = "#Quality\t"
-                                 "Count\n";
-  static constexpr auto grade_cutoffs = std::array{
-    std::pair{20, "fail"},
-    std::pair{27, "warn"},
-    std::pair{falco::max_qual_val, "pass"},
-  };
-  // get mode for grade
-  const auto q_beg = std::cbegin(qual_by_read);
-  const auto max_itr = std::ranges::max_element(qual_by_read);
-  const auto qual_val_mode = std::distance(q_beg, max_itr) - qual_offset;
-  auto r = std::format(start_tag, get_grade(grade_cutoffs, qual_val_mode));
-  r += header;
+[[nodiscard]] auto
+get_grade_qual_by_read(const falco::qual_array &qual_by_read) -> std::string;
 
-  // output quality values between first non-zero and last zero
-  const auto gt0 = [&](const auto x) { return x > 0; };
-  const auto first_obs_itr = std::ranges::find_if(qual_by_read, gt0);
-  const std::int64_t first_obs = std::distance(q_beg, first_obs_itr);
-  const auto last_obs_subrange = std::ranges::find_last_if(qual_by_read, gt0);
-  const auto trailing_zeros = std::size(last_obs_subrange);
-  const std::int64_t last_obs = std::size(qual_by_read) - trailing_zeros;
-  assert(first_obs >= qual_offset && last_obs <= falco::max_qual_val);
-  for (const auto q : std::views::iota(first_obs, last_obs + 1))
-    // cppcheck-suppress useStlAlgorithm
-    r += std::format("{}\t{}\n", q - qual_offset, qual_by_read[q]);
-  r += end_module_tag;
-  return r;
-}
+[[nodiscard]] auto
+format_qual_by_read(const falco::qual_array &qual_by_read) -> std::string;
 
-[[nodiscard]] inline auto
-get_grade_qual_by_pos(const auto &qual, const auto max_read_len) {
-  // NOLINTBEGIN (*-avoid-magic-numbers)
-  static constexpr auto lower_quartile = [](const auto &q) { return q[1]; };
-  static constexpr auto get_median = [](const auto &q) { return q[2]; };
-  // NOLINTEND (*-avoid-magic-numbers)
-  // ADS: not sure how this is used
-  [[maybe_unused]] static constexpr auto grade_cutoffs_lower = std::array{
-    std::pair{0.05, "fail"},
-    std::pair{0.10, "warn"},
-    std::pair{1.00, "pass"},
-  };
-  static constexpr auto grade_cutoffs_median = std::array{
-    std::pair{0.20, "fail"},
-    std::pair{0.25, "warn"},
-    std::pair{1.00, "pass"},
-  };
-  auto min_qual_median = 1.0;
-  for (const auto &q : qual | std::views::take(max_read_len)) {
-    const auto quantiles = five_quants(q);
-    // ADS: lower quartile to ensure enough data?
-    const auto median =
-      lower_quartile(quantiles) > 0.0 ? get_median(quantiles) : 1.0;
-    min_qual_median = std::min(min_qual_median, median);
-  }
-  return get_grade(grade_cutoffs_median, min_qual_median);
-}
+[[nodiscard]] auto
+get_grade_qual_by_pos(const std::vector<falco::qual_array> &qual)
+  -> std::string;
 
-[[nodiscard]] inline auto
-format_qual_by_pos(const auto &qual, const auto qual_offset) {
-  static constexpr auto max_precision{std::numeric_limits<double>::digits10};
-  static constexpr auto start_tag = ">>Per base sequence quality\t{}\n";
-  static constexpr auto header = "#Base\t"
-                                 "Mean\t"
-                                 "Median\t"
-                                 "Lower Quartile\t"
-                                 "Upper Quartile\t"
-                                 "10th Percentile\t"
-                                 "90th Percentile\n";
-  const auto tab_sep = [](const auto &a) {
-    const auto fmt = [](const auto x) { return std::format("\t{}", x); };
-    return std::views::transform(a, fmt) | std::views::join |
-           std::ranges::to<std::string>();
-  };
-  const auto sub_from_each = [](auto a, const auto b) {
-    std::ranges::for_each(a, [&](auto &x) { x -= b; });
-    return a;
-  };
-  const auto max_read_len = std::size(qual);
-  auto r = std::format(start_tag, get_grade_qual_by_pos(qual, max_read_len));
-  r += header;
-  for (auto i = 0u; i < max_read_len; ++i) {
-    const auto q = sub_from_each(five_quants(qual[i]), qual_offset);
-    // ADS: format expanded to max_precision to easily compare with earlier
-    // versions
-    //
-    // r += std::format("{}\t{:.6g}{}\n", i + 1,
-    //               mean_tabular(qual[i]) - qual_offset, tab_sep(q));
-    r +=
-      std::format("{}\t{:.{}g}{}\n", i + 1, mean_tabular(qual[i]) - qual_offset,
-                  max_precision, tab_sep(q));
-  }
-  r += end_module_tag;
-  return r;
-}
+[[nodiscard]] auto
+format_qual_by_pos(const std::vector<falco::qual_array> &qual) -> std::string;
 
-[[nodiscard]] inline auto
-format_basic_stats(const auto &filename, const auto n_reads,
-                   const auto min_read_len, const auto max_read_len,
-                   const auto total_gc, const auto total_nucs,
-                   const auto &encoding) {
-  static constexpr auto grade = "pass";  // always a pass
-  static constexpr auto start_tag = "##Falco {}\n"
-                                    ">>Basic Statistics\t{}\n";
-  static constexpr auto header = "#Measure\t"
-                                 "Value\n";
-  [[maybe_unused]] const auto with_suffix = [&](const auto x) {
-    // NOLINTBEGIN (cppcoreguidelines-avoid-magic-numbers)
-    if (x > 1'000'000'000)
-      return std::format("{:.1f} {}bp", as_frac(x, 1'000'000'000), "G");
-    if (x > 1'000'000)
-      return std::format("{:.1f} {}bp", as_frac(x, 1'000'000), "M");
-    return std::format("{:.1f} {}bp", as_frac(x, 1'000), "K");
-    // NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
-  };
-  auto r = std::format(start_tag, VERSION, grade);
-  r += header;
-  r += std::format("Filename\t{}\n", filename);
-  const auto [_, file_type] = get_file_format(filename);
-  r += std::format("File type\t{}\n", file_type);
-  r += std::format("Encoding\t{}\n", encoding);
-  r += std::format("Total Sequences\t{}\n", n_reads);
-  r += std::format("Total Bases\t{}\n", total_nucs);
-  r += std::format("Sequences flagged as poor quality {}\n", 0);
-  r += std::format("Sequence length\t{}\n",
-                   min_read_len == max_read_len
-                     ? std::format("{}", max_read_len)
-                     : std::format("{}-{}", min_read_len, max_read_len));
-  r += std::format("%GC\t{:.1f}\n", pct(as_frac(total_gc, total_nucs)));
-  r += end_module_tag;
-  return r;
-}
+[[nodiscard]] auto
+format_basic_stats(const std::string &filename, const std::uint64_t n_reads,
+                   const std::uint64_t min_read_len,
+                   const std::uint64_t max_read_len,
+                   const std::uint64_t total_gc, const std::uint64_t total_nucs,
+                   const std::string &encoding) -> std::string;
 
 #endif  // SRC_FORMAT_OUTPUT_HPP_
