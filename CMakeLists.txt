@@ -103,6 +103,8 @@ target_link_libraries(bam_file PRIVATE HTSLIB::HTSLIB)
 add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
 target_link_libraries(adapter_matcher PRIVATE HTSLIB::HTSLIB)
 
+add_library(format_output OBJECT src/format_output.cpp)
+
 add_executable(falco2 src/falco2.cpp)
 target_link_libraries(falco2 PUBLIC
   tile_processor
@@ -112,6 +114,7 @@ target_link_libraries(falco2 PUBLIC
   kmer_counter
   fastq_file
   bam_file
+  format_output
   HTSLIB::HTSLIB
   LIBDEFLATE::LIBDEFLATE
   ZLIB::ZLIB
