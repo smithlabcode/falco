@@ -100,11 +100,10 @@ struct file_info {
 };
 
 struct falco_results {
-  static constexpr auto alphabet_size = 4;
   std::uint64_t n_reads{};
   std::uint64_t max_read_len{};
-  std::vector<std::array<std::uint64_t, alphabet_size>> nucs;
-  std::array<std::uint64_t, 101> gcs{};  // NOLINT (*-avoid-magic-numbers)
+  std::vector<falco::nuc_array> nucs;
+  falco::gc_content_array gcs{};
   std::vector<std::uint64_t> n_counts;
   std::vector<std::uint64_t> lengths;
   std::vector<falco::qual_array> qual_by_pos;
