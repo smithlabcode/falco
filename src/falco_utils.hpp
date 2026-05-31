@@ -43,6 +43,13 @@
 #include <string>
 #include <vector>
 
+namespace falco {
+static constexpr auto alphabet_size = 4;
+using nuc_array = std::array<std::uint64_t, alphabet_size>;
+// NOLINT (cppcoreguidelines-avoid-magic-numbers)
+using gc_content_array = std::array<std::uint64_t, 101>;
+}  // namespace falco
+
 struct run_mode {
   bool do_tiles{};
   bool do_kmers{};
