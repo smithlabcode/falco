@@ -34,7 +34,8 @@
 #include <system_error>
 
 [[nodiscard]] auto
-estimate_n_reads_bam(const std::string &filename) -> std::uint64_t {
+estimate_n_reads_bam(const std::string &filename)
+  -> std::tuple<std::uint64_t, std::uint64_t> {
   static constexpr auto max_n_reads = 128 * 1024;
   std::unique_ptr<htsFile, int (*)(htsFile *)> f(
     hts_open(std::data(filename), "r"), &hts_close);
@@ -66,6 +67,7 @@ estimate_n_reads_bam(const std::string &filename) -> std::uint64_t {
   const auto pos_after_reads = htell(fp);
   const auto n_compressed_bytes = pos_after_reads - pos_after_header;
   const auto filesize = std::filesystem::file_size(filename);
-  return static_cast<std::uint64_t>(
+  const auto estimate = static_cast<std::uint64_t>(
     as_frac(n_reads * (filesize - pos_after_header), n_compressed_bytes));
+  return {estimate, filesize};
 }

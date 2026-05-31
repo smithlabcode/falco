@@ -42,7 +42,8 @@
 static constexpr auto fastq_lines_per_read = 4;
 
 [[nodiscard]] auto
-estimate_n_reads_fastq(const std::string &filename) -> std::uint64_t {
+estimate_n_reads_fastq(const std::string &filename)
+  -> std::tuple<std::uint64_t, std::uint64_t> {
   static constexpr auto n_parts = 10;
   static constexpr auto max_part_size = 1024 * 1024;
   static const auto page_mask = ~(sysconf(_SC_PAGESIZE) - 1);
@@ -76,11 +77,12 @@ estimate_n_reads_fastq(const std::string &filename) -> std::uint64_t {
   const auto n_reads_est =
     as_frac(total_newlines, fastq_lines_per_read) *
     as_frac(static_cast<double>(filesize), (part_size * n_parts));
-  return static_cast<std::uint64_t>(n_reads_est);
+  return {static_cast<std::uint64_t>(n_reads_est), filesize};
 }
 
 [[nodiscard]] auto
-estimate_n_reads_fastq_gz(const std::string &filename) -> std::uint64_t {
+estimate_n_reads_fastq_gz(const std::string &filename)
+  -> std::tuple<std::uint64_t, std::uint64_t> {
   static constexpr auto n_bytes = 1024 * 1024;
   std::unique_ptr<BGZF, int (*)(BGZF *)> f(bgzf_open(std::data(filename), "r"),
                                            &bgzf_close);
@@ -93,10 +95,10 @@ estimate_n_reads_fastq_gz(const std::string &filename) -> std::uint64_t {
   const auto n_compressed_bytes = htell(f.get()->fp);
   const auto total_newlines = std::ranges::count(buf, '\n');
   const auto inflation_factor = as_frac(n_bytes, n_compressed_bytes);
+  const auto filesize = std::filesystem::file_size(filename);
   const auto estimated_uncompressed_file_size =
-    inflation_factor *
-    static_cast<double>(std::filesystem::file_size(filename));
+    inflation_factor * static_cast<double>(filesize);
   const auto n_reads_est = as_frac(total_newlines, fastq_lines_per_read) *
                            as_frac(estimated_uncompressed_file_size, n_bytes);
-  return static_cast<std::uint64_t>(n_reads_est);
+  return {static_cast<std::uint64_t>(n_reads_est), filesize};
 }

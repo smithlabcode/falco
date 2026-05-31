@@ -317,9 +317,11 @@ get_chunks(T &fq, const std::int64_t n_chunks) {
 }
 
 [[nodiscard]] auto
-estimate_n_reads_fastq(const std::string &filename) -> std::uint64_t;
+estimate_n_reads_fastq(const std::string &filename)
+  -> std::tuple<std::uint64_t, std::uint64_t>;
 
 [[nodiscard]] auto
-estimate_n_reads_fastq_gz(const std::string &filename) -> std::uint64_t;
+estimate_n_reads_fastq_gz(const std::string &filename)
+  -> std::tuple<std::uint64_t, std::uint64_t>;
 
 #endif  // SRC_FASTQ_FILE_HPP_

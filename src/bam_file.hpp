@@ -266,6 +266,7 @@ get_chunks(const bam_file &bf, std::int64_t n_chunks) {
 }
 
 [[nodiscard]] auto
-estimate_n_reads_bam(const std::string &filename) -> std::uint64_t;
+estimate_n_reads_bam(const std::string &filename)
+  -> std::tuple<std::uint64_t, std::uint64_t>;
 
 #endif  // SRC_BAM_FILE_HPP_
