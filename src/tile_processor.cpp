@@ -70,6 +70,14 @@ get_name_bam(const std::string &filename) -> std::string {
 }
 
 auto
+tile_processor::adjust_fastq_qual_encoding(const falco::encoding enc) -> void {
+  const auto qual_offset = get_quality_score_offset(enc);
+  for (auto &tile_quals : quals | std::views::values)
+    for (auto &q : tile_quals)
+      q.first -= q.second * qual_offset;
+}
+
+auto
 tile_processor::set_preceding_colons(const std::string &filename)
   -> std::uint32_t {
   // colon cutoffs taken from FastQC
@@ -101,6 +109,16 @@ tile_processor::set_preceding_colons(const std::string &filename)
   return preceding_colons;
 }
 
+auto
+tile_processor::trim() -> void {
+  for (auto &tile_quals : quals | std::views::values) {
+    auto first_trailing_zero = 0;
+    for (const auto [i, q] : std::views::enumerate(tile_quals))
+      first_trailing_zero = q.second > 0 ? i + 1 : first_trailing_zero;
+    tile_quals.resize(first_trailing_zero);
+  }
+}
+
 [[nodiscard]] auto
 tile_processor::string(const std::uint32_t len) const -> std::string {
   static constexpr auto max_precision{std::numeric_limits<double>::digits10};
@@ -110,12 +128,19 @@ tile_processor::string(const std::uint32_t len) const -> std::string {
                                  "Mean\n";
 
   std::vector<double> means(max_read_len);
-  for (const auto &tile_quals : quals | std::views::values)
+  std::vector<double> n_tiles_for_size(max_read_len);
+  for (const auto &tile_quals : quals | std::views::values) {
     for (const auto [i, q] : std::views::enumerate(tile_quals))
       means[i] += as_frac(q.first, q.second);
+    if (!tile_quals.empty())
+      ++n_tiles_for_size[std::size(tile_quals) - 1ul];
+  }
+  std::partial_sum(std::crbegin(n_tiles_for_size), std::crend(n_tiles_for_size),
+                   std::rbegin(n_tiles_for_size));
 
-  std::ranges::transform(means, std::begin(means),
-                         [&](const auto x) { return x / std::size(quals); });
+  std::ranges::transform(
+    means, n_tiles_for_size, std::begin(means),
+    [&](const auto m, const auto l) { return as_frac(m, l); });
 
   // using map to get sorted order by tile id
   std::map<std::uint32_t, std::vector<double>> centered;

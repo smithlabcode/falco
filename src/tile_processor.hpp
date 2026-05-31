@@ -27,6 +27,7 @@
 #include "bam_file.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
+#include "quality_score.hpp"
 
 #include <array>
 #include <charconv>
@@ -68,6 +69,9 @@ struct tile_processor {
   std::unordered_map<std::uint32_t, qual_vec> quals;
 
   auto
+  trim() -> void;
+
+  auto
   resize(const std::uint32_t updated_length) {
     max_read_len = updated_length;
     for (auto &q : quals | std::views::values)
@@ -96,6 +100,9 @@ struct tile_processor {
     }
   }
 
+  auto
+  adjust_fastq_qual_encoding(const falco::encoding enc) -> void;
+
   static auto
   set_preceding_colons(const std::string &fastq_filename) -> std::uint32_t;
 
@@ -110,9 +117,9 @@ struct tile_processor {
     if (read_idx-- == 0) [[unlikely]] {
       read_idx = read_skip;
       const auto curr_len = static_cast<std::uint32_t>(get_seq_size(rec));
+      update_tile_id(get_name(rec), get_name_end(rec));
       if (curr_len > max_read_len)
         resize(curr_len);
-      update_tile_id(get_name(rec), get_name_end(rec));
       if constexpr (std::is_same_v<std::decay_t<decltype(rec)>, bamrec>) {
         if (rec.is_rev)
           count_quals_itr_rev(get_qual(rec), get_qual_end(rec), qual);
