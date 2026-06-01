@@ -61,7 +61,8 @@ struct tile_processor {
     std::pair{std::numeric_limits<double>::max(), "fail"},
   };
 
-  using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
+  // ADS: needs to count roughly ~1M reads each contributing up to 128
+  using qual_vec = std::vector<std::pair<std::uint32_t, std::uint32_t>>;
   static constexpr auto read_skip = 10 - 1;
 
   static std::uint32_t preceding_colons;
