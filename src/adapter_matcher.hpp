@@ -82,6 +82,20 @@ struct adapter_matcher {
     return m;
   }
 
+  // clang-format off
+  // ADS: match_adapter is on a very hot path, and the code below might help
+  // [[nodiscard]] static auto
+  // match_adapter(const auto &t, const auto m, auto adap) -> std::uint32_t {
+  //   static constexpr auto adap_mask = (1ul << adapter_size * nibble_size) - 1ul;
+  //   std::uint64_t t_enc{adap_mask};
+  //   auto t_itr = t;
+  //   const auto t_end = t + m;
+  //   while (t_itr != t_end && (t_enc ^ adap))
+  //     t_enc = ((t_enc << nibble_size) + encode_nibble(*t_itr++)) & adap_mask;
+  //   return ((t_enc ^ adap) == 0) ? std::distance(t, t_itr) - adapter_size : m;
+  // }
+  // clang-format on
+
   auto
   match_adapters(const auto seq, const auto len) {
     if (len < adapter_size) [[unlikely]]
