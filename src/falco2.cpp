@@ -49,9 +49,7 @@ read duplication is analyzed (borrowing from preseq).
 
 #include <config.h>
 
-#ifdef FULL_LICENSE
 #include <license.h>
-#endif
 
 #include <algorithm>
 #include <array>
@@ -68,6 +66,7 @@ read duplication is analyzed (borrowing from preseq).
 #include <map>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <numeric>
 #include <print>
 #include <queue>
@@ -99,7 +98,7 @@ struct file_info {
                                  encoding, has_tiles);
 };
 
-struct falco_results {
+struct alignas(std::hardware_destructive_interference_size) falco_results {
   std::uint64_t n_reads{};
   std::uint64_t max_read_len{};
   std::vector<falco::nuc_array> nucs;
@@ -508,14 +507,12 @@ main(int argc, char *argv[]) {
     app.get_formatter()->long_option_alignment_ratio(0.2);
     app.set_help_flag("-h,--help", "Print more detailed help");
     app.set_version_flag("--version", VERSION, "Print program version");
-#ifdef FULL_LICENSE
     // clang-format off
     app.add_flag("--license",
                  [&](auto) { std::print("{}", license_text); throw CLI::Success(); },
                  "Print full license")
       ->callback_priority(CLI::CallbackPriority::First);
     // clang-format on
-#endif
     app
       .add_option("-i,--input", infile,
                   "Input file: FASTQ (plain, gz or bgzf) or BAM/SAM")
