@@ -55,7 +55,6 @@ endif()
 
 file(READ data/LICENSE LICENSE_TEXT)
 configure_file(data/LICENSES.inc.in license.h @ONLY)
-add_compile_definitions(FULL_LICENSE)
 
 option(PACKAGE "Enabling packaging mode (experts only)" off)
 if(PACKAGE)
@@ -104,6 +103,7 @@ add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
 target_link_libraries(adapter_matcher PRIVATE HTSLIB::HTSLIB)
 
 add_library(format_output OBJECT src/format_output.cpp)
+target_link_libraries(format_output PRIVATE HTSLIB::HTSLIB)
 
 add_executable(falco2 src/falco2.cpp)
 target_link_libraries(falco2 PUBLIC
