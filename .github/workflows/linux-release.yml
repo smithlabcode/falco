@@ -57,12 +57,12 @@ jobs:
             cp -r ../htslib /usr/local/include/ && \
             cd /workspace && \
             cmake -B build -DPACKAGE=on -DCMAKE_BUILD_TYPE=Release && \
-            cmake --build build -j4
+            cmake --build build -j4 && \
+            cp build/falco2 falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-Linux
         run: |
           docker exec build-container bash -c "$SCRIPT"
       - name: Upload the binary
         uses: actions/upload-artifact@v7
         with:
           name: falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-Linux
-          path: build/falco2
-          archive: false
+          path: falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-Linux
