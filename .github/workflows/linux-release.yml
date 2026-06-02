@@ -55,13 +55,13 @@ jobs:
             cp libhts.a /usr/local/lib/ && \
             cp -r ../htslib /usr/local/include/ && \
             cd /workspace && \
-            cmake -B build -DPACKAGE=on -DFULL_LICENSE=on -DCMAKE_BUILD_TYPE=Release && \
+            cmake -B build -DPACKAGE=on -DCMAKE_BUILD_TYPE=Release && \
             cmake --build build -j4 && \
-            tar -cf falco2-${{ steps.get-vn.outputs.vn }}-Linux.tar.gz -C build falco2
+            cp build/falco2 falco2-${{ steps.get-vn.outputs.vn }}
         run: |
           docker exec build-container bash -c "$SCRIPT"
       - name: Upload the packages
         uses: actions/upload-artifact@v6
         with:
-          name: falco2-${{ steps.get-vn.outputs.vn }}-Linux.tar.gz
-          path: falco2-${{ steps.get-vn.outputs.vn }}-Linux.tar.gz
+          name: falco2-${{ steps.get-vn.outputs.vn }}
+          path: falco2-${{ steps.get-vn.outputs.vn }}
