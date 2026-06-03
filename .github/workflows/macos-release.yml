@@ -81,6 +81,7 @@ jobs:
         id: get-vn
         run: |
           awk '/^  VERSION [0-9.]+$/ {print "vn="$NF}' CMakeLists.txt >> "$GITHUB_OUTPUT"
+          git rev-parse --short "$GITHUB_SHA" | awk '{print "hash="$0}' >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Download artifacts
@@ -93,11 +94,10 @@ jobs:
         run: |
           lipo -create \
           binaries/falco2-*/falco2_* \
-          -output falco2
-          chmod +x falco2
-          tar -cf falco2-${{ steps.get-vn.outputs.vn }}-macOS.tar.gz falco2
+          -output falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
+          chmod +x falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
       - name: Upload the lipo binary
         uses: actions/upload-artifact@v7
         with:
-          name: falco2-${{ steps.get-vn.outputs.vn }}-macOS.tar.gz
-          path: falco2-${{ steps.get-vn.outputs.vn }}-macOS.tar.gz
+          name: falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
+          path: falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
