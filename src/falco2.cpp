@@ -610,7 +610,8 @@ main(int argc, char *argv[]) {
       bam_file reads_file(infile, buf_size, n_threads);
       run_mode_selector(mode, info, reads_file, n_threads, outfile);
     }
-    else if (input_format == falco::file_format::fastq_gz) {
+    else if (input_format == falco::file_format::fastq_gz ||
+             input_format == falco::file_format::fastq_bgzf) {
       fastq_gz_file reads_file(infile, buf_size, n_threads);
       run_mode_selector(mode, info, reads_file, n_threads, outfile);
     }
