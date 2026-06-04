@@ -83,7 +83,7 @@ struct file_info {
   std::string name;
   falco::file_format format{};
   std::string description;
-  std::uint64_t size{};
+  std::int64_t size{};
   falco::encoding encoding{};
   bool has_tiles{};
 
@@ -369,7 +369,7 @@ template <typename results_t, typename rec_t> struct thread_pool {
       workers.emplace_back([th_id, this](const std::stop_token &stop) {
         auto &r = results[th_id];
         while (true) {
-          std::pair<typename rec_t::pos_t, typename rec_t::pos_t> task;
+          task_t task;
           {
             std::unique_lock l(task_available_mtx);
             task_available.wait(l, stop, [this] { return !tasks.empty(); });
@@ -478,7 +478,7 @@ run_mode_selector(const run_mode mode, file_info &info, auto &reads_file,
 int
 main(int argc, char *argv[]) {
   try {
-    static constexpr auto buf_size_default = 256 * 1024 * 1024;
+    static constexpr auto buf_size_default = 512 * 1024 * 1024;
     std::string infile;
     std::string contam_file;
     std::string outfile;
@@ -603,6 +603,8 @@ main(int argc, char *argv[]) {
       .size = filesize,
       .has_tiles = has_tiles,
     };
+
+    buf_size = buf_size < filesize ? buf_size : filesize;
 
     duplication_results::initialize(est_n_reads);
 
