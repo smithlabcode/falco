@@ -43,7 +43,7 @@ static constexpr auto fastq_lines_per_read = 4;
 
 [[nodiscard]] auto
 estimate_n_reads_fastq(const std::string &filename)
-  -> std::tuple<std::uint64_t, std::uint64_t> {
+  -> std::tuple<std::uint64_t, std::int64_t> {
   static constexpr auto n_parts = 10;
   static constexpr auto max_part_size = 1024 * 1024;
   static const auto page_mask = ~(sysconf(_SC_PAGESIZE) - 1);
@@ -82,7 +82,7 @@ estimate_n_reads_fastq(const std::string &filename)
 
 [[nodiscard]] auto
 estimate_n_reads_fastq_gz(const std::string &filename)
-  -> std::tuple<std::uint64_t, std::uint64_t> {
+  -> std::tuple<std::uint64_t, std::int64_t> {
   static constexpr auto n_bytes = 1024 * 1024;
   std::unique_ptr<BGZF, int (*)(BGZF *)> f(bgzf_open(std::data(filename), "r"),
                                            &bgzf_close);

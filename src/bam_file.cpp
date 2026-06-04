@@ -35,7 +35,7 @@
 
 [[nodiscard]] auto
 estimate_n_reads_bam(const std::string &filename)
-  -> std::tuple<std::uint64_t, std::uint64_t> {
+  -> std::tuple<std::uint64_t, std::int64_t> {
   static constexpr auto max_n_reads = 128 * 1024;
   std::unique_ptr<htsFile, int (*)(htsFile *)> f(
     hts_open(std::data(filename), "r"), &hts_close);
