@@ -27,6 +27,8 @@
 #include "falco_file_format.hpp"
 #include "quality_score.hpp"
 
+#include "nlohmann/json.hpp"
+
 #include <config.h>
 
 #include <htslib/hts.h>
@@ -42,6 +44,26 @@
 #include <ranges>
 #include <string>
 #include <vector>
+
+struct file_info {
+  std::string name;
+  falco::file_format format{};
+  std::string description;
+  std::int64_t size{};
+  std::uint64_t n_reads_est{};
+  falco::encoding encoding{};
+  bool has_tiles{};
+
+  [[nodiscard]] auto
+  string() const -> std::string {
+    static constexpr auto n_indent = 4;
+    nlohmann::json data = *this;
+    return data.dump(n_indent);
+  }
+
+  NLOHMANN_DEFINE_TYPE_INTRUSIVE(file_info, name, format, description, size,
+                                 n_reads_est, encoding, has_tiles);
+};
 
 namespace falco {
 static constexpr auto alphabet_size = 4;
@@ -247,21 +269,32 @@ get_grade(const auto &cutoffs, const auto c) {
   return b->second;
 }
 
+[[nodiscard]] static auto
+make_thread_pool(const auto n_threads) {
+  return n_threads > 0 ? hts_tpool_init(n_threads) : nullptr;
+}
+
 struct falco_thread_pool {
   htsThreadPool t{};
-  explicit falco_thread_pool(const std::uint32_t n_threads) :
-    t{hts_tpool_init(static_cast<std::int32_t>(std::max(1U, n_threads))), 0} {
-    if (t.pool == nullptr)
+
+  explicit falco_thread_pool(const std::uint64_t n_threads) :
+    t{make_thread_pool(n_threads), 0} {
+    if (n_threads > 0 && t.pool == nullptr)
       throw std::runtime_error("failed to construct thread pool");
   }
+
+  [[nodiscard]] auto
+  n_threads() const -> std::uint64_t {
+    return t.pool ? hts_tpool_size(t.pool) : 0LU;
+  }
+
   // clang-format off
   falco_thread_pool(const falco_thread_pool &) = delete;
   auto operator=(const falco_thread_pool &) -> falco_thread_pool & = delete;
   falco_thread_pool(falco_thread_pool &&) noexcept = delete;
   auto operator=(falco_thread_pool &&) noexcept -> falco_thread_pool & = delete;
+  ~falco_thread_pool() { if (t.pool) hts_tpool_destroy(t.pool); }
   // clang-format on
-
-  ~falco_thread_pool() { hts_tpool_destroy(t.pool); }
 };
 
 static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
@@ -270,9 +303,9 @@ static constexpr std::int64_t kilobytes = 1024;
 
 [[nodiscard]] inline auto
 size_to_units(const auto s) -> std::string {
+  static constexpr auto hundred = 100.0;
   const auto as_frac_3 = [](const auto a, const auto b) {
-    // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
-    return std::floor(100 * as_frac(a, b)) / 100;
+    return std::floor(hundred * as_frac(a, b)) / hundred;
   };
   if (s >= gigabytes)
     return std::format("{}GiB", as_frac_3(s, gigabytes));
