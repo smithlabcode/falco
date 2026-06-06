@@ -186,14 +186,13 @@ struct bam_file {
   static constexpr auto min_buf_size = static_cast<std::int64_t>(16 * 4096);
   static constexpr auto max_buf_size = std::numeric_limits<std::int64_t>::max();
   bam_buffer buf;
-  falco_thread_pool t;
   std::unique_ptr<htsFile, int (*)(htsFile *)> f;
   std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h;
   bool hit_eof{};
 
   bam_file(const std::string &filename, const std::int64_t buf_size,
-           const std::uint32_t n_threads = 1) :
-    buf(std::clamp(buf_size, min_buf_size, max_buf_size)), t(n_threads),
+           falco_thread_pool &t) :
+    buf(std::clamp(buf_size, min_buf_size, max_buf_size)),
     f(hts_open(std::data(filename), "r"), &hts_close),
     h(sam_hdr_read(f.get()), &sam_hdr_destroy) {
     if (!f)
@@ -202,13 +201,22 @@ struct bam_file {
     if (!h)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to read header: " + filename);
-    if (n_threads > 1) {
+    if (t.n_threads > 0) {
       // only use a thread pool if we have more than one thread
       const auto r = hts_set_thread_pool(f.get(), &t.t);
       if (r < 0)
         throw std::runtime_error("failed to set thread pool");
     }
   }
+
+  // clang-format off
+  // delete copy and assignment
+  bam_file(const bam_file &) = delete;
+  auto operator=(const bam_file &) -> bam_file & = delete;
+  auto operator=(bam_file &&) noexcept -> bam_file & = delete;
+  // default move for emplace
+  bam_file(bam_file &&) noexcept = default;
+  // clang-format on
 
   [[nodiscard]] operator bool() const { return !hit_eof; }
 
