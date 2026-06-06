@@ -46,11 +46,11 @@ struct duplication_results {
     std::pair{1.00, "warn"},
     std::pair{1.00, "fail"},
   };
-  static std::int32_t read_skip;
+  std::int32_t read_skip{default_read_skip};
   std::int32_t read_idx{};
   std::unordered_map<falco_word, std::uint64_t> dups;
 
-  static auto
+  auto
   initialize(const std::uint64_t est_n_reads) -> void;
 
   [[nodiscard]] auto
