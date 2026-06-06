@@ -201,7 +201,7 @@ struct bam_file {
     if (!h)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to read header: " + filename);
-    if (t.n_threads > 0) {
+    if (t.n_threads() > 0) {
       // only use a thread pool if we have more than one thread
       const auto r = hts_set_thread_pool(f.get(), &t.t);
       if (r < 0)

@@ -215,7 +215,7 @@ struct fastq_gz_file {
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
-    if (t.n_threads > 0 && bgzf_compression(f.get()) == bgzf_fmt_code) {
+    if (t.n_threads() > 0 && bgzf_compression(f.get()) == bgzf_fmt_code) {
       // threads can be used
       const auto r = bgzf_thread_pool(f.get(), t.t.pool, t.t.qsize);
       if (r < 0)
