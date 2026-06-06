@@ -231,6 +231,7 @@ struct falco_results_tile : public falco_results {
   init_impl(const auto &info) {
     falco_results::init_impl(info);
     has_tiles = info.has_tiles;
+    tp.init(info);
   };
 
   auto
