@@ -44,8 +44,6 @@
 #include <utility>
 #include <vector>
 
-std::uint32_t tile_processor::preceding_colons = 0;
-
 [[nodiscard]] auto
 get_name_fastq(const std::string &filename) -> std::string {
   std::unique_ptr<BGZF, int (*)(BGZF *)> in(bgzf_open(std::data(filename), "r"),
@@ -82,38 +80,6 @@ tile_processor::adjust_fastq_qual_encoding(const falco::encoding enc) -> void {
   for (auto &tile_quals : quals | std::views::values)
     for (auto &q : tile_quals)
       q.first -= q.second * qual_offset;
-}
-
-auto
-tile_processor::set_preceding_colons(const std::string &filename)
-  -> std::uint32_t {
-  // colon cutoffs taken from FastQC
-  static constexpr auto colon_cutoff_1 = 6;
-  static constexpr auto colon_cutoff_1_val = 4;
-  static constexpr auto colon_cutoff_2 = 4;
-  static constexpr auto colon_cutoff_2_val = 2;
-
-  std::unique_ptr<htsFile, int (*)(htsFile *)> fp(
-    hts_open(std::data(filename), "r"), &hts_close);
-  if (!fp)
-    throw std::runtime_error("failed to open file: " + filename);
-
-  const auto fmt = hts_get_format(fp.get());
-  if (fmt->format != fastq_format && fmt->format != bam && fmt->format != sam)
-    throw std::runtime_error(
-      std::format("unknown file format: {}", std::to_underlying(fmt->format)));
-
-  const auto line = (fmt->format == bam || fmt->format == sam)
-                      ? get_name_bam(filename)
-                      : get_name_fastq(filename);
-
-  const auto colons_found = std::ranges::count(line, ':');
-  // clang-format off
-  preceding_colons =
-    colons_found >= colon_cutoff_1 ? colon_cutoff_1_val :
-    (colons_found >= colon_cutoff_2 ? colon_cutoff_2_val : 0);
-  // clang-format on
-  return preceding_colons;
 }
 
 auto
@@ -185,4 +151,33 @@ tile_processor::operator+=(const tile_processor &rhs)
       quals.emplace(i, q);
   }
   return *this;
+}
+
+auto
+get_tile_info(const std::string &filename) -> std::uint32_t {
+  // colon cutoffs taken from FastQC
+  static constexpr auto colon_cutoff_1 = 6;
+  static constexpr auto colon_cutoff_1_val = 4;
+  static constexpr auto colon_cutoff_2 = 4;
+  static constexpr auto colon_cutoff_2_val = 2;
+
+  std::unique_ptr<htsFile, int (*)(htsFile *)> fp(
+    hts_open(std::data(filename), "r"), &hts_close);
+  if (!fp)
+    throw std::runtime_error("failed to open file: " + filename);
+
+  const auto hts_fmt = hts_get_format(fp.get());
+  if (hts_fmt->format != fastq_format && hts_fmt->format != bam &&
+      hts_fmt->format != sam)
+    throw std::runtime_error(std::format("unknown file format: {}",
+                                         std::to_underlying(hts_fmt->format)));
+
+  const auto line = (hts_fmt->format == bam || hts_fmt->format == sam)
+                      ? get_name_bam(filename)
+                      : get_name_fastq(filename);
+
+  const auto colons_found = std::ranges::count(line, ':');
+  return colons_found >= colon_cutoff_1
+           ? colon_cutoff_1_val
+           : (colons_found >= colon_cutoff_2 ? colon_cutoff_2_val : 0);
 }

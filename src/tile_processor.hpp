@@ -65,8 +65,7 @@ struct tile_processor {
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
   static constexpr auto read_skip = 10 - 1;
 
-  static std::uint32_t preceding_colons;
-
+  std::uint32_t tile_id_position{};
   std::int32_t read_idx{};
   std::uint32_t max_read_len{};
   std::uint32_t tile_id{};
@@ -75,6 +74,11 @@ struct tile_processor {
 
   auto
   trim() -> void;
+
+  auto
+  init(const file_info &info) {
+    tile_id_position = info.tile_id_position;
+  }
 
   auto
   resize(const std::uint32_t updated_length) {
@@ -90,7 +94,7 @@ struct tile_processor {
   update_tile_id(const auto name_beg, const auto name_end) {
     auto tile_itr = name_beg;
     auto colon_count = 0u;
-    while (colon_count < preceding_colons && tile_itr != name_end)
+    while (colon_count < tile_id_position && tile_itr != name_end)
       colon_count += (*tile_itr++ == ':');
     std::uint32_t curr_tile_id{};
     const auto [_, ec] = std::from_chars(tile_itr, name_end, curr_tile_id);
@@ -107,9 +111,6 @@ struct tile_processor {
 
   auto
   adjust_fastq_qual_encoding(const falco::encoding enc) -> void;
-
-  static auto
-  set_preceding_colons(const std::string &fastq_filename) -> std::uint32_t;
 
   [[nodiscard]] auto
   string(const std::uint32_t len) const -> std::string;
@@ -136,5 +137,8 @@ struct tile_processor {
     }
   }
 };
+
+auto
+get_tile_info(const std::string &fastq_filename) -> std::uint32_t;
 
 #endif  // SRC_TILE_PROCESSOR_HPP_
