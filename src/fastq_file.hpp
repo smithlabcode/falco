@@ -112,15 +112,6 @@ get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
 struct fastq_buffer {
   char *data{};       // not necessarily owned
   std::int64_t sz{};  // slight redundancy with vars containing classes
-
-  fastq_buffer() = default;
-  // clang-format off
-  fastq_buffer(const fastq_buffer &) = delete;
-  auto operator=(const fastq_buffer &) -> fastq_buffer & = delete;
-  fastq_buffer(fastq_buffer &&) noexcept = delete;
-  auto operator=(fastq_buffer &&) noexcept -> fastq_buffer & = delete;
-  ~fastq_buffer() = default;
-  // clang-format on
 };
 
 static inline auto
@@ -169,11 +160,14 @@ struct fastq_file {
         std::format("Requested buffer size {} smaller than required {}",
                     buf_size, min_buf_size));
   }
+
   // clang-format off
+  // delete copy and assignment
   fastq_file(const fastq_file &) = delete;
   auto operator=(const fastq_file &) -> fastq_file & = delete;
-  fastq_file(fastq_file &&) noexcept = delete;
   auto operator=(fastq_file &&) noexcept -> fastq_file & = delete;
+  // default move for emplace
+  fastq_file(fastq_file &&) noexcept = default;
   // clang-format on
 
   ~fastq_file() {
@@ -209,20 +203,19 @@ struct fastq_gz_file {
   std::int64_t start_pos_in_file{};  // file offset for buffer start
   std::int64_t stop_pos_in_file{};   // file offset for buffer stop
   std::int64_t cursor{};             // position in buffer
-  falco_thread_pool t;
   std::unique_ptr<BGZF, int (*)(BGZF *)> f;
 
   fastq_gz_file(const std::string &filename, const std::int64_t buf_size,
-                const std::uint32_t n_threads = 1) :
+                falco_thread_pool &t) :
     buf_size{buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
-    stop_pos_in_file{buf_size}, t(n_threads),
+    stop_pos_in_file{buf_size},
     f(bgzf_open(std::data(filename), "r"), &bgzf_close) {
     static constexpr auto bgzf_fmt_code = 2;  // from bgzf.h
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
-    if (n_threads > 1 && bgzf_compression(f.get()) == bgzf_fmt_code) {
+    if (t.n_threads > 0 && bgzf_compression(f.get()) == bgzf_fmt_code) {
       // threads can be used
       const auto r = bgzf_thread_pool(f.get(), t.t.pool, t.t.qsize);
       if (r < 0)
@@ -230,11 +223,14 @@ struct fastq_gz_file {
     }
     buf.data = new char[buf_size];  // NOLINT (cppcoreguidelines-owning-memory)
   }
+
   // clang-format off
+  // delete copy and assignment
   fastq_gz_file(const fastq_gz_file &) = delete;
   auto operator=(const fastq_gz_file &) -> fastq_gz_file & = delete;
-  fastq_gz_file(fastq_gz_file &&) noexcept = delete;
   auto operator=(fastq_gz_file &&) noexcept -> fastq_gz_file & = delete;
+  // default move for emplace
+  fastq_gz_file(fastq_gz_file &&) noexcept = default;
   // clang-format on
 
   ~fastq_gz_file() { delete[] buf.data; }
