@@ -53,6 +53,7 @@ read duplication is analyzed (borrowing from preseq).
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <functional>
@@ -134,7 +135,8 @@ template <typename results_t, typename rec_t> struct thread_pool {
 
 template <typename results_t>
 static auto
-run(auto &infos, auto &reads_files, const auto n_threads, const auto &outfile) {
+run(auto &infos, auto &reads_files, const auto n_threads,
+    const auto &outfiles) {
   static constexpr auto n_chunks_per_thread = 2;
   using rec_t = std::decay_t<decltype(reads_files)>::value_type::rec_t;
   const auto n_files = std::size(reads_files);
@@ -170,7 +172,8 @@ run(auto &infos, auto &reads_files, const auto n_threads, const auto &outfile) {
   for (auto file_id = 0u; file_id < n_files; ++file_id) {
     auto &results = tpool.results.front()[file_id];
     auto &info = infos[file_id];
-    std::ofstream out(std::format("{}.{}", outfile, file_id));
+    const auto &outfile = outfiles[file_id];
+    std::ofstream out(outfile);
     if (!out)
       throw std::runtime_error("failed to open file: " + outfile);
     set_quality_score_encoding(results.qual_by_pos, info);
@@ -183,21 +186,22 @@ run(auto &infos, auto &reads_files, const auto n_threads, const auto &outfile) {
 static auto
 run_mode_selector(const run_mode mode, std::vector<file_info> &infos,
                   auto &reads_files, const auto n_threads,
-                  const auto &outfile) {
+                  const auto &outfiles) {
   if (tiles(mode) && kmers(mode))
-    run<falco_results_tile_kmer>(infos, reads_files, n_threads, outfile);
+    run<falco_results_tile_kmer>(infos, reads_files, n_threads, outfiles);
   else if (tiles(mode))
-    run<falco_results_tile>(infos, reads_files, n_threads, outfile);
+    run<falco_results_tile>(infos, reads_files, n_threads, outfiles);
   else if (kmers(mode))
-    run<falco_results_kmer>(infos, reads_files, n_threads, outfile);
+    run<falco_results_kmer>(infos, reads_files, n_threads, outfiles);
   else
-    run<falco_results>(infos, reads_files, n_threads, outfile);
+    run<falco_results>(infos, reads_files, n_threads, outfiles);
 }
 
 static auto
-reads_file_maker(const auto mode, const auto buf_size, const auto n_threads,
+make_reads_files(const run_mode mode, const auto buf_size, const auto n_threads,
                  const auto input_format, const auto &format_description,
-                 auto &infos, const auto &infiles, const auto &outfile) {
+                 auto &infos, const std::vector<std::string> &infiles,
+                 const std::vector<std::string> &outfiles) {
   const auto n_infiles = std::size(infiles);
   if (is_mapped_reads(input_format)) {
     falco_thread_pool p(n_threads > 1 ? n_threads - 1 : 1);
@@ -205,23 +209,29 @@ reads_file_maker(const auto mode, const auto buf_size, const auto n_threads,
     f.reserve(n_infiles);
     const auto m = [&](const auto &i) { f.emplace_back(i, buf_size, p); };
     std::ranges::for_each(infiles, m);
-    run_mode_selector(mode, infos, f, n_threads, outfile);
+    run_mode_selector(mode, infos, f, n_threads, outfiles);
   }
-  else if (input_format == falco::file_format::fastq_gz ||
-           input_format == falco::file_format::fastq_bgzf) {
+  else if (input_format == falco::file_format::fastq_bgzf) {
     falco_thread_pool p(n_threads > 1 ? n_threads - 1 : 1);
-    std::vector<fastq_gz_file> f;
+    std::vector<fastq_bgzf_file> f;
     f.reserve(n_infiles);
     const auto m = [&](const auto &i) { f.emplace_back(i, buf_size, p); };
     std::ranges::for_each(infiles, m);
-    run_mode_selector(mode, infos, f, n_threads, outfile);
+    run_mode_selector(mode, infos, f, n_threads, outfiles);
+  }
+  else if (input_format == falco::file_format::fastq_gz) {
+    std::vector<fastq_gz_file> f;
+    f.reserve(n_infiles);
+    const auto m = [&](const auto &i) { f.emplace_back(i, buf_size); };
+    std::ranges::for_each(infiles, m);
+    run_mode_selector(mode, infos, f, n_threads, outfiles);
   }
   else if (input_format == falco::file_format::fastq) {
     std::vector<fastq_file> f;
     f.reserve(n_infiles);
     const auto m = [&](const auto &i) { f.emplace_back(i, buf_size); };
     std::ranges::for_each(infiles, m);
-    run_mode_selector(mode, infos, f, n_threads, outfile);
+    run_mode_selector(mode, infos, f, n_threads, outfiles);
   }
   else {
     std::println("unsupported file format: {}", format_description);
@@ -238,6 +248,8 @@ get_file_info(const auto &infiles) {
     const auto [n_reads_est, filesize] = [&] {
       if (input_format == falco::file_format::bam)
         return estimate_n_reads_bam(infile);
+      if (input_format == falco::file_format::fastq_bgzf)
+        return estimate_n_reads_fastq_bgzf(infile);
       if (input_format == falco::file_format::fastq_gz)
         return estimate_n_reads_fastq_gz(infile);
       if (input_format == falco::file_format::fastq)
@@ -257,13 +269,27 @@ get_file_info(const auto &infiles) {
   return infos;
 }
 
+[[nodiscard]] static auto
+make_outdirs(const auto &ins, const auto &outdir) -> std::vector<std::string> {
+  namespace fs = std::filesystem;
+  fs::create_directory(outdir);
+  const auto compose_dirname = [&](const auto &fname) {
+    const auto without_path = fs::path{fname}.filename();
+    return (fs::path{outdir} / remove_extension(without_path)).string();
+  };
+  const auto dnames = ins | std::views::transform(compose_dirname);
+  std::ranges::for_each(dnames, [](const auto &d) { fs::create_directory(d); });
+  return dnames | std::ranges::to<std::vector>();
+}
+
 int
 main(int argc, char *argv[]) {
   try {
+    static constexpr auto outfile_name = "fastqc_data.txt";
     static constexpr auto buf_size_default = 512 * 1024 * 1024;
     std::vector<std::string> infiles;
     std::string contam_file;
-    std::string outfile;
+    std::string outdir;
     std::int64_t buf_size{buf_size_default};
     std::uint32_t n_threads{1};
     std::uint32_t n_bam_threads{1};
@@ -300,7 +326,7 @@ main(int argc, char *argv[]) {
       ->required()
       ->option_text("FILES");
     // ->check(CLI::ExistingFile);
-    app.add_option("-o,--output", outfile, "Output file")
+    app.add_option("-o,--output", outdir, "Output directory")
       ->required()
       ->option_text("FILE");
     app.add_option("-c,--contaminants", contam_file,
@@ -331,6 +357,8 @@ main(int argc, char *argv[]) {
       return EXIT_SUCCESS;
     }
     CLI11_PARSE(app, argc, argv);
+
+    const auto outdirs = make_outdirs(infiles, outdir);
 
     if (!contam_file.empty()) {
       load_contaminants(contam_file);
@@ -376,8 +404,15 @@ main(int argc, char *argv[]) {
     mode.tiles(do_tiles);
     mode.kmers(do_kmers);
 
-    reads_file_maker(mode, buf_size, n_threads, input_format,
-                     format_description, infos, infiles, outfile);
+    // ADS: make this real now with to<vector> to simplify debugging later
+    const auto outfiles =
+      outdirs | std::views::transform([](const auto &d) {
+        return (std::filesystem::path{d} / outfile_name).string();
+      }) |
+      std::ranges::to<std::vector>();
+
+    make_reads_files(mode, buf_size, n_threads, input_format,
+                     format_description, infos, infiles, outfiles);
 
     if (verbose) {
       // ADS: 'count()' because macos has locale issues formatting times
