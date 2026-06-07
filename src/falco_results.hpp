@@ -26,6 +26,7 @@
 
 #include "adapter_matcher.hpp"
 #include "bam_file.hpp"
+#include "duplication_results.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
 #include "format_output.hpp"
