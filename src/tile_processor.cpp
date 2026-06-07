@@ -99,6 +99,8 @@ tile_processor::string(const std::uint32_t len) const -> std::string {
   static constexpr auto header = "#Tile\t"
                                  "Base\t"
                                  "Mean\n";
+  if (quals.empty())
+    return {};  // ADS: in case this fun is called for files w/o tile info
 
   std::vector<double> means(max_read_len);
   std::vector<double> n_tiles_for_size(max_read_len);
