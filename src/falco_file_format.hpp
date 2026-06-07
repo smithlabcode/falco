@@ -26,30 +26,17 @@
 
 #include "nlohmann/json.hpp"
 
-#include <htslib/hts.h>
 #include <htslib/sam.h>
 
-#include <algorithm>
-#include <array>
 #include <cstdint>
-#include <cstdlib>
-#include <exception>
 #include <format>
-#include <fstream>
-#include <initializer_list>
-#include <iostream>
 #include <iterator>
-#include <memory>  // IWYU pragma: keep
-#include <numeric>
-#include <print>
-#include <ranges>
-#include <stdexcept>
+#include <memory>
 #include <string>
 #include <thread>
-#include <tuple>  // IWYU pragma: keep
-#include <type_traits>
+#include <tuple>
 #include <utility>
-#include <vector>
+#include <variant>
 
 namespace falco {
 enum class file_format : std::uint8_t {

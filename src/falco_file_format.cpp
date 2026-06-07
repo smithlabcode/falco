@@ -23,6 +23,10 @@
 
 #include "falco_file_format.hpp"
 
+#include <array>
+#include <cstdlib>
+#include <stdexcept>
+
 [[nodiscard]] auto
 get_file_format(const std::string &filename)
   -> std::tuple<falco::file_format, std::string> {
