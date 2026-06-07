@@ -118,11 +118,4 @@ struct kmer_counter {
   decode_kmer(auto word, const auto n_bases) -> std::string;
 };
 
-template <> struct std::formatter<kmer_counter> : std::formatter<std::string> {
-  auto
-  format(const kmer_counter &kc, auto &ctx) const {
-    return std::formatter<std::string>::format(kc.string(), ctx);
-  }
-};
-
 #endif  // SRC_KMER_COUNTER_HPP_
