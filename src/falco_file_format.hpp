@@ -111,30 +111,11 @@ is_sequence_data(const std::string &filename) -> bool {
   return is_sequence_data(fp.get());
 }
 
-[[nodiscard]] inline auto
+[[nodiscard]] auto
 get_file_format(const std::string &filename)
-  -> std::tuple<falco::file_format, std::string> {
-  std::unique_ptr<htsFile, int (*)(htsFile *)> fp(
-    hts_open(std::data(filename), "r"), &hts_close);
-  if (!fp)
-    throw std::runtime_error("failed to open file: " + filename);
-  const auto fmt = hts_get_format(fp.get());
-  const auto descr = std::string{
-    std::unique_ptr<char, void (*)(void *)>(hts_format_description(fmt), &free)
-      .get()};
-  if (fmt->format == bam)
-    return {falco::file_format::bam, descr};
-  if (fmt->format == sam)
-    return {falco::file_format::sam, descr};
-  if (fmt->format == fastq_format) {
-    // check for compression
-    if (fmt->compression == bgzf)
-      return {falco::file_format::fastq_bgzf, descr};
-    if (fmt->compression == gzip)
-      return {falco::file_format::fastq_gz, descr};
-    return {falco::file_format::fastq, descr};
-  }
-  return {falco::file_format::unknown, descr};
-}
+  -> std::tuple<falco::file_format, std::string>;
+
+[[nodiscard]] auto
+remove_extension(const std::string &filename) -> std::string;
 
 #endif  // SRC_FALCO_FILE_FORMAT_HPP_
