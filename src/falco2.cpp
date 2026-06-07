@@ -32,30 +32,23 @@ read duplication is analyzed (borrowing from preseq).
 )";
 // clang-format on
 
-#include "adapter_matcher.hpp"
 #include "bam_file.hpp"
 #include "contaminants.hpp"
-#include "duplication_results.hpp"
 #include "falco_file_format.hpp"
 #include "falco_results.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
-#include "format_output.hpp"
-#include "kmer_counter.hpp"
 #include "quality_score.hpp"
 #include "tile_processor.hpp"
 
 #include "CLI11/CLI11.hpp"
-#include "nlohmann/json.hpp"
 
 #include <config.h>
-
 #include <license.h>
 
 #include <algorithm>
-#include <array>
+#include <atomic>
 #include <chrono>
-#include <compare>
 #include <condition_variable>
 #include <cstdint>
 #include <cstdlib>
@@ -67,8 +60,6 @@ read duplication is analyzed (borrowing from preseq).
 #include <map>
 #include <memory>
 #include <mutex>
-#include <new>
-#include <numeric>
 #include <print>
 #include <queue>
 #include <ranges>
@@ -205,7 +196,7 @@ run_mode_selector(const run_mode mode, std::vector<file_info> &infos,
 
 static auto
 reads_file_maker(const auto mode, const auto buf_size, const auto n_threads,
-                 const auto input_format, const auto format_description,
+                 const auto input_format, const auto &format_description,
                  auto &infos, const auto &infiles, const auto &outfile) {
   const auto n_infiles = std::size(infiles);
   if (is_mapped_reads(input_format)) {
