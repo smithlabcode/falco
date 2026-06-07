@@ -81,7 +81,7 @@ estimate_n_reads_fastq(const std::string &filename)
 }
 
 [[nodiscard]] auto
-estimate_n_reads_fastq_gz(const std::string &filename)
+estimate_n_reads_fastq_bgzf(const std::string &filename)
   -> std::tuple<std::uint64_t, std::int64_t> {
   static constexpr auto n_bytes = 1024 * 1024;
   std::unique_ptr<BGZF, int (*)(BGZF *)> f(bgzf_open(std::data(filename), "r"),
@@ -101,4 +101,10 @@ estimate_n_reads_fastq_gz(const std::string &filename)
   const auto n_reads_est = as_frac(total_newlines, fastq_lines_per_read) *
                            as_frac(estimated_uncompressed_file_size, n_bytes);
   return {static_cast<std::uint64_t>(n_reads_est), filesize};
+}
+
+[[nodiscard]] auto
+estimate_n_reads_fastq_gz(const std::string &filename)
+  -> std::tuple<std::uint64_t, std::int64_t> {
+  return estimate_n_reads_fastq_bgzf(filename);
 }

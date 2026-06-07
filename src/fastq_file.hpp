@@ -195,7 +195,7 @@ struct fastq_file {
   }
 };
 
-struct fastq_gz_file {
+struct fastq_bgzf_file {
   using rec_t = fqrec;
   std::int64_t buf_size{};  // size of allocated buffer
   std::int64_t filesize{};
@@ -205,8 +205,8 @@ struct fastq_gz_file {
   std::int64_t cursor{};             // position in buffer
   std::unique_ptr<BGZF, int (*)(BGZF *)> f;
 
-  fastq_gz_file(const std::string &filename, const std::int64_t buf_size,
-                falco_thread_pool &t) :
+  fastq_bgzf_file(const std::string &filename, const std::int64_t buf_size,
+                  falco_thread_pool &t) :
     buf_size{buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
     stop_pos_in_file{buf_size},
@@ -221,6 +221,62 @@ struct fastq_gz_file {
       if (r < 0)
         throw std::runtime_error("failed to set thread pool");
     }
+    buf.data = new char[buf_size];  // NOLINT (cppcoreguidelines-owning-memory)
+  }
+
+  // clang-format off
+  // delete copy and assignment
+  fastq_bgzf_file(const fastq_bgzf_file &) = delete;
+  auto operator=(const fastq_bgzf_file &) -> fastq_bgzf_file & = delete;
+  auto operator=(fastq_bgzf_file &&) noexcept -> fastq_bgzf_file & = delete;
+  // default move for emplace
+  fastq_bgzf_file(fastq_bgzf_file &&) noexcept = default;
+  // clang-format on
+
+  ~fastq_bgzf_file() { delete[] buf.data; }
+
+  [[nodiscard]] operator bool() const { return stop_pos_in_file == buf_size; }
+
+  auto
+  load_next() {
+    if (cursor > 0) {
+      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      std::memmove(buf.data, buf.data + cursor, buf.sz - cursor);
+      cursor = buf.sz - cursor;  // backup to after previous data
+    }
+    start_pos_in_file = cursor;
+    const auto n_bytes = buf_size - start_pos_in_file;
+    // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    const auto r = bgzf_read(f.get(), buf.data + start_pos_in_file, n_bytes);
+    if (r < 0) {
+      // ADS: cleanup
+      throw std::system_error(std::make_error_code(std::errc(errno)),
+                              "failed reading gz input file");
+    }
+    stop_pos_in_file = start_pos_in_file + r;
+    buf.sz = stop_pos_in_file;
+    cursor = 0;  // cursor always moves to zero because buffer is not mmapped
+  }
+};
+
+struct fastq_gz_file {
+  using rec_t = fqrec;
+  std::int64_t buf_size{};  // size of allocated buffer
+  std::int64_t filesize{};
+  fastq_buffer buf{};
+  std::int64_t start_pos_in_file{};  // file offset for buffer start
+  std::int64_t stop_pos_in_file{};   // file offset for buffer stop
+  std::int64_t cursor{};             // position in buffer
+  std::unique_ptr<BGZF, int (*)(BGZF *)> f;
+
+  fastq_gz_file(const std::string &filename, const std::int64_t buf_size) :
+    buf_size{buf_size},
+    filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
+    stop_pos_in_file{buf_size},
+    f(bgzf_open(std::data(filename), "r"), &bgzf_close) {
+    if (!f)
+      throw std::system_error(std::make_error_code(std::errc(errno)),
+                              "failed to open file: " + filename);
     buf.data = new char[buf_size];  // NOLINT (cppcoreguidelines-owning-memory)
   }
 
@@ -300,7 +356,8 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
 // specialization to these two classes to distinguish from BAM/SAM
 template <typename T>
 concept fastq_like =
-  std::same_as<T, fastq_file> || std::same_as<T, fastq_gz_file>;
+  std::same_as<T, fastq_file> || std::same_as<T, fastq_bgzf_file> ||
+  std::same_as<T, fastq_gz_file>;
 
 template <fastq_like T>
 [[nodiscard]] static inline auto
@@ -315,6 +372,10 @@ get_chunks(T &fq, const std::int64_t n_chunks) {
 
 [[nodiscard]] auto
 estimate_n_reads_fastq(const std::string &filename)
+  -> std::tuple<std::uint64_t, std::int64_t>;
+
+[[nodiscard]] auto
+estimate_n_reads_fastq_bgzf(const std::string &filename)
   -> std::tuple<std::uint64_t, std::int64_t>;
 
 [[nodiscard]] auto
