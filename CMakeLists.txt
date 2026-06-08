@@ -100,7 +100,7 @@ add_library(bam_file OBJECT src/bam_file.cpp)
 target_link_libraries(bam_file PRIVATE HTSLIB::HTSLIB)
 
 add_library(falco_file_format OBJECT src/falco_file_format.cpp)
-target_link_libraries(bam_file PRIVATE HTSLIB::HTSLIB)
+target_link_libraries(falco_file_format PRIVATE HTSLIB::HTSLIB)
 
 add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
 target_link_libraries(adapter_matcher PRIVATE HTSLIB::HTSLIB)
