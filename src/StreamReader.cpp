@@ -692,27 +692,37 @@ FastqReader::~FastqReader() {
 // Parses fastq gz by reading line by line into the gzbuf
 bool
 FastqReader::read_entry(FastqStats &stats, std::size_t &num_bytes_read) {
-  cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
-
-  // need to check here if we did not hit eof
+  cur_char = std::fgets(filebuf, RESERVE_SIZE, fileobj);
   if (is_eof())
     return false;
+  if (cur_char == nullptr)
+    throw std::runtime_error("encountered invalid read number: " +
+                             std::to_string(stats.num_reads + 1));
 
   do_read = (stats.num_reads == next_read);
 
   read_tile_line(stats);
   skip_separator();
 
-  cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
+  cur_char = std::fgets(filebuf, RESERVE_SIZE, fileobj);
+  if (cur_char == nullptr)
+    throw std::runtime_error("encountered invalid read number: " +
+                             std::to_string(stats.num_reads + 1));
   read_sequence_line(stats);
 
   skip_separator();
 
-  cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
+  cur_char = std::fgets(filebuf, RESERVE_SIZE, fileobj);
+  if (cur_char == nullptr)
+    throw std::runtime_error("encountered invalid read number: " +
+                             std::to_string(stats.num_reads + 1));
   read_fast_forward_line();
   skip_separator();
 
-  cur_char = fgets(filebuf, RESERVE_SIZE, fileobj);
+  cur_char = std::fgets(filebuf, RESERVE_SIZE, fileobj);
+  if (cur_char == nullptr)
+    throw std::runtime_error("encountered invalid read number: " +
+                             std::to_string(stats.num_reads + 1));
   read_quality_line(stats);
   skip_separator();
 
