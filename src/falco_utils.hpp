@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <format>
 #include <iterator>
@@ -44,6 +45,13 @@
 #include <ranges>
 #include <string>
 #include <vector>
+
+[[nodiscard]] constexpr auto
+duration(const auto start, const auto stop) {
+  const auto d = stop - start;
+  // ADS: 'count()' because macos has locale issues formatting times
+  return std::chrono::duration_cast<std::chrono::duration<double>>(d).count();
+};
 
 struct file_info {
   std::string name;
