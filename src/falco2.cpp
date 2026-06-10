@@ -34,6 +34,7 @@ read duplication is analyzed (borrowing from preseq).
 
 #include "bam_file.hpp"
 #include "contaminants.hpp"
+#include "falco_analyzer.hpp"
 #include "falco_file_format.hpp"
 #include "falco_results.hpp"
 #include "falco_utils.hpp"
@@ -47,9 +48,7 @@ read duplication is analyzed (borrowing from preseq).
 #include <license.h>
 
 #include <algorithm>
-#include <atomic>
 #include <chrono>
-#include <condition_variable>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
@@ -60,125 +59,35 @@ read duplication is analyzed (borrowing from preseq).
 #include <iterator>
 #include <map>
 #include <memory>
-#include <mutex>
 #include <print>
-#include <queue>
 #include <ranges>
 #include <stdexcept>
-#include <stop_token>
 #include <string>
 #include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
-template <typename results_t, typename rec_t> struct thread_pool {
-  using chunk_t = std::pair<typename rec_t::pos_t, typename rec_t::pos_t>;
-  using task_t = std::pair<std::int32_t, chunk_t>;
-  std::mutex task_available_mtx;
-  std::condition_variable_any task_available;
-  std::mutex n_tasks_mtx;
-  std::condition_variable finished;
-  std::uint32_t n_tasks{};  // unfinished tasks (not same as unstarted)
-  std::queue<task_t> tasks;
-  std::vector<std::vector<results_t>> results;
-  std::vector<std::jthread> workers;
-
-  explicit thread_pool(const std::uint32_t n_threads,
-                       const std::uint32_t n_files,
-                       const std::vector<file_info> &infos) :
-    results(n_threads, std::vector<results_t>(n_files)) {
-    // set any per-file information used to do the analysis
-    for (auto &res : results)
-      for (const auto [file_id, info] : std::views::enumerate(infos))
-        res[file_id].init(info);
-
-    workers.reserve(n_threads);
-    for (auto th_id = 0u; th_id < n_threads; ++th_id) {
-      workers.emplace_back([th_id, this](const std::stop_token &stop) {
-        auto &r = results[th_id];
-        while (true) {
-          task_t task;
-          {
-            std::unique_lock l(task_available_mtx);
-            task_available.wait(l, stop, [this] { return !tasks.empty(); });
-            if (stop.stop_requested() && tasks.empty())
-              return;
-            task = std::move(tasks.front());
-            tasks.pop();
-          }
-          const auto [file_id, chunk] = task;
-          r[file_id].template process_reads<rec_t>(chunk.first, chunk.second);
-          if (std::lock_guard l(n_tasks_mtx); --n_tasks == 0)
-            finished.notify_all();
-        }
-      });
-    }
-  }
-
-  void
-  push_task(const task_t &chunk) {
-    {
-      std::scoped_lock lk(task_available_mtx, n_tasks_mtx);
-      tasks.emplace(chunk);
-      ++n_tasks;
-    }
-    task_available.notify_one();
-  }
-
-  void
-  wait() {
-    std::unique_lock l(n_tasks_mtx);
-    finished.wait(l, [this] { return n_tasks == 0; });
-  }
-};
-
 template <typename results_t>
 static auto
 run(auto &infos, auto &reads_files, const auto n_threads,
     const auto &outfiles) {
-  static constexpr auto n_chunks_per_thread = 2;
   using rec_t = std::decay_t<decltype(reads_files)>::value_type::rec_t;
   const auto n_files = std::size(reads_files);
 
-  thread_pool<results_t, rec_t> tpool(n_threads, n_files, infos);
-  std::atomic_uint64_t n_files_active{n_files};
-  std::vector<bool> file_active(true, n_files);
-  while (true) {
-    if (n_files_active.load() == 0)
-      break;
-    {
-      std::vector<std::jthread> readers;
-      for (auto file_id = 0u; file_id < n_files; ++file_id)
-        if (file_active[file_id])
-          readers.emplace_back([&, file_id]() {
-            if (!reads_files[file_id]) {
-              file_active[file_id] = false;
-              --n_files_active;
-              return;
-            }
-            reads_files[file_id].load_next();
-            std::ranges::for_each(
-              get_chunks(reads_files[file_id], n_threads * n_chunks_per_thread),
-              [&](const auto &c) { tpool.push_task(std::pair{file_id, c}); });
-          });
-    }
-    tpool.wait();
-  }
+  analyzer_t<results_t, rec_t> analyzer(n_threads, n_files, reads_files, infos);
 
-  for (auto file_id = 0u; file_id < n_files; ++file_id)
-    accumulate_results(tpool.results, file_id);
+  for (const auto file_id : std::views::iota(0u, n_files))
+    accumulate_results(analyzer.results, file_id);
 
-  for (auto file_id = 0u; file_id < n_files; ++file_id) {
-    auto &results = tpool.results.front()[file_id];
-    auto &info = infos[file_id];
-    const auto &outfile = outfiles[file_id];
-    std::ofstream out(outfile);
-    if (!out)
-      throw std::runtime_error("failed to open file: " + outfile);
+  for (const auto [results, info, outfile] :
+       std::views::zip(analyzer.results.front(), infos, outfiles)) {
     set_quality_score_encoding(results.qual_by_pos, info);
     if (!is_mapped_reads(info.format))
       results.finalize_qual_encoding(info.encoding);
+    std::ofstream out(outfile);
+    if (!out)
+      throw std::runtime_error("failed to open file: " + outfile);
     std::print(out, "{}", results.string(info));
   }
 }
@@ -198,10 +107,11 @@ run_mode_selector(const run_mode mode, std::vector<file_info> &infos,
 }
 
 static auto
-make_reads_files(const run_mode mode, const auto buf_size, const auto n_threads,
-                 const auto input_format, const auto &format_description,
-                 auto &infos, const std::vector<std::string> &infiles,
-                 const std::vector<std::string> &outfiles) {
+start_analysis(const run_mode mode, const auto buf_size, const auto n_threads,
+               const auto input_format, const auto &format_description,
+               auto &infos, const auto &infiles, const auto &outfiles) {
+  // ADS: this function is bloated mostly to avoid allowing default construction
+  // or move assignment in the fastq_file, fastq_gz_file, etc.
   const auto n_infiles = std::size(infiles);
   if (is_mapped_reads(input_format)) {
     falco_thread_pool p(n_threads > 1 ? n_threads - 1 : 1);
@@ -308,7 +218,7 @@ main(int argc, char *argv[]) {
     CLI::App app{about};
     argv = app.ensure_utf8(argv);
     app.usage(
-      std::format("Usage: {} [options] -o OUTFILE -i INFILES", PROJECT_NAME));
+      std::format("Usage: {} [options] -o OUTDIR INFILES", PROJECT_NAME));
     if (argc >= 2)
       app.footer(description);
 
@@ -321,11 +231,11 @@ main(int argc, char *argv[]) {
                  [&](auto) { std::print("{}", license_text); throw CLI::Success(); },
                  "Print full license")
       ->callback_priority(CLI::CallbackPriority::First);
-    app.add_option("-i,--input", infiles,
+    app.add_option("INFILES", infiles,
                    "Input file: FASTQ (plain, gz or bgzf) or BAM/SAM")
       ->required()
-      ->option_text("FILES");
-    // ->check(CLI::ExistingFile);
+      ->option_text("FILES")
+      ->check(CLI::ExistingFile);
     app.add_option("-o,--output", outdir, "Output directory")
       ->required()
       ->option_text("FILE");
@@ -404,25 +314,17 @@ main(int argc, char *argv[]) {
     mode.tiles(do_tiles);
     mode.kmers(do_kmers);
 
-    // ADS: make this real now with to<vector> to simplify debugging later
-    const auto outfiles =
-      outdirs | std::views::transform([](const auto &d) {
-        return (std::filesystem::path{d} / outfile_name).string();
-      }) |
-      std::ranges::to<std::vector>();
+    const auto outfiles = std::views::transform(outdirs, [](const auto &d) {
+      return (std::filesystem::path{d} / outfile_name).string();
+    });
 
-    make_reads_files(mode, buf_size, n_threads, input_format,
-                     format_description, infos, infiles, outfiles);
+    start_analysis(mode, buf_size, n_threads, input_format, format_description,
+                   infos, infiles, outfiles);
 
-    if (verbose) {
-      // ADS: 'count()' because macos has locale issues formatting times
-      const auto dur = [](const auto d) {
-        return std::chrono::duration_cast<std::chrono::duration<double>>(d)
-          .count();
-      };
-      const auto stop_time{std::chrono::high_resolution_clock::now()};
-      std::print("total run time: {:.6g}s\n", dur(stop_time - start_time));
-    }
+    if (verbose)
+      std::println(
+        "total run time: {:.6g}s",
+        duration(start_time, std::chrono::high_resolution_clock::now()));
   }
   catch (const std::exception &e) {
     std::println("{}", e.what());
