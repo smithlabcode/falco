@@ -61,6 +61,9 @@ if(PACKAGE)
   set(ZLIB_USE_STATIC_LIBS on)
   set(LIBDEFLATE_USE_STATIC_LIBS on)
   set(HTSLIB_USE_STATIC_LIBS on)
+  if(USE_ISAL)
+    set(ISAL_USE_STATIC_LIBS on)
+  endif()
   add_link_options(-static-libgcc -static-libstdc++)
   if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # not macOS
     add_link_options(-s)
@@ -71,6 +74,11 @@ find_package(LIBDEFLATE REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(HTSLIB REQUIRED)
 find_package(Threads REQUIRED)
+
+if(USE_ISAL)
+  find_package(ISAL REQUIRED)
+  add_compile_options(-DHAVE_IGZIP_LIB)
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL Release)
   include(CheckIPOSupported)
@@ -95,6 +103,9 @@ target_link_libraries(duplication_results PRIVATE HTSLIB::HTSLIB)
 
 add_library(fastq_file OBJECT src/fastq_file.cpp)
 target_link_libraries(fastq_file PRIVATE HTSLIB::HTSLIB)
+if (USE_ISAL)
+  target_link_libraries(fastq_file PUBLIC ISAL::ISAL)
+endif()
 
 add_library(bam_file OBJECT src/bam_file.cpp)
 target_link_libraries(bam_file PRIVATE HTSLIB::HTSLIB)
@@ -109,7 +120,7 @@ add_library(format_output OBJECT src/format_output.cpp)
 target_link_libraries(format_output PRIVATE HTSLIB::HTSLIB)
 
 add_executable(falco2 src/falco2.cpp)
-target_link_libraries(falco2 PUBLIC
+target_link_libraries(falco2 PRIVATE
   tile_processor
   contaminants
   adapter_matcher
