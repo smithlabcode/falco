@@ -26,7 +26,6 @@
 
 #include "bam_file.hpp"
 #include "falco_utils.hpp"
-#include "fastq_file.hpp"
 
 #include <array>
 #include <charconv>
