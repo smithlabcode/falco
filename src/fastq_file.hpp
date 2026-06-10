@@ -26,6 +26,11 @@
 
 #include "falco_utils.hpp"  // for falco_thread_pool
 
+#ifdef HAVE_IGZIP_LIB
+#include <cstdio>
+#include <isa-l/igzip_lib.h>
+#endif  // HAVE_IGZIP_LIB
+
 #include <htslib/bgzf.h>
 #include <htslib/sam.h>
 
@@ -259,6 +264,135 @@ struct fastq_bgzf_file {
   }
 };
 
+#ifdef HAVE_IGZIP_LIB
+
+class fastq_gz_file {
+public:
+  using rec_t = fqrec;
+  fastq_buffer buf;
+  std::int64_t cursor{};
+
+private:
+  static constexpr auto input_buf_size = 16L * 1024L * 1024L;
+  inflate_state state{};
+  isal_gzip_header gz_hdr{};
+  std::vector<char> outbuf;
+  std::vector<char> inbuf;
+  std::unique_ptr<std::FILE, int (*)(std::FILE *)> in;
+
+public:
+  // clang-format off
+  [[nodiscard]] auto size() const { return buf.sz; }
+  [[nodiscard]] auto get_cursor() const { return cursor; }
+  [[nodiscard]] auto get_buf_beg() const { return buf.data; }
+  [[nodiscard]] auto get_buf_end() const { return buf.data + buf.sz; }
+  auto set_cursor(const auto c) { cursor = c; }
+  // clang-format on
+
+  explicit fastq_gz_file(const std::string &filename,
+                         const std::int64_t bufsize) :
+    outbuf(bufsize), inbuf(input_buf_size),
+    in(std::fopen(std::data(filename), "r"), &std::fclose) {
+    if (in == nullptr)
+      throw std::runtime_error("failed to open " + filename);
+
+    isal_inflate_init(&state);
+    state.crc_flag = ISAL_GZIP_NO_HDR_VER;
+    update_state_in();
+
+    // Actually read and save the header info
+    isal_gzip_header_init(&gz_hdr);
+    const auto ret = isal_read_gzip_header(&state, &gz_hdr);
+    if (ret != ISAL_DECOMP_OK)
+      throw std::runtime_error("failed to read gz header from: " + filename);
+    buf.sz = 0;
+    buf.data = std::data(outbuf);
+  }
+
+  [[nodiscard]] operator bool() const {
+    // ADS: check both conditions below: small files might hit eof on first read
+    return !std::feof(in.get()) || state.avail_in > 0;
+  }
+
+  auto
+  load_next() {
+    if (cursor > 0)
+      shift_buffer();
+    // ADS: below likely won't happen just after reading header in constructor
+    if (state.avail_in == 0)
+      update_state_in();
+    if (state.block_state == ISAL_BLOCK_FINISH && !process_header()) {
+      // ADS: we only reach this point if we have multiple gz in the same file
+      return;
+    }
+
+    // ADS: sz could be the position right after the previous decompressed, but
+    // not-yet-used, data
+    std::int64_t remaining_capacity = std::ssize(outbuf) - buf.sz;
+
+    do {
+      state.avail_out = input_buf_size;
+
+      if (remaining_capacity < input_buf_size) {
+        outbuf.resize(std::size(outbuf) + input_buf_size);
+        remaining_capacity += input_buf_size;
+        buf.data = std::data(outbuf);
+      }
+
+      state.next_out =
+        reinterpret_cast<std::uint8_t *>(std::data(outbuf) + buf.sz);
+
+      const auto r = isal_inflate(&state);
+      if (r != ISAL_DECOMP_OK && r != ISAL_END_INPUT)
+        throw std::runtime_error("failure during decompression");
+
+      assert(state.avail_out <= input_buf_size);
+      const std::int64_t n_bytes = input_buf_size - state.avail_out;
+
+      remaining_capacity -= n_bytes;
+      buf.sz += n_bytes;
+
+    } while (state.avail_out == 0);
+    cursor = 0;
+  }
+
+private:
+  auto
+  update_state_in() -> void {
+    const auto fread = [&](auto &b, const auto n) {
+      return static_cast<std::uint32_t>(std::fread(b, 1, n, in.get()));
+    };
+    state.next_in = reinterpret_cast<std::uint8_t *>(std::data(inbuf));
+    state.avail_in = fread(state.next_in, input_buf_size);
+  }
+
+  [[nodiscard]] auto
+  process_header() -> bool {
+    isal_inflate_reset(&state);
+    state.crc_flag = ISAL_GZIP_NO_HDR;
+    isal_gzip_header_init(&gz_hdr);  // process extra headers
+    // skip the next header
+    const auto ret = isal_read_gzip_header(&state, &gz_hdr);
+    if (ret != ISAL_DECOMP_OK)  // allow trailing junk
+      return false;
+    return true;
+  }
+
+  auto
+  shift_buffer() -> void {
+    const auto buf_data = std::data(outbuf);
+    const auto n_bytes_to_keep = buf.sz - cursor;
+    std::memcpy(buf_data, buf_data + cursor, n_bytes_to_keep);
+    buf.sz = n_bytes_to_keep;
+    cursor = 0;
+  }
+};
+
+#else
+
+// Without igzip just use BGZF from HTSLib, which defaults to ZLib (not
+// libdeflate) for decompressing non-BGZF gz files.
+
 struct fastq_gz_file {
   using rec_t = fqrec;
   std::int64_t buf_size{};  // size of allocated buffer
@@ -314,6 +448,8 @@ struct fastq_gz_file {
     cursor = 0;  // cursor always moves to zero because buffer is not mmapped
   }
 };
+
+#endif  // HAVE_IGZIP_LIB
 
 [[nodiscard]] static inline auto
 get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
