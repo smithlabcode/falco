@@ -59,6 +59,7 @@ struct file_info {
   std::string description;
   std::int64_t size{};
   std::uint64_t n_reads_est{};
+  std::uint64_t read_len_est{};
   falco::encoding encoding{};
   bool has_tiles{};
   std::uint32_t tile_id_position{};
@@ -71,7 +72,7 @@ struct file_info {
   }
 
   NLOHMANN_DEFINE_TYPE_INTRUSIVE(file_info, name, format, description, size,
-                                 n_reads_est, encoding, has_tiles,
+                                 n_reads_est, read_len_est, encoding, has_tiles,
                                  tile_id_position);
 };
 
