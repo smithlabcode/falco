@@ -26,10 +26,11 @@
 
 #include "falco_utils.hpp"  // for falco_thread_pool
 
-#ifdef HAVE_IGZIP_LIB
-#include <cstdio>
+#ifdef HAVE_ISAL
 #include <isa-l/igzip_lib.h>
-#endif  // HAVE_IGZIP_LIB
+#else
+#include <zlib.h>
+#endif  // HAVE_ISAL
 
 #include <htslib/bgzf.h>
 #include <htslib/sam.h>
@@ -43,6 +44,7 @@
 #include <cerrno>
 #include <concepts>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -247,13 +249,13 @@ struct fastq_bgzf_file {
   auto
   load_next() {
     if (cursor > 0) {
-      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      std::memmove(buf.data, buf.data + cursor, buf.sz - cursor);
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      std::copy_n(buf.data + cursor, buf.sz - cursor, buf.data);
       cursor = buf.sz - cursor;  // backup to after previous data
     }
     start_pos_in_file = cursor;
     const auto n_bytes = buf_size - start_pos_in_file;
-    // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     const auto r = bgzf_read(f.get(), buf.data + start_pos_in_file, n_bytes);
     if (r < 0) {
       // ADS: cleanup
@@ -266,7 +268,7 @@ struct fastq_bgzf_file {
   }
 };
 
-#ifdef HAVE_IGZIP_LIB
+#ifdef HAVE_ISAL
 
 class fastq_gz_file {
 public:
@@ -342,7 +344,7 @@ public:
     }
 
     // ADS: buf.sz is right after previous decompressed but not-yet-used data
-    std::int64_t remaining_capacity = std::ssize(outbuf) - buf.sz;
+    const std::int64_t remaining_capacity = std::ssize(outbuf) - buf.sz;
 
     state.avail_out = remaining_capacity;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -365,7 +367,7 @@ private:
     const auto fread = [&](auto &b, const auto n) {
       return static_cast<std::uint32_t>(std::fread(b, 1, n, in.get()));
     };
-    // NOLINTNEXTLINE (cppcoreguidelines-pro-type-reinterpret-cast)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     state.next_in = reinterpret_cast<std::uint8_t *>(std::data(inbuf));
     state.avail_in = fread(state.next_in, std::size(inbuf));
   }
@@ -393,30 +395,25 @@ private:
   }
 };
 
-#else
-
-// Without igzip just use BGZF from HTSLib, which defaults to ZLib (not
-// libdeflate) for decompressing non-BGZF gz files.
+#else  // use bgzf for ordinary gz files
 
 struct fastq_gz_file {
   using rec_t = fqrec;
   std::int64_t buf_size{};  // size of allocated buffer
+  std::int64_t buf_used{};
   std::int64_t filesize{};
   fastq_buffer buf{};
-  std::int64_t start_pos_in_file{};  // file offset for buffer start
-  std::int64_t stop_pos_in_file{};   // file offset for buffer stop
-  std::int64_t cursor{};             // position in buffer
+  std::int64_t cursor{};  // position in buffer
   std::unique_ptr<BGZF, int (*)(BGZF *)> f;
 
   fastq_gz_file(const std::string &filename, const std::int64_t buf_size) :
-    buf_size{buf_size},
+    buf_size{buf_size}, buf_used{buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
-    stop_pos_in_file{buf_size},
+    buf(new char[buf_size], 0),
     f(bgzf_open(std::data(filename), "r"), &bgzf_close) {
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
-    buf.data = new char[buf_size];  // NOLINT (cppcoreguidelines-owning-memory)
   }
 
   // clang-format off
@@ -430,31 +427,29 @@ struct fastq_gz_file {
 
   ~fastq_gz_file() { delete[] buf.data; }
 
-  [[nodiscard]] operator bool() const { return stop_pos_in_file == buf_size; }
+  [[nodiscard]] operator bool() const { return buf_used == buf_size; }
 
   auto
   load_next() {
     if (cursor > 0) {
-      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      std::memmove(buf.data, buf.data + cursor, buf.sz - cursor);
-      cursor = buf.sz - cursor;  // backup to after previous data
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      std::copy_n(buf.data + cursor, buf.sz - cursor, buf.data);
+      cursor = buf.sz - cursor;  // rewind to after previous data
     }
-    start_pos_in_file = cursor;
-    const auto n_bytes = buf_size - start_pos_in_file;
-    // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    const auto r = bgzf_read(f.get(), buf.data + start_pos_in_file, n_bytes);
+    const auto n_bytes = buf_size - cursor;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    const auto r = bgzf_read(f.get(), buf.data + cursor, n_bytes);
     if (r < 0) {
-      // ADS: cleanup
-      throw std::system_error(std::make_error_code(std::errc(errno)),
-                              "failed reading gz input file");
+      buf_used = 0;
+      return;
     }
-    stop_pos_in_file = start_pos_in_file + r;
-    buf.sz = stop_pos_in_file;
+    buf.sz = cursor + r;
+    buf_used = buf.sz;
     cursor = 0;  // cursor always moves to zero because buffer is not mmapped
   }
 };
 
-#endif  // HAVE_IGZIP_LIB
+#endif  // HAVE_ISAL
 
 [[nodiscard]] static inline auto
 get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
