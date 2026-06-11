@@ -54,7 +54,8 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 }
 
 [[nodiscard]] auto
-adapter_matcher::string(const std::uint64_t n_reads) const -> std::string {
+adapter_matcher::get_report(const std::uint64_t n_reads,
+                            std::string &grade) const -> std::string {
   static constexpr auto start_module_tag = ">>Adapter Content\t{}\n";
   static constexpr auto header = "#Position";
   static const auto to_flat = [](const auto &fmt, const auto data) {
@@ -66,7 +67,7 @@ adapter_matcher::string(const std::uint64_t n_reads) const -> std::string {
   const auto mc =
     std::ranges::max(adap_counts | std::views::transform(std::ranges::max));
   const auto mcf = as_frac(mc, n_reads);
-  const auto grade = get_grade(grade_cutoffs, mcf);
+  grade = get_grade(grade_cutoffs, mcf);
 
   auto r = std::format(start_module_tag, grade);
   r += header + to_flat([](const auto x) { return std::format("\t{}", x); },

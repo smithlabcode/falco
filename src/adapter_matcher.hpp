@@ -115,7 +115,8 @@ struct adapter_matcher {
   operator+=(const adapter_matcher &rhs) -> const adapter_matcher &;
 
   [[nodiscard]] auto
-  string(const std::uint64_t n_reads) const -> std::string;
+  get_report(const std::uint64_t n_reads,
+             std::string &grade) const -> std::string;
 };
 
 #endif  // SRC_ADAPTER_MATCHER_HPP_
