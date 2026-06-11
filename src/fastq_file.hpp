@@ -136,7 +136,9 @@ static inline auto
 cleanup_mmap_fastq(fastq_buffer &buf) {
   if (buf.data == nullptr)
     return;
-  [[maybe_unused]] const int rc = munmap(static_cast<void *>(buf.data), buf.sz);
+  if (munmap(static_cast<void *>(buf.data), buf.sz))
+    throw std::system_error(std::make_error_code(std::errc(errno)),
+                            "failed to unmap file");
   buf.data = nullptr;
   buf.sz = 0;
 }
@@ -273,7 +275,18 @@ public:
   std::int64_t cursor{};
 
 private:
-  static constexpr auto input_buf_size = 16L * 1024L * 1024L;
+  static constexpr auto assumed_compression_ratio = 5;
+
+  [[nodiscard]] static constexpr auto
+  get_inbuf_size(const std::int64_t x) -> std::int64_t {
+    return (x + assumed_compression_ratio - 1) / assumed_compression_ratio;
+  }
+
+  [[nodiscard]] static constexpr auto
+  get_outbuf_size(const std::int64_t x) -> std::int64_t {
+    return x - get_inbuf_size(x);
+  }
+
   inflate_state state{};
   isal_gzip_header gz_hdr{};
   std::vector<char> outbuf;
@@ -285,13 +298,15 @@ public:
   [[nodiscard]] auto size() const { return buf.sz; }
   [[nodiscard]] auto get_cursor() const { return cursor; }
   [[nodiscard]] auto get_buf_beg() const { return buf.data; }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] auto get_buf_end() const { return buf.data + buf.sz; }
   auto set_cursor(const auto c) { cursor = c; }
   // clang-format on
 
   explicit fastq_gz_file(const std::string &filename,
                          const std::int64_t bufsize) :
-    outbuf(bufsize), inbuf(input_buf_size),
+    outbuf(get_outbuf_size(bufsize)),
+    inbuf(get_inbuf_size(bufsize)),  // input_buf_size),
     in(std::fopen(std::data(filename), "r"), &std::fclose) {
     if (in == nullptr)
       throw std::runtime_error("failed to open " + filename);
@@ -326,33 +341,21 @@ public:
       return;
     }
 
-    // ADS: sz could be the position right after the previous decompressed, but
-    // not-yet-used, data
+    // ADS: buf.sz is right after previous decompressed but not-yet-used data
     std::int64_t remaining_capacity = std::ssize(outbuf) - buf.sz;
 
-    do {
-      state.avail_out = input_buf_size;
+    state.avail_out = remaining_capacity;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    state.next_out = reinterpret_cast<std::uint8_t *>(get_buf_end());
 
-      if (remaining_capacity < input_buf_size) {
-        outbuf.resize(std::size(outbuf) + input_buf_size);
-        remaining_capacity += input_buf_size;
-        buf.data = std::data(outbuf);
-      }
+    const auto r = isal_inflate(&state);
+    if (r != ISAL_DECOMP_OK && r != ISAL_END_INPUT)
+      throw std::runtime_error("failure during decompression");
 
-      state.next_out =
-        reinterpret_cast<std::uint8_t *>(std::data(outbuf) + buf.sz);
+    assert(remaining_capacity >= state.avail_out);
+    const std::int64_t n_bytes = remaining_capacity - state.avail_out;
 
-      const auto r = isal_inflate(&state);
-      if (r != ISAL_DECOMP_OK && r != ISAL_END_INPUT)
-        throw std::runtime_error("failure during decompression");
-
-      assert(state.avail_out <= input_buf_size);
-      const std::int64_t n_bytes = input_buf_size - state.avail_out;
-
-      remaining_capacity -= n_bytes;
-      buf.sz += n_bytes;
-
-    } while (state.avail_out == 0);
+    buf.sz += n_bytes;
     cursor = 0;
   }
 
@@ -362,8 +365,9 @@ private:
     const auto fread = [&](auto &b, const auto n) {
       return static_cast<std::uint32_t>(std::fread(b, 1, n, in.get()));
     };
+    // NOLINTNEXTLINE (cppcoreguidelines-pro-type-reinterpret-cast)
     state.next_in = reinterpret_cast<std::uint8_t *>(std::data(inbuf));
-    state.avail_in = fread(state.next_in, input_buf_size);
+    state.avail_in = fread(state.next_in, std::size(inbuf));
   }
 
   [[nodiscard]] auto
@@ -382,6 +386,7 @@ private:
   shift_buffer() -> void {
     const auto buf_data = std::data(outbuf);
     const auto n_bytes_to_keep = buf.sz - cursor;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     std::memcpy(buf_data, buf_data + cursor, n_bytes_to_keep);
     buf.sz = n_bytes_to_keep;
     cursor = 0;
@@ -508,14 +513,14 @@ get_chunks(T &fq, const std::int64_t n_chunks) {
 
 [[nodiscard]] auto
 estimate_n_reads_fastq(const std::string &filename)
-  -> std::tuple<std::uint64_t, std::int64_t>;
+  -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
 [[nodiscard]] auto
 estimate_n_reads_fastq_bgzf(const std::string &filename)
-  -> std::tuple<std::uint64_t, std::int64_t>;
+  -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
 [[nodiscard]] auto
 estimate_n_reads_fastq_gz(const std::string &filename)
-  -> std::tuple<std::uint64_t, std::int64_t>;
+  -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
 #endif  // SRC_FASTQ_FILE_HPP_
