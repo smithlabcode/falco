@@ -112,7 +112,7 @@ struct tile_processor {
   adjust_fastq_qual_encoding(const falco::encoding enc) -> void;
 
   [[nodiscard]] auto
-  string(const std::uint32_t len) const -> std::string;
+  get_report(const std::uint32_t len, std::string &grade) const -> std::string;
 
   auto
   operator+=(const tile_processor &rhs) -> const tile_processor &;

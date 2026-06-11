@@ -93,7 +93,8 @@ tile_processor::trim() -> void {
 }
 
 [[nodiscard]] auto
-tile_processor::string(const std::uint32_t len) const -> std::string {
+tile_processor::get_report(const std::uint32_t len,
+                           std::string &grade) const -> std::string {
   static constexpr auto max_precision{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
   static constexpr auto header = "#Tile\t"
@@ -130,7 +131,8 @@ tile_processor::string(const std::uint32_t len) const -> std::string {
   const auto neg_min_cent_qual =
     -std::ranges::min(centered | std::views::values | std::views::join);
 
-  auto r = std::format(start_tag, get_grade(grade_cutoffs, neg_min_cent_qual));
+  grade = get_grade(grade_cutoffs, neg_min_cent_qual);
+  auto r = std::format(start_tag, grade);
   r += header;
   for (const auto &[i, q] : centered | std::views::take(len))
     for (auto j = 0u; j < std::size(q); ++j)
