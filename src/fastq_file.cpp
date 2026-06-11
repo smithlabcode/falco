@@ -42,7 +42,7 @@
 static constexpr auto fastq_lines_per_read = 4;
 
 [[nodiscard]] static auto
-estimate_read_length(const auto data, const auto n) {
+estimate_read_length(const auto &data, const auto n) {
   assert(n >= 1);
   const auto valid = [](const auto c) {
     return c == 'A' || c == 'C' || c == 'G' || c == 'T' || c == 'N';
