@@ -35,7 +35,7 @@
 
 [[nodiscard]] auto
 estimate_n_reads_bam(const std::string &filename)
-  -> std::tuple<std::uint64_t, std::int64_t> {
+  -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t> {
   static constexpr auto max_n_reads = 128 * 1024;
   std::unique_ptr<htsFile, int (*)(htsFile *)> f(
     hts_open(std::data(filename), "r"), &hts_close);
@@ -57,10 +57,11 @@ estimate_n_reads_bam(const std::string &filename)
   const auto pos_after_header = htell(fp);
   bam1_t rec{};
   std::uint64_t n_reads{};
+  std::uint64_t total_read_len{};
   int r{};
   while (n_reads++ < max_n_reads &&
          (r = sam_read1(f.get(), h.get(), &rec)) >= 0)
-    ;
+    total_read_len += rec.core.l_qseq;
   if (r < -1)  // error
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "error reading bam record from: " + filename);
@@ -69,5 +70,5 @@ estimate_n_reads_bam(const std::string &filename)
   const auto filesize = std::filesystem::file_size(filename);
   const auto estimate = static_cast<std::uint64_t>(
     as_frac(n_reads * (filesize - pos_after_header), n_compressed_bytes));
-  return {estimate, filesize};
+  return {estimate, total_read_len / n_reads, filesize};
 }
