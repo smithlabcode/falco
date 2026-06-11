@@ -171,7 +171,7 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
 }
 
 [[nodiscard]] auto
-kmer_counter::string() const -> std::string {
+kmer_counter::get_report(std::string &grade) const -> std::string {
   static constexpr auto start_tag = ">>Kmer Content\t{}\n";
   static constexpr auto header = "#Sequence\t"
                                  "Count\t"
@@ -182,7 +182,8 @@ kmer_counter::string() const -> std::string {
   const auto pval = results.front().pval;
   const auto neg_log_p_val =
     pval > 0.0 ? -std::log10(pval) : std::numeric_limits<double>::max();
-  auto r = std::format(start_tag, get_grade(grade_cutoffs, neg_log_p_val));
+  grade = get_grade(grade_cutoffs, neg_log_p_val);
+  auto r = std::format(start_tag, grade);
   r += header;
   for (const auto &res : results | std::views::take(n_kmers_to_report))
     // cppcheck-suppress useStlAlgorithm

@@ -112,7 +112,7 @@ struct kmer_counter {
   get_kmer_results() const -> std::vector<kmer_result>;
 
   [[nodiscard]] auto
-  string() const -> std::string;
+  get_report(std::string &grade) const -> std::string;
 
   [[nodiscard]] static auto
   decode_kmer(auto word, const auto n_bases) -> std::string;
