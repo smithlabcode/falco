@@ -192,12 +192,12 @@ struct alignas(assumed_page_size) falco_results {
 
   template <typename self_t>
   [[nodiscard]] auto
-  string(this self_t &self, const file_info &info) {
-    return self.string_impl(info);
+  get_report(this self_t &self, const file_info &info, grades &g) {
+    return self.get_report_impl(info, g);
   }
 
   [[nodiscard]] auto
-  string_impl(const file_info &info) const {
+  get_report_impl(const file_info &info, grades &g) const {
     const auto nucs_no_n = adjust_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
     const auto gc_acc = [](const auto a, const auto &nuc) {
@@ -209,17 +209,18 @@ struct alignas(assumed_page_size) falco_results {
     const std::uint64_t min_read_len =
       std::distance(std::cbegin(lengths), std::ranges::find_if(lengths, gt0));
     const auto encoding_label = get_quality_score_label(info.encoding);
-    auto r = format_basic_stats(info.name, n_reads, min_read_len, max_read_len,
-                                total_gc, total_nucs, encoding_label);
-    r += format_qual_by_pos(qual_by_pos);
-    r += format_qual_by_read(qual_by_read);
-    r += format_base_composition(nucs_no_n);  // base composition
-    r += format_gc_content(gcs);              // GC content
-    r += format_n_counts(n_counts, nucs);     // N content
-    r += format_read_lengths(lengths);        // read lengths
-    r += dr.format_duplication_levels();      // duplication results
-    r += dr.format_overrepresented();         // overrepresented sequences
-    r += am.string(n_reads);                  // adapter content
+    auto r =
+      format_basic_stats(info.name, n_reads, min_read_len, max_read_len,
+                         total_gc, total_nucs, encoding_label, g.basic_stats);
+    r += format_qual_by_pos(qual_by_pos, g.qual_by_pos);
+    r += format_qual_by_read(qual_by_read, g.qual_by_read);
+    r += format_base_composition(nucs_no_n, g.base_composition);
+    r += format_gc_content(gcs, g.gc_content);
+    r += format_n_counts(n_counts, nucs, g.n_counts);
+    r += format_read_lengths(lengths, g.read_lengths);
+    r += dr.format_duplication_levels(g.duplication_levels);
+    r += dr.format_overrepresented(g.overrepresented);
+    r += am.get_report(n_reads, g.adapter_content);
     return r;
   }
 };
@@ -257,8 +258,9 @@ struct falco_results_tile : public falco_results {
   }
 
   [[nodiscard]] auto
-  string_impl(const file_info &info) const {
-    return falco_results::string_impl(info) + tp.string(max_read_len);
+  get_report_impl(const file_info &info, grades &g) const {
+    return falco_results::get_report_impl(info, g) +
+           tp.get_report(max_read_len, g.tile_analaysis);
   }
 };
 
@@ -279,8 +281,9 @@ struct falco_results_kmer : public falco_results {
   }
 
   [[nodiscard]] auto
-  string_impl(const file_info &info) const {
-    return falco_results::string_impl(info) + kc.string();
+  get_report_impl(const file_info &info, grades &g) const {
+    return falco_results::get_report_impl(info, g) +
+           kc.get_report(g.kmer_content);
   }
 };
 
@@ -307,8 +310,9 @@ struct falco_results_tile_kmer : public falco_results_tile {
   }
 
   [[nodiscard]] auto
-  string_impl(const file_info &info) const {
-    return falco_results_tile::string_impl(info) + kc.string();
+  get_report_impl(const file_info &info, grades &g) const {
+    return falco_results_tile::get_report_impl(info, g) +
+           kc.get_report(g.kmer_content);
   }
 };
 
