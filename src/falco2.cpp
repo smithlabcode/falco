@@ -42,6 +42,8 @@ read duplication is analyzed (borrowing from preseq).
 #include "quality_score.hpp"
 #include "tile_processor.hpp"
 
+#include "format_output.hpp"
+
 #include "CLI11/CLI11.hpp"
 
 #include <config.h>
@@ -85,10 +87,13 @@ run(auto &infos, auto &reads_files, const auto n_threads,
     set_quality_score_encoding(results.qual_by_pos, info);
     if (!is_mapped_reads(info.format))
       results.finalize_qual_encoding(info.encoding);
+    grades g;
+    const auto report = results.get_report(info, g);
+
     std::ofstream out(outfile);
     if (!out)
       throw std::runtime_error("failed to open file: " + outfile);
-    std::print(out, "{}", results.string(info));
+    std::print(out, "{}", report);
   }
 }
 
