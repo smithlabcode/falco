@@ -216,6 +216,7 @@ struct bam_file {
   auto operator=(bam_file &&) noexcept -> bam_file & = delete;
   // default move for emplace
   bam_file(bam_file &&) noexcept = default;
+  ~bam_file() noexcept = default;
   // clang-format on
 
   [[nodiscard]] operator bool() const { return !hit_eof; }
