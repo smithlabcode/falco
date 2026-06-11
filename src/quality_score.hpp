@@ -42,6 +42,7 @@ enum class encoding : std::uint8_t {
   solexa = 2,
 };
 
+// NOLINTNEXTLINE
 NLOHMANN_JSON_SERIALIZE_ENUM(  //
   encoding,                    //
   {
