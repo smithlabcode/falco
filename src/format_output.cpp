@@ -31,6 +31,7 @@
 #include <cassert>
 #include <cmath>
 #include <config.h>
+#include <filesystem>
 #include <format>
 #include <functional>
 #include <initializer_list>
@@ -42,6 +43,33 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+
+[[nodiscard]] auto
+grades::get_summary(const std::string &infile_path) const -> std::string {
+  const auto infile = std::filesystem::path(infile_path).filename().string();
+  const auto up = [](const auto &s) {
+    const auto u = [](const std::uint8_t c) { return std::toupper(c); };
+    return std::views::transform(s, u) | std::ranges::to<std::string>();
+  };
+  const auto compose = [&](const auto &g, const auto &lbl) {
+    static constexpr auto f = "{}\t{}\t{}\n";
+    return g.empty() ? std::string{} : std::format(f, up(g), lbl, infile);
+  };
+  std::string r;
+  r += compose(basic_stats, "Basic Statistics");
+  r += compose(qual_by_pos, "Per base sequence quality");
+  r += compose(tile_analaysis, "Per tile sequence quality");
+  r += compose(qual_by_read, "Per sequence quality scores");
+  r += compose(base_composition, "Per base sequence content");
+  r += compose(gc_content, "Per sequence GC content");
+  r += compose(n_counts, "Per base N content");
+  r += compose(read_lengths, "Sequence Length Distribution");
+  r += compose(duplication_levels, "Sequence Duplication Levels");
+  r += compose(overrepresented, "Overrepresented sequences");
+  r += compose(adapter_content, "Adapter Content");
+  r += compose(kmer_content, "Kmer Content");
+  return r;
+}
 
 [[nodiscard]] auto
 get_grade_read_lengths(const std::vector<std::uint64_t> &lengths)

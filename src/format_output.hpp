@@ -46,6 +46,9 @@ struct grades {
   std::string adapter_content;
   std::string tile_analaysis;
   std::string kmer_content;
+
+  [[nodiscard]] auto
+  get_summary(const std::string &infile_path) const -> std::string;
 };
 
 [[nodiscard]] auto
