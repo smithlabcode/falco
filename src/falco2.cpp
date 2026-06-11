@@ -70,11 +70,21 @@ read duplication is analyzed (borrowing from preseq).
 #include <utility>
 #include <vector>
 
+static auto
+write_file(const auto &filename, const auto &data) {
+  std::ofstream out(filename);
+  if (!out)
+    throw std::runtime_error("failed to open file: " + filename);
+  std::print(out, "{}", data);
+}
+
 template <typename results_t>
 static auto
-run(auto &infos, auto &reads_files, const auto n_threads,
-    const auto &outfiles) {
+run(auto &infos, auto &reads_files, const auto n_threads, const auto &outdirs) {
   using rec_t = std::decay_t<decltype(reads_files)>::value_type::rec_t;
+  static constexpr auto report_filename = "fastqc_data.txt";
+  static constexpr auto summary_filename = "summary.txt";
+
   const auto n_files = std::size(reads_files);
 
   analyzer_t<results_t, rec_t> analyzer(n_threads, n_files, reads_files, infos);
@@ -82,39 +92,42 @@ run(auto &infos, auto &reads_files, const auto n_threads,
   for (const auto file_id : std::views::iota(0u, n_files))
     accumulate_results(analyzer.results, file_id);
 
-  for (const auto [results, info, outfile] :
-       std::views::zip(analyzer.results.front(), infos, outfiles)) {
+  for (const auto [results, info, outdir] :
+       std::views::zip(analyzer.results.front(), infos, outdirs)) {
     set_quality_score_encoding(results.qual_by_pos, info);
     if (!is_mapped_reads(info.format))
       results.finalize_qual_encoding(info.encoding);
     grades g;
     const auto report = results.get_report(info, g);
 
-    std::ofstream out(outfile);
-    if (!out)
-      throw std::runtime_error("failed to open file: " + outfile);
-    std::print(out, "{}", report);
+    const auto report_path =
+      (std::filesystem::path{outdir} / report_filename).string();
+    write_file(report_path, report);
+
+    const auto summary_path =
+      (std::filesystem::path{outdir} / summary_filename).string();
+    write_file(summary_path, g.get_summary(info.name));
   }
 }
 
 static auto
 run_mode_selector(const run_mode mode, std::vector<file_info> &infos,
                   auto &reads_files, const auto n_threads,
-                  const auto &outfiles) {
+                  const auto &outdirs) {
   if (tiles(mode) && kmers(mode))
-    run<falco_results_tile_kmer>(infos, reads_files, n_threads, outfiles);
+    run<falco_results_tile_kmer>(infos, reads_files, n_threads, outdirs);
   else if (tiles(mode))
-    run<falco_results_tile>(infos, reads_files, n_threads, outfiles);
+    run<falco_results_tile>(infos, reads_files, n_threads, outdirs);
   else if (kmers(mode))
-    run<falco_results_kmer>(infos, reads_files, n_threads, outfiles);
+    run<falco_results_kmer>(infos, reads_files, n_threads, outdirs);
   else
-    run<falco_results>(infos, reads_files, n_threads, outfiles);
+    run<falco_results>(infos, reads_files, n_threads, outdirs);
 }
 
 static auto
 start_analysis(const run_mode mode, const auto buf_size, const auto n_threads,
                const auto input_format, const auto &format_description,
-               auto &infos, const auto &infiles, const auto &outfiles) {
+               auto &infos, const auto &infiles, const auto &outdirs) {
   // ADS: this function is bloated mostly to avoid allowing default construction
   // or move assignment in the fastq_file, fastq_gz_file, etc.
   const auto n_infiles = std::size(infiles);
@@ -124,7 +137,7 @@ start_analysis(const run_mode mode, const auto buf_size, const auto n_threads,
     f.reserve(n_infiles);
     const auto m = [&](const auto &i) { f.emplace_back(i, buf_size, p); };
     std::ranges::for_each(infiles, m);
-    run_mode_selector(mode, infos, f, n_threads, outfiles);
+    run_mode_selector(mode, infos, f, n_threads, outdirs);
   }
   else if (input_format == falco::file_format::fastq_bgzf) {
     falco_thread_pool p(n_threads > 1 ? n_threads - 1 : 1);
@@ -132,21 +145,21 @@ start_analysis(const run_mode mode, const auto buf_size, const auto n_threads,
     f.reserve(n_infiles);
     const auto m = [&](const auto &i) { f.emplace_back(i, buf_size, p); };
     std::ranges::for_each(infiles, m);
-    run_mode_selector(mode, infos, f, n_threads, outfiles);
+    run_mode_selector(mode, infos, f, n_threads, outdirs);
   }
   else if (input_format == falco::file_format::fastq_gz) {
     std::vector<fastq_gz_file> f;
     f.reserve(n_infiles);
     const auto m = [&](const auto &i) { f.emplace_back(i, buf_size); };
     std::ranges::for_each(infiles, m);
-    run_mode_selector(mode, infos, f, n_threads, outfiles);
+    run_mode_selector(mode, infos, f, n_threads, outdirs);
   }
   else if (input_format == falco::file_format::fastq) {
     std::vector<fastq_file> f;
     f.reserve(n_infiles);
     const auto m = [&](const auto &i) { f.emplace_back(i, buf_size); };
     std::ranges::for_each(infiles, m);
-    run_mode_selector(mode, infos, f, n_threads, outfiles);
+    run_mode_selector(mode, infos, f, n_threads, outdirs);
   }
   else {
     std::println("unsupported file format: {}", format_description);
@@ -200,7 +213,6 @@ make_outdirs(const auto &ins, const auto &outdir) -> std::vector<std::string> {
 int
 main(int argc, char *argv[]) {
   try {
-    static constexpr auto outfile_name = "fastqc_data.txt";
     static constexpr auto buf_size_default = 512 * 1024 * 1024;
     std::vector<std::string> infiles;
     std::string contam_file;
@@ -319,12 +331,8 @@ main(int argc, char *argv[]) {
     mode.tiles(do_tiles);
     mode.kmers(do_kmers);
 
-    const auto outfiles = std::views::transform(outdirs, [](const auto &d) {
-      return (std::filesystem::path{d} / outfile_name).string();
-    });
-
     start_analysis(mode, buf_size, n_threads, input_format, format_description,
-                   infos, infiles, outfiles);
+                   infos, infiles, outdirs);
 
     if (verbose)
       std::println(
