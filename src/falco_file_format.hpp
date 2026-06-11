@@ -48,6 +48,7 @@ enum class file_format : std::uint8_t {
   bam,
 };
 
+// NOLINTNEXTLINE
 NLOHMANN_JSON_SERIALIZE_ENUM(  //
   file_format,                 //
   {
