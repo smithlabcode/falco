@@ -54,12 +54,14 @@ get_grade_read_lengths(const std::vector<std::uint64_t> &lengths)
 }
 
 [[nodiscard]] auto
-format_read_lengths(const std::vector<std::uint64_t> &lengths) -> std::string {
+format_read_lengths(const std::vector<std::uint64_t> &lengths,
+                    std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Sequence Length Distribution\t{}\n";
   static constexpr auto header = "#Length\t"
                                  "Count\n";
   const auto eq0 = [](const auto &x) { return std::get<1>(x) == 0; };
-  auto r = std::format(start_tag, get_grade_read_lengths(lengths));
+  grade = get_grade_read_lengths(lengths);
+  auto r = std::format(start_tag, grade);
   r += header;
   auto to_report = std::views::enumerate(lengths) | std::views::drop_while(eq0);
   for (const auto [idx, len] : to_report)
@@ -127,11 +129,13 @@ get_grade_gc_content(const falco::gc_content_array &gc_content) -> std::string {
 }
 
 [[nodiscard]] auto
-format_gc_content(const falco::gc_content_array &gc_content) -> std::string {
+format_gc_content(const falco::gc_content_array &gc_content,
+                  std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Per sequence GC content\t{}\n";
   static constexpr auto header = "#GC Content\t"
                                  "Count\n";
-  auto r = std::format(start_tag, get_grade_gc_content(gc_content));
+  grade = get_grade_gc_content(gc_content);
+  auto r = std::format(start_tag, grade);
   r += header;
   for (const auto [idx, gc] : std::views::enumerate(gc_content))
     r += std::format("{}\t{}\n", idx, gc);
@@ -162,13 +166,14 @@ get_grade_base_composition(const std::vector<falco::nuc_array> &nucs)
 }
 
 [[nodiscard]] auto
-format_base_composition(const std::vector<falco::nuc_array> &nucs)
-  -> std::string {
+format_base_composition(const std::vector<falco::nuc_array> &nucs,
+                        std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Per base sequence content\t{}\n";
   static constexpr auto header = "#Base\t"
                                  "G\tA\tT\tC\n";
   static constexpr auto base_permutation = {3, 0, 2, 1};
-  auto r = std::format(start_tag, get_grade_base_composition(nucs));
+  grade = get_grade_base_composition(nucs);
+  auto r = std::format(start_tag, grade);
   r += header;
   for (auto i = 0u; i < std::size(nucs); ++i) {
     r += std::format("{}", i + 1);
@@ -201,10 +206,12 @@ get_grade_n_counts(const std::vector<std::uint64_t> &n_counts,
 
 [[nodiscard]] auto
 format_n_counts(const std::vector<std::uint64_t> &n_counts,
-                const std::vector<falco::nuc_array> &nucs) -> std::string {
+                const std::vector<falco::nuc_array> &nucs,
+                std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Per base N content\t{}\n";
   static constexpr auto header = "#Base\t"
                                  "N-Count\n";
+  grade = get_grade_n_counts(n_counts, nucs);
   auto r = std::format(start_tag, get_grade_n_counts(n_counts, nucs));
   r += header;
   for (auto i = 0u; i < std::size(n_counts); ++i) {
@@ -230,11 +237,13 @@ get_grade_qual_by_read(const falco::qual_array &qual_by_read) -> std::string {
 }
 
 [[nodiscard]] auto
-format_qual_by_read(const falco::qual_array &qual_by_read) -> std::string {
+format_qual_by_read(const falco::qual_array &qual_by_read,
+                    std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Per sequence quality scores\t{}\n";
   static constexpr auto header = "#Quality\t"
                                  "Count\n";
-  auto r = std::format(start_tag, get_grade_qual_by_read(qual_by_read));
+  grade = get_grade_qual_by_read(qual_by_read);
+  auto r = std::format(start_tag, grade);
   r += header;
 
   // output quality values between first non-zero and last zero
@@ -284,7 +293,8 @@ get_grade_qual_by_pos(const std::vector<falco::qual_array> &qual)
 }
 
 [[nodiscard]] auto
-format_qual_by_pos(const std::vector<falco::qual_array> &qual) -> std::string {
+format_qual_by_pos(const std::vector<falco::qual_array> &qual,
+                   std::string &grade) -> std::string {
   static constexpr auto digits{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per base sequence quality\t{}\n";
   static constexpr auto header = "#Base\t"
@@ -299,7 +309,8 @@ format_qual_by_pos(const std::vector<falco::qual_array> &qual) -> std::string {
     return std::views::transform(a, with_tab) | std::views::join |
            std::ranges::to<std::string>();
   };
-  auto r = std::format(start_tag, get_grade_qual_by_pos(qual));
+  grade = get_grade_qual_by_pos(qual);
+  auto r = std::format(start_tag, grade);
   r += header;
   for (const auto [idx, q] : std::views::enumerate(qual))
     r += std::format("{}\t{:.{}g}{}\n", idx + 1, mean_tabular(q), digits,
@@ -313,8 +324,9 @@ format_basic_stats(const std::string &filename, const std::uint64_t n_reads,
                    const std::uint64_t min_read_len,
                    const std::uint64_t max_read_len,
                    const std::uint64_t total_gc, const std::uint64_t total_nucs,
-                   const std::string &encoding) -> std::string {
-  static constexpr auto grade = "pass";  // always a pass
+                   const std::string &encoding,
+                   std::string &grade) -> std::string {
+  static constexpr auto default_grade = "pass";  // always a pass
   static constexpr auto start_tag = "##Falco {}\n"
                                     ">>Basic Statistics\t{}\n";
   static constexpr auto header = "#Measure\t"
@@ -328,6 +340,7 @@ format_basic_stats(const std::string &filename, const std::uint64_t n_reads,
     return std::format("{:.1f} {}bp", as_frac(x, 1'000), "K");
     // NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
   };
+  grade = default_grade;
   auto r = std::format(start_tag, VERSION, grade);
   r += header;
   r += std::format("Filename\t{}\n", filename);
