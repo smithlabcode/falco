@@ -173,7 +173,7 @@ get_file_info(const auto &infiles) {
     const auto [input_format, format_description] = get_file_format(infile);
     const auto tile_id_position = get_tile_info(infile);
     const bool has_tiles = (tile_id_position != 0);
-    const auto [n_reads_est, filesize] = [&] {
+    const auto [n_reads_est, read_len_est, filesize] = [&] {
       if (input_format == falco::file_format::bam)
         return estimate_n_reads_bam(infile);
       if (input_format == falco::file_format::fastq_bgzf)
@@ -190,6 +190,7 @@ get_file_info(const auto &infiles) {
       .description = format_description,
       .size = filesize,
       .n_reads_est = n_reads_est,
+      .read_len_est = read_len_est,
       .has_tiles = has_tiles,
       .tile_id_position = tile_id_position,
     });
@@ -323,8 +324,8 @@ main(int argc, char *argv[]) {
     if (verbose) {
       std::println("input file format: {}", format_description);
       std::println("input files:");
-      for (auto infile : infiles)
-        std::println("{}", infile);
+      std::ranges::for_each(infiles,
+                            [](const auto &x) { std::println("{}", x); });
     }
 
     run_mode mode;
