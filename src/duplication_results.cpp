@@ -56,7 +56,8 @@ duplication_results::operator+=(const duplication_results &rhs)
 }
 
 [[nodiscard]] auto
-duplication_results::format_overrepresented() const -> std::string {
+duplication_results::format_overrepresented(std::string &grade) const
+  -> std::string {
   static constexpr auto start_tag = ">>Overrepresented sequences\t{}\n";
   static constexpr auto header = "#Sequence\t"
                                  "Count\t"
@@ -75,7 +76,7 @@ duplication_results::format_overrepresented() const -> std::string {
     return std::reduce(std::cbegin(v), std::cend(v));
   };
   const auto tot = reduce(std::views::values(dups));
-  const auto grade = get_grade(overrep_grade_cutoffs, as_frac(max_n_obs, tot));
+  grade = get_grade(overrep_grade_cutoffs, as_frac(max_n_obs, tot));
   auto r = std::format(start_tag, grade);
   if (!overrep.empty()) {
     r += header;
@@ -87,7 +88,8 @@ duplication_results::format_overrepresented() const -> std::string {
 }
 
 [[nodiscard]] auto
-duplication_results::format_duplication_levels() const -> std::string {
+duplication_results::format_duplication_levels(std::string &grade) const
+  -> std::string {
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
                                     "#Total Deduplicated Percentage\t{:.6f}\n";
   static constexpr auto header = "#Duplication Level\t"
@@ -150,7 +152,7 @@ duplication_results::format_duplication_levels() const -> std::string {
     std::reduce(std::cbegin(hist_mass), std::cend(hist_mass));
 
   const auto frac_dedup = as_frac(dedup_sum, mass_sum);
-  const auto grade = get_grade(grade_cutoffs, frac_dedup);
+  grade = get_grade(grade_cutoffs, frac_dedup);
   auto r = std::format(start_tag, grade, pct(frac_dedup));
   r += header;
 

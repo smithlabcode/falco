@@ -54,10 +54,10 @@ struct duplication_results {
   initialize(const std::uint64_t est_n_reads) -> void;
 
   [[nodiscard]] auto
-  format_overrepresented() const -> std::string;
+  format_overrepresented(std::string &grade) const -> std::string;
 
   [[nodiscard]] auto
-  format_duplication_levels() const -> std::string;
+  format_duplication_levels(std::string &grade) const -> std::string;
 
   auto
   operator+=(const duplication_results &rhs) -> const duplication_results &;
