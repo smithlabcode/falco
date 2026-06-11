@@ -33,6 +33,7 @@
 #include "kmer_counter.hpp"
 #include "tile_processor.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <ranges>
 #include <string>
