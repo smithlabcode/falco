@@ -25,7 +25,7 @@
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
-#include "boost_unordered.hpp"
+#include "boost/boost_unordered.hpp"
 
 #include <htslib/bgzf.h>
 #include <htslib/sam.h>
