@@ -117,4 +117,10 @@ template <> struct std::hash<falco_word> {
   }
 };
 
+[[nodiscard]] inline auto
+hash_value(const falco_word &fw) noexcept -> std::uint64_t {
+  /// Some containers might need this instead of std::hash for ADL
+  return fw.hash();
+}
+
 #endif  // SRC_FALCO_WORD_HPP_
