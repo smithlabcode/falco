@@ -25,6 +25,8 @@
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
+#include "boost_unordered.hpp"
+
 #include <htslib/bgzf.h>
 #include <htslib/sam.h>
 
@@ -40,7 +42,6 @@
 #include <ranges>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 

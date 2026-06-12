@@ -27,6 +27,8 @@
 #include "bam_file.hpp"
 #include "falco_utils.hpp"
 
+#include "boost_unordered.hpp"
+
 #include <array>
 #include <charconv>
 #include <cstdint>
@@ -38,7 +40,6 @@
 #include <system_error>
 #include <thread>  // IWYU pragma: keep
 #include <type_traits>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -46,12 +47,10 @@ namespace falco {
 enum class encoding : std::uint8_t;
 }
 
-// ADS: notes
+// Notes
 //
-// - The number of tiles should never exceed 2500
+// - The number of tiles should never exceed 2500?
 // - Among the first 10k reads, all should contribute to tiles?
-// - The quality score offset should be subtracted before any summary analysis
-//   (e.g., computing the mean), but with enough data it doesn't seem to matter
 
 struct tile_processor {
   static constexpr auto grade_cutoffs = std::array{
@@ -69,7 +68,7 @@ struct tile_processor {
   std::uint32_t max_read_len{};
   std::uint32_t tile_id{};
   qual_vec::iterator qual{};
-  std::unordered_map<std::uint32_t, qual_vec> quals;
+  boost::unordered_flat_map<std::uint32_t, qual_vec> quals;
 
   auto
   trim() -> void;
