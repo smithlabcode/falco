@@ -220,7 +220,6 @@ main(int argc, char *argv[]) {
     std::string outdir;
     std::int64_t buf_size{buf_size_default};
     std::uint32_t n_threads{1};
-    std::uint32_t n_bam_threads{1};
 
     bool do_tiles{};
     bool do_kmers{};
@@ -261,9 +260,6 @@ main(int argc, char *argv[]) {
                    "File of contaminant sequences to use")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
-    app.add_option("-b,--bam-threads", n_bam_threads,
-                   "Threads to use for decompression")
-      ->option_text(std::format("[{}]", n_bam_threads));
     app.add_option("-t,--threads", n_threads,
                    std::format("Threads to use (this machine supports: {})",
                                std::thread::hardware_concurrency()))
