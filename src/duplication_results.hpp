@@ -26,6 +26,8 @@
 
 #include "falco_word.hpp"
 
+#include "boost_unordered.hpp"
+
 #include <array>
 #include <cstdint>
 #include <string>
@@ -48,7 +50,7 @@ struct duplication_results {
   };
   std::int32_t read_skip{default_read_skip};
   std::int32_t read_idx{};
-  std::unordered_map<falco_word, std::uint64_t> dups;
+  boost::unordered_flat_map<falco_word, std::uint64_t> dups;
 
   auto
   initialize(const std::uint64_t est_n_reads) -> void;

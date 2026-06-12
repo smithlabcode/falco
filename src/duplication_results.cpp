@@ -27,6 +27,8 @@
 #include "falco_utils.hpp"
 #include "falco_word.hpp"
 
+#include "boost_unordered.hpp"
+
 #include <algorithm>
 #include <cstdint>
 #include <format>
@@ -37,7 +39,6 @@
 #include <ranges>
 #include <string>
 #include <tuple>
-#include <unordered_map>
 #include <vector>
 
 auto
