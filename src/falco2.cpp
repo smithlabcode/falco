@@ -255,7 +255,7 @@ main(int argc, char *argv[]) {
       ->check(CLI::ExistingFile);
     app.add_option("-o,--output", outdir, "Output directory")
       ->required()
-      ->option_text("FILE");
+      ->option_text("DIR");
     app.add_option("-c,--contaminants", contam_file,
                    "File of contaminant sequences to use")
       ->option_text("FILE")
