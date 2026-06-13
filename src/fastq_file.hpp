@@ -277,18 +277,6 @@ public:
   std::int64_t cursor{};
 
 private:
-  static constexpr auto assumed_compression_ratio = 5;
-
-  [[nodiscard]] static constexpr auto
-  get_inbuf_size(const std::int64_t x) -> std::int64_t {
-    return (x + assumed_compression_ratio - 1) / assumed_compression_ratio;
-  }
-
-  [[nodiscard]] static constexpr auto
-  get_outbuf_size(const std::int64_t x) -> std::int64_t {
-    return x - get_inbuf_size(x);
-  }
-
   inflate_state state{};
   isal_gzip_header gz_hdr{};
   std::vector<char> outbuf;
@@ -307,8 +295,7 @@ public:
 
   explicit fastq_gz_file(const std::string &filename,
                          const std::int64_t bufsize) :
-    outbuf(get_outbuf_size(bufsize)),
-    inbuf(get_inbuf_size(bufsize)),  // input_buf_size),
+    outbuf(bufsize), inbuf(bufsize),
     in(std::fopen(std::data(filename), "r"), &std::fclose) {
     if (in == nullptr)
       throw std::runtime_error("failed to open " + filename);
