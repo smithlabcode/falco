@@ -31,6 +31,25 @@ jobs:
           SCRIPT: |
             export DEBIAN_FRONTEND=noninteractive && \
             apt-get update && apt-get install --no-install-recommends -y automake && \
+            wget -nv https://www.nasm.us/pub/nasm/releasebuilds/3.01rc9/nasm-3.01rc9.tar.gz && \
+            tar -xf nasm-3.01rc9.tar.gz && \
+            cd nasm-3.01rc9 && \
+            ./configure --prefix=/usr/local && \
+            make -j4 && \
+            make install && \
+            cd .. && \
+            git clone https://github.com/intel/isa-l.git && \
+            cd isa-l && \
+            cmake -B build \
+                -DISAL_BUILD_TESTS=off \
+                -DISAL_BUILD_PERF_TESTS=off \
+                -DISAL_BUILD_FUZZ_TESTS=off \
+                -DISAL_BUILD_ISAL_SHIM=off \
+                -DBUILD_SHARED_LIBS=off \
+                -DCMAKE_BUILD_TYPE=Release && \
+            cmake --build build -j4 && \
+            cmake --install build --prefix=/usr/local && \
+            cd ../ && \
             git clone https://github.com/ebiggers/libdeflate.git && \
             cd libdeflate && \
             cmake -B build \
@@ -56,7 +75,10 @@ jobs:
             cp libhts.a /usr/local/lib/ && \
             cp -r ../htslib /usr/local/include/ && \
             cd /workspace && \
-            cmake -B build -DPACKAGE=on -DCMAKE_BUILD_TYPE=Release && \
+            cmake -B build \
+                -DPACKAGE=on \
+                -DUSE_ISAL=on \
+                -DCMAKE_BUILD_TYPE=Release && \
             cmake --build build -j4 && \
             cp build/falco2 falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-Linux
         run: |
