@@ -30,7 +30,7 @@ jobs:
         env:
           SCRIPT: |
             export DEBIAN_FRONTEND=noninteractive && \
-            apt-get update && apt-get install --no-install-recommends -y automake && \
+            apt-get update && apt-get install --no-install-recommends -y automake wget && \
             wget -nv https://www.nasm.us/pub/nasm/releasebuilds/3.01rc9/nasm-3.01rc9.tar.gz && \
             tar -xf nasm-3.01rc9.tar.gz && \
             cd nasm-3.01rc9 && \
