@@ -153,18 +153,19 @@ struct fastq_file {
   int fd{};
 
   fastq_file(const std::string &filename, const std::int64_t buf_size) :
-    buf_size{buf_size},
+    buf_size{buf_size < min_buf_size ? min_buf_size : buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
     stop_pos_in_file{buf_size},  // init this way because used as sentinel
     fd{open(std::data(filename), O_RDONLY, 0)} {
     if (fd < 0)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
-    if (buf_size < min_buf_size)
-      throw std::runtime_error(
-        std::format("Requested buffer size {} smaller than required {}",
-                    buf_size, min_buf_size));
   }
+
+  // clang-format off
+  [[nodiscard]] auto get_cursor() const { return cursor; }
+  auto set_cursor(const auto c) { cursor = c; }
+  // clang-format on
 
   // clang-format off
   // delete copy and assignment
@@ -203,18 +204,15 @@ struct fastq_file {
 struct fastq_bgzf_file {
   using rec_t = fqrec;
   std::int64_t buf_size{};  // size of allocated buffer
-  std::int64_t filesize{};
   fastq_buffer buf{};
-  std::int64_t start_pos_in_file{};  // file offset for buffer start
-  std::int64_t stop_pos_in_file{};   // file offset for buffer stop
-  std::int64_t cursor{};             // position in buffer
+  std::vector<char> buffer;
+  std::int64_t sentinel_position{};
+  std::int64_t cursor{};  // position in buffer
   std::unique_ptr<BGZF, int (*)(BGZF *)> f;
 
   fastq_bgzf_file(const std::string &filename, const std::int64_t buf_size,
                   falco_thread_pool &t) :
-    buf_size{buf_size},
-    filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
-    stop_pos_in_file{buf_size},
+    buf_size{buf_size}, buffer(buf_size), sentinel_position{buf_size},
     f(bgzf_open(std::data(filename), "r"), &bgzf_close) {
     static constexpr auto bgzf_fmt_code = 2;  // from bgzf.h
     if (!f)
@@ -226,8 +224,13 @@ struct fastq_bgzf_file {
       if (r < 0)
         throw std::runtime_error("failed to set thread pool");
     }
-    buf.data = new char[buf_size];  // NOLINT (cppcoreguidelines-owning-memory)
+    buf.data = std::data(buffer);
   }
+
+  // clang-format off
+  [[nodiscard]] auto get_cursor() const { return cursor; }
+  auto set_cursor(const auto c) { cursor = c; }
+  // clang-format on
 
   // clang-format off
   // delete copy and assignment
@@ -236,30 +239,29 @@ struct fastq_bgzf_file {
   auto operator=(fastq_bgzf_file &&) noexcept -> fastq_bgzf_file & = delete;
   // default move for emplace
   fastq_bgzf_file(fastq_bgzf_file &&) noexcept = default;
+  ~fastq_bgzf_file() = default;
   // clang-format on
 
-  ~fastq_bgzf_file() { delete[] buf.data; }
-
-  [[nodiscard]] operator bool() const { return stop_pos_in_file == buf_size; }
+  [[nodiscard]] operator bool() const { return sentinel_position == buf_size; }
 
   auto
   load_next() {
     if (cursor > 0) {
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      std::copy_n(buf.data + cursor, buf.sz - cursor, buf.data);
+      std::copy_n(std::data(buffer) + cursor, buf.sz - cursor,
+                  std::data(buffer));
       cursor = buf.sz - cursor;  // backup to after previous data
     }
-    start_pos_in_file = cursor;
-    const auto n_bytes = buf_size - start_pos_in_file;
+    const auto n_bytes = buf_size - cursor;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    const auto r = bgzf_read(f.get(), buf.data + start_pos_in_file, n_bytes);
+    const auto r = bgzf_read(f.get(), std::data(buffer) + cursor, n_bytes);
     if (r < 0) {
       // ADS: cleanup
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed reading gz input file");
     }
-    stop_pos_in_file = start_pos_in_file + r;
-    buf.sz = stop_pos_in_file;
+    buf.sz = cursor + r;
+    sentinel_position = buf.sz;
     cursor = 0;  // cursor always moves to zero because buffer is not mmapped
   }
 };
@@ -267,11 +269,10 @@ struct fastq_bgzf_file {
 #ifdef HAVE_ISAL
 
 class fastq_gz_file {
-  static constexpr auto inflate_err_msg = R"(
-Failure during decompression by ISAL. Error code is {}.  Please check that the
-input file is not corrupted by decompressing with gunzip. If the input file is
-not corrupted please file a bug report at the Falco repo on GitHub.
-)";
+  static constexpr auto inflate_err_msg =  //
+    R"(Failure during decompression by ISAL. Error code is {}.  Please check that
+the input file is not corrupted by decompressing with gunzip. If the input file is
+not corrupted please file a bug report at the Falco repo on GitHub.)";
 
 public:
   using rec_t = fqrec;
@@ -287,17 +288,14 @@ private:
 
 public:
   // clang-format off
-  [[nodiscard]] auto size() const { return buf.sz; }
   [[nodiscard]] auto get_cursor() const { return cursor; }
-  [[nodiscard]] auto get_buf_beg() const { return buf.data; }
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] auto get_buf_end() const { return buf.data + buf.sz; }
   auto set_cursor(const auto c) { cursor = c; }
   // clang-format on
 
   explicit fastq_gz_file(const std::string &filename,
                          const std::int64_t bufsize) :
-    outbuf(bufsize), inbuf(bufsize),
+    outbuf(bufsize / 2), inbuf(bufsize / 2),
     in(std::fopen(std::data(filename), "r"), &std::fclose) {
     if (in == nullptr)
       throw std::runtime_error("failed to open " + filename);
@@ -390,20 +388,24 @@ struct fastq_gz_file {
   using rec_t = fqrec;
   std::int64_t buf_size{};  // size of allocated buffer
   std::int64_t buf_used{};
-  std::int64_t filesize{};
   fastq_buffer buf{};
+  std::vector<char> buffer;
   std::int64_t cursor{};  // position in buffer
   std::unique_ptr<BGZF, int (*)(BGZF *)> f;
 
   fastq_gz_file(const std::string &filename, const std::int64_t buf_size) :
-    buf_size{buf_size}, buf_used{buf_size},
-    filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
-    buf(new char[buf_size], 0),
+    buf_size{buf_size}, buf_used{buf_size}, buffer(buf_size),
     f(bgzf_open(std::data(filename), "r"), &bgzf_close) {
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
+    buf.data = std::data(buffer);
   }
+
+  // clang-format off
+  [[nodiscard]] auto get_cursor() const { return cursor; }
+  auto set_cursor(const auto c) { cursor = c; }
+  // clang-format on
 
   // clang-format off
   // delete copy and assignment
@@ -412,9 +414,8 @@ struct fastq_gz_file {
   auto operator=(fastq_gz_file &&) noexcept -> fastq_gz_file & = delete;
   // default move for emplace
   fastq_gz_file(fastq_gz_file &&) noexcept = default;
+  ~fastq_gz_file() = default;
   // clang-format on
-
-  ~fastq_gz_file() { delete[] buf.data; }
 
   [[nodiscard]] operator bool() const { return buf_used == buf_size; }
 
@@ -462,7 +463,7 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   const auto n_bytes_available = buf.sz - fq.cursor;
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   std::vector<std::pair<std::int64_t, std::int64_t>> chunks(n_chunks);
-  std::int64_t start_pos = fq.cursor;
+  std::int64_t start_pos = fq.get_cursor();
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
     const auto chunk_beg = fwd_to_read_start(buf, start_pos);
     const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
@@ -474,7 +475,7 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   const auto prev_start = rev_to_read_start(buf, chunks.back().second);
   if (std::count(buf.data + prev_start, buf.data + buf.sz, '\n') < rec_lines)
     chunks.back().second = prev_start;
-  fq.cursor = chunks.back().second;
+  fq.set_cursor(chunks.back().second);
   return chunks;
 }
 
