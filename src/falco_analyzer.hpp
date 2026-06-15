@@ -67,97 +67,117 @@ template <typename results_t, typename rec_t> struct analyzer_t {
     pos_t beg{};
     pos_t end{};
   };
-  std::mutex queue_mtx;
-  std::condition_variable_any queue_ready;  // can be canceled
-  std::vector<std::mutex> file_mtx;
-  std::condition_variable file_ready;
-  std::uint32_t queue_size{};
-  std::queue<task_t> tasks;
-  std::vector<std::int32_t> n_tasks;
+  std::mutex task_queue_mtx;
+  std::condition_variable_any task_queue_cv;
+  std::queue<task_t> task_queue;
+
+  std::mutex file_queue_mtx;
+  std::condition_variable file_queue_cv;
+  std::queue<std::int32_t> file_queue;
+
+  std::vector<std::atomic_int32_t> n_tasks;
+  std::uint32_t n_active_files{};
   std::vector<std::vector<results_t>> results;
 
   explicit analyzer_t(const std::uint32_t n_threads,
+                      const std::uint32_t n_readers,
                       const std::uint32_t n_files, auto &reads_files,
                       const std::vector<file_info> &infos) :
-    file_mtx(n_files), queue_size(n_chunks_per_thread * n_threads * n_files),
-    n_tasks(n_files), results(n_threads, std::vector<results_t>(n_files)) {
+    n_tasks(n_files), n_active_files{n_files},
+    results(n_threads, std::vector<results_t>(n_files)) {
     assert(std::size(reads_files) == std::size(infos));
-
-    // set any per-file information used to do the analysis
+    const auto n_chunks_per_file = n_threads * n_chunks_per_thread;
+    // set per-file information used to do the analysis
     for (auto &res : results)
       for (const auto [file_id, info] : std::views::enumerate(infos))
         res[file_id].init(info);
 
-    const auto n_chunks_per_file = n_threads * n_chunks_per_thread;
+    for (const auto f_id : std::views::iota(0u, n_files))
+      file_queue.emplace(f_id);
 
     std::vector<std::jthread> workers;
     workers.reserve(n_threads);
-    for (auto th_id = 0u; th_id < n_threads; ++th_id) {
-      workers.emplace_back([th_id, this](const std::stop_token &stop) {
-        auto &r = results[th_id];
-        task_t task;
+    for (const auto th_id : std::views::iota(0u, n_threads))
+      workers.emplace_back([this, th_id](const std::stop_token &stop) {
+        auto &res = results[th_id];
         while (true) {
-          std::unique_lock ql(queue_mtx);
-          queue_ready.wait(ql, stop, [this] { return !tasks.empty(); });
-          if (stop.stop_requested() && tasks.empty())
+          std::unique_lock task_queue_lock(task_queue_mtx);
+          task_queue_cv.wait(task_queue_lock, stop,
+                             [this] { return !task_queue.empty(); });
+          if (stop.stop_requested() && task_queue.empty())
             return;
-          task = std::move(tasks.front());
-          tasks.pop();
-          ql.unlock();
-
-          // both readers and workers might be waiting on this
-          queue_ready.notify_all();
-
-          r[task.file_id].template process_reads<rec_t>(task.beg, task.end);
-
-          std::unique_lock fl(file_mtx[task.file_id]);
-          --n_tasks[task.file_id];
-          fl.unlock();
-
-          // for readers waiting to delete owned data; notify all because we
-          // don't know which one
-          file_ready.notify_all();
+          const auto task = pop_task(task_queue_lock);
+          res[task.file_id].template process_reads<rec_t>(task.beg, task.end);
+          if (n_tasks[task.file_id].fetch_sub(1) == 1)
+            push_file(task.file_id);
         }
       });
-    }
 
-    std::vector<std::thread> readers;
-    readers.reserve(n_files);
-    for (auto f_id = 0u; f_id < n_files; ++f_id)
-      readers.emplace_back([&, f_id]() {
-        while (reads_files[f_id]) {
-          std::unique_lock fl(file_mtx[f_id]);
-          file_ready.wait(fl, [f_id, this] { return n_tasks[f_id] == 0; });
-          fl.unlock();
+    std::vector<std::jthread> readers;
+    readers.reserve(n_readers);
+    for (const auto _ : std::views::iota(0u, n_readers))
+      readers.emplace_back([&]() {
+        while (true) {
+          std::unique_lock file_queue_lock(file_queue_mtx);
+          file_queue_cv.wait(file_queue_lock, [this] {
+            return n_active_files == 0 || !file_queue.empty();
+          });
+          if (n_active_files == 0)
+            return;
+          const auto f_id = pop_file(file_queue_lock);
+          if (!reads_files[f_id]) {
+            if (--n_active_files == 0) {
+              file_queue_cv.notify_all();
+              return;
+            }
+            continue;
+          }
           reads_files[f_id].load_next();
+          n_tasks[f_id] = n_chunks_per_file;
           const auto chunks = get_chunks(reads_files[f_id], n_chunks_per_file);
           std::ranges::for_each(chunks,
                                 [&](const auto &c) { push_task(f_id, c); });
         }
       });
-    std::ranges::for_each(readers, [](auto &r) { r.join(); });
+    std::ranges::for_each(readers, [](auto &reader) { reader.join(); });
 
-    // tell workers to stop
-    std::unique_lock ql(queue_mtx);
-    queue_ready.wait(ql, [this] { return tasks.empty(); });
-    std::ranges::for_each(workers, [](auto &w) { w.request_stop(); });
-    ql.unlock();
-    queue_ready.notify_all();
+    std::unique_lock task_queue_lock(task_queue_mtx);
+    task_queue_cv.wait(task_queue_lock, [this] { return task_queue.empty(); });
+    std::ranges::for_each(workers, [](auto &worker) { worker.request_stop(); });
   }
 
   auto
   push_task(const auto file_id, const auto &chunk) {
-    // wait until the queue has space
-    std::unique_lock ql(queue_mtx);
-    queue_ready.wait(ql, [this] { return std::size(tasks) < queue_size; });
-    tasks.emplace(file_id, chunk.first, chunk.second);
-    ql.unlock();
-    queue_ready.notify_one();
-    std::lock_guard fl(file_mtx[file_id]);
-    ++n_tasks[file_id];  // no notify: only this thread waits on this value
+    std::unique_lock task_queue_lock(task_queue_mtx);
+    task_queue.emplace(file_id, chunk.first, chunk.second);
+    task_queue_lock.unlock();
+    task_queue_cv.notify_one();
+  }
 
-    // any number of workers could be waiting to update n_tasks[file_id]
-    file_ready.notify_all();
+  [[nodiscard]] auto
+  pop_task(auto &task_queue_lock) {
+    const auto task = std::move(task_queue.front());
+    task_queue.pop();
+    task_queue_lock.unlock();
+    task_queue_cv.notify_one();
+    return task;
+  }
+
+  auto
+  push_file(const auto file_id) {
+    std::unique_lock file_queue_lock(file_queue_mtx);
+    file_queue.emplace(file_id);
+    file_queue_lock.unlock();
+    file_queue_cv.notify_one();
+  }
+
+  [[nodiscard]] auto
+  pop_file(auto &file_queue_lock) {
+    const auto file_id = std::move(file_queue.front());
+    file_queue.pop();
+    file_queue_lock.unlock();
+    file_queue_cv.notify_one();
+    return file_id;
   }
 };
 
