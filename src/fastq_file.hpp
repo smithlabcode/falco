@@ -271,6 +271,12 @@ struct fastq_bgzf_file {
 #ifdef HAVE_ISAL
 
 class fastq_gz_file {
+  static constexpr auto inflate_err_msg = R"(
+Failure during decompression by ISAL. Error code is {}.  Please check that the
+input file is not corrupted by decompressing with gunzip. If the input file is
+not corrupted please file a bug report at the Falco repo on GitHub.
+)";
+
 public:
   using rec_t = fqrec;
   fastq_buffer buf;
@@ -339,7 +345,7 @@ public:
 
     const auto r = isal_inflate(&state);
     if (r != ISAL_DECOMP_OK && r != ISAL_END_INPUT)
-      throw std::runtime_error("failure during decompression");
+      throw std::runtime_error(std::format(inflate_err_msg, r));
 
     assert(remaining_capacity >= state.avail_out);
     const std::int64_t n_bytes = remaining_capacity - state.avail_out;
