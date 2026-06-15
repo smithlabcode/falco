@@ -25,37 +25,23 @@
 #define SRC_FALCO_ANALYZER_HPP_
 
 #include "bam_file.hpp"
-#include "contaminants.hpp"
-#include "falco_file_format.hpp"
-#include "falco_results.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
-#include "quality_score.hpp"
-#include "tile_processor.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
-#include <chrono>
 #include <condition_variable>
 #include <cstdint>
-#include <cstdlib>
-#include <exception>
-#include <filesystem>
 #include <format>
-#include <fstream>
-#include <functional>
 #include <iterator>
 #include <map>
-#include <memory>
 #include <mutex>
-#include <print>
 #include <queue>
 #include <ranges>
-#include <stdexcept>
 #include <stop_token>
 #include <string>
 #include <thread>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
