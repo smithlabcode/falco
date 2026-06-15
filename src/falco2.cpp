@@ -83,7 +83,7 @@ struct thread_counter {
     if (readers == 0)
       readers = workers < n_files ? workers : n_files;
     if (is_bgzf(input_format) && decomp == 0)
-      decomp = workers / readers;
+      decomp = workers;
     if (!is_bgzf(input_format))
       // ADS: need a warning on this
       decomp = 0;
@@ -287,11 +287,9 @@ main(int argc, char *argv[]) {
                                std::thread::hardware_concurrency()))
       ->option_text(std::format("[{}]", n_threads.workers));
     app.add_option("-r,--readers", n_threads.readers,
-                   "Threads for reading input (default: one per input file)")
-      ->option_text(" ");
+                   "Threads for reading input (default: one per input file)");
     app.add_option("-d,--decomp", n_threads.decomp,
-                   "Threads for BAM/BGZF decompression (see detailed help)")
-      ->option_text(" ");
+                   "Threads for BAM/BGZF decompression (default: analysis threads)");
     app.add_option("-m,--mem", buffer_size,
                    "Memory buffer size for IO (G/M/K units ok)")
       ->option_text(std::format("[{}]", size_to_units(buffer_size_default)))
