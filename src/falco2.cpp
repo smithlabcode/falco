@@ -70,6 +70,27 @@ read duplication is analyzed (borrowing from preseq).
 #include <utility>
 #include <vector>
 
+struct thread_counter {
+  std::uint32_t workers{};
+  std::uint32_t readers{};
+  std::uint32_t decomp{};
+
+  auto
+  initialize(const auto input_format, const auto n_files) {
+    const std::uint32_t max_threads = std::thread::hardware_concurrency();
+    workers = std::min(workers, max_threads);
+    readers = std::min(readers, max_threads);
+    decomp = std::min(decomp, max_threads);
+    if (readers == 0)
+      readers = workers < n_files ? workers : n_files;
+    if (is_bgzf(input_format) && decomp == 0)
+      decomp = workers / readers;
+    if (!is_bgzf(input_format))
+      // ADS: need a warning on this
+      decomp = 0;
+  }
+};
+
 static auto
 write_file(const auto &filename, const auto &data) {
   std::ofstream out(filename);
@@ -87,7 +108,8 @@ run(auto &infos, auto &reads_files, const auto n_threads, const auto &outdirs) {
 
   const auto n_files = std::size(reads_files);
 
-  analyzer_t<results_t, rec_t> analyzer(n_threads, n_files, reads_files, infos);
+  analyzer_t<results_t, rec_t> analyzer(n_threads.workers, n_threads.readers,
+                                        n_files, reads_files, infos);
 
   for (const auto file_id : std::views::iota(0u, n_files))
     accumulate_results(analyzer.results, file_id);
@@ -132,7 +154,7 @@ start_analysis(const run_mode mode, const auto buf_size, const auto n_threads,
   // or move assignment in the fastq_file, fastq_gz_file, etc.
   const auto n_infiles = std::size(infiles);
   if (is_mapped_reads(input_format)) {
-    falco_thread_pool p(n_threads > 1 ? n_threads - 1 : 1);
+    falco_thread_pool p(n_threads.decomp);
     std::vector<bam_file> f;
     f.reserve(n_infiles);
     const auto m = [&](const auto &i) { f.emplace_back(i, buf_size, p); };
@@ -140,7 +162,7 @@ start_analysis(const run_mode mode, const auto buf_size, const auto n_threads,
     run_mode_selector(mode, infos, f, n_threads, outdirs);
   }
   else if (input_format == falco::file_format::fastq_bgzf) {
-    falco_thread_pool p(n_threads > 1 ? n_threads - 1 : 1);
+    falco_thread_pool p(n_threads.decomp);
     std::vector<fastq_bgzf_file> f;
     f.reserve(n_infiles);
     const auto m = [&](const auto &i) { f.emplace_back(i, buf_size, p); };
@@ -214,12 +236,13 @@ make_outdirs(const auto &ins, const auto &outdir) -> std::vector<std::string> {
 int
 main(int argc, char *argv[]) {
   try {
-    static constexpr auto buf_size_default = 512 * 1024 * 1024;
+    static constexpr auto buffer_size_default = 256 * 1024 * 1024;
     std::vector<std::string> infiles;
     std::string contam_file;
     std::string outdir;
-    std::int64_t buf_size{buf_size_default};
-    std::uint32_t n_threads{1};
+    std::int64_t buffer_size{buffer_size_default};
+
+    thread_counter n_threads{1, 0, 0};
 
     bool do_tiles{};
     bool do_kmers{};
@@ -249,7 +272,7 @@ main(int argc, char *argv[]) {
                  "Print full license")
       ->callback_priority(CLI::CallbackPriority::First);
     app.add_option("INFILES", infiles,
-                   "Input file: FASTQ (plain, gz or bgzf) or BAM/SAM")
+                   "Input file: FASTQ (plain, GZIP or BGZF) or BAM/SAM")
       ->required()
       ->option_text("FILES")
       ->check(CLI::ExistingFile);
@@ -260,13 +283,19 @@ main(int argc, char *argv[]) {
                    "File of contaminant sequences to use")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
-    app.add_option("-t,--threads", n_threads,
-                   std::format("Threads to use (this machine supports: {})",
+    app.add_option("-t,--threads", n_threads.workers,
+                   std::format("Threads for analysis (this machine supports: {})",
                                std::thread::hardware_concurrency()))
-      ->option_text(std::format("[{}]", n_threads));
-    app.add_option("-m,--mem", buf_size,
+      ->option_text(std::format("[{}]", n_threads.workers));
+    app.add_option("-r,--readers", n_threads.readers,
+                   "Threads for reading input (default: one per input file)")
+      ->option_text(" ");
+    app.add_option("-d,--decomp", n_threads.decomp,
+                   "Threads for BAM/BGZF decompression (see detailed help)")
+      ->option_text(" ");
+    app.add_option("-m,--mem", buffer_size,
                    "Memory buffer size for IO (G/M/K units ok)")
-      ->option_text(std::format("[{}]", size_to_units(buf_size_default)))
+      ->option_text(std::format("[{}]", size_to_units(buffer_size_default)))
       ->capture_default_str()
       ->transform(size_from_units);
     app.add_flag("-v,--verbose", verbose, "Print more info while running.");
@@ -292,16 +321,6 @@ main(int argc, char *argv[]) {
                    contam_file, std::size(contaminants));
     }
 
-    if (n_threads > std::thread::hardware_concurrency())
-      n_threads = std::thread::hardware_concurrency();
-
-    if (verbose)
-      std::print("threads requested: {}\n"
-                 "memory requested: {}\n"
-                 "tile analysis requested: {}\n"
-                 "k-mer analysis requested: {}\n",
-                 n_threads, size_to_units(buf_size), do_tiles, do_kmers);
-
     auto infos = get_file_info(infiles);
 
     const auto format_description = infos.front().description;
@@ -312,12 +331,23 @@ main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
 
+    n_threads.initialize(input_format, std::size(infiles));
+
     // restrict buffer size to avoid using a possibly harmful amount of memory
     const auto get_sz = [](const auto &i) { return i.size; };
     const auto max_sz = std::ranges::max(std::views::transform(infos, get_sz));
-    buf_size = buf_size < max_sz ? buf_size : max_sz;
+    buffer_size = buffer_size < max_sz ? buffer_size : max_sz;
 
     if (verbose) {
+      std::print("threads requested: {}\n"
+                 "reader threads: {}\n",
+                 n_threads.workers, n_threads.readers);
+      if (is_bgzf(input_format))
+        std::print("decompression threads: {}\n", n_threads.decomp);
+      std::print("memory requested: {}\n"
+                 "tile analysis requested: {}\n"
+                 "k-mer analysis requested: {}\n",
+                 size_to_units(buffer_size), do_tiles, do_kmers);
       std::println("input file format: {}", format_description);
       std::println("input files:");
       std::ranges::for_each(infiles,
@@ -328,8 +358,8 @@ main(int argc, char *argv[]) {
     mode.tiles(do_tiles);
     mode.kmers(do_kmers);
 
-    start_analysis(mode, buf_size, n_threads, input_format, format_description,
-                   infos, infiles, outdirs);
+    start_analysis(mode, buffer_size, n_threads, input_format,
+                   format_description, infos, infiles, outdirs);
 
     if (verbose)
       std::println(
