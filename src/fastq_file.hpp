@@ -28,8 +28,6 @@
 
 #ifdef HAVE_ISAL
 #include <isa-l/igzip_lib.h>
-#else
-#include <zlib.h>
 #endif  // HAVE_ISAL
 
 #include <htslib/bgzf.h>
@@ -44,9 +42,7 @@
 #include <cerrno>
 #include <concepts>
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <filesystem>
 #include <format>
 #include <iterator>
