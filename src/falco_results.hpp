@@ -224,6 +224,36 @@ struct alignas(assumed_page_size) falco_results {
     r += am.get_report(n_reads, g.adapter_content);
     return r;
   }
+
+  template <typename self_t>
+  [[nodiscard]] auto
+  get_html(this self_t &self, const file_info &info) {
+    return self.get_html_impl(info);
+  }
+
+  [[nodiscard]] auto
+  get_html_impl([[maybe_unused]] const file_info &info) const {
+#ifdef HAVE_FMT
+    const auto nucs_no_n = adjust_nucs_for_ns();
+    const auto total_nucs = tabular_dot(lengths);
+    const auto gc_acc = [](const auto a, const auto &nuc) {
+      return a + nuc[1] + nuc[3];  // NOLINT (*-avoid-magic-numbers)
+    };
+    const auto total_gc = std::accumulate(std::cbegin(nucs_no_n),
+                                          std::cend(nucs_no_n), 0ul, gc_acc);
+    const auto gt0 = [](const auto c) { return c > 0; };
+    const std::uint64_t min_read_len =
+      std::distance(std::cbegin(lengths), std::ranges::find_if(lengths, gt0));
+    const auto encoding_label = get_quality_score_label(info.encoding);
+    auto r =
+      format_basic_stats_html(info.name, n_reads, min_read_len, max_read_len,
+                              total_gc, total_nucs, encoding_label);
+    r += format_qual_by_pos_html(qual_by_pos);
+    return r;
+#else
+    return std::string{"not yet implemented: should be ready soon!"};
+#endif  // HAVE_FMT
+  }
 };
 
 struct falco_results_tile : public falco_results {
@@ -261,7 +291,12 @@ struct falco_results_tile : public falco_results {
   [[nodiscard]] auto
   get_report_impl(const file_info &info, grades &g) const {
     return falco_results::get_report_impl(info, g) +
-           tp.get_report(max_read_len, g.tile_analaysis);
+           tp.get_report(g.tile_analaysis);
+  }
+
+  [[nodiscard]] auto
+  get_html_impl(const file_info &info) const {
+    return falco_results::get_html_impl(info) + tp.get_html();
   }
 };
 
@@ -285,6 +320,11 @@ struct falco_results_kmer : public falco_results {
   get_report_impl(const file_info &info, grades &g) const {
     return falco_results::get_report_impl(info, g) +
            kc.get_report(g.kmer_content);
+  }
+
+  [[nodiscard]] auto
+  get_html_impl(const file_info &info) const {
+    return falco_results::get_html_impl(info) + kc.get_html();
   }
 };
 
@@ -314,6 +354,12 @@ struct falco_results_tile_kmer : public falco_results_tile {
   get_report_impl(const file_info &info, grades &g) const {
     return falco_results_tile::get_report_impl(info, g) +
            kc.get_report(g.kmer_content);
+  }
+
+  [[nodiscard]] auto
+  get_html_impl(const file_info &info) const {
+    return falco_results_tile::get_html_impl(info) + kc.get_html();
+    ;
   }
 };
 
