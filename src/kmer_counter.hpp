@@ -114,6 +114,9 @@ struct kmer_counter {
   [[nodiscard]] auto
   get_report(std::string &grade) const -> std::string;
 
+  [[nodiscard]] auto
+  get_html() const -> std::string;
+
   [[nodiscard]] static auto
   decode_kmer(auto word, const auto n_bases) -> std::string;
 };

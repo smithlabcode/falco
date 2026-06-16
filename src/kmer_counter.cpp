@@ -24,6 +24,11 @@
 #include "kmer_counter.hpp"
 #include "falco_utils.hpp"
 
+#ifdef HAVE_FMT
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+#endif  // HAVE_FMT
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -204,3 +209,35 @@ kmer_counter::decode_kmer(auto word, const auto n_bases) -> std::string {
   std::ranges::reverse(r);
   return r;
 }
+
+#ifdef HAVE_FMT
+
+[[nodiscard]] auto
+kmer_counter::get_html() const -> std::string {
+  const auto results = get_kmer_results();  // redundant
+  const auto to_report = results | std::views::take(n_kmers_to_report);
+  const auto get_pos = [&](const auto &x) { return x.pos; };
+  // xlim: max pos with kmer to report
+  const auto xlim =
+    std::ranges::max(std::views::transform(to_report, get_pos)) + kmer_size;
+  auto mostly0 = std::vector(xlim, 0);  // change one position each kmer
+  const auto xvals = std::views::iota(0u, xlim);
+  const auto format1 = [&](const auto &k) {
+    // x: positions in read; y: zeros except at 'pos' for the kmer
+    mostly0[k.pos] = std::log2(k.obs_exp);
+    return fmt::format("{{x: [{}], y: [{}], type: 'line', name: '{}'}}",
+                       fmt::join(xvals, ", "), fmt::join(mostly0, ", "),
+                       decode_kmer(k.kmer, kmer_size));
+    mostly0[k.pos] = 0;  // replace the zero at 'pos'
+  };
+  return fmt::format(
+    "{}\n", fmt::join(std::views::transform(to_report, format1), ",\n"));
+}
+#else
+
+[[nodiscard]] auto
+kmer_counter::get_html() const -> std::string {
+  return {};
+}
+
+#endif  // HAVE_FMT
