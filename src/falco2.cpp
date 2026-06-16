@@ -103,6 +103,7 @@ static auto
 run(auto &infos, auto &reads_files, const auto n_threads, const auto &outdirs) {
   using rec_t = std::decay_t<decltype(reads_files)>::value_type::rec_t;
   static constexpr auto report_filename = "fastqc_data.txt";
+  static constexpr auto html_filename = "fastqc_report.html";
   static constexpr auto summary_filename = "summary.txt";
 
   const auto n_files = std::size(reads_files);
@@ -125,6 +126,11 @@ run(auto &infos, auto &reads_files, const auto n_threads, const auto &outdirs) {
       (std::filesystem::path{outdir} / report_filename).string();
     write_file(report_path, report);
 
+    const auto html = results.get_html(info);
+    const auto html_path =
+      (std::filesystem::path{outdir} / html_filename).string();
+    write_file(html_path, html);
+
     const auto summary_path =
       (std::filesystem::path{outdir} / summary_filename).string();
     write_file(summary_path, g.get_summary(info.name));
@@ -132,7 +138,7 @@ run(auto &infos, auto &reads_files, const auto n_threads, const auto &outdirs) {
 }
 
 static auto
-run_mode_selector(const run_mode mode, std::vector<file_info> &infos,
+run_mode_selector(const run_mode &mode, std::vector<file_info> &infos,
                   auto &reads_files, const auto n_threads,
                   const auto &outdirs) {
   if (tiles(mode) && kmers(mode))
@@ -140,13 +146,13 @@ run_mode_selector(const run_mode mode, std::vector<file_info> &infos,
   else if (tiles(mode))
     run<falco_results_tile>(infos, reads_files, n_threads, outdirs);
   else if (kmers(mode))
-    run<falco_results_kmer>(infos, reads_files, n_threads, outdirs);
+    return run<falco_results_kmer>(infos, reads_files, n_threads, outdirs);
   else
     run<falco_results>(infos, reads_files, n_threads, outdirs);
 }
 
 static auto
-start_analysis(const run_mode mode, const auto buf_size, const auto n_threads,
+start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
                const auto input_format, const auto &format_description,
                auto &infos, const auto &infiles, const auto &outdirs) {
   // ADS: this function is bloated mostly to avoid allowing default construction
