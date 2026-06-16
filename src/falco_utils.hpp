@@ -250,7 +250,17 @@ mean_tabular(const auto &a) {
   return static_cast<double>(num) / static_cast<double>(denom);
 }
 
-// NOLINTBEGIN (cppcoreguidelines-avoid-magic-numbers)
+// clang-format off
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
+[[nodiscard]] constexpr inline auto median_val(const auto &q) { return q[0]; }
+[[nodiscard]] constexpr inline auto lquart_val(const auto &q) { return q[1]; }
+[[nodiscard]] constexpr inline auto uquart_val(const auto &q) { return q[2]; }
+[[nodiscard]] constexpr inline auto ldec_val(const auto &q) { return q[3]; }
+[[nodiscard]] constexpr inline auto udec_val(const auto &q) { return q[4]; }
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
+// clang-format on
+
+// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
 [[nodiscard]] inline auto
 five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
   const auto dist_to_insertion_point = [](const auto &p, const auto x) {
