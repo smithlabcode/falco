@@ -99,11 +99,24 @@ format_qual_by_pos(const std::vector<falco::qual_array> &qual,
                    std::string &grade) -> std::string;
 
 [[nodiscard]] auto
+format_qual_by_pos_html(const std::vector<falco::qual_array> &qual)
+  -> std::string;
+
+[[nodiscard]] auto
 format_basic_stats(const std::string &filename, const std::uint64_t n_reads,
                    const std::uint64_t min_read_len,
                    const std::uint64_t max_read_len,
                    const std::uint64_t total_gc, const std::uint64_t total_nucs,
                    const std::string &encoding,
                    std::string &grade) -> std::string;
+
+[[nodiscard]] auto
+format_basic_stats_html(const std::string &filename,
+                        const std::uint64_t n_reads,
+                        const std::uint64_t min_read_len,
+                        const std::uint64_t max_read_len,
+                        const std::uint64_t total_gc,
+                        const std::uint64_t total_nucs,
+                        const std::string &encoding) -> std::string;
 
 #endif  // SRC_FORMAT_OUTPUT_HPP_

@@ -26,6 +26,11 @@
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
+#ifdef HAVE_FMT
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+#endif  // HAVE_FMT
+
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -387,3 +392,87 @@ format_basic_stats(const std::string &filename, const std::uint64_t n_reads,
   r += end_module_tag;
   return r;
 }
+
+#ifdef HAVE_FMT
+
+[[nodiscard]] auto
+format_qual_by_pos_html(const std::vector<falco::qual_array> &qual)
+  -> std::string {
+  const auto row_fmt =
+    R"({{y: [{}], type: 'box', name: '{}-{}bp', marker : {{color : '{}'}}}})";
+  const auto get_color = [&](const auto &q) {
+    static constexpr auto median_error = 0.20;
+    static constexpr auto median_warn = 0.25;
+    static constexpr auto lquartile_error = 0.05;
+    static constexpr auto lquartile_warn = 0.10;
+    if (median_val(q) < median_error || lquart_val(q) < lquartile_error)
+      return "red";
+    if (median_val(q) < median_warn || lquart_val(q) < lquartile_warn)
+      return "yellow";
+    return "green";
+  };
+  std::vector<std::string> lines;
+  for (const auto [idx, q] : std::views::enumerate(qual)) {
+    const auto fq = five_quants(q);
+    lines.emplace_back(fmt::format(fmt::runtime(row_fmt), fmt::join(fq, ", "),
+                                   idx + 1, idx + 1, get_color(fq)));
+  }
+  return fmt::format("{}\n", fmt::join(lines, ",\n"));
+}
+
+[[nodiscard]] auto
+format_basic_stats_html(const std::string &filename,
+                        const std::uint64_t n_reads,
+                        const std::uint64_t min_read_len,
+                        const std::uint64_t max_read_len,
+                        const std::uint64_t total_gc,
+                        const std::uint64_t total_nucs,
+                        const std::string &encoding) -> std::string {
+  static constexpr auto falco_html_summary_basic_statistics = R"(
+<table><thead><tr><th>Measure</th><th>Value</th></tr></thead><tbody>
+<tr><td>Filename</td><td>{filename_stem}</td></tr>
+<tr><td>File type</td><td>{file_type}</td></tr>
+<tr><td>Encoding</td><td>{file_encoding}</td></tr>
+<tr><td>Total Sequences</td><td>{total_sequences_label}</td></tr>
+<tr><td>Sequences Flagged As Poor Quality</td><td>{n_poor_sequences}</td></tr>
+<tr><td>Sequence length</td><td>{sequence_length_label}</td></tr>
+<tr><td>%GC:</td><td>{average_gc_content_label:.1f}</td></tr>
+</tbody></table>
+)";
+  const auto [_, file_type] = get_file_format(filename);
+  const auto sequence_length_label =
+    min_read_len == max_read_len
+      ? std::format("{}", max_read_len)
+      : std::format("{}-{}", min_read_len, max_read_len);
+  const auto average_gc_content_label =
+    fmt::format("{:.1f}", pct(as_frac(total_gc, total_nucs)));
+  return fmt::format(
+    fmt::runtime(falco_html_summary_basic_statistics),
+    fmt::arg("filename_stem", filename), fmt::arg("file_type", file_type),
+    fmt::arg("file_encoding", encoding),
+    fmt::arg("total_sequences_label", n_reads), fmt::arg("n_poor_sequences", 0),
+    fmt::arg("sequence_length_label", sequence_length_label),
+    fmt::arg("average_gc_content_label", pct(as_frac(total_gc, total_nucs))));
+}
+
+#else  // HAVE_FMT
+
+[[nodiscard]] auto
+format_qual_by_pos_html(
+  [[maybe_unused]] const std::vector<falco::qual_array> &qual) -> std::string {
+  return {};
+}
+
+[[nodiscard]] auto
+format_basic_stats_html([[maybe_unused]] const std::string &filename,
+                        [[maybe_unused]] const std::uint64_t n_reads,
+                        [[maybe_unused]] const std::uint64_t min_read_len,
+                        [[maybe_unused]] const std::uint64_t max_read_len,
+                        [[maybe_unused]] const std::uint64_t total_gc,
+                        [[maybe_unused]] const std::uint64_t total_nucs,
+                        [[maybe_unused]] const std::string &encoding)
+  -> std::string {
+  return {};
+}
+
+#endif  // HAVE_FMT
