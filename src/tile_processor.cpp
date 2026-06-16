@@ -30,6 +30,11 @@
 #include <htslib/bgzf.h>
 #include <htslib/sam.h>
 
+#ifdef HAVE_FMT
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+#endif  //  HAVE_FMT
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -94,16 +99,8 @@ tile_processor::trim() -> void {
 }
 
 [[nodiscard]] auto
-tile_processor::get_report(const std::uint32_t len,
-                           std::string &grade) const -> std::string {
-  static constexpr auto max_precision{std::numeric_limits<double>::digits10};
-  static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
-  static constexpr auto header = "#Tile\t"
-                                 "Base\t"
-                                 "Mean\n";
-  if (quals.empty())
-    return {};  // ADS: in case this fun is called for files w/o tile info
-
+get_centered(const auto max_read_len, const auto &quals)
+  -> std::map<std::uint32_t, std::vector<double>> {
   std::vector<double> means(max_read_len);
   std::vector<double> n_tiles_for_size(max_read_len);
   for (const auto &tile_quals : quals | std::views::values) {
@@ -120,26 +117,84 @@ tile_processor::get_report(const std::uint32_t len,
     [&](const auto m, const auto l) { return as_frac(m, l); });
 
   // using map to get sorted order by tile id
-  std::map<std::uint32_t, std::vector<double>> centered;
   const auto cent = [](const auto &a, const auto mean) {
     const auto [qual_sum, n_obs] = a;
     return as_frac(qual_sum, n_obs) - mean;
   };
+  std::map<std::uint32_t, std::vector<double>> centered;
   for (const auto &[id, vals] : quals)
     centered.emplace(id, std::views::zip_transform(cent, vals, means) |
                            std::ranges::to<std::vector>());
+  return centered;
+};
 
+[[nodiscard]] auto
+tile_processor::get_report(std::string &grade) const -> std::string {
+  static constexpr auto max_precision{std::numeric_limits<double>::digits10};
+  static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
+  static constexpr auto header = "#Tile\t"
+                                 "Base\t"
+                                 "Mean\n";
+  if (quals.empty())
+    return {};  // ADS: in case this fun is called for files w/o tile info
+
+  const auto centered = get_centered(max_read_len, quals);
   const auto neg_min_cent_qual =
     -std::ranges::min(centered | std::views::values | std::views::join);
 
   grade = get_grade(grade_cutoffs, neg_min_cent_qual);
   auto r = std::format(start_tag, grade);
   r += header;
-  for (const auto &[i, q] : centered | std::views::take(len))
+  for (const auto &[i, q] : centered)
     for (auto j = 0u; j < std::size(q); ++j)
       r += std::format("{}\t{}\t{:.{}f}\n", i, j + 1, q[j], max_precision);
   return r + end_module_tag;
 }
+
+#ifdef HAVE_FMT
+
+[[nodiscard]] auto
+tile_processor::get_html() const -> std::string {
+  static constexpr auto n_quants = 20.0;
+  static constexpr auto tile_quals_fmt =
+    "{{x: [{}], y: [{}], z: [{}], type: 'heatmap', colorscale: {}}}";
+  // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
+  static constexpr auto colorfmt = "[[0.0, 'rgb(210,65,83)'],"
+                                   " [{}, 'rgb(178,236,254)'],"
+                                   " [1.0, 'rgb(34,57,212)']],"
+                                   "showscale: true";
+  if (quals.empty())
+    return {};  // ADS: in case this fun is called for files w/o tile info
+
+  // ADS: redundant work
+  const auto centered = get_centered(max_read_len, quals);
+  const auto [minval, maxval] =
+    std::ranges::minmax(centered | std::views::values | std::views::join);
+  // discretize quantiles so plotly understands color scheme
+  const auto midpoint = minval / (minval - maxval);  // ???
+
+  // z: quality z (kind of...) score
+  const auto format1 = [](const auto &c) {
+    // ADS: note the format and precision (3) here
+    return fmt::format("[{:.3f}]", fmt::join(c, ","));
+  };
+  const auto z = std::views::transform(centered | std::views::values, format1);
+  const auto mid_discr = std::round(n_quants * midpoint) / n_quants;
+  return fmt::format(tile_quals_fmt,
+                     fmt::join(std::views::iota(0u, max_read_len), ","),  // x
+                     fmt::join(centered | std::views::keys, ","),         // y
+                     fmt::join(z, ","),                                   // z
+                     fmt::format(colorfmt, mid_discr));
+}
+
+#else
+
+[[nodiscard]] auto
+tile_processor::get_html() const -> std::string {
+  return {};
+}
+
+#endif  //  HAVE_FMT
 
 auto
 tile_processor::operator+=(const tile_processor &rhs)
