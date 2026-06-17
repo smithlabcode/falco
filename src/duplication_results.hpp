@@ -35,6 +35,9 @@
 
 struct duplication_results {
   static constexpr auto max_n_reads_total{1'000'000};
+#ifdef ORIGINAL_DUPS
+  static constexpr auto max_reads_to_hash{100'000};
+#endif  // ORIGINAL_DUPS
   static constexpr auto default_read_skip{10};
   static constexpr auto overrep_cutoff = 0.001;
   static constexpr auto grade_cutoffs = std::array{
@@ -58,11 +61,25 @@ struct duplication_results {
   format_overrepresented(std::string &grade) const -> std::string;
 
   [[nodiscard]] auto
+  format_overrepresented_html() const -> std::string;
+
+  [[nodiscard]] auto
   format_duplication_levels(std::string &grade) const -> std::string;
+
+  [[nodiscard]] auto
+  format_duplication_levels_html() const -> std::string;
 
   auto
   operator+=(const duplication_results &rhs) -> const duplication_results &;
 
+#ifdef ORIGINAL_DUPS
+  auto
+  count_seqs(const auto seq_itr, const auto sz) {
+    const auto fw = falco_word(seq_itr, sz);
+    if (read_idx++ < max_reads_to_hash || dups.contains(fw))
+      ++dups[fw];
+  }
+#else   // NOT ORIGINAL_DUPS
   auto
   count_seqs(const auto seq_itr, const auto sz) {
     if (read_idx-- == 0) [[unlikely]] {
@@ -70,6 +87,7 @@ struct duplication_results {
       ++dups[falco_word(seq_itr, sz)];
     }
   }
+#endif  // ORIGINAL_DUPS
 };
 
 #endif  // SRC_DUPLICATION_RESULTS_HPP_
