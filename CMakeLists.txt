@@ -69,6 +69,10 @@ if(PACKAGE)
   endif()
 endif()
 
+if(ORIGINAL_DUPS)
+  add_compile_options(-DORIGINAL_DUPS)
+endif()
+
 find_package(LIBDEFLATE REQUIRED)
 find_package(HTSLIB REQUIRED)
 find_package(ZLIB REQUIRED)
@@ -76,6 +80,11 @@ find_package(Threads REQUIRED)
 if(USE_ISAL)
   find_package(ISAL REQUIRED)
   add_compile_options(-DHAVE_ISAL)
+endif()
+
+if(MAKE_HTML)
+  find_package(fmt)
+  add_compile_options(-DMAKE_HTML)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL Release)
@@ -101,7 +110,7 @@ target_link_libraries(duplication_results PRIVATE HTSLIB::HTSLIB)
 
 add_library(fastq_file OBJECT src/fastq_file.cpp)
 target_link_libraries(fastq_file PRIVATE HTSLIB::HTSLIB)
-if (USE_ISAL)
+if(USE_ISAL)
   target_link_libraries(fastq_file PUBLIC ISAL::ISAL)
 endif()
 
@@ -117,6 +126,8 @@ target_link_libraries(adapter_matcher PRIVATE HTSLIB::HTSLIB)
 add_library(format_output OBJECT src/format_output.cpp)
 target_link_libraries(format_output PRIVATE HTSLIB::HTSLIB)
 
+add_library(falco_utils OBJECT src/falco_utils.cpp)
+
 add_executable(falco2 src/falco2.cpp)
 target_link_libraries(falco2 PRIVATE
   tile_processor
@@ -128,10 +139,14 @@ target_link_libraries(falco2 PRIVATE
   bam_file
   format_output
   falco_file_format
+  falco_utils
   HTSLIB::HTSLIB
   LIBDEFLATE::LIBDEFLATE
   ZLIB::ZLIB
   Threads::Threads
 )
+if(MAKE_HTML)
+  target_link_libraries(falco2 PRIVATE fmt::fmt)
+endif()
 
 install(TARGETS falco2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
