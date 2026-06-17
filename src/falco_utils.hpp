@@ -91,12 +91,15 @@ using gc_content_array = std::array<std::uint64_t, 101>;
 struct run_mode {
   bool do_tiles{};
   bool do_kmers{};
+  bool do_groups{};
 
   // clang-format off
   auto tiles(const bool x) { do_tiles = x; }
   [[nodiscard]] auto tiles() const { return do_tiles; }
   auto kmers(const bool x) { do_kmers = x; }
   [[nodiscard]] auto kmers() const { return do_kmers; }
+  auto groups(const bool x) { do_groups = x; }
+  [[nodiscard]] auto groups() const { return do_groups; }
   [[nodiscard]] auto string() const -> std::string { return {}; }
   // clang-format on
 };
@@ -104,6 +107,7 @@ struct run_mode {
 // clang-format off
 [[nodiscard]] constexpr inline auto tiles(const run_mode &rm) { return rm.tiles(); }
 [[nodiscard]] constexpr inline auto kmers(const run_mode &rm) { return rm.kmers(); }
+[[nodiscard]] constexpr inline auto groups(const run_mode &rm) { return rm.groups(); }
 // clang-format on
 
 inline constexpr auto end_module_tag = ">>END_MODULE\n";
@@ -357,7 +361,7 @@ make_base_groups(const std::int64_t n_bases) -> std::vector<base_group_t>;
 
 [[nodiscard]] auto
 apply_base_groups(const std::vector<base_group_t> &groups, auto &rows) {
-  assert(std::size(rows) < groups.back().second);
+  assert(std::size(rows) <= groups.back().second);
   auto group_itr = std::cbegin(groups);
   auto current_row = 0U;
   for (const auto [idx, row] :
@@ -376,7 +380,7 @@ apply_base_groups(const std::vector<base_group_t> &groups, auto &rows) {
 [[nodiscard]] auto
 apply_base_groups(const std::vector<base_group_t> &groups, auto &rows,
                   const auto &adder) {
-  assert(std::size(rows) < groups.back().second);
+  assert(std::size(rows) <= groups.back().second);
   auto group_itr = std::cbegin(groups);
   auto current_row = 0U;
   for (const auto [idx, row] :
