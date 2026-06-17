@@ -127,6 +127,7 @@ add_library(format_output OBJECT src/format_output.cpp)
 target_link_libraries(format_output PRIVATE HTSLIB::HTSLIB)
 
 add_library(falco_utils OBJECT src/falco_utils.cpp)
+target_link_libraries(falco_utils PRIVATE HTSLIB::HTSLIB)
 
 add_executable(falco2 src/falco2.cpp)
 target_link_libraries(falco2 PRIVATE
