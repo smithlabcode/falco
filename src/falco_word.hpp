@@ -70,13 +70,13 @@ struct falco_word {
 
   [[nodiscard]] static auto
   string_impl(auto word, auto n_bases) {
-    static constexpr auto bases = "GTCAN";
-    static constexpr auto alpha_size = 5;
+    static constexpr auto extended_bases = "GTCAN";
+    static constexpr auto extended_alpha_size = 5;
     std::string r;
     for (auto i = 0u; i < n_bases; ++i) {
       // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      r += bases[word % alpha_size];
-      word /= alpha_size;
+      r += extended_bases[word % extended_alpha_size];
+      word /= extended_alpha_size;
     }
     return r;
   }
