@@ -89,3 +89,11 @@ adapter_matcher::get_report(const std::uint64_t n_reads,
 
   return r + end_module_tag;
 }
+
+auto
+adapter_matcher::finalize(const run_mode &mode) -> void {
+  if (mode.do_groups) {
+    const auto groups = make_base_groups(std::size(adap_counts));
+    apply_base_groups(groups, adap_counts);
+  }
+}

@@ -65,6 +65,9 @@ struct adapter_matcher {
   std::array<std::uint64_t, n_adapters> encoded_adapters{};
   std::vector<std::array<std::uint64_t, n_adapters>> adap_counts;
 
+  auto
+  finalize(const run_mode &mode) -> void;
+
   adapter_matcher();
 
   [[nodiscard]] static auto
