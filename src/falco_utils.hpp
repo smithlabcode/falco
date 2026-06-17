@@ -322,19 +322,12 @@ static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
 static constexpr std::int64_t megabytes = 1024 * 1024;
 static constexpr std::int64_t kilobytes = 1024;
 
-[[nodiscard]] inline auto
-size_to_units(const auto s) -> std::string {
-  static constexpr auto hundred = 100.0;
-  const auto as_frac_3 = [](const auto a, const auto b) {
-    return std::floor(hundred * as_frac(a, b)) / hundred;
-  };
-  if (s >= gigabytes)
-    return std::format("{}GiB", as_frac_3(s, gigabytes));
-  if (s >= megabytes)
-    return std::format("{}MiB", as_frac_3(s, megabytes));
-  if (s >= kilobytes)
-    return std::format("{}KiB", as_frac_3(s, kilobytes));
-  return std::format("{}", s);
-}
+[[nodiscard]] auto
+size_to_units(const std::int64_t s) -> std::string;
+
+using base_group_t = std::pair<std::uint64_t, std::uint64_t>;
+
+[[nodiscard]] auto
+make_base_groups(const std::int64_t n_bases) -> std::vector<base_group_t>;
 
 #endif  // SRC_FALCO_UTILS_HPP_
