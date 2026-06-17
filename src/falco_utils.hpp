@@ -139,8 +139,26 @@ pct(const double a) {
 }
 
 inline constexpr auto
-add(auto &a1, auto &a2) {
+add(std::ranges::forward_range auto &a1,
+    const std::ranges::forward_range auto &a2) {
   std::ranges::transform(a1, a2, std::begin(a1), std::plus{});
+};
+
+inline constexpr auto
+add(std::ranges::forward_range auto &a1,
+    const std::ranges::forward_range auto &a2, const auto adder) {
+  std::ranges::transform(a1, a2, std::begin(a1), adder);
+};
+
+template <typename T>
+concept has_addition = std::regular<T> && requires(T x, T y) {
+  { x += y } -> std::same_as<T &>;
+  { x + y } -> std::convertible_to<T>;
+};
+
+inline constexpr auto
+add(has_addition auto &a1, const has_addition auto &a2) {
+  a1 += a2;
 };
 
 inline constexpr auto
@@ -227,7 +245,8 @@ static inline auto
 count_quals_itr(auto qual_itr, const auto qual_end, auto tab_itr) {
   while (qual_itr != qual_end) {
     tab_itr->first += *qual_itr++;
-    ++(*tab_itr++).second;
+    ++tab_itr->second;
+    ++tab_itr;
   }
 }
 
@@ -235,8 +254,9 @@ static inline auto
 count_quals_itr_rev(auto qual_itr, const auto qual_end, auto tab_itr) {
   tab_itr += std::distance(qual_itr, qual_end);
   while (qual_itr != qual_end) {
+    --tab_itr;
     tab_itr->first += *qual_itr++;
-    ++(*(--tab_itr)).second;
+    ++tab_itr->second;
   }
 }
 
@@ -334,5 +354,42 @@ using base_group_t = std::pair<std::uint64_t, std::uint64_t>;
 
 [[nodiscard]] auto
 make_base_groups(const std::int64_t n_bases) -> std::vector<base_group_t>;
+
+[[nodiscard]] auto
+apply_base_groups(const std::vector<base_group_t> &groups, auto &rows) {
+  assert(std::size(rows) < groups.back().second);
+  auto group_itr = std::cbegin(groups);
+  auto current_row = 0U;
+  for (const auto [idx, row] :
+       std::views::enumerate(rows) | std::views::drop(1)) {
+    if (static_cast<std::uint64_t>(idx) < group_itr->second)
+      add(rows[current_row], row);
+    else {
+      std::swap(row, rows[++current_row]);
+      ++group_itr;
+    }
+  }
+  ++current_row;  // move past the last row used
+  rows.resize(current_row);
+}
+
+[[nodiscard]] auto
+apply_base_groups(const std::vector<base_group_t> &groups, auto &rows,
+                  const auto &adder) {
+  assert(std::size(rows) < groups.back().second);
+  auto group_itr = std::cbegin(groups);
+  auto current_row = 0U;
+  for (const auto [idx, row] :
+       std::views::enumerate(rows) | std::views::drop(1)) {
+    if (static_cast<std::uint64_t>(idx) < group_itr->second)
+      adder(rows[current_row], row);
+    else {
+      std::swap(row, rows[++current_row]);
+      ++group_itr;
+    }
+  }
+  ++current_row;  // move past the last row used
+  rows.resize(current_row);
+}
 
 #endif  // SRC_FALCO_UTILS_HPP_
