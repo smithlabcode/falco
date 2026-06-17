@@ -24,27 +24,32 @@
 #ifndef SRC_FALCO_UTILS_HPP_
 #define SRC_FALCO_UTILS_HPP_
 
-#include "falco_file_format.hpp"
-#include "quality_score.hpp"
-
 #include "nlohmann/json.hpp"
 
-#include <config.h>
-
-#include <htslib/hts.h>
+#include <htslib/sam.h>
 #include <htslib/thread_pool.h>
 
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <chrono>
-#include <cmath>
+#include <cstdint>
 #include <format>
+#include <functional>
 #include <iterator>
 #include <numeric>
 #include <ranges>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
+
+namespace falco {
+enum class encoding : std::uint8_t;
+}
+namespace falco {
+enum class file_format : std::uint8_t;
+}
 
 [[nodiscard]] constexpr auto
 duration(const auto start, const auto stop) {
@@ -79,7 +84,7 @@ struct file_info {
 namespace falco {
 static constexpr auto alphabet_size = 4;
 using nuc_array = std::array<std::uint64_t, alphabet_size>;
-// NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
 using gc_content_array = std::array<std::uint64_t, 101>;
 }  // namespace falco
 
@@ -279,7 +284,7 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
     dist_to_insertion_point(cumul, 9 * cumul.back() / 10)  // 90th percentile
   };
 }
-// NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
+// NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 
 [[nodiscard]] inline auto
 get_grade(const auto &cutoffs, const auto c) {

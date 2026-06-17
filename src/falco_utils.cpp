@@ -24,13 +24,16 @@
 #include "falco_utils.hpp"
 
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <string>
+#include <tuple>
 #include <vector>
 
 [[nodiscard]] auto
 size_to_units(const std::int64_t s) -> std::string {
   const auto as_frac_3 = [](const auto a, const auto b) {
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     return std::floor(100 * as_frac(a, b)) / 100;
   };
   if (s >= gigabytes)

@@ -35,6 +35,7 @@
 #include <format>
 #include <iterator>
 #include <limits>
+#include <map>
 #include <ranges>
 #include <string>
 #include <system_error>

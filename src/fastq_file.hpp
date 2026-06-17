@@ -42,7 +42,9 @@
 #include <cerrno>
 #include <concepts>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <format>
 #include <iterator>
@@ -375,6 +377,7 @@ private:
   shift_buffer() -> void {
     const auto buf_data = std::data(outbuf);
     const auto n_bytes_to_keep = buf.sz - cursor;
+    // ADS: need to check the conditions when these might overlap
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     std::memcpy(buf_data, buf_data + cursor, n_bytes_to_keep);
     buf.sz = n_bytes_to_keep;
