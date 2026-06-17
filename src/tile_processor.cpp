@@ -30,10 +30,10 @@
 #include <htslib/bgzf.h>
 #include <htslib/sam.h>
 
-#ifdef HAVE_FMT
+#ifdef MAKE_HTML
 #include <fmt/format.h>
 #include <fmt/ranges.h>
-#endif  //  HAVE_FMT
+#endif  //  MAKE_HTML
 
 #include <algorithm>
 #include <array>
@@ -80,24 +80,6 @@ get_name_bam(const std::string &filename) -> std::string {
   return bam_get_qname(b);
 }
 
-auto
-tile_processor::adjust_fastq_qual_encoding(const falco::encoding enc) -> void {
-  const auto qual_offset = get_quality_score_offset(enc);
-  for (auto &tile_quals : quals | std::views::values)
-    for (auto &q : tile_quals)
-      q.first -= q.second * qual_offset;
-}
-
-auto
-tile_processor::trim() -> void {
-  for (auto &tile_quals : quals | std::views::values) {
-    auto first_trailing_zero = 0L;
-    for (const auto [i, q] : std::views::enumerate(tile_quals))
-      first_trailing_zero = q.second > 0 ? i + 1 : first_trailing_zero;
-    tile_quals.resize(first_trailing_zero);
-  }
-}
-
 [[nodiscard]] auto
 get_centered(const auto max_read_len, const auto &quals)
   -> std::map<std::uint32_t, std::vector<double>> {
@@ -128,6 +110,31 @@ get_centered(const auto max_read_len, const auto &quals)
   return centered;
 };
 
+auto
+tile_processor::adjust_fastq_qual_encoding(const falco::encoding enc) -> void {
+  const auto qual_offset = get_quality_score_offset(enc);
+  for (auto &tile_quals : quals | std::views::values)
+    for (auto &q : tile_quals)
+      q.first -= q.second * qual_offset;
+}
+
+auto
+tile_processor::trim() -> void {
+  for (auto &tile_quals : quals | std::views::values) {
+    auto first_trailing_zero = 0L;
+    for (const auto [i, q] : std::views::enumerate(tile_quals))
+      first_trailing_zero = q.second > 0 ? i + 1 : first_trailing_zero;
+    tile_quals.resize(first_trailing_zero);
+  }
+}
+
+auto
+tile_processor::finalize(const falco::encoding enc) -> void {
+  trim();
+  adjust_fastq_qual_encoding(enc);
+  centered = get_centered(max_read_len, quals);
+}
+
 [[nodiscard]] auto
 tile_processor::get_report(std::string &grade) const -> std::string {
   static constexpr auto max_precision{std::numeric_limits<double>::digits10};
@@ -138,7 +145,6 @@ tile_processor::get_report(std::string &grade) const -> std::string {
   if (quals.empty())
     return {};  // ADS: in case this fun is called for files w/o tile info
 
-  const auto centered = get_centered(max_read_len, quals);
   const auto neg_min_cent_qual =
     -std::ranges::min(centered | std::views::values | std::views::join);
 
@@ -151,7 +157,7 @@ tile_processor::get_report(std::string &grade) const -> std::string {
   return r + end_module_tag;
 }
 
-#ifdef HAVE_FMT
+#ifdef MAKE_HTML
 
 [[nodiscard]] auto
 tile_processor::get_html() const -> std::string {
@@ -166,8 +172,6 @@ tile_processor::get_html() const -> std::string {
   if (quals.empty())
     return {};  // ADS: in case this fun is called for files w/o tile info
 
-  // ADS: redundant work
-  const auto centered = get_centered(max_read_len, quals);
   const auto [minval, maxval] =
     std::ranges::minmax(centered | std::views::values | std::views::join);
   // discretize quantiles so plotly understands color scheme
@@ -194,7 +198,7 @@ tile_processor::get_html() const -> std::string {
   return {};
 }
 
-#endif  //  HAVE_FMT
+#endif  //  MAKE_HTML
 
 auto
 tile_processor::operator+=(const tile_processor &rhs)

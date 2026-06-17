@@ -69,9 +69,20 @@ struct tile_processor {
   std::uint32_t tile_id{};
   qual_vec::iterator qual{};
   boost::unordered_flat_map<std::uint32_t, qual_vec> quals;
+  std::map<std::uint32_t, std::vector<double>> centered;
 
   auto
   trim() -> void;
+
+  auto
+  adjust_fastq_qual_encoding(const falco::encoding enc) -> void;
+
+  /// finalize does 3 things:
+  /// (1) trims tile data that's too long for the given tile
+  /// (2) adjust the quality scores based on the encoding
+  /// (3) calculates the (ordered) map of centered values
+  auto
+  finalize(const falco::encoding enc) -> void;
 
   auto
   init(const file_info &info) {
@@ -106,9 +117,6 @@ struct tile_processor {
       qual = std::begin(quals[tile_id]);
     }
   }
-
-  auto
-  adjust_fastq_qual_encoding(const falco::encoding enc) -> void;
 
   [[nodiscard]] auto
   get_report(std::string &grade) const -> std::string;
