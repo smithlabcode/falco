@@ -24,10 +24,10 @@
 #include "kmer_counter.hpp"
 #include "falco_utils.hpp"
 
-#ifdef HAVE_FMT
+#ifdef MAKE_HTML
 #include <fmt/format.h>
 #include <fmt/ranges.h>
-#endif  // HAVE_FMT
+#endif  // MAKE_HTML
 
 #include <algorithm>
 #include <array>
@@ -210,7 +210,7 @@ kmer_counter::decode_kmer(auto word, const auto n_bases) -> std::string {
   return r;
 }
 
-#ifdef HAVE_FMT
+#ifdef MAKE_HTML
 
 [[nodiscard]] auto
 kmer_counter::get_html() const -> std::string {
@@ -240,4 +240,4 @@ kmer_counter::get_html() const -> std::string {
   return {};
 }
 
-#endif  // HAVE_FMT
+#endif  // MAKE_HTML
