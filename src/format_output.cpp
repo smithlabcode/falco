@@ -26,10 +26,10 @@
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
-#ifdef HAVE_FMT
+#ifdef MAKE_HTML
 #include <fmt/format.h>
 #include <fmt/ranges.h>
-#endif  // HAVE_FMT
+#endif  // MAKE_HTML
 
 #include <algorithm>
 #include <array>
@@ -105,7 +105,7 @@ format_read_lengths(const std::vector<std::uint64_t> &lengths,
 }
 
 [[nodiscard]] static inline auto
-sum_deviation_from_normal(const auto &gc) {
+get_theoretical_distribution(const auto &gc) {
   static constexpr auto mode_width = 0.90;  // ADS: where does this come from?
   // calculate deviation of a hist from a "normal" with same mode and sd
   const auto n_bins = std::size(gc);
@@ -113,7 +113,7 @@ sum_deviation_from_normal(const auto &gc) {
   const auto gc_end = std::cend(gc);
   const auto total_count = std::reduce(gc_beg, gc_end);
   if (total_count <= 1)  // we will be dividing by (total_count - 1)
-    return 0.0;
+    return std::vector<double>(std::size(gc));
 
   // get mode
   const auto mode_itr = std::ranges::max_element(gc);
@@ -140,8 +140,19 @@ sum_deviation_from_normal(const auto &gc) {
     // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
     return std::exp(-cntr_sq(val) / (2.0 * sd * sd));
   };
-  auto theor = std::views::iota(0u, n_bins) | std::views::transform(to_normal) |
-               std::ranges::to<std::vector>();
+  return std::views::iota(0u, n_bins) | std::views::transform(to_normal) |
+         std::ranges::to<std::vector>();
+}
+
+[[nodiscard]] static inline auto
+sum_deviation_from_normal(const auto &gc) {
+  const auto gc_beg = std::cbegin(gc);
+  const auto gc_end = std::cend(gc);
+  const auto total_count = std::reduce(gc_beg, gc_end);
+  if (total_count <= 1)  // we will be dividing by (total_count - 1)
+    return 0.0;
+
+  auto theor = get_theoretical_distribution(gc);
   const auto denom = std::reduce(std::cbegin(theor), std::cend(theor));
   std::ranges::transform(theor, std::begin(theor),
                          [&](const auto x) { return x * total_count / denom; });
@@ -393,13 +404,150 @@ format_basic_stats(const std::string &filename, const std::uint64_t n_reads,
   return r;
 }
 
-#ifdef HAVE_FMT
+#ifdef MAKE_HTML
+
+[[nodiscard]] auto
+format_read_lengths_html(const std::vector<std::uint64_t> &lengths)
+  -> std::string {
+  static constexpr auto lengths_fmt = R"""({{
+x: [{}],
+y: [{}],
+text: [{}]
+type: "bar",
+marker: {{color: "rgba(55,128,191,1.0)"}},
+line: {{width : 2}},
+name: "Sequence length distribution"
+}})""";
+  const auto length_values = std::views::iota(0LU, std::size(lengths));
+  const auto add_bp = [&](const auto l) {
+    return fmt::format(R"("{} bp")", l);
+  };
+  return fmt::format(
+    lengths_fmt,                                                   //
+    fmt::join(std::views::transform(length_values, add_bp), ","),  //
+    fmt::join(lengths, ","),                                       //
+    fmt::join(length_values, ","));
+}
+
+[[nodiscard]] auto
+format_gc_content_html(const falco::gc_content_array &gc_content)
+  -> std::string {
+  static constexpr auto gc_fmt = R"({{
+x: [{}],
+y: [{}],
+type: "line",
+line: {{color : "red"}},
+name: "GC distribution"
+}},
+{{
+x: [{}],
+y: [{:.3f}],
+type: "line",
+line: {{color : "blue"}},
+name: "Theoretical distribution"
+}})";
+  const auto x = std::views::iota(0LU, std::size(gc_content));
+  const auto theor = get_theoretical_distribution(gc_content);
+  return fmt::format(gc_fmt,  //
+                     fmt::join(x, ","), fmt::join(gc_content, ","),
+                     fmt::join(x, ","), fmt::join(theor, ","));
+}
+
+[[nodiscard]] auto
+format_base_composition_html(const std::vector<falco::nuc_array> &nucs)
+  -> std::string {
+  static constexpr auto base_permutation = {3, 0, 2, 1};
+  // ADS: the permutation is likely wrong...
+  static constexpr auto bases = "ATGC";  // ATGC
+  static constexpr auto base_to_color = std::array{
+    "green",
+    "blue",
+    "red",
+    "black",
+  };
+  static constexpr auto per_base_fmt = R"({{
+x: [{}],
+y: [{:.3f}],
+mode: "lines",
+name: "{}",
+line: {{color : "{}"}}
+}})";
+  const auto n_pos = std::size(nucs);
+  const auto make_tag = [](const auto pos) {
+    return fmt::format(R"("{}-{}")", pos, pos);
+  };
+  const auto x = std::views::iota(0LU, n_pos) | std::views::transform(make_tag);
+  const auto sum = [&](const auto &nucs_by_pos) {
+    return std::reduce(std::cbegin(nucs_by_pos), std::cend(nucs_by_pos));
+  };
+  const auto total_by_pos = nucs | std::views::transform(sum);
+  std::vector<std::string> r;
+  for (const auto idx : base_permutation) {
+    const auto pct_for_pos = [idx](const auto &nucs_for_pos, const auto tot) {
+      return pct(as_frac(nucs_for_pos[idx], tot));
+    };
+    const auto y = std::views::zip_transform(pct_for_pos, nucs, total_by_pos);
+    r.emplace_back(fmt::format(per_base_fmt,       //
+                               fmt::join(x, ","),  //
+                               fmt::join(y, ","),  //
+                               bases[idx],         //
+                               base_to_color[idx]));
+  }
+  return fmt::format("{}", fmt::join(r, ",\n"));
+}
+
+[[nodiscard]] auto
+format_n_counts_html(const std::vector<std::uint64_t> &n_counts,
+                     const std::vector<falco::nuc_array> &nucs) -> std::string {
+  static constexpr auto n_count_fmt = R"({{
+x: [{}],
+y: [{:.6g}],
+type: "line",
+line: {{color : "red"}},
+name: "Fraction of N reads per base"
+}}
+)";
+  const auto pct_for_pos = [](const auto &nucs_by_pos, const auto n_count) {
+    return pct(as_frac(
+      n_count, std::reduce(std::cbegin(nucs_by_pos), std::cend(nucs_by_pos))));
+  };
+  return fmt::format(
+    n_count_fmt,                                                            //
+    fmt::join(std::views::iota(0LU, std::size(n_counts)), ","),             //
+    fmt::join(std::views::zip_transform(pct_for_pos, nucs, n_counts), ",")  //
+  );
+}
+
+[[nodiscard]] auto
+format_qual_by_read_html(const falco::qual_array &qual_by_read) -> std::string {
+  static constexpr auto qbr_fmt = R"({{
+x: [{}],
+y: [{}],
+type: "line",
+line: {{color: "red"}},
+name: "Sequence quality distribution"
+}}
+)";
+  // output quality values between first non-zero and last zero
+  const auto gt0 = [&](const auto x) { return x > 0; };
+  const auto first_obs_itr = std::ranges::find_if(qual_by_read, gt0);
+  const auto q_beg = std::cbegin(qual_by_read);
+  const std::int64_t first_obs = std::distance(q_beg, first_obs_itr);
+  const auto last_obs_subrange = std::ranges::find_last_if(qual_by_read, gt0);
+  const std::int64_t last_obs =
+    std::ssize(qual_by_read) - std::ssize(last_obs_subrange) + 1;
+  assert(first_obs >= 0 && last_obs <= falco::max_qual_val);
+
+  const auto x = std::views::iota(first_obs, last_obs);
+  const auto y = std::ranges::subrange{q_beg + first_obs, q_beg + last_obs};
+  return fmt::format(qbr_fmt, fmt::join(x, ","), fmt::join(y, ","));
+}
 
 [[nodiscard]] auto
 format_qual_by_pos_html(const std::vector<falco::qual_array> &qual)
   -> std::string {
   const auto row_fmt =
-    R"({{y: [{}], type: 'box', name: '{}-{}bp', marker : {{color : '{}'}}}})";
+    R"({{y: [{}], type: "box", name: "{}-{}bp", marker: {{color : "{}"}}}})";
   const auto get_color = [&](const auto &q) {
     static constexpr auto median_error = 0.20;
     static constexpr auto median_warn = 0.25;
@@ -446,16 +594,50 @@ format_basic_stats_html(const std::string &filename,
       : std::format("{}-{}", min_read_len, max_read_len);
   const auto average_gc_content_label =
     fmt::format("{:.1f}", pct(as_frac(total_gc, total_nucs)));
-  return fmt::format(
-    fmt::runtime(falco_html_summary_basic_statistics),
-    fmt::arg("filename_stem", filename), fmt::arg("file_type", file_type),
+  // clang-format off
+  return fmt::format(fmt::runtime(falco_html_summary_basic_statistics),
+    fmt::arg("filename_stem", filename),
+    fmt::arg("file_type", file_type),
     fmt::arg("file_encoding", encoding),
-    fmt::arg("total_sequences_label", n_reads), fmt::arg("n_poor_sequences", 0),
+    fmt::arg("total_sequences_label", n_reads),
+    fmt::arg("n_poor_sequences", 0),
     fmt::arg("sequence_length_label", sequence_length_label),
     fmt::arg("average_gc_content_label", pct(as_frac(total_gc, total_nucs))));
+  // clang-format on
 }
 
-#else  // HAVE_FMT
+#else  // NOT MAKE_HTML
+
+[[nodiscard]] auto
+format_read_lengths_html(
+  [[maybe_unused]] const std::vector<std::uint64_t> &lengths) -> std::string {
+  return {};
+}
+
+[[nodiscard]] auto
+format_gc_content_html(
+  [[maybe_unused]] const falco::gc_content_array &gc_content) -> std::string {
+  return {};
+}
+
+[[nodiscard]] auto
+format_base_composition_html(
+  [[maybe_unused]] const std::vector<falco::nuc_array> &nucs) -> std::string {
+  return {};
+}
+
+[[nodiscard]] auto
+format_n_counts_html(
+  [[maybe_unused]] const std::vector<std::uint64_t> &n_counts,
+  [[maybe_unused]] const std::vector<falco::nuc_array> &nucs) -> std::string {
+  return {};
+}
+
+[[nodiscard]] auto
+format_qual_by_read_html([[maybe_unused]] const falco::qual_array &qual_by_read)
+  -> std::string {
+  return {};
+}
 
 [[nodiscard]] auto
 format_qual_by_pos_html(
@@ -475,4 +657,4 @@ format_basic_stats_html([[maybe_unused]] const std::string &filename,
   return {};
 }
 
-#endif  // HAVE_FMT
+#endif  // MAKE_HTML

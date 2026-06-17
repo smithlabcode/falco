@@ -60,11 +60,19 @@ format_read_lengths(const std::vector<std::uint64_t> &lengths,
                     std::string &grade) -> std::string;
 
 [[nodiscard]] auto
+format_read_lengths_html(const std::vector<std::uint64_t> &lengths)
+  -> std::string;
+
+[[nodiscard]] auto
 get_grade_gc_content(const falco::gc_content_array &gc_content) -> std::string;
 
 [[nodiscard]] auto
 format_gc_content(const falco::gc_content_array &gc_content,
                   std::string &grade) -> std::string;
+
+[[nodiscard]] auto
+format_gc_content_html(const falco::gc_content_array &gc_content)
+  -> std::string;
 
 [[nodiscard]] auto
 get_grade_base_composition(const std::vector<falco::nuc_array> &nucs)
@@ -73,6 +81,10 @@ get_grade_base_composition(const std::vector<falco::nuc_array> &nucs)
 [[nodiscard]] auto
 format_base_composition(const std::vector<falco::nuc_array> &nucs,
                         std::string &grade) -> std::string;
+
+[[nodiscard]] auto
+format_base_composition_html(const std::vector<falco::nuc_array> &nucs)
+  -> std::string;
 
 [[nodiscard]] auto
 get_grade_n_counts(const std::vector<std::uint64_t> &n_counts,
@@ -84,11 +96,18 @@ format_n_counts(const std::vector<std::uint64_t> &n_counts,
                 std::string &grade) -> std::string;
 
 [[nodiscard]] auto
+format_n_counts_html(const std::vector<std::uint64_t> &n_counts,
+                     const std::vector<falco::nuc_array> &nucs) -> std::string;
+
+[[nodiscard]] auto
 get_grade_qual_by_read(const falco::qual_array &qual_by_read) -> std::string;
 
 [[nodiscard]] auto
 format_qual_by_read(const falco::qual_array &qual_by_read,
                     std::string &grade) -> std::string;
+
+[[nodiscard]] auto
+format_qual_by_read_html(const falco::qual_array &qual_by_read) -> std::string;
 
 [[nodiscard]] auto
 get_grade_qual_by_pos(const std::vector<falco::qual_array> &qual)
