@@ -233,7 +233,7 @@ struct alignas(assumed_page_size) falco_results {
 
   [[nodiscard]] auto
   get_html_impl([[maybe_unused]] const file_info &info) const {
-#ifdef HAVE_FMT
+#ifdef MAKE_HTML
     const auto nucs_no_n = adjust_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
     const auto gc_acc = [](const auto a, const auto &nuc) {
@@ -249,10 +249,17 @@ struct alignas(assumed_page_size) falco_results {
       format_basic_stats_html(info.name, n_reads, min_read_len, max_read_len,
                               total_gc, total_nucs, encoding_label);
     r += format_qual_by_pos_html(qual_by_pos);
+    r += format_qual_by_read_html(qual_by_read);
+    r += format_base_composition_html(nucs);
+    r += format_n_counts_html(n_counts, nucs);
+    r += format_gc_content_html(gcs);
+    r += format_read_lengths_html(lengths);
+    r += dr.format_duplication_levels_html();
+    r += dr.format_overrepresented_html();
     return r;
 #else
     return std::string{"not yet implemented: should be ready soon!"};
-#endif  // HAVE_FMT
+#endif  // MAKE_HTML
   }
 };
 
@@ -270,8 +277,7 @@ struct falco_results_tile : public falco_results {
   auto
   finalize_qual_encoding_impl(const auto enc) {
     falco_results::finalize_qual_encoding_impl(enc);
-    tp.trim();
-    tp.adjust_fastq_qual_encoding(enc);
+    tp.finalize(enc);
   }
 
   auto
@@ -359,7 +365,6 @@ struct falco_results_tile_kmer : public falco_results_tile {
   [[nodiscard]] auto
   get_html_impl(const file_info &info) const {
     return falco_results_tile::get_html_impl(info) + kc.get_html();
-    ;
   }
 };
 
