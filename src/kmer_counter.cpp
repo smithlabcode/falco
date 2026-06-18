@@ -210,6 +210,14 @@ kmer_counter::decode_kmer(auto word, const auto n_bases) -> std::string {
   return r;
 }
 
+auto
+kmer_counter::finalize(const run_mode &mode) -> void {
+  if (mode.do_groups) {
+    const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
+    apply_base_groups(groups, kmer_counts);
+  }
+}
+
 #ifdef MAKE_HTML
 
 [[nodiscard]] auto
@@ -233,7 +241,8 @@ kmer_counter::get_html() const -> std::string {
   return fmt::format(
     "{}\n", fmt::join(std::views::transform(to_report, format1), ",\n"));
 }
-#else
+
+#else  // NO MAKE_HTML
 
 [[nodiscard]] auto
 kmer_counter::get_html() const -> std::string {

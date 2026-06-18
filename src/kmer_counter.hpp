@@ -106,6 +106,9 @@ struct kmer_counter {
   }
 
   auto
+  finalize(const run_mode &mode) -> void;
+
+  auto
   operator+=(const kmer_counter &rhs) -> const kmer_counter &;
 
   [[nodiscard]] auto
