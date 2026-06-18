@@ -361,7 +361,7 @@ main(int argc, char *argv[]) {
                    size_to_units(buffer_size), do_tiles, do_kmers, do_groups,
                    format_description);
       std::ranges::for_each(infiles,
-                            [](const auto &x) { std::println("{}", x); });
+                            [](const auto &fn) { std::println("{}", fn); });
     }
 
     run_mode mode;
