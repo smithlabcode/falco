@@ -159,7 +159,7 @@ template <typename results_t, typename rec_t> struct analyzer_t {
 
   [[nodiscard]] auto
   pop_file(auto &file_queue_lock) {
-    const auto file_id = std::move(file_queue.front());
+    const auto file_id = file_queue.front();
     file_queue.pop();
     file_queue_lock.unlock();
     file_queue_cv.notify_one();
