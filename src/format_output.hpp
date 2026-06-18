@@ -80,6 +80,7 @@ get_grade_base_composition(const std::vector<falco::nuc_array> &nucs)
 
 [[nodiscard]] auto
 format_base_composition(const std::vector<falco::nuc_array> &nucs,
+                        const std::vector<base_group_t> &groups,
                         std::string &grade) -> std::string;
 
 [[nodiscard]] auto
@@ -93,6 +94,7 @@ get_grade_n_counts(const std::vector<std::uint64_t> &n_counts,
 [[nodiscard]] auto
 format_n_counts(const std::vector<std::uint64_t> &n_counts,
                 const std::vector<falco::nuc_array> &nucs,
+                const std::vector<base_group_t> &groups,
                 std::string &grade) -> std::string;
 
 [[nodiscard]] auto
@@ -115,6 +117,7 @@ get_grade_qual_by_pos(const std::vector<falco::qual_array> &qual)
 
 [[nodiscard]] auto
 format_qual_by_pos(const std::vector<falco::qual_array> &qual,
+                   const std::vector<base_group_t> &groups,
                    std::string &grade) -> std::string;
 
 [[nodiscard]] auto

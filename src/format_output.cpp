@@ -212,6 +212,7 @@ get_grade_base_composition(const std::vector<falco::nuc_array> &nucs)
 
 [[nodiscard]] auto
 format_base_composition(const std::vector<falco::nuc_array> &nucs,
+                        const std::vector<base_group_t> &groups,
                         std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Per base sequence content\t{}\n";
   static constexpr auto header = "#Base\t"
@@ -221,7 +222,7 @@ format_base_composition(const std::vector<falco::nuc_array> &nucs,
   auto r = std::format(start_tag, grade);
   r += header;
   for (auto i = 0u; i < std::size(nucs); ++i) {
-    r += std::format("{}", i + 1);
+    r += make_group_tag(groups[i]);
     const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
     for (const auto j : base_permutation)
       // cppcheck-suppress useStlAlgorithm
@@ -252,6 +253,7 @@ get_grade_n_counts(const std::vector<std::uint64_t> &n_counts,
 [[nodiscard]] auto
 format_n_counts(const std::vector<std::uint64_t> &n_counts,
                 const std::vector<falco::nuc_array> &nucs,
+                const std::vector<base_group_t> &groups,
                 std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Per base N content\t{}\n";
   static constexpr auto header = "#Base\t"
@@ -261,7 +263,8 @@ format_n_counts(const std::vector<std::uint64_t> &n_counts,
   r += header;
   for (auto i = 0u; i < std::size(n_counts); ++i) {
     const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
-    r += std::format("{}\t{:.6g}\n", i + 1, pct(as_frac(n_counts[i], tot)));
+    r += std::format("{}\t{:.6g}\n", make_group_tag(groups[i]),
+                     pct(as_frac(n_counts[i], tot)));
   }
   r += end_module_tag;
   return r;
@@ -339,6 +342,7 @@ get_grade_qual_by_pos(const std::vector<falco::qual_array> &qual)
 
 [[nodiscard]] auto
 format_qual_by_pos(const std::vector<falco::qual_array> &qual,
+                   const std::vector<base_group_t> &groups,
                    std::string &grade) -> std::string {
   static constexpr auto digits{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per base sequence quality\t{}\n";
@@ -358,8 +362,8 @@ format_qual_by_pos(const std::vector<falco::qual_array> &qual,
   auto r = std::format(start_tag, grade);
   r += header;
   for (const auto [idx, q] : std::views::enumerate(qual))
-    r += std::format("{}\t{:.{}g}{}\n", idx + 1, mean_tabular(q), digits,
-                     tab_sep(five_quants(q)));
+    r += std::format("{}\t{:.{}g}{}\n", make_group_tag(groups[idx]),
+                     mean_tabular(q), digits, tab_sep(five_quants(q)));
   r += end_module_tag;
   return r;
 }
