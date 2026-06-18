@@ -184,11 +184,6 @@ two_dim_add(auto &v1, const auto &v2) {
     add(a1, a2);
 };
 
-[[nodiscard]] inline auto
-operator+(auto lhs, const auto &rhs) {
-  return lhs += rhs;
-}
-
 [[nodiscard]] constexpr auto
 as_frac(const auto a, const auto b) {
   return static_cast<double>(a) / static_cast<double>(b);
