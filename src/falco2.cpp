@@ -100,7 +100,8 @@ write_file(const auto &filename, const auto &data) {
 
 template <typename results_t>
 static auto
-run(auto &infos, auto &reads_files, const auto n_threads, const auto &outdirs) {
+run(const run_mode &mode, std::vector<file_info> &infos, auto &reads_files,
+    const auto n_threads, const auto &outdirs) {
   using rec_t = std::decay_t<decltype(reads_files)>::value_type::rec_t;
   static constexpr auto report_filename = "fastqc_data.txt";
   static constexpr auto html_filename = "fastqc_report.html";
@@ -117,8 +118,7 @@ run(auto &infos, auto &reads_files, const auto n_threads, const auto &outdirs) {
   for (const auto [results, info, outdir] :
        std::views::zip(analyzer.results.front(), infos, outdirs)) {
     set_quality_score_encoding(results.qual_by_pos, info);
-    if (!is_mapped_reads(info.format))
-      results.finalize_qual_encoding(info.encoding);
+    results.finalize(mode, info);
     grades g;
     const auto report = results.get_report(info, g);
 
@@ -142,21 +142,23 @@ run_mode_selector(const run_mode &mode, std::vector<file_info> &infos,
                   auto &reads_files, const auto n_threads,
                   const auto &outdirs) {
   if (tiles(mode) && kmers(mode))
-    run<falco_results_tile_kmer>(infos, reads_files, n_threads, outdirs);
+    run<falco_results_tile_kmer>(mode, infos, reads_files, n_threads, outdirs);
   else if (tiles(mode))
-    run<falco_results_tile>(infos, reads_files, n_threads, outdirs);
+    run<falco_results_tile>(mode, infos, reads_files, n_threads, outdirs);
   else if (kmers(mode))
-    return run<falco_results_kmer>(infos, reads_files, n_threads, outdirs);
+    return run<falco_results_kmer>(mode, infos, reads_files, n_threads,
+                                   outdirs);
   else
-    run<falco_results>(infos, reads_files, n_threads, outdirs);
+    run<falco_results>(mode, infos, reads_files, n_threads, outdirs);
 }
 
 static auto
 start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
-               const auto input_format, const auto &format_description,
-               auto &infos, const auto &infiles, const auto &outdirs) {
+               std::vector<file_info> &infos, const auto &infiles,
+               const auto &outdirs) {
   // ADS: this function is bloated mostly to avoid allowing default construction
   // or move assignment in the fastq_file, fastq_gz_file, etc.
+  const auto input_format = infos.front().format;
   const auto n_infiles = std::size(infiles);
   if (is_mapped_reads(input_format)) {
     falco_thread_pool p(n_threads.decomp);
@@ -189,6 +191,7 @@ start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
     run_mode_selector(mode, infos, f, n_threads, outdirs);
   }
   else {
+    const auto format_description = infos.front().description;
     std::println("unsupported file format: {}", format_description);
   }
 }
@@ -251,6 +254,7 @@ main(int argc, char *argv[]) {
 
     bool do_tiles{};
     bool do_kmers{};
+    bool do_groups{};
     bool verbose{};
 
     using std::literals::string_literals::operator""s;
@@ -304,6 +308,7 @@ main(int argc, char *argv[]) {
     app.add_flag("-v,--verbose", verbose, "Print more info while running.");
     app.add_flag("--tiles", do_tiles, "Enable per-tile analysis");
     app.add_flag("--kmers", do_kmers, "Enable k-mer analysis");
+    app.add_flag("--groups", do_groups, "Use base groups in output");
     // clang-format on
 
     const auto start_time{std::chrono::high_resolution_clock::now()};
@@ -347,12 +352,14 @@ main(int argc, char *argv[]) {
                  n_threads.workers, n_threads.readers);
       if (is_bgzf(input_format))
         std::print("decompression threads: {}\n", n_threads.decomp);
-      std::print("memory requested: {}\n"
-                 "tile analysis requested: {}\n"
-                 "k-mer analysis requested: {}\n",
-                 size_to_units(buffer_size), do_tiles, do_kmers);
-      std::println("input file format: {}", format_description);
-      std::println("input files:");
+      std::println("memory requested: {}\n"
+                   "tile analysis requested: {}\n"
+                   "k-mer analysis requested: {}\n"
+                   "use base groups in output: {}\n"
+                   "input file format: {}"
+                   "input files:",  //
+                   size_to_units(buffer_size), do_tiles, do_kmers, do_groups,
+                   format_description);
       std::ranges::for_each(infiles,
                             [](const auto &x) { std::println("{}", x); });
     }
@@ -360,9 +367,9 @@ main(int argc, char *argv[]) {
     run_mode mode;
     mode.tiles(do_tiles);
     mode.kmers(do_kmers);
+    mode.groups(do_groups);
 
-    start_analysis(mode, buffer_size, n_threads, input_format,
-                   format_description, infos, infiles, outdirs);
+    start_analysis(mode, buffer_size, n_threads, infos, infiles, outdirs);
 
     if (verbose)
       std::println(
