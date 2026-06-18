@@ -49,6 +49,7 @@ size_to_units(const std::int64_t s) -> std::string {
 get_linear_interval(const std::uint64_t n_bases,
                     const std::uint64_t n_groups_target)
   -> std::tuple<std::uint64_t, std::uint64_t> {
+  // returns the interval size and the corresponding number of groups
   static constexpr auto max_n_bases = 10'000'000LU;
   static constexpr auto multiplier = 10LU;
   static constexpr auto base_values = std::array{2LU, 5LU, 10LU};
@@ -77,9 +78,8 @@ make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
   };
   static constexpr auto make_groups = [](const auto n, const auto offset,
                                          const auto scale) {
-    return std::views::transform(
-             std::views::iota(0LU, n + 1),
-             [offset, scale](const auto x) { return offset + x * scale; }) |
+    const auto f = [scale, offset](const auto x) { return offset + x * scale; };
+    return std::views::transform(std::views::iota(0LU, n + 1), f) |
            std::views::adjacent_transform<2>(make_one_group);
   };
   if (n_bases <= n_initial + n_groups_target)
@@ -91,6 +91,9 @@ make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
   const auto groups1 = make_groups(n_groups, n_initial, group_size);
   groups.reserve(std::size(groups) + n_groups);
   std::ranges::copy(groups1, std::back_inserter(groups));
+  // ADS: the line below is to try and make the same intervals as FastQC and
+  // maybe isn't needed
+  groups.back().second = n_bases;
   return groups;
 }
 
