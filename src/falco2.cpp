@@ -120,7 +120,7 @@ run(const run_mode &mode, std::vector<file_info> &infos, auto &reads_files,
     set_quality_score_encoding(results.qual_by_pos, info);
     results.finalize(mode, info);
     grades g;
-    const auto report = results.get_report(info, g);
+    const auto report = results.get_report(mode, info, g);
 
     const auto report_path =
       (std::filesystem::path{outdir} / report_filename).string();
@@ -141,11 +141,11 @@ static auto
 run_mode_selector(const run_mode &mode, std::vector<file_info> &infos,
                   auto &reads_files, const auto n_threads,
                   const auto &outdirs) {
-  if (tiles(mode) && kmers(mode))
+  if (do_tiles(mode) && do_kmers(mode))
     run<falco_results_tile_kmer>(mode, infos, reads_files, n_threads, outdirs);
-  else if (tiles(mode))
+  else if (do_tiles(mode))
     run<falco_results_tile>(mode, infos, reads_files, n_threads, outdirs);
-  else if (kmers(mode))
+  else if (do_kmers(mode))
     return run<falco_results_kmer>(mode, infos, reads_files, n_threads,
                                    outdirs);
   else
@@ -356,7 +356,7 @@ main(int argc, char *argv[]) {
                    "tile analysis requested: {}\n"
                    "k-mer analysis requested: {}\n"
                    "use base groups in output: {}\n"
-                   "input file format: {}"
+                   "input file format: {}\n"
                    "input files:",  //
                    size_to_units(buffer_size), do_tiles, do_kmers, do_groups,
                    format_description);
