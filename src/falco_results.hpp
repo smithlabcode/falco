@@ -39,6 +39,7 @@
 #include <string>
 #include <thread>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 // clang-format off
@@ -250,7 +251,7 @@ struct alignas(assumed_page_size) falco_results {
       std::distance(std::cbegin(lengths), std::ranges::find_if(lengths, gt0));
     const auto encoding_label = get_quality_score_label(info.encoding);
     const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
-    return std::map<std::string, std::string>{
+    return std::unordered_map<std::string, std::string>{
       {"basic_stats",
        format_basic_stats(info.name, n_reads, min_read_len, max_read_len,
                           total_gc, total_nucs, encoding_label, g.basic_stats)},
@@ -266,21 +267,6 @@ struct alignas(assumed_page_size) falco_results {
       {"overrepresented", dr.format_overrepresented(g.overrepresented)},
       {"adapters", am.get_report(n_reads, groups, g.adapter_content)},
     };
-    // auto r =
-    //   format_basic_stats(info.name, n_reads, min_read_len, max_read_len,
-    //                      total_gc, total_nucs, encoding_label,
-    //                      g.basic_stats);
-    // r += format_qual_by_pos(qual_by_pos, g.qual_by_pos);
-    // r += format_qual_by_read(qual_by_read, g.qual_by_read);
-    // r += format_base_composition(nucs_no_n, g.base_composition);
-    // r += format_gc_content(gcs, g.gc_content);
-    // r += format_n_counts(n_counts, nucs, g.n_counts);
-    // r += format_read_lengths(lengths, g.read_lengths);
-    // r += dr.format_duplication_levels(g.duplication_levels);
-    // r += dr.format_overrepresented(g.overrepresented);
-    // r += am.get_report(n_reads, g.adapter_content);
-    // return r;
-    // clang-format on
   }
 
   template <typename self_t>
