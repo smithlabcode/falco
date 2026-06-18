@@ -364,7 +364,7 @@ make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
   -> std::vector<base_group_t>;
 
 [[nodiscard]] auto
-get_default_base_groups(const std::int64_t n_bases, const bool use_target)
+get_default_base_groups(const std::uint64_t n_bases, const bool use_target)
   -> const std::vector<base_group_t> &;
 
 [[nodiscard]] inline auto

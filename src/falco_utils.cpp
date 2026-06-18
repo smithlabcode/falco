@@ -95,13 +95,13 @@ make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
 }
 
 [[nodiscard]] auto
-get_default_base_groups(const std::int64_t n_bases, const bool use_target)
+get_default_base_groups(const std::uint64_t n_bases, const bool use_target)
   -> const std::vector<std::pair<std::uint64_t, std::uint64_t>> & {
   static constexpr auto default_n_initial = 9UL;
   static constexpr auto default_n_groups_target = 75UL - default_n_initial;
   static const auto base_group =
     use_target
       ? make_base_groups(n_bases, default_n_initial, default_n_groups_target)
-      : make_base_groups(n_bases, 0, n_bases);
+      : make_base_groups(n_bases, 0UL, n_bases);
   return base_group;
 }
