@@ -45,6 +45,7 @@
 static constexpr auto report_section_order = std::array{
   "basic_stats",
   "qual_by_pos",
+  "tiles",
   "qual_by_read",
   "base_composition",
   "gc_content",
@@ -53,7 +54,6 @@ static constexpr auto report_section_order = std::array{
   "duplication_levels",
   "overrepresented",
   "adapters",
-  "tiles",
   "kmers",
 };
 // clang-format on
