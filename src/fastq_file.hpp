@@ -291,6 +291,7 @@ private:
 public:
   // clang-format off
   [[nodiscard]] auto get_cursor() const { return cursor; }
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   [[nodiscard]] auto get_buf_end() const { return buf.data + buf.sz; }
   auto set_cursor(const auto c) { cursor = c; }
   // clang-format on
