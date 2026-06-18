@@ -48,25 +48,6 @@
 
 static constexpr auto qual_missing_code = 0xff;  // from sam.c
 
-template <class T> struct aligned_allocator {
-  static constexpr std::size_t align_at = 8;
-  typedef T value_type;
-  [[nodiscard]] auto
-  allocate(const std::size_t n) -> T * {
-    if (n > std::numeric_limits<std::size_t>::max() / sizeof(T))
-      throw std::bad_array_new_length();
-    // NOLINTNEXTLINE (cppcoreguidelines-owning-memory)
-    if (auto p = static_cast<T *>(std::aligned_alloc(align_at, n * sizeof(T))))
-      return p;
-    throw std::bad_alloc();
-  }
-  auto
-  deallocate(T *p, [[maybe_unused]] const std::size_t n) noexcept {
-    // NOLINTNEXTLINE (cppcoreguidelines-owning-memory)
-    std::free(p);
-  }
-};
-
 // clang-format off
 struct bam_seq_itr {
   // ADS: this class exists to model a char * as is used for the read sequence
@@ -156,9 +137,7 @@ struct bam_buffer {
   std::int64_t n_recs{};
   std::int64_t n_bytes{};
   std::vector<bam1_t> recs;
-  // ADS: ensure alignment within the vector; I can't produce an allocation that
-  // is not aligned to 8 bytes, but I can't find a reason to assume this happens
-  std::vector<std::uint8_t, aligned_allocator<std::uint8_t>> data;
+  std::vector<std::uint8_t> data;
   // clang-format off
   explicit bam_buffer(const std::int64_t buf_size) :
     n_recs{buf_size / (bam1_t_size + min_bytes_per_record)},
