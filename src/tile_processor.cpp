@@ -22,6 +22,7 @@
  */
 
 #include "tile_processor.hpp"
+#include "falco_file_format.hpp"
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
@@ -128,10 +129,17 @@ tile_processor::trim() -> void {
   }
 }
 
+[[nodiscard]] static auto
+get_max_size(const auto &x) {
+  const auto sz = [](const auto &y) { return std::size(y); };
+  return std::ranges::max(std::views::transform(x | std::views::values, sz));
+}
+
 auto
 tile_processor::finalize(const run_mode &mode, const file_info &info) -> void {
   trim();
-  adjust_fastq_qual_encoding(info.encoding);
+  if (!is_mapped_reads(info.format))
+    adjust_fastq_qual_encoding(info.encoding);
   if (mode.do_groups) {
     const auto groups = make_base_groups(max_read_len);
     for (auto &x : std::views::values(quals))
@@ -140,7 +148,8 @@ tile_processor::finalize(const run_mode &mode, const file_info &info) -> void {
         a.second += b.second;
       });
   }
-  centered = get_centered(max_read_len, quals);
+  // ADS: max_read_len not useful after grouping
+  centered = get_centered(get_max_size(quals), quals);
   quals.clear();  // ADS: force a crash if this is used after centering
 }
 
@@ -193,10 +202,13 @@ tile_processor::get_html() const -> std::string {
   };
   const auto z = std::views::transform(centered | std::views::values, format1);
   const auto mid_discr = std::round(n_quants * midpoint) / n_quants;
+
+  // max_read_len not useful after grouping
+  const auto n_groups = get_max_size(centered);
   return fmt::format(tile_quals_fmt,
-                     fmt::join(std::views::iota(0u, max_read_len), ","),  // x
-                     fmt::join(centered | std::views::keys, ","),         // y
-                     fmt::join(z, ","),                                   // z
+                     fmt::join(std::views::iota(0u, n_groups), ","),  // x
+                     fmt::join(centered | std::views::keys, ","),     // y
+                     fmt::join(z, ","),                               // z
                      fmt::format(colorfmt, mid_discr));
 }
 
