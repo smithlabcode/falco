@@ -95,7 +95,7 @@ auto
 adapter_matcher::finalize(const run_mode &mode) -> void {
   if (do_groups(mode)) {
     const auto groups =
-      get_default_base_groups(std::ssize(adap_counts), do_groups(mode));
+      get_default_base_groups(std::size(adap_counts), do_groups(mode));
     apply_base_groups(groups, adap_counts);
   }
 }
