@@ -140,8 +140,8 @@ tile_processor::finalize(const run_mode &mode, const file_info &info) -> void {
   trim();
   if (!is_mapped_reads(info.format))
     adjust_fastq_qual_encoding(info.encoding);
-  if (mode.do_groups) {
-    const auto groups = make_base_groups(max_read_len);
+  if (do_groups(mode)) {
+    const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
     for (auto &x : std::views::values(quals))
       apply_base_groups(groups, x, [](auto &a, const auto &b) {
         a.first += b.first;
@@ -154,7 +154,8 @@ tile_processor::finalize(const run_mode &mode, const file_info &info) -> void {
 }
 
 [[nodiscard]] auto
-tile_processor::get_report(std::string &grade) const -> std::string {
+tile_processor::get_report(const std::vector<base_group_t> &groups,
+                           std::string &grade) const -> std::string {
   static constexpr auto max_precision{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
   static constexpr auto header = "#Tile\t"
@@ -169,9 +170,10 @@ tile_processor::get_report(std::string &grade) const -> std::string {
   grade = get_grade(grade_cutoffs, neg_min_cent_qual);
   auto r = std::format(start_tag, grade);
   r += header;
-  for (const auto &[i, q] : centered)
+  for (const auto &[tile_id, q] : centered)
     for (auto j = 0u; j < std::size(q); ++j)
-      r += std::format("{}\t{}\t{:.{}f}\n", i, j + 1, q[j], max_precision);
+      r += std::format("{}\t{}\t{:.{}f}\n", tile_id, make_group_tag(groups[j]),
+                       q[j], max_precision);
   return r + end_module_tag;
 }
 

@@ -124,7 +124,8 @@ struct tile_processor {
   }
 
   [[nodiscard]] auto
-  get_report(std::string &grade) const -> std::string;
+  get_report(const std::vector<base_group_t> &groups,
+             std::string &grade) const -> std::string;
 
   [[nodiscard]] auto
   get_html() const -> std::string;
