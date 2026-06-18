@@ -119,6 +119,7 @@ struct adapter_matcher {
 
   [[nodiscard]] auto
   get_report(const std::uint64_t n_reads,
+             const std::vector<base_group_t> &groups,
              std::string &grade) const -> std::string;
 };
 

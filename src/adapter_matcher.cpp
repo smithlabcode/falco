@@ -55,11 +55,12 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 
 [[nodiscard]] auto
 adapter_matcher::get_report(const std::uint64_t n_reads,
+                            const std::vector<base_group_t> &groups,
                             std::string &grade) const -> std::string {
   static constexpr auto start_module_tag = ">>Adapter Content\t{}\n";
   static constexpr auto header = "#Position";
-  static const auto to_flat = [](const auto &fmt, const auto data) {
-    return data | std::views::transform(fmt) | std::views::join |
+  static constexpr auto to_flat = [](const auto data, const auto &fun) {
+    return data | std::views::transform(fun) | std::views::join |
            std::ranges::to<std::string>();
   };
 
@@ -70,8 +71,8 @@ adapter_matcher::get_report(const std::uint64_t n_reads,
   grade = get_grade(grade_cutoffs, mcf);
 
   auto r = std::format(start_module_tag, grade);
-  r += header + to_flat([](const auto x) { return std::format("\t{}", x); },
-                        adapter_names);
+  r += header + to_flat(adapter_names,
+                        [](const auto x) { return std::format("\t{}", x); });
   r += '\n';
 
   auto cumulative = adap_counts;
@@ -85,15 +86,16 @@ adapter_matcher::get_report(const std::uint64_t n_reads,
     return std::format("\t{:.6g}", pct(as_frac(c, n_reads)));
   };
   for (const auto [idx, cumul] : std::views::enumerate(cumulative))
-    r += std::format("{}{}\n", idx + 1, to_flat(fmt_pct_of_reads, cumul));
-
+    r += std::format("{}{}\n", make_group_tag(groups[idx]),
+                     to_flat(cumul, fmt_pct_of_reads));
   return r + end_module_tag;
 }
 
 auto
 adapter_matcher::finalize(const run_mode &mode) -> void {
-  if (mode.do_groups) {
-    const auto groups = make_base_groups(std::size(adap_counts));
+  if (do_groups(mode)) {
+    const auto groups =
+      get_default_base_groups(std::size(adap_counts), do_groups(mode));
     apply_base_groups(groups, adap_counts);
   }
 }
