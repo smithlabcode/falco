@@ -44,6 +44,10 @@
 #include <utility>
 #include <vector>
 
+static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
+static constexpr std::int64_t megabytes = 1024 * 1024;
+static constexpr std::int64_t kilobytes = 1024;
+
 namespace falco {
 enum class encoding : std::uint8_t;
 }
@@ -105,9 +109,9 @@ struct run_mode {
 };
 
 // clang-format off
-[[nodiscard]] constexpr inline auto tiles(const run_mode &rm) { return rm.tiles(); }
-[[nodiscard]] constexpr inline auto kmers(const run_mode &rm) { return rm.kmers(); }
-[[nodiscard]] constexpr inline auto groups(const run_mode &rm) { return rm.groups(); }
+[[nodiscard]] constexpr inline auto do_tiles(const run_mode &rm) { return rm.do_tiles; }
+[[nodiscard]] constexpr inline auto do_kmers(const run_mode &rm) { return rm.do_kmers; }
+[[nodiscard]] constexpr inline auto do_groups(const run_mode &rm) { return rm.do_groups; }
 // clang-format on
 
 inline constexpr auto end_module_tag = ">>END_MODULE\n";
@@ -347,17 +351,27 @@ struct falco_thread_pool {
   // clang-format on
 };
 
-static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
-static constexpr std::int64_t megabytes = 1024 * 1024;
-static constexpr std::int64_t kilobytes = 1024;
-
 [[nodiscard]] auto
 size_to_units(const std::int64_t s) -> std::string;
 
 using base_group_t = std::pair<std::uint64_t, std::uint64_t>;
 
 [[nodiscard]] auto
-make_base_groups(const std::int64_t n_bases) -> std::vector<base_group_t>;
+make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
+                 const std::uint64_t n_groups_target)
+  -> std::vector<base_group_t>;
+
+[[nodiscard]] auto
+get_default_base_groups(const std::int64_t n_bases, const bool use_target)
+  -> const std::vector<base_group_t> &;
+
+[[nodiscard]] inline auto
+make_group_tag(const base_group_t g) -> std::string {
+  return (g.first + 1 == g.second)
+           ? std::format("{}", g.first + 1)
+           // ADS: make a closed interval
+           : std::format("{}-{}", g.first + 1, g.second);
+}
 
 [[nodiscard]] auto
 apply_base_groups(const std::vector<base_group_t> &groups, auto &rows) {
