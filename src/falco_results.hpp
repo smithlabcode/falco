@@ -106,7 +106,15 @@ struct alignas(assumed_page_size) falco_results {
   finalize_impl(const run_mode &mode, const file_info &info) {
     if (!is_mapped_reads(info.format))
       adjust_fastq_qual_encoding(qual_by_pos, qual_by_read, info.encoding);
-    am.finalize(mode);
+    if (do_groups(mode)) {
+      const auto groups =
+        get_default_base_groups(max_read_len, do_groups(mode));
+      apply_base_groups(groups, nucs);
+      apply_base_groups(groups, n_counts);
+      // ADS: need one for lengths
+      apply_base_groups(groups, qual_by_pos);
+      am.finalize(mode);
+    }
   }
 
   template <typename self_t>
@@ -217,8 +225,9 @@ struct alignas(assumed_page_size) falco_results {
 
   template <typename self_t>
   [[nodiscard]] auto
-  get_report(this self_t &self, const file_info &info, grades &g) {
-    const auto res = self.get_report_impl(info, g);
+  get_report(this self_t &self, const run_mode &mode, const file_info &info,
+             grades &g) {
+    const auto res = self.get_report_impl(mode, info, g);
     std::string report;
     for (const auto &field : report_section_order)
       if (const auto res_itr = res.find(field); res_itr != std::cend(res))
@@ -227,7 +236,8 @@ struct alignas(assumed_page_size) falco_results {
   }
 
   [[nodiscard]] auto
-  get_report_impl(const file_info &info, grades &g) const {
+  get_report_impl(const run_mode &mode, const file_info &info,
+                  grades &g) const {
     const auto nucs_no_n = adjust_nucs_for_ns();
     const auto total_nucs = tabular_dot(lengths);
     const auto gc_acc = [](const auto a, const auto &nuc) {
@@ -239,21 +249,22 @@ struct alignas(assumed_page_size) falco_results {
     const std::uint64_t min_read_len =
       std::distance(std::cbegin(lengths), std::ranges::find_if(lengths, gt0));
     const auto encoding_label = get_quality_score_label(info.encoding);
+    const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
     return std::map<std::string, std::string>{
       {"basic_stats",
        format_basic_stats(info.name, n_reads, min_read_len, max_read_len,
                           total_gc, total_nucs, encoding_label, g.basic_stats)},
-      {"qual_by_pos", format_qual_by_pos(qual_by_pos, g.qual_by_pos)},
+      {"qual_by_pos", format_qual_by_pos(qual_by_pos, groups, g.qual_by_pos)},
       {"qual_by_read", format_qual_by_read(qual_by_read, g.qual_by_read)},
       {"base_composition",
-       format_base_composition(nucs_no_n, g.base_composition)},
+       format_base_composition(nucs_no_n, groups, g.base_composition)},
       {"gc_content", format_gc_content(gcs, g.gc_content)},
-      {"n_counts", format_n_counts(n_counts, nucs, g.n_counts)},
+      {"n_counts", format_n_counts(n_counts, nucs, groups, g.n_counts)},
       {"read_lengths", format_read_lengths(lengths, g.read_lengths)},
       {"duplication_levels",
        dr.format_duplication_levels(g.duplication_levels)},
       {"overrepresented", dr.format_overrepresented(g.overrepresented)},
-      {"adapters", am.get_report(n_reads, g.adapter_content)},
+      {"adapters", am.get_report(n_reads, groups, g.adapter_content)},
     };
     // auto r =
     //   format_basic_stats(info.name, n_reads, min_read_len, max_read_len,
@@ -269,7 +280,6 @@ struct alignas(assumed_page_size) falco_results {
     // r += dr.format_overrepresented(g.overrepresented);
     // r += am.get_report(n_reads, g.adapter_content);
     // return r;
-
     // clang-format on
   }
 
@@ -343,10 +353,12 @@ struct falco_results_tile : public falco_results {
   }
 
   [[nodiscard]] auto
-  get_report_impl(const file_info &info, grades &g) const {
+  get_report_impl(const run_mode &mode, const file_info &info,
+                  grades &g) const {
     assert(array_contains(report_section_order, "tiles"));
-    auto report = falco_results::get_report_impl(info, g);
-    report.emplace("tiles", tp.get_report(g.tile_analaysis));
+    auto report = falco_results::get_report_impl(mode, info, g);
+    const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
+    report.emplace("tiles", tp.get_report(groups, g.tile_analaysis));
     return report;
   }
 
@@ -358,6 +370,12 @@ struct falco_results_tile : public falco_results {
 
 struct falco_results_kmer : public falco_results {
   kmer_counter kc;
+
+  auto
+  finalize_impl(const run_mode &mode, const file_info &info) {
+    falco_results::finalize_impl(mode, info);
+    kc.finalize(mode);
+  }
 
   auto
   process_one_read_impl(const auto &rec) {
@@ -373,9 +391,10 @@ struct falco_results_kmer : public falco_results {
   }
 
   [[nodiscard]] auto
-  get_report_impl(const file_info &info, grades &g) const {
+  get_report_impl(const run_mode &mode, const file_info &info,
+                  grades &g) const {
     assert(array_contains(report_section_order, "kmers"));
-    auto report = falco_results::get_report_impl(info, g);
+    auto report = falco_results::get_report_impl(mode, info, g);
     report.emplace("kmers", kc.get_report(g.kmer_content));
     return report;
   }
@@ -392,6 +411,7 @@ struct falco_results_tile_kmer : public falco_results_tile {
   auto
   finalize_impl(const run_mode &mode, const file_info &info) {
     falco_results_tile::finalize_impl(mode, info);
+    kc.finalize(mode);
   }
 
   auto
@@ -409,9 +429,10 @@ struct falco_results_tile_kmer : public falco_results_tile {
   }
 
   [[nodiscard]] auto
-  get_report_impl(const file_info &info, grades &g) const {
+  get_report_impl(const run_mode &mode, const file_info &info,
+                  grades &g) const {
     assert(array_contains(report_section_order, "kmers"));
-    auto report = falco_results_tile::get_report_impl(info, g);
+    auto report = falco_results_tile::get_report_impl(mode, info, g);
     report.emplace("kmers", kc.get_report(g.kmer_content));
     return report;
   }
