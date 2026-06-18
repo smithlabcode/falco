@@ -78,12 +78,14 @@ struct tile_processor {
   auto
   adjust_fastq_qual_encoding(const falco::encoding enc) -> void;
 
-  /// finalize does 3 things:
+  /// finalize does 5 things:
   /// (1) trims tile data that's too long for the given tile
   /// (2) adjust the quality scores based on the encoding
-  /// (3) calculates the (ordered) map of centered values
+  /// (3) makes groups for each tile's data vectors
+  /// (4) calculates the (ordered) map of centered values
+  /// (5) clears the 'quals' to force a crash if it's used afterwards
   auto
-  finalize(const falco::encoding enc) -> void;
+  finalize(const run_mode &mode, const file_info &info) -> void;
 
   auto
   init(const file_info &info) {
@@ -113,9 +115,11 @@ struct tile_processor {
                               "failed to parse tile id");
     if (curr_tile_id != tile_id) {
       tile_id = curr_tile_id;
-      if (!quals.contains(tile_id))
-        quals.emplace(tile_id, qual_vec(max_read_len, {0, 0}));
-      qual = std::begin(quals[tile_id]);
+      auto tile_id_itr = quals.find(tile_id);
+      if (tile_id_itr == std::cend(quals))
+        tile_id_itr =
+          quals.emplace(tile_id, qual_vec(max_read_len, {0, 0})).first;
+      qual = std::begin(tile_id_itr->second);
     }
   }
 

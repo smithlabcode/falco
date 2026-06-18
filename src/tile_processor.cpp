@@ -129,10 +129,19 @@ tile_processor::trim() -> void {
 }
 
 auto
-tile_processor::finalize(const falco::encoding enc) -> void {
+tile_processor::finalize(const run_mode &mode, const file_info &info) -> void {
   trim();
-  adjust_fastq_qual_encoding(enc);
+  adjust_fastq_qual_encoding(info.encoding);
+  if (mode.do_groups) {
+    const auto groups = make_base_groups(max_read_len);
+    for (auto &x : std::views::values(quals))
+      apply_base_groups(groups, x, [](auto &a, const auto &b) {
+        a.first += b.first;
+        a.second += b.second;
+      });
+  }
   centered = get_centered(max_read_len, quals);
+  quals.clear();  // ADS: force a crash if this is used after centering
 }
 
 [[nodiscard]] auto
@@ -142,7 +151,7 @@ tile_processor::get_report(std::string &grade) const -> std::string {
   static constexpr auto header = "#Tile\t"
                                  "Base\t"
                                  "Mean\n";
-  if (quals.empty())
+  if (quals.empty() && centered.empty())
     return {};  // ADS: in case this fun is called for files w/o tile info
 
   const auto neg_min_cent_qual =
@@ -203,6 +212,7 @@ tile_processor::get_html() const -> std::string {
 auto
 tile_processor::operator+=(const tile_processor &rhs)
   -> const tile_processor & {
+  assert(centered.empty());
   const auto pair_plus = [](const auto &a, const auto &b) {
     return std::pair{a.first + b.first, a.second + b.second};
   };
