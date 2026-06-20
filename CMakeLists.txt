@@ -82,11 +82,6 @@ if(USE_ISAL)
   add_compile_options(-DHAVE_ISAL)
 endif()
 
-if(MAKE_HTML)
-  find_package(fmt)
-  add_compile_options(-DMAKE_HTML)
-endif()
-
 if(CMAKE_BUILD_TYPE STREQUAL Release)
   include(CheckIPOSupported)
   check_ipo_supported(RESULT result OUTPUT output)
@@ -99,8 +94,6 @@ endif()
 
 add_library(tile_processor OBJECT src/tile_processor.cpp)
 target_link_libraries(tile_processor PRIVATE HTSLIB::HTSLIB)
-
-add_library(contaminants OBJECT src/contaminants.cpp)
 
 add_library(kmer_counter OBJECT src/kmer_counter.cpp)
 target_link_libraries(kmer_counter PRIVATE HTSLIB::HTSLIB)
@@ -129,6 +122,10 @@ target_link_libraries(format_output PRIVATE HTSLIB::HTSLIB)
 add_library(falco_utils OBJECT src/falco_utils.cpp)
 target_link_libraries(falco_utils PRIVATE HTSLIB::HTSLIB)
 
+add_library(html OBJECT src/html.cpp)
+add_library(falco_grade OBJECT src/falco_grade.cpp)
+add_library(contaminants OBJECT src/contaminants.cpp)
+
 add_executable(falco2 src/falco2.cpp)
 target_link_libraries(falco2 PRIVATE
   tile_processor
@@ -141,13 +138,12 @@ target_link_libraries(falco2 PRIVATE
   format_output
   falco_file_format
   falco_utils
+  falco_grade
+  html
   HTSLIB::HTSLIB
   LIBDEFLATE::LIBDEFLATE
   ZLIB::ZLIB
   Threads::Threads
 )
-if(MAKE_HTML)
-  target_link_libraries(falco2 PRIVATE fmt::fmt)
-endif()
 
 install(TARGETS falco2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
