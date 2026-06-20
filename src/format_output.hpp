@@ -60,8 +60,8 @@ format_read_lengths(const std::vector<std::uint64_t> &lengths,
                     const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-format_read_lengths_html(const std::vector<std::uint64_t> &lengths,
-                         const std::string &grade) -> std::string;
+format_read_lengths_html(const std::vector<std::uint64_t> &lengths)
+  -> std::string;
 
 [[nodiscard]] auto
 get_grade_gc_content(const falco::gc_content_array &gc_content) -> std::string;
@@ -71,8 +71,8 @@ format_gc_content(const falco::gc_content_array &gc_content,
                   const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-format_gc_content_html(const falco::gc_content_array &gc_content,
-                       const std::string &grade) -> std::string;
+format_gc_content_html(const falco::gc_content_array &gc_content)
+  -> std::string;
 
 [[nodiscard]] auto
 get_grade_base_comp(const std::vector<falco::nuc_array> &nucs) -> std::string;
@@ -84,8 +84,7 @@ format_base_comp(const std::vector<falco::nuc_array> &nucs,
 
 [[nodiscard]] auto
 format_base_comp_html(const std::vector<falco::nuc_array> &nucs,
-                      const std::vector<base_group_t> &groups,
-                      const std::string &grade) -> std::string;
+                      const std::vector<base_group_t> &groups) -> std::string;
 
 [[nodiscard]] auto
 get_grade_n_content(const std::vector<std::uint64_t> &n_counts,
@@ -100,8 +99,7 @@ format_n_content(const std::vector<std::uint64_t> &n_counts,
 [[nodiscard]] auto
 format_n_content_html(const std::vector<std::uint64_t> &n_counts,
                       const std::vector<falco::nuc_array> &nucs,
-                      const std::vector<base_group_t> &groups,
-                      const std::string &grade) -> std::string;
+                      const std::vector<base_group_t> &groups) -> std::string;
 
 [[nodiscard]] auto
 get_grade_qual_by_read(const falco::qual_array &qual_by_read) -> std::string;
@@ -111,8 +109,7 @@ format_qual_by_read(const falco::qual_array &qual_by_read,
                     const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-format_qual_by_read_html(const falco::qual_array &qual_by_read,
-                         const std::string &grade) -> std::string;
+format_qual_by_read_html(const falco::qual_array &qual_by_read) -> std::string;
 
 [[nodiscard]] auto
 get_grade_qual_by_pos(const std::vector<falco::qual_array> &qual)
@@ -125,8 +122,7 @@ format_qual_by_pos(const std::vector<falco::qual_array> &qual,
 
 [[nodiscard]] auto
 format_qual_by_pos_html(const std::vector<falco::qual_array> &qual,
-                        const std::vector<base_group_t> &groups,
-                        const std::string &grade) -> std::string;
+                        const std::vector<base_group_t> &groups) -> std::string;
 
 [[nodiscard]] auto
 get_grade_basic_stats() -> std::string;

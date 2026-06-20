@@ -381,8 +381,7 @@ format_basic_stats(const file_info &info, const std::uint64_t n_reads,
 }
 
 [[nodiscard]] auto
-format_read_lengths_html(const std::vector<std::uint64_t> &lengths,
-                         [[maybe_unused]] const std::string &grade)
+format_read_lengths_html(const std::vector<std::uint64_t> &lengths)
   -> std::string {
   static constexpr auto plot_fmt =
     R"(<div id="length_plot"></div>
@@ -419,8 +418,7 @@ name: "Sequence length distribution"
 }
 
 [[nodiscard]] auto
-format_gc_content_html(const falco::gc_content_array &gc_content,
-                       [[maybe_unused]] const std::string &grade)
+format_gc_content_html(const falco::gc_content_array &gc_content)
   -> std::string {
   static constexpr auto plot_fmt =
     R"(<div id="gc_content_plot"></div>
@@ -462,9 +460,7 @@ name: "Theoretical distribution"
 
 [[nodiscard]] auto
 format_base_comp_html(const std::vector<falco::nuc_array> &nucs,
-                      const std::vector<base_group_t> &groups,
-                      [[maybe_unused]] const std::string &grade)
-  -> std::string {
+                      const std::vector<base_group_t> &groups) -> std::string {
   static constexpr auto plot_fmt =
     R"(<div id="base_comp_plot"></div>
 <script>
@@ -522,9 +518,7 @@ line: {{color : "{}"}}
 [[nodiscard]] auto
 format_n_content_html(const std::vector<std::uint64_t> &n_counts,
                       const std::vector<falco::nuc_array> &nucs,
-                      const std::vector<base_group_t> &groups,
-                      [[maybe_unused]] const std::string &grade)
-  -> std::string {
+                      const std::vector<base_group_t> &groups) -> std::string {
   static constexpr auto plot_format = R"(<div id="{}"></div>
 <script>Plotly.newPlot("{}",
 {}
@@ -559,9 +553,7 @@ yaxis: {{title: "% N"}},
 }
 
 [[nodiscard]] auto
-format_qual_by_read_html(const falco::qual_array &qual_by_read,
-                         [[maybe_unused]] const std::string &grade)
-  -> std::string {
+format_qual_by_read_html(const falco::qual_array &qual_by_read) -> std::string {
   static constexpr auto plot_fmt =
     R"(<div id="qual_by_read_plot"></div>
 <script>
@@ -603,8 +595,7 @@ name: "Sequence quality distribution"
 
 [[nodiscard]] auto
 format_qual_by_pos_html(const std::vector<falco::qual_array> &qual,
-                        const std::vector<base_group_t> &groups,
-                        [[maybe_unused]] const std::string &grade)
+                        const std::vector<base_group_t> &groups)
   -> std::string {
   static constexpr auto plot_fmt =
     R"(<div id="qual_by_pos_plot"></div>
