@@ -311,15 +311,6 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
 }
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 
-[[nodiscard]] inline auto
-get_grade(const auto &cutoffs, const auto c) {
-  const auto a = std::pair{c, std::string{}};
-  const auto b = std::ranges::lower_bound(cutoffs, a);
-  if (b == std::cend(cutoffs))
-    throw std::runtime_error("error in identifying grade");
-  return b->second;
-}
-
 [[nodiscard]] static auto
 make_thread_pool(const auto n_threads) {
   return n_threads > 0 ? hts_tpool_init(n_threads) : nullptr;
@@ -368,6 +359,14 @@ make_group_tag(const base_group_t g) -> std::string {
            ? std::format("{}", g.first + 1)
            // ADS: make a closed interval
            : std::format("{}-{}", g.first + 1, g.second);
+}
+
+[[nodiscard]] inline auto
+make_group_tag_quoted(const base_group_t g) -> std::string {
+  return (g.first + 1 == g.second)
+           ? std::format(R"("{}")", g.first + 1)
+           // ADS: make a closed interval
+           : std::format(R"("{}-{}")", g.first + 1, g.second);
 }
 
 [[nodiscard]] auto
