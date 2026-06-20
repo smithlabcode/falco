@@ -70,6 +70,13 @@ using qual_array = std::array<std::uint64_t, max_qual_val>;
 // clang-format on
 }  // namespace falco
 
+[[nodiscard]] inline auto
+to_string(const falco::encoding e) -> std::string {
+  const auto u = std::to_underlying(e);
+  assert(u < std::size(falco::format_labels));
+  return falco::format_labels[u];
+}
+
 [[nodiscard]] static inline auto
 set_quality_score_encoding_impl(const auto &qual_counts,
                                 const std::int32_t qual_offset) {
