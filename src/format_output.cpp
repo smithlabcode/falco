@@ -23,13 +23,13 @@
 
 #include "format_output.hpp"
 #include "falco_file_format.hpp"
+#include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
-#ifdef MAKE_HTML
-#include <fmt/format.h>
-#include <fmt/ranges.h>
-#endif  // MAKE_HTML
+#define FMT_HEADER_ONLY
+#include "fmt/format.h"
+#include "fmt/ranges.h"
 
 #include <algorithm>
 #include <array>
@@ -51,33 +51,6 @@
 #include <vector>
 
 [[nodiscard]] auto
-grades::get_summary(const std::string &infile_path) const -> std::string {
-  const auto infile = std::filesystem::path(infile_path).filename().string();
-  const auto up = [](const auto &s) {
-    const auto u = [](const std::uint8_t c) { return std::toupper(c); };
-    return std::views::transform(s, u) | std::ranges::to<std::string>();
-  };
-  const auto compose = [&](const auto &g, const auto &lbl) {
-    static constexpr auto f = "{}\t{}\t{}\n";
-    return g.empty() ? std::string{} : std::format(f, up(g), lbl, infile);
-  };
-  std::string r;
-  r += compose(basic_stats, "Basic Statistics");
-  r += compose(qual_by_pos, "Per base sequence quality");
-  r += compose(tile_analaysis, "Per tile sequence quality");
-  r += compose(qual_by_read, "Per sequence quality scores");
-  r += compose(base_composition, "Per base sequence content");
-  r += compose(gc_content, "Per sequence GC content");
-  r += compose(n_counts, "Per base N content");
-  r += compose(read_lengths, "Sequence Length Distribution");
-  r += compose(duplication_levels, "Sequence Duplication Levels");
-  r += compose(overrepresented, "Overrepresented sequences");
-  r += compose(adapter_content, "Adapter Content");
-  r += compose(kmer_content, "Kmer Content");
-  return r;
-}
-
-[[nodiscard]] auto
 get_grade_read_lengths(const std::vector<std::uint64_t> &lengths)
   -> std::string {
   using std::literals::string_literals::operator""s;
@@ -89,12 +62,11 @@ get_grade_read_lengths(const std::vector<std::uint64_t> &lengths)
 
 [[nodiscard]] auto
 format_read_lengths(const std::vector<std::uint64_t> &lengths,
-                    std::string &grade) -> std::string {
+                    const std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Sequence Length Distribution\t{}\n";
   static constexpr auto header = "#Length\t"
                                  "Count\n";
   const auto eq0 = [](const auto &x) { return std::get<1>(x) == 0; };
-  grade = get_grade_read_lengths(lengths);
   auto r = std::format(start_tag, grade);
   r += header;
   auto to_report = std::views::enumerate(lengths) | std::views::drop_while(eq0);
@@ -170,16 +142,15 @@ get_grade_gc_content(const falco::gc_content_array &gc_content) -> std::string {
     std::pair{std::numeric_limits<double>::max(), "fail"},
   };
   const auto deviation = sum_deviation_from_normal(gc_content);
-  return get_grade(grade_cutoffs, deviation);
+  return identify_grade(grade_cutoffs, deviation);
 }
 
 [[nodiscard]] auto
 format_gc_content(const falco::gc_content_array &gc_content,
-                  std::string &grade) -> std::string {
+                  const std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Per sequence GC content\t{}\n";
   static constexpr auto header = "#GC Content\t"
                                  "Count\n";
-  grade = get_grade_gc_content(gc_content);
   auto r = std::format(start_tag, grade);
   r += header;
   for (const auto [idx, gc] : std::views::enumerate(gc_content))
@@ -189,8 +160,7 @@ format_gc_content(const falco::gc_content_array &gc_content,
 }
 
 [[nodiscard]] auto
-get_grade_base_composition(const std::vector<falco::nuc_array> &nucs)
-  -> std::string {
+get_grade_base_comp(const std::vector<falco::nuc_array> &nucs) -> std::string {
   static constexpr auto grade_cutoffs = std::array{
     std::pair{10.0, "pass"},
     std::pair{20.0, "warn"},
@@ -207,18 +177,17 @@ get_grade_base_composition(const std::vector<falco::nuc_array> &nucs)
   };
   const auto max_diff =
     std::ranges::max(nucs | std::views::transform(compl_diff));
-  return get_grade(grade_cutoffs, max_diff);
+  return identify_grade(grade_cutoffs, max_diff);
 }
 
 [[nodiscard]] auto
-format_base_composition(const std::vector<falco::nuc_array> &nucs,
-                        const std::vector<base_group_t> &groups,
-                        std::string &grade) -> std::string {
+format_base_comp(const std::vector<falco::nuc_array> &nucs,
+                 const std::vector<base_group_t> &groups,
+                 const std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Per base sequence content\t{}\n";
   static constexpr auto header = "#Base\t"
                                  "G\tA\tT\tC\n";
   static constexpr auto base_permutation = {3, 0, 2, 1};
-  grade = get_grade_base_composition(nucs);
   auto r = std::format(start_tag, grade);
   r += header;
   for (auto i = 0u; i < std::size(nucs); ++i) {
@@ -226,7 +195,7 @@ format_base_composition(const std::vector<falco::nuc_array> &nucs,
     const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
     for (const auto j : base_permutation)
       // cppcheck-suppress useStlAlgorithm
-      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
       r += std::format("\t{:2.4f}", pct(as_frac(nucs[i][j], tot)));
     r += '\n';
   }
@@ -235,8 +204,9 @@ format_base_composition(const std::vector<falco::nuc_array> &nucs,
 }
 
 [[nodiscard]] auto
-get_grade_n_counts(const std::vector<std::uint64_t> &n_counts,
-                   const std::vector<falco::nuc_array> &nucs) -> std::string {
+get_grade_n_content(const std::vector<std::uint64_t> &n_counts,
+                    const std::vector<falco::nuc_array> &nucs) -> std::string {
+  // ADS: at this point 'nucs' should not include counts of 'N'
   static constexpr auto grade_cutoffs = std::array{
     std::pair{0.05, "pass"},
     std::pair{0.20, "warn"},
@@ -244,27 +214,28 @@ get_grade_n_counts(const std::vector<std::uint64_t> &n_counts,
   };
   const auto max_idx =
     std::distance(std::cbegin(n_counts), std::ranges::max_element(n_counts));
-  const auto total =
+  const auto total_non_n =
     std::reduce(std::cbegin(nucs[max_idx]), std::cend(nucs[max_idx]));
-  const auto max_n_frac = as_frac(n_counts[max_idx], total);
-  return get_grade(grade_cutoffs, max_n_frac);
+  const auto max_n_frac =
+    as_frac(n_counts[max_idx], n_counts[max_idx] + total_non_n);
+  return identify_grade(grade_cutoffs, max_n_frac);
 }
 
 [[nodiscard]] auto
-format_n_counts(const std::vector<std::uint64_t> &n_counts,
-                const std::vector<falco::nuc_array> &nucs,
-                const std::vector<base_group_t> &groups,
-                std::string &grade) -> std::string {
+format_n_content(const std::vector<std::uint64_t> &n_counts,
+                 const std::vector<falco::nuc_array> &nucs,
+                 const std::vector<base_group_t> &groups,
+                 const std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Per base N content\t{}\n";
   static constexpr auto header = "#Base\t"
                                  "N-Count\n";
-  grade = get_grade_n_counts(n_counts, nucs);
-  auto r = std::format(start_tag, get_grade_n_counts(n_counts, nucs));
+  auto r = std::format(start_tag, grade);
   r += header;
   for (auto i = 0u; i < std::size(n_counts); ++i) {
-    const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
+    const auto total_non_n =
+      std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
     r += std::format("{}\t{:.6g}\n", make_group_tag(groups[i]),
-                     pct(as_frac(n_counts[i], tot)));
+                     pct(as_frac(n_counts[i], n_counts[i] + total_non_n)));
   }
   r += end_module_tag;
   return r;
@@ -281,16 +252,15 @@ get_grade_qual_by_read(const falco::qual_array &qual_by_read) -> std::string {
   const auto q_beg = std::cbegin(qual_by_read);
   const auto max_itr = std::ranges::max_element(qual_by_read);
   const auto qual_val_mode = std::distance(q_beg, max_itr);
-  return get_grade(grade_cutoffs, qual_val_mode);
+  return identify_grade(grade_cutoffs, qual_val_mode);
 }
 
 [[nodiscard]] auto
 format_qual_by_read(const falco::qual_array &qual_by_read,
-                    std::string &grade) -> std::string {
+                    const std::string &grade) -> std::string {
   static constexpr auto start_tag = ">>Per sequence quality scores\t{}\n";
   static constexpr auto header = "#Quality\t"
                                  "Count\n";
-  grade = get_grade_qual_by_read(qual_by_read);
   auto r = std::format(start_tag, grade);
   r += header;
 
@@ -337,13 +307,13 @@ get_grade_qual_by_pos(const std::vector<falco::qual_array> &qual)
       lower_quartile(quantiles) > 0.0 ? get_median(quantiles) : 1.0;
     min_qual_median = std::min(min_qual_median, median);
   }
-  return get_grade(grade_cutoffs_median, min_qual_median);
+  return identify_grade(grade_cutoffs_median, min_qual_median);
 }
 
 [[nodiscard]] auto
 format_qual_by_pos(const std::vector<falco::qual_array> &qual,
                    const std::vector<base_group_t> &groups,
-                   std::string &grade) -> std::string {
+                   const std::string &grade) -> std::string {
   static constexpr auto digits{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per base sequence quality\t{}\n";
   static constexpr auto header = "#Base\t"
@@ -358,7 +328,6 @@ format_qual_by_pos(const std::vector<falco::qual_array> &qual,
     return std::views::transform(a, with_tab) | std::views::join |
            std::ranges::to<std::string>();
   };
-  grade = get_grade_qual_by_pos(qual);
   auto r = std::format(start_tag, grade);
   r += header;
   for (const auto [idx, q] : std::views::enumerate(qual))
@@ -369,13 +338,17 @@ format_qual_by_pos(const std::vector<falco::qual_array> &qual,
 }
 
 [[nodiscard]] auto
-format_basic_stats(const std::string &filename, const std::uint64_t n_reads,
+get_grade_basic_stats() -> std::string {
+  static constexpr auto default_grade = "pass";  // always a pass
+  return default_grade;
+}
+
+[[nodiscard]] auto
+format_basic_stats(const file_info &info, const std::uint64_t n_reads,
                    const std::uint64_t min_read_len,
                    const std::uint64_t max_read_len,
                    const std::uint64_t total_gc, const std::uint64_t total_nucs,
-                   const std::string &encoding,
-                   std::string &grade) -> std::string {
-  static constexpr auto default_grade = "pass";  // always a pass
+                   const std::string &grade) -> std::string {
   static constexpr auto start_tag = "##Falco {}\n"
                                     ">>Basic Statistics\t{}\n";
   static constexpr auto header = "#Measure\t"
@@ -389,13 +362,11 @@ format_basic_stats(const std::string &filename, const std::uint64_t n_reads,
     return std::format("{:.1f} {}bp", as_frac(x, 1'000), "K");
     // NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
   };
-  grade = default_grade;
   auto r = std::format(start_tag, VERSION, grade);
   r += header;
-  r += std::format("Filename\t{}\n", filename);
-  const auto [_, file_type] = get_file_format(filename);
-  r += std::format("File type\t{}\n", file_type);
-  r += std::format("Encoding\t{}\n", encoding);
+  r += std::format("Filename\t{}\n", info.name);
+  r += std::format("File type\t{}\n", info.description);
+  r += std::format("Encoding\t{}\n", to_string(info.encoding));
   r += std::format("Total Sequences\t{}\n", n_reads);
   r += std::format("Total Bases\t{}\n", total_nucs);
   r += std::format("Sequences flagged as poor quality {}\n", 0);
@@ -408,15 +379,27 @@ format_basic_stats(const std::string &filename, const std::uint64_t n_reads,
   return r;
 }
 
-#ifdef MAKE_HTML
-
 [[nodiscard]] auto
-format_read_lengths_html(const std::vector<std::uint64_t> &lengths)
+format_read_lengths_html(const std::vector<std::uint64_t> &lengths,
+                         [[maybe_unused]] const std::string &grade)
   -> std::string {
+  static constexpr auto plot_fmt =
+    R"(<div id="length_plot"></div>
+<script>
+Plotly.newPlot("length_plot",
+[{}],
+{{
+margin: {{t: 0}},
+showlegend: true,
+xaxis: {{title: "Sequence length"}},
+yaxis: {{title: "Number of sequences"}},
+}});
+</script>
+)";
   static constexpr auto lengths_fmt = R"""({{
 x: [{}],
 y: [{}],
-text: [{}]
+text: [{}],
 type: "bar",
 marker: {{color: "rgba(55,128,191,1.0)"}},
 line: {{width : 2}},
@@ -426,21 +409,36 @@ name: "Sequence length distribution"
   const auto add_bp = [&](const auto l) {
     return fmt::format(R"("{} bp")", l);
   };
-  return fmt::format(
+  const auto lines_data = fmt::format(
     lengths_fmt,                                                   //
     fmt::join(std::views::transform(length_values, add_bp), ","),  //
     fmt::join(lengths, ","),                                       //
     fmt::join(length_values, ","));
+  return std::format(plot_fmt, lines_data);
 }
 
 [[nodiscard]] auto
-format_gc_content_html(const falco::gc_content_array &gc_content)
+format_gc_content_html(const falco::gc_content_array &gc_content,
+                       [[maybe_unused]] const std::string &grade)
   -> std::string {
+  static constexpr auto plot_fmt =
+    R"(<div id="gc_content_plot"></div>
+<script>
+Plotly.newPlot("gc_content_plot",
+[{}],
+{{
+margin: {{t: 0}},
+showlegend: true,
+xaxis: {{title: "% GC"}},
+yaxis: {{title: "Density"}}
+}});
+</script>
+)";
   static constexpr auto gc_fmt = R"({{
 x: [{}],
 y: [{}],
 type: "line",
-line: {{color : "red"}},
+line: {{color: "red"}},
 name: "GC distribution"
 }},
 {{
@@ -452,14 +450,40 @@ name: "Theoretical distribution"
 }})";
   const auto x = std::views::iota(0LU, std::size(gc_content));
   const auto theor = get_theoretical_distribution(gc_content);
-  return fmt::format(gc_fmt,  //
-                     fmt::join(x, ","), fmt::join(gc_content, ","),
-                     fmt::join(x, ","), fmt::join(theor, ","));
+  const auto lines_data = fmt::format(gc_fmt,                      //
+                                      fmt::join(x, ","),           //
+                                      fmt::join(gc_content, ","),  //
+                                      fmt::join(x, ","),           //
+                                      fmt::join(theor, ",")        //
+  );
+  return fmt::format(plot_fmt, lines_data);
 }
 
 [[nodiscard]] auto
-format_base_composition_html(const std::vector<falco::nuc_array> &nucs)
+format_base_comp_html(const std::vector<falco::nuc_array> &nucs,
+                      const std::vector<base_group_t> &groups,
+                      [[maybe_unused]] const std::string &grade)
   -> std::string {
+  static constexpr auto plot_fmt =
+    R"(<div id="base_comp_plot"></div>
+<script>
+Plotly.newPlot("base_comp_plot",
+[{}],
+{{
+margin: {{t: 0}},
+showlegend: false,
+xaxis: {{title: "Base position"}},
+yaxis: {{title: "Phread quality"}},
+}});
+</script>
+)";
+  static constexpr auto per_base_fmt = R"({{
+x: [{}],
+y: [{:.3f}],
+mode: "lines",
+name: "{}",
+line: {{color : "{}"}}
+}})";
   static constexpr auto base_permutation = {3, 0, 2, 1};
   // ADS: the permutation is likely wrong...
   static constexpr auto bases = "ATGC";  // ATGC
@@ -469,21 +493,13 @@ format_base_composition_html(const std::vector<falco::nuc_array> &nucs)
     "red",
     "black",
   };
-  static constexpr auto per_base_fmt = R"({{
-x: [{}],
-y: [{:.3f}],
-mode: "lines",
-name: "{}",
-line: {{color : "{}"}}
-}})";
-  const auto n_pos = std::size(nucs);
-  const auto make_tag = [](const auto pos) {
-    return fmt::format(R"("{}-{}")", pos, pos);
-  };
-  const auto x = std::views::iota(0LU, n_pos) | std::views::transform(make_tag);
   const auto sum = [&](const auto &nucs_by_pos) {
     return std::reduce(std::cbegin(nucs_by_pos), std::cend(nucs_by_pos));
   };
+  assert(std::size(nucs) == std::size(groups));
+  const auto x = groups | std::views::transform([&](const auto &g) {
+                   return make_group_tag_quoted(g);
+                 });
   const auto total_by_pos = nucs | std::views::transform(sum);
   std::vector<std::string> r;
   for (const auto idx : base_permutation) {
@@ -497,34 +513,67 @@ line: {{color : "{}"}}
                                bases[idx],         //
                                base_to_color[idx]));
   }
-  return fmt::format("{}", fmt::join(r, ",\n"));
+  return fmt::format(plot_fmt, fmt::join(r, ",\n"));
 }
 
 [[nodiscard]] auto
-format_n_counts_html(const std::vector<std::uint64_t> &n_counts,
-                     const std::vector<falco::nuc_array> &nucs) -> std::string {
-  static constexpr auto n_count_fmt = R"({{
+format_n_content_html(const std::vector<std::uint64_t> &n_counts,
+                      const std::vector<falco::nuc_array> &nucs,
+                      const std::vector<base_group_t> &groups,
+                      [[maybe_unused]] const std::string &grade)
+  -> std::string {
+  static constexpr auto plot_format = R"(<div id="{}"></div>
+<script>Plotly.newPlot("{}",
+{}
+);</script>
+)";
+  static constexpr auto n_count_fmt = R"([{{
 x: [{}],
 y: [{:.6g}],
 type: "line",
 line: {{color : "red"}},
 name: "Fraction of N reads per base"
-}}
-)";
+}}],
+{{
+margin: {{t: 0}},
+showlegend: true,
+xaxis: {{title: "Base position"}},
+yaxis: {{title: "% N"}},
+}})";
   const auto pct_for_pos = [](const auto &nucs_by_pos, const auto n_count) {
     return pct(as_frac(
       n_count, std::reduce(std::cbegin(nucs_by_pos), std::cend(nucs_by_pos))));
   };
+  const auto make_tag = [&](const auto &g) { return make_group_tag_quoted(g); };
+  assert(std::size(nucs) == std::size(groups));
   return fmt::format(
-    n_count_fmt,                                                            //
-    fmt::join(std::views::iota(0LU, std::size(n_counts)), ","),             //
-    fmt::join(std::views::zip_transform(pct_for_pos, nucs, n_counts), ",")  //
-  );
+    plot_format, "n_content_plot", "n_content_plot",
+    fmt::format(
+      n_count_fmt,                                                            //
+      fmt::join(groups | std::views::transform(make_tag), ","),               //
+      fmt::join(std::views::zip_transform(pct_for_pos, nucs, n_counts), ",")  //
+      ));
 }
 
 [[nodiscard]] auto
-format_qual_by_read_html(const falco::qual_array &qual_by_read) -> std::string {
-  static constexpr auto qbr_fmt = R"({{
+format_qual_by_read_html(const falco::qual_array &qual_by_read,
+                         [[maybe_unused]] const std::string &grade)
+  -> std::string {
+  static constexpr auto plot_fmt =
+    R"(<div id="qual_by_read_plot"></div>
+<script>
+Plotly.newPlot("qual_by_read_plot",
+[{}],
+{{
+margin: {{t: 0}},
+showlegend: true,
+xaxis: {{title: "Phread quality"}},
+yaxis: {{title: "Density"}},
+}});
+</script>
+)";
+  static constexpr auto qbr_fmt =
+    R"({{
 x: [{}],
 y: [{}],
 type: "line",
@@ -544,14 +593,30 @@ name: "Sequence quality distribution"
 
   const auto x = std::views::iota(first_obs, last_obs);
   const auto y = std::ranges::subrange{q_beg + first_obs, q_beg + last_obs};
-  return fmt::format(qbr_fmt, fmt::join(x, ","), fmt::join(y, ","));
+  return fmt::format(
+    plot_fmt, fmt::format(qbr_fmt, fmt::join(x, ","), fmt::join(y, ",")));
 }
 
 [[nodiscard]] auto
-format_qual_by_pos_html(const std::vector<falco::qual_array> &qual)
+format_qual_by_pos_html(const std::vector<falco::qual_array> &qual,
+                        const std::vector<base_group_t> &groups,
+                        [[maybe_unused]] const std::string &grade)
   -> std::string {
-  const auto row_fmt =
-    R"({{y: [{}], type: "box", name: "{}-{}bp", marker: {{color : "{}"}}}})";
+  static constexpr auto plot_fmt =
+    R"(<div id="qual_by_pos_plot"></div>
+<script>
+Plotly.newPlot("qual_by_pos_plot",
+[{}],
+{{
+margin: {{t: 0}},
+showlegend: false,
+xaxis: {{title: "Base position"}},
+yaxis: {{title: "Phread quality"}},
+}});
+</script>
+)";
+  static constexpr auto row_fmt =
+    R"({{y: [{}], type: "box", name: "{}bp", marker: {{color : "{}"}}}})";
   const auto get_color = [&](const auto &q) {
     static constexpr auto median_error = 0.20;
     static constexpr auto median_warn = 0.25;
@@ -566,99 +631,40 @@ format_qual_by_pos_html(const std::vector<falco::qual_array> &qual)
   std::vector<std::string> lines;
   for (const auto [idx, q] : std::views::enumerate(qual)) {
     const auto fq = five_quants(q);
-    lines.emplace_back(fmt::format(fmt::runtime(row_fmt), fmt::join(fq, ", "),
-                                   idx + 1, idx + 1, get_color(fq)));
+    lines.emplace_back(fmt::format(row_fmt, fmt::join(fq, ", "),
+                                   make_group_tag(groups[idx]), get_color(fq)));
   }
-  return fmt::format("{}\n", fmt::join(lines, ",\n"));
+  return fmt::format(plot_fmt, fmt::join(lines, ",\n"));
 }
 
 [[nodiscard]] auto
-format_basic_stats_html(const std::string &filename,
+format_basic_stats_html(const file_info &info,  //
                         const std::uint64_t n_reads,
                         const std::uint64_t min_read_len,
                         const std::uint64_t max_read_len,
                         const std::uint64_t total_gc,
-                        const std::uint64_t total_nucs,
-                        const std::string &encoding) -> std::string {
-  static constexpr auto falco_html_summary_basic_statistics = R"(
-<table><thead><tr><th>Measure</th><th>Value</th></tr></thead><tbody>
+                        const std::uint64_t total_nucs) -> std::string {
+  static constexpr auto table_fmt =
+    R"(<table><thead><tr><th>Measure</th><th>Value</th></tr></thead><tbody>
 <tr><td>Filename</td><td>{filename_stem}</td></tr>
 <tr><td>File type</td><td>{file_type}</td></tr>
-<tr><td>Encoding</td><td>{file_encoding}</td></tr>
-<tr><td>Total Sequences</td><td>{total_sequences_label}</td></tr>
-<tr><td>Sequences Flagged As Poor Quality</td><td>{n_poor_sequences}</td></tr>
-<tr><td>Sequence length</td><td>{sequence_length_label}</td></tr>
-<tr><td>%GC:</td><td>{average_gc_content_label:.1f}</td></tr>
-</tbody></table>
-)";
-  const auto [_, file_type] = get_file_format(filename);
-  const auto sequence_length_label =
+<tr><td>Encoding</td><td>{encoding}</td></tr>
+<tr><td>Total Sequences</td><td>{n_reads}</td></tr>
+<tr><td>Sequences Flagged As Poor Quality</td><td>{n_poor}</td></tr>
+<tr><td>Sequence length</td><td>{lengths_label}</td></tr>
+<tr><td>%GC:</td><td>{gc_content_label:.1f}</td></tr>
+</tbody></table>)";
+  const auto lengths_label =
     min_read_len == max_read_len
       ? std::format("{}", max_read_len)
       : std::format("{}-{}", min_read_len, max_read_len);
-  const auto average_gc_content_label =
-    fmt::format("{:.1f}", pct(as_frac(total_gc, total_nucs)));
-  // clang-format off
-  return fmt::format(fmt::runtime(falco_html_summary_basic_statistics),
-    fmt::arg("filename_stem", filename),
-    fmt::arg("file_type", file_type),
-    fmt::arg("file_encoding", encoding),
-    fmt::arg("total_sequences_label", n_reads),
-    fmt::arg("n_poor_sequences", 0),
-    fmt::arg("sequence_length_label", sequence_length_label),
-    fmt::arg("average_gc_content_label", pct(as_frac(total_gc, total_nucs))));
-  // clang-format on
+  const auto gc_content_frac = pct(as_frac(total_gc, total_nucs));
+  return fmt::format(table_fmt,  //
+                     fmt::arg("filename_stem", info.name),
+                     fmt::arg("file_type", info.description),
+                     fmt::arg("encoding", to_string(info.encoding)),
+                     fmt::arg("n_reads", n_reads),
+                     fmt::arg("n_poor", 0),  // ADS: where to calcualte this?
+                     fmt::arg("lengths_label", lengths_label),
+                     fmt::arg("gc_content_label", gc_content_frac));
 }
-
-#else  // NOT MAKE_HTML
-
-[[nodiscard]] auto
-format_read_lengths_html(
-  [[maybe_unused]] const std::vector<std::uint64_t> &lengths) -> std::string {
-  return {};
-}
-
-[[nodiscard]] auto
-format_gc_content_html(
-  [[maybe_unused]] const falco::gc_content_array &gc_content) -> std::string {
-  return {};
-}
-
-[[nodiscard]] auto
-format_base_composition_html(
-  [[maybe_unused]] const std::vector<falco::nuc_array> &nucs) -> std::string {
-  return {};
-}
-
-[[nodiscard]] auto
-format_n_counts_html(
-  [[maybe_unused]] const std::vector<std::uint64_t> &n_counts,
-  [[maybe_unused]] const std::vector<falco::nuc_array> &nucs) -> std::string {
-  return {};
-}
-
-[[nodiscard]] auto
-format_qual_by_read_html([[maybe_unused]] const falco::qual_array &qual_by_read)
-  -> std::string {
-  return {};
-}
-
-[[nodiscard]] auto
-format_qual_by_pos_html(
-  [[maybe_unused]] const std::vector<falco::qual_array> &qual) -> std::string {
-  return {};
-}
-
-[[nodiscard]] auto
-format_basic_stats_html([[maybe_unused]] const std::string &filename,
-                        [[maybe_unused]] const std::uint64_t n_reads,
-                        [[maybe_unused]] const std::uint64_t min_read_len,
-                        [[maybe_unused]] const std::uint64_t max_read_len,
-                        [[maybe_unused]] const std::uint64_t total_gc,
-                        [[maybe_unused]] const std::uint64_t total_nucs,
-                        [[maybe_unused]] const std::string &encoding)
-  -> std::string {
-  return {};
-}
-
-#endif  // MAKE_HTML

@@ -33,23 +33,22 @@
 #include <string>
 #include <vector>  // IWYU pragma: keep
 
-struct grades {
-  std::string basic_stats;
-  std::string read_lengths;
-  std::string gc_content;
-  std::string base_composition;
-  std::string n_counts;
-  std::string qual_by_read;
-  std::string qual_by_pos;
-  std::string duplication_levels;
-  std::string overrepresented;
-  std::string adapter_content;
-  std::string tile_analaysis;
-  std::string kmer_content;
-
-  [[nodiscard]] auto
-  get_summary(const std::string &infile_path) const -> std::string;
+// clang-format off
+static constexpr auto report_section_order = std::array{
+  "basic_stats",
+  "qual_by_pos",
+  "tiles",
+  "qual_by_read",
+  "base_comp",
+  "gc_content",
+  "n_content",
+  "read_lengths",
+  "duplication",
+  "overrep",
+  "adapters",
+  "kmers",
 };
+// clang-format on
 
 [[nodiscard]] auto
 get_grade_read_lengths(const std::vector<std::uint64_t> &lengths)
@@ -57,59 +56,62 @@ get_grade_read_lengths(const std::vector<std::uint64_t> &lengths)
 
 [[nodiscard]] auto
 format_read_lengths(const std::vector<std::uint64_t> &lengths,
-                    std::string &grade) -> std::string;
+                    const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-format_read_lengths_html(const std::vector<std::uint64_t> &lengths)
-  -> std::string;
+format_read_lengths_html(const std::vector<std::uint64_t> &lengths,
+                         const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
 get_grade_gc_content(const falco::gc_content_array &gc_content) -> std::string;
 
 [[nodiscard]] auto
 format_gc_content(const falco::gc_content_array &gc_content,
-                  std::string &grade) -> std::string;
+                  const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-format_gc_content_html(const falco::gc_content_array &gc_content)
-  -> std::string;
+format_gc_content_html(const falco::gc_content_array &gc_content,
+                       const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-get_grade_base_composition(const std::vector<falco::nuc_array> &nucs)
-  -> std::string;
+get_grade_base_comp(const std::vector<falco::nuc_array> &nucs) -> std::string;
 
 [[nodiscard]] auto
-format_base_composition(const std::vector<falco::nuc_array> &nucs,
-                        const std::vector<base_group_t> &groups,
-                        std::string &grade) -> std::string;
+format_base_comp(const std::vector<falco::nuc_array> &nucs,
+                 const std::vector<base_group_t> &groups,
+                 const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-format_base_composition_html(const std::vector<falco::nuc_array> &nucs)
-  -> std::string;
+format_base_comp_html(const std::vector<falco::nuc_array> &nucs,
+                      const std::vector<base_group_t> &groups,
+                      const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-get_grade_n_counts(const std::vector<std::uint64_t> &n_counts,
-                   const std::vector<falco::nuc_array> &nucs) -> std::string;
+get_grade_n_content(const std::vector<std::uint64_t> &n_counts,
+                    const std::vector<falco::nuc_array> &nucs) -> std::string;
 
 [[nodiscard]] auto
-format_n_counts(const std::vector<std::uint64_t> &n_counts,
-                const std::vector<falco::nuc_array> &nucs,
-                const std::vector<base_group_t> &groups,
-                std::string &grade) -> std::string;
+format_n_content(const std::vector<std::uint64_t> &n_counts,
+                 const std::vector<falco::nuc_array> &nucs,
+                 const std::vector<base_group_t> &groups,
+                 const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-format_n_counts_html(const std::vector<std::uint64_t> &n_counts,
-                     const std::vector<falco::nuc_array> &nucs) -> std::string;
+format_n_content_html(const std::vector<std::uint64_t> &n_counts,
+                      const std::vector<falco::nuc_array> &nucs,
+                      const std::vector<base_group_t> &groups,
+                      const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
 get_grade_qual_by_read(const falco::qual_array &qual_by_read) -> std::string;
 
 [[nodiscard]] auto
 format_qual_by_read(const falco::qual_array &qual_by_read,
-                    std::string &grade) -> std::string;
+                    const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-format_qual_by_read_html(const falco::qual_array &qual_by_read) -> std::string;
+format_qual_by_read_html(const falco::qual_array &qual_by_read,
+                         const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
 get_grade_qual_by_pos(const std::vector<falco::qual_array> &qual)
@@ -118,27 +120,28 @@ get_grade_qual_by_pos(const std::vector<falco::qual_array> &qual)
 [[nodiscard]] auto
 format_qual_by_pos(const std::vector<falco::qual_array> &qual,
                    const std::vector<base_group_t> &groups,
-                   std::string &grade) -> std::string;
+                   const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-format_qual_by_pos_html(const std::vector<falco::qual_array> &qual)
-  -> std::string;
+format_qual_by_pos_html(const std::vector<falco::qual_array> &qual,
+                        const std::vector<base_group_t> &groups,
+                        const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-format_basic_stats(const std::string &filename, const std::uint64_t n_reads,
+get_grade_basic_stats() -> std::string;
+
+[[nodiscard]] auto
+format_basic_stats(const file_info &info, const std::uint64_t n_reads,
                    const std::uint64_t min_read_len,
                    const std::uint64_t max_read_len,
                    const std::uint64_t total_gc, const std::uint64_t total_nucs,
-                   const std::string &encoding,
-                   std::string &grade) -> std::string;
+                   const std::string &grade) -> std::string;
 
 [[nodiscard]] auto
-format_basic_stats_html(const std::string &filename,
-                        const std::uint64_t n_reads,
+format_basic_stats_html(const file_info &info, const std::uint64_t n_reads,
                         const std::uint64_t min_read_len,
                         const std::uint64_t max_read_len,
                         const std::uint64_t total_gc,
-                        const std::uint64_t total_nucs,
-                        const std::string &encoding) -> std::string;
+                        const std::uint64_t total_nucs) -> std::string;
 
 #endif  // SRC_FORMAT_OUTPUT_HPP_
