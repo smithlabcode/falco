@@ -23,6 +23,7 @@
 
 #include "tile_processor.hpp"
 #include "falco_file_format.hpp"
+#include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
@@ -31,10 +32,9 @@
 #include <htslib/bgzf.h>
 #include <htslib/sam.h>
 
-#ifdef MAKE_HTML
-#include <fmt/format.h>
-#include <fmt/ranges.h>
-#endif  //  MAKE_HTML
+#define FMT_HEADER_ONLY
+#include "fmt/format.h"
+#include "fmt/ranges.h"
 
 #include <algorithm>
 #include <array>
@@ -155,8 +155,16 @@ tile_processor::finalize(const run_mode &mode, const file_info &info) -> void {
 }
 
 [[nodiscard]] auto
+tile_processor::get_grade() const -> std::string {
+  assert(!centered.empty());
+  const auto neg_min_cent_qual =
+    -std::ranges::min(centered | std::views::values | std::views::join);
+  return identify_grade(grade_cutoffs, neg_min_cent_qual);
+}
+
+[[nodiscard]] auto
 tile_processor::get_report(const std::vector<base_group_t> &groups,
-                           std::string &grade) const -> std::string {
+                           const std::string &grade) const -> std::string {
   static constexpr auto max_precision{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
   static constexpr auto header = "#Tile\t"
@@ -164,11 +172,6 @@ tile_processor::get_report(const std::vector<base_group_t> &groups,
                                  "Mean\n";
   if (quals.empty() && centered.empty())
     return {};  // ADS: in case this fun is called for files w/o tile info
-
-  const auto neg_min_cent_qual =
-    -std::ranges::min(centered | std::views::values | std::views::join);
-
-  grade = get_grade(grade_cutoffs, neg_min_cent_qual);
   auto r = std::format(start_tag, grade);
   r += header;
   for (const auto &[tile_id, q] : centered)
@@ -178,51 +181,62 @@ tile_processor::get_report(const std::vector<base_group_t> &groups,
   return r + end_module_tag;
 }
 
-#ifdef MAKE_HTML
-
 [[nodiscard]] auto
-tile_processor::get_html() const -> std::string {
+tile_processor::get_html(const std::vector<base_group_t> &groups,
+                         [[maybe_unused]] const std::string &grade) const
+  -> std::string {
   static constexpr auto n_quants = 20.0;
-  static constexpr auto tile_quals_fmt =
-    "{{x: [{}], y: [{}], z: [{}], type: 'heatmap', colorscale: {}}}";
   // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
-  static constexpr auto colorfmt = "[[0.0, 'rgb(210,65,83)'],"
-                                   " [{}, 'rgb(178,236,254)'],"
-                                   " [1.0, 'rgb(34,57,212)']],"
-                                   "showscale: true";
-  if (quals.empty())
-    return {};  // ADS: in case this fun is called for files w/o tile info
+  static constexpr auto tiles_plot_format =
+    R"""([{{
+x: [{}],
+y: [{}],
+z: [{}],
+type: "heatmap",
+colorscale: [
+[0.0, "rgb(210,65,83)"],
+[{}, "rgb(178,236,254)"],
+[1.0, "rgb(34,57,212)"]
+],
+showscale: true,
+}}],
+{{
+margin: {{t: 0}},
+showlegend: false,
+xaxis: {{title: "Base position"}},
+yaxis: {{title: "tile", type: "category"}},
+}}
+)""";
+  static constexpr auto plot_format = R"(<div id="{}"></div>
+<script>Plotly.newPlot("{}",
+{}
+);</script>
+)";
+  assert(get_max_size(centered) == std::size(groups));
+  if (centered.empty())
+    return {};  // ADS: in case we are here but tile analysis was not done
+  const auto tag = [&](const auto &g) { return make_group_tag_quoted(g); };
 
   const auto [minval, maxval] =
     std::ranges::minmax(centered | std::views::values | std::views::join);
-  // discretize quantiles so plotly understands color scheme
-  const auto midpoint = minval / (minval - maxval);  // ???
+  // discretize quantiles so plotly understands color scheme (???)
+  const auto midpoint = minval / (minval - maxval);
+  const auto mid_discrete = std::round(n_quants * midpoint) / n_quants;
 
-  // z: quality z (kind of...) score
+  // z: one formatted vector of quality z scores per tile
   const auto format1 = [](const auto &c) {
     // ADS: note the format and precision (3) here
-    return fmt::format("[{:.3f}]", fmt::join(c, ","));
+    return fmt::format("[{:.3f}]", fmt::join(c, ","));  // inner lists
   };
   const auto z = std::views::transform(centered | std::views::values, format1);
-  const auto mid_discr = std::round(n_quants * midpoint) / n_quants;
-
-  // max_read_len not useful after grouping
-  const auto n_groups = get_max_size(centered);
-  return fmt::format(tile_quals_fmt,
-                     fmt::join(std::views::iota(0u, n_groups), ","),  // x
-                     fmt::join(centered | std::views::keys, ","),     // y
-                     fmt::join(z, ","),                               // z
-                     fmt::format(colorfmt, mid_discr));
+  return fmt::format(
+    plot_format, "tiles_plot", "tiles_plot",
+    fmt::format(tiles_plot_format,
+                fmt::join(groups | std::views::transform(tag), ","),  // x
+                fmt::join(centered | std::views::keys, ","),          // y
+                fmt::join(z, ","),                                    // z
+                mid_discrete));
 }
-
-#else
-
-[[nodiscard]] auto
-tile_processor::get_html() const -> std::string {
-  return {};
-}
-
-#endif  //  MAKE_HTML
 
 auto
 tile_processor::operator+=(const tile_processor &rhs)
