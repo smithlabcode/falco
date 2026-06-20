@@ -58,16 +58,22 @@ struct duplication_results {
   initialize(const std::uint64_t est_n_reads) -> void;
 
   [[nodiscard]] auto
-  format_overrepresented(std::string &grade) const -> std::string;
+  get_grade_overrep() const -> std::string;
 
   [[nodiscard]] auto
-  format_overrepresented_html() const -> std::string;
+  format_overrep(const std::string &grade) const -> std::string;
 
   [[nodiscard]] auto
-  format_duplication_levels(std::string &grade) const -> std::string;
+  format_overrep_html(const std::string &grade) const -> std::string;
 
   [[nodiscard]] auto
-  format_duplication_levels_html() const -> std::string;
+  get_grade_duplication() const -> std::string;
+
+  [[nodiscard]] auto
+  format_duplication(const std::string &grade) const -> std::string;
+
+  [[nodiscard]] auto
+  format_duplication_html(const std::string &grade) const -> std::string;
 
   auto
   operator+=(const duplication_results &rhs) -> const duplication_results &;
