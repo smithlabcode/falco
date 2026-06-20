@@ -119,21 +119,21 @@ run(const run_mode &mode, std::vector<file_info> &infos, auto &reads_files,
        std::views::zip(analyzer.results.front(), infos, outdirs)) {
     set_quality_score_encoding(results.qual_by_pos, info);
     results.finalize(mode, info);
-    grades g;
-    const auto report = results.get_report(mode, info, g);
+    const auto grades = results.get_grades();
+    const auto report = results.get_report(mode, info, grades);
 
     const auto report_path =
       (std::filesystem::path{outdir} / report_filename).string();
     write_file(report_path, report);
 
-    const auto html = results.get_html(info);
+    const auto html = results.get_html(mode, info, grades);
     const auto html_path =
       (std::filesystem::path{outdir} / html_filename).string();
     write_file(html_path, html);
 
     const auto summary_path =
       (std::filesystem::path{outdir} / summary_filename).string();
-    write_file(summary_path, g.get_summary(info.name));
+    write_file(summary_path, grades.summary(info.name));
   }
 }
 
