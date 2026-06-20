@@ -45,6 +45,7 @@ analysis_grades::summary(const std::string &infile_path) const -> std::string {
   std::string r;
   for (const auto [idx, lbl] : std::views::enumerate(labels))
     if (is_configured(lbl))
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
       r += compose(grade(lbl), labels[idx]);
   return r;
 }
@@ -60,5 +61,6 @@ analysis_grades::label(const std::string &name) const -> std::string {
   const auto itr = std::ranges::find(names, name);
   if (itr == std::cend(names))
     throw std::runtime_error(std::format("bad grade category: {}", name));
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   return labels[std::distance(std::cbegin(names), itr)];
 }

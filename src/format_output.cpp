@@ -503,6 +503,7 @@ line: {{color : "{}"}}
                  });
   const auto total_by_pos = nucs | std::views::transform(sum);
   std::vector<std::string> r;
+  // NOLINTBEGIN(*-constant-array-index,*-pointer-arithmetic)
   for (const auto idx : base_permutation) {
     const auto pct_for_pos = [idx](const auto &nucs_for_pos, const auto tot) {
       return pct(as_frac(nucs_for_pos[idx], tot));
@@ -514,6 +515,7 @@ line: {{color : "{}"}}
                                bases[idx],         //
                                base_to_color[idx]));
   }
+  // NOLINTEND(*-constant-array-index,*-pointer-arithmetic)
   return fmt::format(plot_fmt, fmt::join(r, ",\n"));
 }
 
@@ -593,6 +595,7 @@ name: "Sequence quality distribution"
   assert(first_obs >= 0 && last_obs <= falco::max_qual_val);
 
   const auto x = std::views::iota(first_obs, last_obs);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const auto y = std::ranges::subrange{q_beg + first_obs, q_beg + last_obs};
   return fmt::format(
     plot_fmt, fmt::format(qbr_fmt, fmt::join(x, ","), fmt::join(y, ",")));

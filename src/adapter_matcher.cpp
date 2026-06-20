@@ -78,6 +78,7 @@ adapter_matcher::get_report(const std::uint64_t n_reads,
            std::ranges::to<std::string>();
   };
   auto r = std::format(start_module_tag, grade);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
   r += header + to_flat(adapter_names,
                         [](const auto x) { return std::format("\t{}", x); });
   r += '\n';
@@ -140,6 +141,7 @@ name: "{}"
   std::vector<std::string> html_by_adapter;
   for (const auto adap_id : std::views::iota(0, n_adapters)) {
     std::vector<double> y;
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
     for (const auto pos : std::views::iota(0UL, n_pos))
       y.emplace_back(pct_of_reads(cumulative[pos][adap_id]));
     html_by_adapter.emplace_back(         //
@@ -148,6 +150,7 @@ name: "{}"
                   fmt::join(y, ","),      //
                   adapter_names[adap_id]  //
                   ));
+    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
   }
   return std::format(module_format,
                      fmt::format("{}\n", fmt::join(html_by_adapter, ",\n")));

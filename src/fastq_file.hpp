@@ -42,11 +42,11 @@
 #include <cerrno>
 #include <concepts>
 #include <cstdint>
-#include <cstdio>
+#include <cstdio>  // IWYU pragma: keep
 #include <cstdlib>
-#include <cstring>
+#include <cstring>  // IWYU pragma: keep
 #include <filesystem>
-#include <format>
+#include <format>  // IWYU pragma: keep
 #include <iterator>
 #include <memory>
 #include <ranges>
