@@ -28,6 +28,7 @@
 
 #define FMT_HEADER_ONLY
 #include "fmt/base.h"
+#include "fmt/chrono.h"  // IWYU pragma: keep
 #include "fmt/format.h"
 #include "fmt/ranges.h"
 
