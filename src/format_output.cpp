@@ -22,21 +22,22 @@
  */
 
 #include "format_output.hpp"
-#include "falco_file_format.hpp"
+
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
+#include <config.h>
+
 #define FMT_HEADER_ONLY
+#include "fmt/base.h"
 #include "fmt/format.h"
 #include "fmt/ranges.h"
 
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <cctype>
 #include <cmath>
-#include <config.h>
 #include <filesystem>
 #include <format>
 #include <functional>

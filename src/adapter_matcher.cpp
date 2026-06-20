@@ -22,6 +22,7 @@
  */
 
 #include "adapter_matcher.hpp"
+
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 
@@ -31,6 +32,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <format>
 #include <functional>

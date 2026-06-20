@@ -26,13 +26,14 @@
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 
-#include <config.h>
-
 #define FMT_HEADER_ONLY
-#include "fmt/chrono.h"
+#include "fmt/base.h"
 #include "fmt/format.h"
 #include "fmt/ranges.h"
 
+#include <config.h>
+
+#include <array>
 #include <chrono>
 #include <string>
 #include <vector>

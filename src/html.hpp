@@ -24,10 +24,10 @@
 #ifndef SRC_HTML_HPP_
 #define SRC_HTML_HPP_
 
-#include "falco_grade.hpp"
-#include "falco_utils.hpp"
-
 #include <string>
+
+struct analysis_grades;
+struct file_info;
 
 [[nodiscard]] auto
 get_html_module(const std::string &name, const std::string &label,

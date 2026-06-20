@@ -22,9 +22,9 @@
  */
 
 #include "kmer_counter.hpp"
+
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
-#include "html.hpp"
 
 #define FMT_HEADER_ONLY
 #include "fmt/format.h"

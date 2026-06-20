@@ -25,10 +25,13 @@
 #define SRC_FALCO_GRADE_HPP_
 
 #include <algorithm>
-#include <filesystem>
+#include <array>
+#include <iterator>
 #include <ranges>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 struct analysis_grades {
   // clang-format off

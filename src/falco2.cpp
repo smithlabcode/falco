@@ -39,7 +39,6 @@ read duplication is analyzed (borrowing from preseq).
 #include "falco_results.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
-#include "format_output.hpp"
 #include "quality_score.hpp"
 #include "tile_processor.hpp"
 

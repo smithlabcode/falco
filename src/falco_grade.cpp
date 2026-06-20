@@ -23,7 +23,10 @@
 
 #include "falco_grade.hpp"
 
+#include <cctype>
+#include <cstdint>
 #include <filesystem>
+#include <format>
 #include <ranges>
 #include <stdexcept>
 #include <string>

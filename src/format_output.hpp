@@ -27,6 +27,7 @@
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
+#include <array>
 #include <cstdint>
 #include <format>
 #include <limits>  // IWYU pragma: keep

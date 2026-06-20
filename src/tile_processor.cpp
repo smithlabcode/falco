@@ -22,6 +22,7 @@
  */
 
 #include "tile_processor.hpp"
+
 #include "falco_file_format.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
@@ -29,16 +30,17 @@
 
 #include "boost/boost_unordered.hpp"
 
-#include <htslib/bgzf.h>
-#include <htslib/sam.h>
-
 #define FMT_HEADER_ONLY
 #include "fmt/format.h"
 #include "fmt/ranges.h"
 
+#include <htslib/bgzf.h>
+#include <htslib/sam.h>
+
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <format>
 #include <iterator>
