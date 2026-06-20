@@ -32,10 +32,9 @@
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
 #include "format_output.hpp"
+#include "html.hpp"
 #include "kmer_counter.hpp"
 #include "tile_processor.hpp"
-
-#include "html.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -279,21 +278,20 @@ struct alignas(assumed_page_size) falco_results {
   template <typename self_t>
   [[nodiscard]] auto
   get_html(this self_t &self, const run_mode &mode, const file_info &info,
-           const analysis_grades &gr) {
-    const auto res = self.get_html_impl(mode, info, gr);
+           const analysis_grades &grades) {
+    const auto res = self.get_html_impl(mode, info);
     std::string modules;
     for (const auto &field : report_section_order)
       if (const auto res_itr = res.find(field); res_itr != std::cend(res)) {
         const auto &[name, text] = *res_itr;
-        modules += get_html_module(name, gr.label(name), gr.grade(name), text);
+        modules +=
+          get_html_module(name, grades.label(name), grades.grade(name), text);
       }
-    return falco_get_html(info, gr, modules);
+    return falco_get_html(info, grades, modules);
   }
 
   [[nodiscard]] auto
-  get_html_impl([[maybe_unused]] const run_mode &mode,
-                [[maybe_unused]] const file_info &info,
-                [[maybe_unused]] const analysis_grades &ag) const {
+  get_html_impl(const run_mode &mode, const file_info &info) const {
     const auto total_nucs = tabular_dot(lengths);
     const auto gc_acc = [](const auto a, const auto &nuc) {
       return a + nuc[1] + nuc[3];  // NOLINT(*-avoid-magic-numbers)
@@ -308,19 +306,15 @@ struct alignas(assumed_page_size) falco_results {
       info, n_reads, min_read_len, max_read_len, total_gc, total_nucs);
     return std::unordered_map<std::string, std::string>{
       {"basic_stats", basic_stats_html},
-      {"qual_by_pos",
-       format_qual_by_pos_html(qual_by_pos, groups, ag.grade("qual_by_pos"))},
-      {"qual_by_read",
-       format_qual_by_read_html(qual_by_read, ag.grade("qual_by_pos"))},
-      {"base_comp", format_base_comp_html(nucs, groups, ag.grade("base_comp"))},
-      {"gc_content", format_gc_content_html(gcs, ag.grade("gc_content"))},
-      {"n_content",
-       format_n_content_html(n_counts, nucs, groups, ag.grade("n_content"))},
-      {"read_lengths",
-       format_read_lengths_html(lengths, ag.grade("read_lengths"))},
-      {"duplication", dr.format_duplication_html(ag.grade("duplication"))},
-      {"overrep", dr.format_overrep_html(ag.grade("overrep"))},
-      {"adapters", am.get_html(n_reads, groups, ag.grade("adapters"))},
+      {"qual_by_pos", format_qual_by_pos_html(qual_by_pos, groups)},
+      {"qual_by_read", format_qual_by_read_html(qual_by_read)},
+      {"base_comp", format_base_comp_html(nucs, groups)},
+      {"gc_content", format_gc_content_html(gcs)},
+      {"n_content", format_n_content_html(n_counts, nucs, groups)},
+      {"read_lengths", format_read_lengths_html(lengths)},
+      {"duplication", dr.format_duplication_html()},
+      {"overrep", dr.format_overrep_html()},
+      {"adapters", am.get_html(n_reads, groups)},
     };
   }
 };
@@ -373,12 +367,11 @@ struct falco_results_tile : public falco_results {
   }
 
   [[nodiscard]] auto
-  get_html_impl(const run_mode &mode, const file_info &info,
-                const analysis_grades &grades) const {
+  get_html_impl(const run_mode &mode, const file_info &info) const {
     assert(array_contains(report_section_order, "tiles"));
-    auto html = falco_results::get_html_impl(mode, info, grades);
+    auto html = falco_results::get_html_impl(mode, info);
     const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
-    html.emplace("tiles", tp.get_html(groups, grades.grade("tiles")));
+    html.emplace("tiles", tp.get_html(groups));
     return html;
   }
 };
@@ -421,10 +414,9 @@ struct falco_results_kmer : public falco_results {
   }
 
   [[nodiscard]] auto
-  get_html_impl(const run_mode &mode, const file_info &info,
-                const analysis_grades &grades) const {
+  get_html_impl(const run_mode &mode, const file_info &info) const {
     assert(array_contains(report_section_order, "kmers"));
-    auto html = falco_results::get_html_impl(mode, info, grades);
+    auto html = falco_results::get_html_impl(mode, info);
     html.emplace("kmers", kc.get_html());
     return html;
   }
@@ -469,10 +461,9 @@ struct falco_results_tile_kmer : public falco_results_tile {
   }
 
   [[nodiscard]] auto
-  get_html_impl(const run_mode &mode, const file_info &info,
-                const analysis_grades &grades) const {
+  get_html_impl(const run_mode &mode, const file_info &info) const {
     assert(array_contains(report_section_order, "kmers"));
-    auto html = falco_results_tile::get_html_impl(mode, info, grades);
+    auto html = falco_results_tile::get_html_impl(mode, info);
     html.emplace("kmers", kc.get_html());
     return html;
   }
