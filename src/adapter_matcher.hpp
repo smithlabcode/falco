@@ -119,9 +119,16 @@ struct adapter_matcher {
   operator+=(const adapter_matcher &rhs) -> const adapter_matcher &;
 
   [[nodiscard]] auto
+  get_grade(const std::uint64_t n_reads) const -> std::string;
+
+  [[nodiscard]] auto
   get_report(const std::uint64_t n_reads,
              const std::vector<base_group_t> &groups,
-             std::string &grade) const -> std::string;
+             const std::string &grade) const -> std::string;
+
+  [[nodiscard]] auto
+  get_html(const std::uint64_t n_reads, const std::vector<base_group_t> &groups,
+           const std::string &grade) const -> std::string;
 };
 
 #endif  // SRC_ADAPTER_MATCHER_HPP_

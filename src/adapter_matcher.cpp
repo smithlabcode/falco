@@ -22,7 +22,12 @@
  */
 
 #include "adapter_matcher.hpp"
+#include "falco_grade.hpp"
 #include "falco_utils.hpp"
+
+#define FMT_HEADER_ONLY
+#include "fmt/format.h"
+#include "fmt/ranges.h"
 
 #include <algorithm>
 #include <array>
@@ -54,22 +59,22 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 }
 
 [[nodiscard]] auto
+adapter_matcher::get_grade(const std::uint64_t n_reads) const -> std::string {
+  const auto max_count =
+    std::ranges::max(adap_counts | std::views::transform(std::ranges::max));
+  return identify_grade(grade_cutoffs, as_frac(max_count, n_reads));
+}
+
+[[nodiscard]] auto
 adapter_matcher::get_report(const std::uint64_t n_reads,
                             const std::vector<base_group_t> &groups,
-                            std::string &grade) const -> std::string {
+                            const std::string &grade) const -> std::string {
   static constexpr auto start_module_tag = ">>Adapter Content\t{}\n";
   static constexpr auto header = "#Position";
   static constexpr auto to_flat = [](const auto data, const auto &fun) {
     return data | std::views::transform(fun) | std::views::join |
            std::ranges::to<std::string>();
   };
-
-  // need grade first to format module start
-  const auto mc =
-    std::ranges::max(adap_counts | std::views::transform(std::ranges::max));
-  const auto mcf = as_frac(mc, n_reads);
-  grade = get_grade(grade_cutoffs, mcf);
-
   auto r = std::format(start_module_tag, grade);
   r += header + to_flat(adapter_names,
                         [](const auto x) { return std::format("\t{}", x); });
@@ -89,6 +94,61 @@ adapter_matcher::get_report(const std::uint64_t n_reads,
     r += std::format("{}{}\n", make_group_tag(groups[idx]),
                      to_flat(cumul, fmt_pct_of_reads));
   return r + end_module_tag;
+}
+
+[[nodiscard]] auto
+adapter_matcher::get_html(
+  const std::uint64_t n_reads, const std::vector<base_group_t> &groups,
+  [[maybe_unused]] const std::string &grade) const -> std::string {
+  static constexpr auto module_format =
+    R"(<div id="adapters_plot"></div>
+<script>
+Plotly.newPlot("adapters_plot",
+[{}],
+{{
+margin: {{t: 0}},
+showlegend: true,
+xaxis: {{title: "Base position"}},
+yaxis: {{title: "% sequences with adapter before position"}},
+}});
+</script>)";
+  static constexpr auto adapter_fmt = R"({{
+x: [{}],
+y: [{:.6g}],
+type: "line",
+name: "{}"
+}}
+)";
+  assert(std::size(groups) == std::size(adap_counts));
+  // calcualte the x axis first
+  const auto x = groups | std::views::transform([&](const auto &g) {
+                   return make_group_tag_quoted(g);
+                 });
+
+  auto cumulative = adap_counts;
+  for (auto [prev, curr] : cumulative | std::views::pairwise)
+    std::ranges::transform(curr, prev, std::begin(curr), std::plus{});
+
+  const auto n_pos = std::size(adap_counts);
+  const auto lim = n_pos + 1 >= adapter_size ? n_pos - adapter_size + 1 : n_pos;
+  cumulative.resize(lim);
+  const auto pct_of_reads = [n_reads](const auto c) {
+    return pct(as_frac(c, n_reads));
+  };
+  std::vector<std::string> html_by_adapter;
+  for (const auto adap_id : std::views::iota(0, n_adapters)) {
+    std::vector<double> y;
+    for (const auto pos : std::views::iota(0UL, n_pos))
+      y.emplace_back(pct_of_reads(cumulative[pos][adap_id]));
+    html_by_adapter.emplace_back(         //
+      fmt::format(adapter_fmt,            //
+                  fmt::join(x, ","),      //
+                  fmt::join(y, ","),      //
+                  adapter_names[adap_id]  //
+                  ));
+  }
+  return std::format(module_format,
+                     fmt::format("{}\n", fmt::join(html_by_adapter, ",\n")));
 }
 
 auto
