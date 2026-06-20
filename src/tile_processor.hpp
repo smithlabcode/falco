@@ -131,8 +131,7 @@ struct tile_processor {
              const std::string &grade) const -> std::string;
 
   [[nodiscard]] auto
-  get_html(const std::vector<base_group_t> &groups,
-           const std::string &grade) const -> std::string;
+  get_html(const std::vector<base_group_t> &groups) const -> std::string;
 
   auto
   operator+=(const tile_processor &rhs) -> const tile_processor &;

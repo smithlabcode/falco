@@ -127,8 +127,8 @@ struct adapter_matcher {
              const std::string &grade) const -> std::string;
 
   [[nodiscard]] auto
-  get_html(const std::uint64_t n_reads, const std::vector<base_group_t> &groups,
-           const std::string &grade) const -> std::string;
+  get_html(const std::uint64_t n_reads,
+           const std::vector<base_group_t> &groups) const -> std::string;
 };
 
 #endif  // SRC_ADAPTER_MATCHER_HPP_

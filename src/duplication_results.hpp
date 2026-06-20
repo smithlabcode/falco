@@ -64,7 +64,7 @@ struct duplication_results {
   format_overrep(const std::string &grade) const -> std::string;
 
   [[nodiscard]] auto
-  format_overrep_html(const std::string &grade) const -> std::string;
+  format_overrep_html() const -> std::string;
 
   [[nodiscard]] auto
   get_grade_duplication() const -> std::string;
@@ -73,7 +73,7 @@ struct duplication_results {
   format_duplication(const std::string &grade) const -> std::string;
 
   [[nodiscard]] auto
-  format_duplication_html(const std::string &grade) const -> std::string;
+  format_duplication_html() const -> std::string;
 
   auto
   operator+=(const duplication_results &rhs) -> const duplication_results &;

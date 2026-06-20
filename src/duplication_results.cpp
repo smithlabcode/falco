@@ -208,8 +208,7 @@ duplication_results::format_duplication(const std::string &grade) const
 }
 
 [[nodiscard]] auto
-duplication_results::format_overrep_html(
-  [[maybe_unused]] const std::string &grade) const -> std::string {
+duplication_results::format_overrep_html() const -> std::string {
   static constexpr auto html_table = R"(<table><thead>
 <tr>
 <th>Sequence</th>
@@ -251,8 +250,7 @@ duplication_results::format_overrep_html(
 }
 
 [[nodiscard]] auto
-duplication_results::format_duplication_html(
-  [[maybe_unused]] const std::string &grade) const -> std::string {
+duplication_results::format_duplication_html() const -> std::string {
   // ADS: template holds the actual tick values
   static constexpr auto n_bins = 16;
   static constexpr auto total_sequences_fmt = R"({{

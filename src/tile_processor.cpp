@@ -184,8 +184,7 @@ tile_processor::get_report(const std::vector<base_group_t> &groups,
 }
 
 [[nodiscard]] auto
-tile_processor::get_html(const std::vector<base_group_t> &groups,
-                         [[maybe_unused]] const std::string &grade) const
+tile_processor::get_html(const std::vector<base_group_t> &groups) const
   -> std::string {
   static constexpr auto n_quants = 20.0;
   // ADS: ??? (-10: red, 0: light blue, +10: dark blue)

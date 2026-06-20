@@ -100,9 +100,9 @@ adapter_matcher::get_report(const std::uint64_t n_reads,
 }
 
 [[nodiscard]] auto
-adapter_matcher::get_html(
-  const std::uint64_t n_reads, const std::vector<base_group_t> &groups,
-  [[maybe_unused]] const std::string &grade) const -> std::string {
+adapter_matcher::get_html(const std::uint64_t n_reads,
+                          const std::vector<base_group_t> &groups) const
+  -> std::string {
   static constexpr auto module_format =
     R"(<div id="adapters_plot"></div>
 <script>
