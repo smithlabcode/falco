@@ -22,12 +22,13 @@
  */
 
 #include "kmer_counter.hpp"
+#include "falco_grade.hpp"
 #include "falco_utils.hpp"
+#include "html.hpp"
 
-#ifdef MAKE_HTML
-#include <fmt/format.h>
-#include <fmt/ranges.h>
-#endif  // MAKE_HTML
+#define FMT_HEADER_ONLY
+#include "fmt/format.h"
+#include "fmt/ranges.h"
 
 #include <algorithm>
 #include <array>
@@ -176,20 +177,27 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
 }
 
 [[nodiscard]] auto
-kmer_counter::get_report(std::string &grade) const -> std::string {
+kmer_counter::get_grade() const -> std::string {
+  // ADS!!!: Major redundant work here
+  const auto results = get_kmer_results();
+  const auto pval = results.front().pval;
+  const auto neg_log_p_val =
+    pval > 0.0 ? -std::log10(pval) : std::numeric_limits<double>::max();
+  return identify_grade(grade_cutoffs, neg_log_p_val);
+}
+
+[[nodiscard]] auto
+kmer_counter::get_report(const std::string &grade) const -> std::string {
   static constexpr auto start_tag = ">>Kmer Content\t{}\n";
   static constexpr auto header = "#Sequence\t"
                                  "Count\t"
                                  "PValue\t"
                                  "Obs/Exp Max\t"
                                  "Max Obs/Exp Position\n";
-  const auto results = get_kmer_results();
-  const auto pval = results.front().pval;
-  const auto neg_log_p_val =
-    pval > 0.0 ? -std::log10(pval) : std::numeric_limits<double>::max();
-  grade = get_grade(grade_cutoffs, neg_log_p_val);
   auto r = std::format(start_tag, grade);
   r += header;
+  // ADS: should set 'results' as member that can be set in 'finalize'
+  const auto results = get_kmer_results();
   for (const auto &res : results | std::views::take(n_kmers_to_report))
     // cppcheck-suppress useStlAlgorithm
     r += std::format("{}\n", res.string());
@@ -212,41 +220,46 @@ kmer_counter::decode_kmer(auto word, const auto n_bases) -> std::string {
 
 auto
 kmer_counter::finalize([[maybe_unused]] const run_mode &mode) -> void {
+  // ADS: !!! should we be computing the 'results' here?
   // if (mode.do_groups) {
   //   const auto groups = get_default_base_groups(max_read_len,
   //   do_groups(mode)); apply_base_groups(groups, kmer_counts);
   // }
 }
 
-#ifdef MAKE_HTML
-
 [[nodiscard]] auto
 kmer_counter::get_html() const -> std::string {
-  const auto results = get_kmer_results();  // redundant
+  static constexpr auto plot_format = R"(<div id="{}"></div>
+<script>Plotly.newPlot("{}",
+{}
+);</script>
+)";
+  static constexpr auto kmer_line_format =
+    R"({{
+x: [{}],
+y: [{}],
+type: "line",
+name: "{}",
+}})";
+  const auto results = get_kmer_results();  // ADS: redundant
   const auto to_report = results | std::views::take(n_kmers_to_report);
   const auto get_pos = [&](const auto &x) { return x.pos; };
   // xlim: max pos with kmer to report
-  const auto xlim =
-    std::ranges::max(std::views::transform(to_report, get_pos)) + kmer_size;
-  auto mostly0 = std::vector(xlim, 0);  // change one position each kmer
+  const auto xlim = std::ranges::max(std::views::transform(to_report, get_pos));
+  auto mostly0 = std::vector(xlim, 0.0);  // change one position each kmer
   const auto xvals = std::views::iota(0u, xlim);
+  auto prev = 0;
   const auto format1 = [&](const auto &k) {
     // x: positions in read; y: zeros except at 'pos' for the kmer
+    mostly0[prev] = 0.0;  // replace the zero for previous position 'k.pos'
     mostly0[k.pos] = std::log2(k.obs_exp);
-    return fmt::format("{{x: [{}], y: [{}], type: 'line', name: '{}'}}",
-                       fmt::join(xvals, ", "), fmt::join(mostly0, ", "),
+    prev = k.pos;
+    return fmt::format(kmer_line_format, fmt::join(xvals, ", "),
+                       fmt::join(mostly0, ", "),
                        decode_kmer(k.kmer, kmer_size));
-    mostly0[k.pos] = 0;  // replace the zero at 'pos'
   };
   return fmt::format(
-    "{}\n", fmt::join(std::views::transform(to_report, format1), ",\n"));
+    plot_format, "kmers_plot", "kmers_plot",
+    fmt::format("[{}]",
+                fmt::join(std::views::transform(to_report, format1), ",\n")));
 }
-
-#else  // NO MAKE_HTML
-
-[[nodiscard]] auto
-kmer_counter::get_html() const -> std::string {
-  return {};
-}
-
-#endif  // MAKE_HTML

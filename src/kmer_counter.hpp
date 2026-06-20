@@ -115,7 +115,10 @@ struct kmer_counter {
   get_kmer_results() const -> std::vector<kmer_result>;
 
   [[nodiscard]] auto
-  get_report(std::string &grade) const -> std::string;
+  get_grade() const -> std::string;
+
+  [[nodiscard]] auto
+  get_report(const std::string &grade) const -> std::string;
 
   [[nodiscard]] auto
   get_html() const -> std::string;
