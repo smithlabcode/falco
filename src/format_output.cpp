@@ -410,10 +410,8 @@ name: "Sequence length distribution"
     return fmt::format(R"("{} bp")", l);
   };
   const auto lines_data = fmt::format(
-    lengths_fmt,                                                   //
-    fmt::join(std::views::transform(length_values, add_bp), ","),  //
-    fmt::join(lengths, ","),                                       //
-    fmt::join(length_values, ","));
+    lengths_fmt, fmt::join(std::views::transform(length_values, add_bp), ","),
+    fmt::join(lengths, ","), fmt::join(length_values, ","));
   return std::format(plot_fmt, lines_data);
 }
 
@@ -451,12 +449,9 @@ name: "Theoretical distribution"
   const auto total_count =
     std::reduce(std::cbegin(gc_content), std::cend(gc_content));
   const auto theor = get_theoretical_distribution(gc_content, total_count);
-  const auto lines_data = fmt::format(gc_fmt,                      //
-                                      fmt::join(x, ","),           //
-                                      fmt::join(gc_content, ","),  //
-                                      fmt::join(x, ","),           //
-                                      fmt::join(theor, ",")        //
-  );
+  const auto lines_data =
+    fmt::format(gc_fmt, fmt::join(x, ","), fmt::join(gc_content, ","),
+                fmt::join(x, ","), fmt::join(theor, ","));
   return fmt::format(plot_fmt, lines_data);
 }
 
@@ -507,10 +502,8 @@ line: {{color : "{}"}}
       return pct(as_frac(nucs_for_pos[idx], tot));
     };
     const auto y = std::views::zip_transform(pct_for_pos, nucs, total_by_pos);
-    r.emplace_back(fmt::format(per_base_fmt,       //
-                               fmt::join(x, ","),  //
-                               fmt::join(y, ","),  //
-                               bases[idx],         //
+    r.emplace_back(fmt::format(per_base_fmt, fmt::join(x, ","),
+                               fmt::join(y, ","), bases[idx],
                                base_to_color[idx]));
   }
   // NOLINTEND(*-constant-array-index,*-pointer-arithmetic)
@@ -525,10 +518,7 @@ format_n_content_html(const std::vector<std::uint64_t> &n_counts,
     R"(<div id="n_content_plot"></div>
 <script>
 Plotly.newPlot("n_content_plot",
-{}
-);</script>
-)";
-  static constexpr auto n_count_fmt = R"([{{
+[{{
 x: [{}],
 y: [{:.6g}],
 type: "line",
@@ -540,7 +530,9 @@ margin: {{t: 0}},
 showlegend: true,
 xaxis: {{title: "Base position"}},
 yaxis: {{title: "% N"}},
-}})";
+}}
+);</script>
+)";
   const auto pct_for_pos = [](const auto &nucs_by_pos, const auto n_count) {
     return pct(as_frac(
       n_count, std::reduce(std::cbegin(nucs_by_pos), std::cend(nucs_by_pos))));
@@ -548,12 +540,8 @@ yaxis: {{title: "% N"}},
   const auto make_tag = [&](const auto &g) { return make_group_tag_quoted(g); };
   assert(std::size(nucs) == std::size(groups));
   return fmt::format(
-    plot_fmt,
-    fmt::format(
-      n_count_fmt,                                                            //
-      fmt::join(groups | std::views::transform(make_tag), ","),               //
-      fmt::join(std::views::zip_transform(pct_for_pos, nucs, n_counts), ",")  //
-      ));
+    plot_fmt, fmt::join(groups | std::views::transform(make_tag), ","),
+    fmt::join(std::views::zip_transform(pct_for_pos, nucs, n_counts), ","));
 }
 
 [[nodiscard]] auto
@@ -562,7 +550,13 @@ format_qual_by_read_html(const falco::qual_array &qual_by_read) -> std::string {
     R"(<div id="qual_by_read_plot"></div>
 <script>
 Plotly.newPlot("qual_by_read_plot",
-[{}],
+[{{
+x: [{}],
+y: [{}],
+type: "line",
+line: {{color: "red"}},
+name: "Sequence quality distribution"
+}}],
 {{
 margin: {{t: 0}},
 showlegend: true,
@@ -570,15 +564,6 @@ xaxis: {{title: "Phread quality"}},
 yaxis: {{title: "Density"}},
 }});
 </script>
-)";
-  static constexpr auto qbr_fmt =
-    R"({{
-x: [{}],
-y: [{}],
-type: "line",
-line: {{color: "red"}},
-name: "Sequence quality distribution"
-}}
 )";
   // output quality values between first non-zero and last zero
   const auto gt0 = [&](const auto x) { return x > 0; };
@@ -593,8 +578,7 @@ name: "Sequence quality distribution"
   const auto x = std::views::iota(first_obs, last_obs);
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const auto y = std::ranges::subrange{q_beg + first_obs, q_beg + last_obs};
-  return fmt::format(
-    plot_fmt, fmt::format(qbr_fmt, fmt::join(x, ","), fmt::join(y, ",")));
+  return fmt::format(plot_fmt, fmt::join(x, ","), fmt::join(y, ","));
 }
 
 [[nodiscard]] auto
@@ -637,8 +621,7 @@ yaxis: {{title: "Phread quality"}},
 }
 
 [[nodiscard]] auto
-format_basic_stats_html(const file_info &info,  //
-                        const std::uint64_t n_reads,
+format_basic_stats_html(const file_info &info, const std::uint64_t n_reads,
                         const std::uint64_t min_read_len,
                         const std::uint64_t max_read_len,
                         const std::uint64_t total_gc,
@@ -658,8 +641,7 @@ format_basic_stats_html(const file_info &info,  //
       ? std::format("{}", max_read_len)
       : std::format("{}-{}", min_read_len, max_read_len);
   const auto gc_content_frac = pct(as_frac(total_gc, total_nucs));
-  return fmt::format(table_fmt,  //
-                     fmt::arg("filename_stem", info.name),
+  return fmt::format(table_fmt, fmt::arg("filename_stem", info.name),
                      fmt::arg("file_type", info.description),
                      fmt::arg("encoding", to_string(info.encoding)),
                      fmt::arg("n_reads", n_reads),
