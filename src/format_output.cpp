@@ -78,13 +78,11 @@ format_read_lengths(const std::vector<std::uint64_t> &lengths,
 }
 
 [[nodiscard]] static inline auto
-get_theoretical_distribution(const auto &gc) {
+get_theoretical_distribution(const auto &gc, const auto &total_count) {
   static constexpr auto mode_width = 0.90;  // ADS: where does this come from?
   // calculate deviation of a hist from a "normal" with same mode and sd
   const auto n_bins = std::size(gc);
   const auto gc_beg = std::cbegin(gc);
-  const auto gc_end = std::cend(gc);
-  const auto total_count = std::reduce(gc_beg, gc_end);
   if (total_count <= 1)  // we will be dividing by (total_count - 1)
     return std::vector<double>(std::size(gc));
 
@@ -110,11 +108,16 @@ get_theoretical_distribution(const auto &gc) {
   const auto sd = std::sqrt(std::reduce(std::cbegin(id_gc), std::cend(id_gc)) /
                             (total_count - 1));
   const auto to_normal = [&](const auto val) {
-    // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     return std::exp(-cntr_sq(val) / (2.0 * sd * sd));
   };
-  return std::views::iota(0u, n_bins) | std::views::transform(to_normal) |
-         std::ranges::to<std::vector>();
+  auto normed = std::views::iota(0u, n_bins) |
+                std::views::transform(to_normal) |
+                std::ranges::to<std::vector>();
+  const auto denom = std::reduce(std::cbegin(normed), std::cend(normed));
+  std::ranges::transform(normed, std::begin(normed),
+                         [&](const auto x) { return x * total_count / denom; });
+  return normed;
 }
 
 [[nodiscard]] static inline auto
@@ -125,10 +128,7 @@ sum_deviation_from_normal(const auto &gc) {
   if (total_count <= 1)  // we will be dividing by (total_count - 1)
     return 0.0;
 
-  auto theor = get_theoretical_distribution(gc);
-  const auto denom = std::reduce(std::cbegin(theor), std::cend(theor));
-  std::ranges::transform(theor, std::begin(theor),
-                         [&](const auto x) { return x * total_count / denom; });
+  const auto theor = get_theoretical_distribution(gc, total_count);
   const auto diff = [](const auto a, const auto b) { return std::fabs(a - b); };
   const auto r = std::transform_reduce(gc_beg, gc_end, std::cbegin(theor), 0.0,
                                        std::plus{}, diff);
@@ -276,7 +276,7 @@ format_qual_by_read(const falco::qual_array &qual_by_read,
   assert(first_obs >= 0 && last_obs <= falco::max_qual_val);
   for (const auto q : std::views::iota(first_obs, last_obs + 1))
     // cppcheck-suppress useStlAlgorithm
-    // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
     r += std::format("{}\t{}\n", q, qual_by_read[q]);
   r += end_module_tag;
   return r;
@@ -285,10 +285,10 @@ format_qual_by_read(const falco::qual_array &qual_by_read,
 [[nodiscard]] auto
 get_grade_qual_by_pos(const std::vector<falco::qual_array> &qual)
   -> std::string {
-  // NOLINTBEGIN (cppcoreguidelines-avoid-magic-numbers)
+  // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
   static constexpr auto lower_quartile = [](const auto &q) { return q[1]; };
   static constexpr auto get_median = [](const auto &q) { return q[2]; };
-  // NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
+  // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
   // ADS: not sure how this is used
   [[maybe_unused]] static constexpr auto grade_cutoffs_lower = std::array{
     std::pair{0.05, "fail"},
@@ -355,13 +355,13 @@ format_basic_stats(const file_info &info, const std::uint64_t n_reads,
   static constexpr auto header = "#Measure\t"
                                  "Value\n";
   [[maybe_unused]] const auto with_suffix = [&](const auto x) {
-    // NOLINTBEGIN (cppcoreguidelines-avoid-magic-numbers)
+    // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
     if (x > 1'000'000'000)
       return std::format("{:.1f} {}bp", as_frac(x, 1'000'000'000), "G");
     if (x > 1'000'000)
       return std::format("{:.1f} {}bp", as_frac(x, 1'000'000), "M");
     return std::format("{:.1f} {}bp", as_frac(x, 1'000), "K");
-    // NOLINTEND (cppcoreguidelines-avoid-magic-numbers)
+    // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
   };
   auto r = std::format(start_tag, VERSION, grade);
   r += header;
@@ -448,7 +448,9 @@ line: {{color : "blue"}},
 name: "Theoretical distribution"
 }})";
   const auto x = std::views::iota(0LU, std::size(gc_content));
-  const auto theor = get_theoretical_distribution(gc_content);
+  const auto total_count =
+    std::reduce(std::cbegin(gc_content), std::cend(gc_content));
+  const auto theor = get_theoretical_distribution(gc_content, total_count);
   const auto lines_data = fmt::format(gc_fmt,                      //
                                       fmt::join(x, ","),           //
                                       fmt::join(gc_content, ","),  //
@@ -519,8 +521,10 @@ line: {{color : "{}"}}
 format_n_content_html(const std::vector<std::uint64_t> &n_counts,
                       const std::vector<falco::nuc_array> &nucs,
                       const std::vector<base_group_t> &groups) -> std::string {
-  static constexpr auto plot_format = R"(<div id="{}"></div>
-<script>Plotly.newPlot("{}",
+  static constexpr auto plot_fmt =
+    R"(<div id="n_content_plot"></div>
+<script>
+Plotly.newPlot("n_content_plot",
 {}
 );</script>
 )";
@@ -544,7 +548,7 @@ yaxis: {{title: "% N"}},
   const auto make_tag = [&](const auto &g) { return make_group_tag_quoted(g); };
   assert(std::size(nucs) == std::size(groups));
   return fmt::format(
-    plot_format, "n_content_plot", "n_content_plot",
+    plot_fmt,
     fmt::format(
       n_count_fmt,                                                            //
       fmt::join(groups | std::views::transform(make_tag), ","),               //
