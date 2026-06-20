@@ -28,11 +28,14 @@
 #include "bam_file.hpp"
 #include "duplication_results.hpp"
 #include "falco_file_format.hpp"
+#include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
 #include "format_output.hpp"
 #include "kmer_counter.hpp"
 #include "tile_processor.hpp"
+
+#include "html.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -42,23 +45,6 @@
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
-
-// clang-format off
-static constexpr auto report_section_order = std::array{
-  "basic_stats",
-  "qual_by_pos",
-  "tiles",
-  "qual_by_read",
-  "base_composition",
-  "gc_content",
-  "n_counts",
-  "read_lengths",
-  "duplication_levels",
-  "overrepresented",
-  "adapters",
-  "kmers",
-};
-// clang-format on
 
 [[nodiscard]] static inline auto
 array_contains(const auto &a, const auto &b) {
@@ -100,12 +86,35 @@ struct alignas(assumed_page_size) falco_results {
 
   template <typename self_t>
   auto
+  get_grades(this self_t &self) -> analysis_grades {
+    analysis_grades grades;
+    self.get_grades_impl(grades);
+    return grades;
+  }
+
+  auto
+  get_grades_impl(analysis_grades &ag) {
+    ag.emplace("basic_stats", get_grade_basic_stats());
+    ag.emplace("qual_by_pos", get_grade_qual_by_pos(qual_by_pos));
+    ag.emplace("qual_by_read", get_grade_qual_by_read(qual_by_read));
+    ag.emplace("base_comp", get_grade_base_comp(nucs));
+    ag.emplace("gc_content", get_grade_gc_content(gcs));
+    ag.emplace("n_content", get_grade_n_content(n_counts, nucs));
+    ag.emplace("read_lengths", get_grade_read_lengths(lengths));
+    ag.emplace("duplication", dr.get_grade_duplication());
+    ag.emplace("overrep", dr.get_grade_overrep());
+    ag.emplace("adapters", am.get_grade(n_reads));
+  }
+
+  template <typename self_t>
+  auto
   finalize(this self_t &self, const run_mode &mode, const file_info &info) {
     self.finalize_impl(mode, info);
   }
 
   auto
   finalize_impl(const run_mode &mode, const file_info &info) {
+    adjust_nucs_for_ns();
     if (!is_mapped_reads(info.format))
       adjust_fastq_qual_encoding(qual_by_pos, qual_by_read, info.encoding);
     if (do_groups(mode)) {
@@ -117,6 +126,12 @@ struct alignas(assumed_page_size) falco_results {
       apply_base_groups(groups, qual_by_pos);
       am.finalize(mode);
     }
+  }
+
+  auto
+  adjust_nucs_for_ns() -> void {  // Ns were counted among the C in nucs
+    for (auto i = 0u; i < std::size(nucs); ++i)
+      nucs[i][3] -= n_counts[i];
   }
 
   template <typename self_t>
@@ -217,19 +232,11 @@ struct alignas(assumed_page_size) falco_results {
     return *this;
   }
 
-  [[nodiscard]] auto
-  adjust_nucs_for_ns() const {  // Ns were counted among the C in nucs
-    auto nucs_no_n = nucs;
-    for (auto i = 0u; i < std::size(nucs_no_n); ++i)
-      nucs_no_n[i][3] -= n_counts[i];
-    return nucs_no_n;
-  };
-
   template <typename self_t>
   [[nodiscard]] auto
   get_report(this self_t &self, const run_mode &mode, const file_info &info,
-             grades &g) {
-    const auto res = self.get_report_impl(mode, info, g);
+             const analysis_grades &grades) {
+    const auto res = self.get_report_impl(mode, info, grades);
     std::string report;
     for (const auto &field : report_section_order)
       if (const auto res_itr = res.find(field); res_itr != std::cend(res))
@@ -239,72 +246,82 @@ struct alignas(assumed_page_size) falco_results {
 
   [[nodiscard]] auto
   get_report_impl(const run_mode &mode, const file_info &info,
-                  grades &g) const {
-    const auto nucs_no_n = adjust_nucs_for_ns();
+                  const analysis_grades &ag) const {
     const auto total_nucs = tabular_dot(lengths);
     const auto gc_acc = [](const auto a, const auto &nuc) {
       return a + nuc[1] + nuc[3];  // NOLINT(*-avoid-magic-numbers)
     };
-    const auto total_gc = std::accumulate(std::cbegin(nucs_no_n),
-                                          std::cend(nucs_no_n), 0ul, gc_acc);
+    const auto total_gc =
+      std::accumulate(std::cbegin(nucs), std::cend(nucs), 0ul, gc_acc);
     const auto gt0 = [](const auto c) { return c > 0; };
     const std::uint64_t min_read_len =
       std::distance(std::cbegin(lengths), std::ranges::find_if(lengths, gt0));
-    const auto encoding_label = get_quality_score_label(info.encoding);
     const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
     return std::unordered_map<std::string, std::string>{
       {"basic_stats",
-       format_basic_stats(info.name, n_reads, min_read_len, max_read_len,
-                          total_gc, total_nucs, encoding_label, g.basic_stats)},
-      {"qual_by_pos", format_qual_by_pos(qual_by_pos, groups, g.qual_by_pos)},
-      {"qual_by_read", format_qual_by_read(qual_by_read, g.qual_by_read)},
-      {"base_composition",
-       format_base_composition(nucs_no_n, groups, g.base_composition)},
-      {"gc_content", format_gc_content(gcs, g.gc_content)},
-      {"n_counts", format_n_counts(n_counts, nucs, groups, g.n_counts)},
-      {"read_lengths", format_read_lengths(lengths, g.read_lengths)},
-      {"duplication_levels",
-       dr.format_duplication_levels(g.duplication_levels)},
-      {"overrepresented", dr.format_overrepresented(g.overrepresented)},
-      {"adapters", am.get_report(n_reads, groups, g.adapter_content)},
+       format_basic_stats(info, n_reads, min_read_len, max_read_len, total_gc,
+                          total_nucs, ag.grade("basic_stats"))},
+      {"qual_by_pos",
+       format_qual_by_pos(qual_by_pos, groups, ag.grade("qual_by_pos"))},
+      {"qual_by_read",
+       format_qual_by_read(qual_by_read, ag.grade("qual_by_read"))},
+      {"base_comp", format_base_comp(nucs, groups, ag.grade("base_comp"))},
+      {"gc_content", format_gc_content(gcs, ag.grade("gc_content"))},
+      {"n_content",
+       format_n_content(n_counts, nucs, groups, ag.grade("n_content"))},
+      {"read_lengths", format_read_lengths(lengths, ag.grade("read_lengths"))},
+      {"duplication", dr.format_duplication(ag.grade("duplication"))},
+      {"overrep", dr.format_overrep(ag.grade("overrep"))},
+      {"adapters", am.get_report(n_reads, groups, ag.grade("adapters"))},
     };
   }
 
   template <typename self_t>
   [[nodiscard]] auto
-  get_html(this self_t &self, const file_info &info) {
-    return self.get_html_impl(info);
+  get_html(this self_t &self, const run_mode &mode, const file_info &info,
+           const analysis_grades &gr) {
+    const auto res = self.get_html_impl(mode, info, gr);
+    std::string modules;
+    for (const auto &field : report_section_order)
+      if (const auto res_itr = res.find(field); res_itr != std::cend(res)) {
+        const auto &[name, text] = *res_itr;
+        modules += get_html_module(name, gr.label(name), gr.grade(name), text);
+      }
+    return falco_get_html(info, gr, modules);
   }
 
   [[nodiscard]] auto
-  get_html_impl([[maybe_unused]] const file_info &info) const {
-#ifdef MAKE_HTML
-    const auto nucs_no_n = adjust_nucs_for_ns();
+  get_html_impl([[maybe_unused]] const run_mode &mode,
+                [[maybe_unused]] const file_info &info,
+                [[maybe_unused]] const analysis_grades &ag) const {
     const auto total_nucs = tabular_dot(lengths);
     const auto gc_acc = [](const auto a, const auto &nuc) {
       return a + nuc[1] + nuc[3];  // NOLINT(*-avoid-magic-numbers)
     };
-    const auto total_gc = std::accumulate(std::cbegin(nucs_no_n),
-                                          std::cend(nucs_no_n), 0ul, gc_acc);
+    const auto total_gc =
+      std::accumulate(std::cbegin(nucs), std::cend(nucs), 0ul, gc_acc);
     const auto gt0 = [](const auto c) { return c > 0; };
     const std::uint64_t min_read_len =
       std::distance(std::cbegin(lengths), std::ranges::find_if(lengths, gt0));
-    const auto encoding_label = get_quality_score_label(info.encoding);
-    auto r =
-      format_basic_stats_html(info.name, n_reads, min_read_len, max_read_len,
-                              total_gc, total_nucs, encoding_label);
-    r += format_qual_by_pos_html(qual_by_pos);
-    r += format_qual_by_read_html(qual_by_read);
-    r += format_base_composition_html(nucs);
-    r += format_n_counts_html(n_counts, nucs);
-    r += format_gc_content_html(gcs);
-    r += format_read_lengths_html(lengths);
-    r += dr.format_duplication_levels_html();
-    r += dr.format_overrepresented_html();
-    return r;
-#else
-    return std::string{"not yet implemented: should be ready soon!"};
-#endif  // MAKE_HTML
+    const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
+    const auto basic_stats_html = format_basic_stats_html(
+      info, n_reads, min_read_len, max_read_len, total_gc, total_nucs);
+    return std::unordered_map<std::string, std::string>{
+      {"basic_stats", basic_stats_html},
+      {"qual_by_pos",
+       format_qual_by_pos_html(qual_by_pos, groups, ag.grade("qual_by_pos"))},
+      {"qual_by_read",
+       format_qual_by_read_html(qual_by_read, ag.grade("qual_by_pos"))},
+      {"base_comp", format_base_comp_html(nucs, groups, ag.grade("base_comp"))},
+      {"gc_content", format_gc_content_html(gcs, ag.grade("gc_content"))},
+      {"n_content",
+       format_n_content_html(n_counts, nucs, groups, ag.grade("n_content"))},
+      {"read_lengths",
+       format_read_lengths_html(lengths, ag.grade("read_lengths"))},
+      {"duplication", dr.format_duplication_html(ag.grade("duplication"))},
+      {"overrep", dr.format_overrep_html(ag.grade("overrep"))},
+      {"adapters", am.get_html(n_reads, groups, ag.grade("adapters"))},
+    };
   }
 };
 
@@ -318,6 +335,12 @@ struct falco_results_tile : public falco_results {
     has_tiles = info.has_tiles;
     tp.init(info);
   };
+
+  auto
+  get_grades_impl(analysis_grades &grades) {
+    falco_results::get_grades_impl(grades);
+    grades.emplace("tiles", tp.get_grade());
+  }
 
   auto
   finalize_impl(const run_mode &mode, const file_info &info) {
@@ -341,22 +364,33 @@ struct falco_results_tile : public falco_results {
 
   [[nodiscard]] auto
   get_report_impl(const run_mode &mode, const file_info &info,
-                  grades &g) const {
+                  const analysis_grades &grades) const {
     assert(array_contains(report_section_order, "tiles"));
-    auto report = falco_results::get_report_impl(mode, info, g);
+    auto report = falco_results::get_report_impl(mode, info, grades);
     const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
-    report.emplace("tiles", tp.get_report(groups, g.tile_analaysis));
+    report.emplace("tiles", tp.get_report(groups, grades.grade("tiles")));
     return report;
   }
 
   [[nodiscard]] auto
-  get_html_impl(const file_info &info) const {
-    return falco_results::get_html_impl(info) + tp.get_html();
+  get_html_impl(const run_mode &mode, const file_info &info,
+                const analysis_grades &grades) const {
+    assert(array_contains(report_section_order, "tiles"));
+    auto html = falco_results::get_html_impl(mode, info, grades);
+    const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
+    html.emplace("tiles", tp.get_html(groups, grades.grade("tiles")));
+    return html;
   }
 };
 
 struct falco_results_kmer : public falco_results {
   kmer_counter kc;
+
+  auto
+  get_grades_impl(analysis_grades &grades) {
+    falco_results::get_grades_impl(grades);
+    grades.emplace("kmers", kc.get_grade());
+  }
 
   auto
   finalize_impl(const run_mode &mode, const file_info &info) {
@@ -379,21 +413,31 @@ struct falco_results_kmer : public falco_results {
 
   [[nodiscard]] auto
   get_report_impl(const run_mode &mode, const file_info &info,
-                  grades &g) const {
+                  const analysis_grades &grades) const {
     assert(array_contains(report_section_order, "kmers"));
-    auto report = falco_results::get_report_impl(mode, info, g);
-    report.emplace("kmers", kc.get_report(g.kmer_content));
+    auto report = falco_results::get_report_impl(mode, info, grades);
+    report.emplace("kmers", kc.get_report(grades.grade("kmers")));
     return report;
   }
 
   [[nodiscard]] auto
-  get_html_impl(const file_info &info) const {
-    return falco_results::get_html_impl(info) + kc.get_html();
+  get_html_impl(const run_mode &mode, const file_info &info,
+                const analysis_grades &grades) const {
+    assert(array_contains(report_section_order, "kmers"));
+    auto html = falco_results::get_html_impl(mode, info, grades);
+    html.emplace("kmers", kc.get_html());
+    return html;
   }
 };
 
 struct falco_results_tile_kmer : public falco_results_tile {
   kmer_counter kc;
+
+  auto
+  get_grades_impl(analysis_grades &grades) {
+    falco_results_tile::get_grades_impl(grades);
+    grades.emplace("kmers", kc.get_grade());
+  }
 
   auto
   finalize_impl(const run_mode &mode, const file_info &info) {
@@ -417,16 +461,20 @@ struct falco_results_tile_kmer : public falco_results_tile {
 
   [[nodiscard]] auto
   get_report_impl(const run_mode &mode, const file_info &info,
-                  grades &g) const {
+                  const analysis_grades &grades) const {
     assert(array_contains(report_section_order, "kmers"));
-    auto report = falco_results_tile::get_report_impl(mode, info, g);
-    report.emplace("kmers", kc.get_report(g.kmer_content));
+    auto report = falco_results_tile::get_report_impl(mode, info, grades);
+    report.emplace("kmers", kc.get_report(grades.grade("kmers")));
     return report;
   }
 
   [[nodiscard]] auto
-  get_html_impl(const file_info &info) const {
-    return falco_results_tile::get_html_impl(info) + kc.get_html();
+  get_html_impl(const run_mode &mode, const file_info &info,
+                const analysis_grades &grades) const {
+    assert(array_contains(report_section_order, "kmers"));
+    auto html = falco_results_tile::get_html_impl(mode, info, grades);
+    html.emplace("kmers", kc.get_html());
+    return html;
   }
 };
 
