@@ -307,8 +307,8 @@ public:
   // clang-format on
 
   explicit fastq_gz_file(const std::string &filename,
-                         const std::int64_t bufsize) :
-    outbuf(bufsize / 2), inbuf(bufsize / 2),
+                         const std::int64_t buf_size) :
+    outbuf(buf_size / 2), inbuf(buf_size / 2),
     in(std::fopen(std::data(filename), "r"), &std::fclose) {
     if (in == nullptr)
       throw std::runtime_error("failed to open " + filename);
