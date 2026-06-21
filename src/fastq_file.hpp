@@ -155,13 +155,17 @@ struct fastq_file {
   int fd{};
 
   fastq_file(const std::string &filename, const std::int64_t buf_size) :
-    buf_size{buf_size < min_buf_size ? min_buf_size : buf_size},
+    buf_size{buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
     stop_pos_in_file{buf_size},  // init this way because used as sentinel
     fd{open(std::data(filename), O_RDONLY, 0)} {
     if (fd < 0)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
+    if (buf_size < min_buf_size)
+      throw std::runtime_error(
+        std::format("requested buffer too small {} (min is {})",
+                    size_to_units(buf_size), size_to_units(min_buf_size)));
   }
 
   // clang-format off
@@ -205,6 +209,7 @@ struct fastq_file {
 
 struct fastq_bgzf_file {
   using rec_t = fqrec;
+  static constexpr auto min_buf_size = 64 * 1024;
   std::int64_t buf_size{};  // size of allocated buffer
   fastq_buffer buf{};
   std::vector<char> buffer;
@@ -220,6 +225,10 @@ struct fastq_bgzf_file {
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
+    if (buf_size < min_buf_size)
+      throw std::runtime_error(
+        std::format("requested buffer too small {} (min is {})",
+                    size_to_units(buf_size), size_to_units(min_buf_size)));
     if (t.n_threads() > 0 && bgzf_compression(f.get()) == bgzf_fmt_code) {
       // threads can be used
       const auto r = bgzf_thread_pool(f.get(), t.t.pool, t.t.qsize);
@@ -271,6 +280,7 @@ struct fastq_bgzf_file {
 #ifdef HAVE_ISAL
 
 class fastq_gz_file {
+  static constexpr auto min_buf_size = 64 * 1024;
   static constexpr auto inflate_err_msg =  //
     R"(Failure during decompression by ISAL. Error code is {}.  Please check that
 the input file is not corrupted by decompressing with gunzip. If the input file is
@@ -302,6 +312,10 @@ public:
     in(std::fopen(std::data(filename), "r"), &std::fclose) {
     if (in == nullptr)
       throw std::runtime_error("failed to open " + filename);
+    if (buf_size < min_buf_size)
+      throw std::runtime_error(
+        std::format("requested buffer too small {} (min is {})",
+                    size_to_units(buf_size), size_to_units(min_buf_size)));
 
     isal_inflate_init(&state);
     state.crc_flag = ISAL_GZIP_NO_HDR_VER;
@@ -390,6 +404,7 @@ private:
 
 struct fastq_gz_file {
   using rec_t = fqrec;
+  static constexpr auto min_buf_size = 64 * 1024;
   std::int64_t buf_size{};  // size of allocated buffer
   std::int64_t buf_used{};
   fastq_buffer buf{};
@@ -403,6 +418,10 @@ struct fastq_gz_file {
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
+    if (buf_size < min_buf_size)
+      throw std::runtime_error(
+        std::format("requested buffer too small {} (min is {})",
+                    size_to_units(buf_size), size_to_units(min_buf_size)));
     buf.data = std::data(buffer);
   }
 

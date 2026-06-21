@@ -161,7 +161,7 @@ get_next(bamrec::pos_t &cursor,
 
 struct bam_file {
   using rec_t = bamrec;
-  static constexpr auto min_buf_size = static_cast<std::int64_t>(16 * 4096);
+  static constexpr auto min_buf_size = static_cast<std::int64_t>(64 * 1024);
   static constexpr auto max_buf_size = std::numeric_limits<std::int64_t>::max();
   bam_buffer buf;
   std::unique_ptr<htsFile, int (*)(htsFile *)> f;
@@ -170,9 +170,12 @@ struct bam_file {
 
   bam_file(const std::string &filename, const std::int64_t buf_size,
            falco_thread_pool &t) :
-    buf(std::clamp(buf_size, min_buf_size, max_buf_size)),
-    f(hts_open(std::data(filename), "r"), &hts_close),
+    buf(buf_size), f(hts_open(std::data(filename), "r"), &hts_close),
     h(sam_hdr_read(f.get()), &sam_hdr_destroy) {
+    if (buf_size < min_buf_size)
+      throw std::runtime_error(
+        std::format("requested buffer too small {} (min is {})",
+                    size_to_units(buf_size), size_to_units(min_buf_size)));
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
