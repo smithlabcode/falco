@@ -32,6 +32,7 @@ read duplication is analyzed (borrowing from preseq).
 )";
 // clang-format on
 
+#include "adapter_set.hpp"
 #include "bam_file.hpp"
 #include "contaminants.hpp"
 #include "falco_analyzer.hpp"
@@ -246,6 +247,7 @@ main(int argc, char *argv[]) {
     static constexpr auto buffer_size_default = 256 * 1024 * 1024;
     std::vector<std::string> infiles;
     std::string contam_file;
+    std::string adapters_file;
     std::string outdir;
     std::int64_t buffer_size{buffer_size_default};
 
@@ -291,6 +293,9 @@ main(int argc, char *argv[]) {
                    "File of contaminant sequences to use")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
+    app.add_option("-a,--adapters", adapters_file, "File of adapters sequences to use")
+      ->option_text("FILE")
+      ->check(CLI::ExistingFile);
     app.add_option("-t,--threads", n_threads.workers,
                    std::format("Threads for analysis (this machine supports: {})",
                                std::thread::hardware_concurrency()))
@@ -326,6 +331,18 @@ main(int argc, char *argv[]) {
         std::print("contaminants file: {}\n"
                    "number of contaminants: {}\n",
                    contam_file, std::size(contaminants));
+    }
+
+    if (!adapters_file.empty()) {
+      const auto &as = adapter_set::instance(adapters_file);
+      if (verbose)
+        std::print("adapters file: {}\n"
+                   "number of adapters: {}\n",
+                   adapters_file, adapter_set::n_adapters());
+      if (const auto [is_valid, message] = as.validate(); !is_valid) {
+        std::println("{}", message);
+        return EXIT_FAILURE;
+      }
     }
 
     auto infos = get_file_info(infiles);
