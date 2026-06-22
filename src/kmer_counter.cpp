@@ -259,7 +259,7 @@ name: "{}",
                        decode_kmer(k.kmer, kmer_size));
   };
   return fmt::format(
-    plot_format, "kmers_plot", "kmers_plot",
+    plot_format, "kmer_plot", "kmer_plot",
     fmt::format("[{}]",
                 fmt::join(std::views::transform(to_report, format1), ",\n")));
 }
