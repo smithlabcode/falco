@@ -391,7 +391,7 @@ struct falco_results_kmer : public falco_results {
   auto
   get_grades_impl(analysis_grades &grades) {
     falco_results::get_grades_impl(grades);
-    grades.emplace("kmers", kc.get_grade());
+    grades.emplace("kmer", kc.get_grade());
   }
 
   auto
@@ -416,17 +416,17 @@ struct falco_results_kmer : public falco_results {
   [[nodiscard]] auto
   get_report_impl(const run_mode &mode, const file_info &info,
                   const analysis_grades &grades) const {
-    assert(array_contains(report_section_order, "kmers"));
+    assert(array_contains(report_section_order, "kmer"));
     auto report = falco_results::get_report_impl(mode, info, grades);
-    report.emplace("kmers", kc.get_report(grades.grade("kmers")));
+    report.emplace("kmer", kc.get_report(grades.grade("kmer")));
     return report;
   }
 
   [[nodiscard]] auto
   get_html_impl(const run_mode &mode, const file_info &info) const {
-    assert(array_contains(report_section_order, "kmers"));
+    assert(array_contains(report_section_order, "kmer"));
     auto html = falco_results::get_html_impl(mode, info);
-    html.emplace("kmers", kc.get_html());
+    html.emplace("kmer", kc.get_html());
     return html;
   }
 };
@@ -437,7 +437,7 @@ struct falco_results_tile_kmer : public falco_results_tile {
   auto
   get_grades_impl(analysis_grades &grades) {
     falco_results_tile::get_grades_impl(grades);
-    grades.emplace("kmers", kc.get_grade());
+    grades.emplace("kmer", kc.get_grade());
   }
 
   auto
@@ -463,17 +463,17 @@ struct falco_results_tile_kmer : public falco_results_tile {
   [[nodiscard]] auto
   get_report_impl(const run_mode &mode, const file_info &info,
                   const analysis_grades &grades) const {
-    assert(array_contains(report_section_order, "kmers"));
+    assert(array_contains(report_section_order, "kmer"));
     auto report = falco_results_tile::get_report_impl(mode, info, grades);
-    report.emplace("kmers", kc.get_report(grades.grade("kmers")));
+    report.emplace("kmer", kc.get_report(grades.grade("kmer")));
     return report;
   }
 
   [[nodiscard]] auto
   get_html_impl(const run_mode &mode, const file_info &info) const {
-    assert(array_contains(report_section_order, "kmers"));
+    assert(array_contains(report_section_order, "kmer"));
     auto html = falco_results_tile::get_html_impl(mode, info);
-    html.emplace("kmers", kc.get_html());
+    html.emplace("kmer", kc.get_html());
     return html;
   }
 };
