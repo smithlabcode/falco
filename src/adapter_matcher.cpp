@@ -106,9 +106,9 @@ adapter_matcher::get_html(const std::uint64_t n_reads,
   static constexpr auto module_format =
     R"(<div id="adapters_plot"></div>
 <script>
-Plotly.newPlot("adapters_plot",
-[{}],
-{{
+Plotly.newPlot("adapters_plot", [
+{}
+], {{
 margin: {{t: 0}},
 showlegend: true,
 xaxis: {{title: "Base position"}},
@@ -116,18 +116,16 @@ yaxis: {{title: "% sequences with adapter before position"}},
 }});
 </script>)";
   static constexpr auto adapter_fmt = R"({{
-x: [{}],
+x: {},
 y: [{:.6g}],
 type: "line",
-name: "{}"
-}}
-)";
+name: "{}",
+}})";
   assert(std::size(groups) == std::size(adap_counts));
   // calcualte the x axis first
   const auto x = groups | std::views::transform([&](const auto &g) {
                    return make_group_tag_quoted(g);
                  });
-
   auto cumulative = adap_counts;
   for (auto [prev, curr] : cumulative | std::views::pairwise)
     std::ranges::transform(curr, prev, std::begin(curr), std::plus{});
@@ -146,14 +144,14 @@ name: "{}"
       y.emplace_back(pct_of_reads(cumulative[pos][adap_id]));
     html_by_adapter.emplace_back(         //
       fmt::format(adapter_fmt,            //
-                  fmt::join(x, ","),      //
+                  x,                      //
                   fmt::join(y, ","),      //
                   adapter_names[adap_id]  //
                   ));
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
   }
   return std::format(module_format,
-                     fmt::format("{}\n", fmt::join(html_by_adapter, ",\n")));
+                     fmt::format("{}", fmt::join(html_by_adapter, ",\n")));
 }
 
 auto
