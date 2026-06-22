@@ -194,8 +194,8 @@ std::vector<std::pair<std::string, std::string>> contaminants = {  // NOLINT(cer
 };
 // clang-format on
 
-void
-load_contaminants(const std::string &filename) {
+auto
+load_contaminants(const std::string &filename) -> void {
   // ADS: (todo) handle carriage returns and other control chars
   std::ifstream in(filename);
   if (!in)

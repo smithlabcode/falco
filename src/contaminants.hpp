@@ -34,8 +34,8 @@
 // NOLINTNEXTLINE (cppcoreguidelines-avoid-non-const-global-variables)
 extern std::vector<std::pair<std::string, std::string>> contaminants;
 
-void
-load_contaminants(const std::string &filename);
+auto
+load_contaminants(const std::string &filename) -> void;
 
 // get the longest substring of left that is a prefix of right
 [[nodiscard]] static inline auto
