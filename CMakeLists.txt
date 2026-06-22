@@ -127,12 +127,14 @@ target_link_libraries(html PRIVATE HTSLIB::HTSLIB)
 
 add_library(falco_grade OBJECT src/falco_grade.cpp)
 add_library(contaminants OBJECT src/contaminants.cpp)
+add_library(adapter_set OBJECT src/adapter_set.cpp)
 
 add_executable(falco2 src/falco2.cpp)
 target_link_libraries(falco2 PRIVATE
   tile_processor
   contaminants
   adapter_matcher
+  adapter_set
   duplication_results
   kmer_counter
   fastq_file
