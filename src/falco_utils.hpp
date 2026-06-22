@@ -353,21 +353,11 @@ make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
 get_default_base_groups(const std::uint64_t n_bases, const bool use_target)
   -> const std::vector<base_group_t> &;
 
-[[nodiscard]] inline auto
-make_group_tag(const base_group_t g) -> std::string {
-  return (g.first + 1 == g.second)
-           ? std::format("{}", g.first + 1)
-           // ADS: make a closed interval
-           : std::format("{}-{}", g.first + 1, g.second);
-}
+[[nodiscard]] auto
+make_group_tag(const base_group_t g) -> std::string;
 
-[[nodiscard]] inline auto
-make_group_tag_quoted(const base_group_t g) -> std::string {
-  return (g.first + 1 == g.second)
-           ? std::format(R"("{}")", g.first + 1)
-           // ADS: make a closed interval
-           : std::format(R"("{}-{}")", g.first + 1, g.second);
-}
+[[nodiscard]] auto
+make_group_tag_quoted(const base_group_t g) -> std::string;
 
 [[nodiscard]] auto
 apply_base_groups(const std::vector<base_group_t> &groups, auto &rows) {

@@ -108,3 +108,19 @@ get_default_base_groups(const std::uint64_t n_bases, const bool use_target)
       : make_base_groups(n_bases, 0UL, n_bases);
   return base_group;
 }
+
+[[nodiscard]] auto
+make_group_tag(const base_group_t g) -> std::string {
+  return (g.first + 1 == g.second)
+           ? std::format("{}", g.first + 1)
+           // ADS: make a closed interval
+           : std::format("{}-{}", g.first + 1, g.second);
+}
+
+[[nodiscard]] auto
+make_group_tag_quoted(const base_group_t g) -> std::string {
+  return (g.first + 1 == g.second)
+           ? std::format(R"({})", g.first + 1)
+           // ADS: make a closed interval
+           : std::format(R"({}-{})", g.first + 1, g.second);
+}
