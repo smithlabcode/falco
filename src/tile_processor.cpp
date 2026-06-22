@@ -141,7 +141,7 @@ get_max_size(const auto &x) {
 
 auto
 tile_processor::finalize(const run_mode &mode, const file_info &info) -> void {
-  assert(!quals.empty());
+  assert(!quals.empty() && centered.empty());
   trim();
   if (!is_mapped_reads(info.format))
     adjust_fastq_qual_encoding(info.encoding);
