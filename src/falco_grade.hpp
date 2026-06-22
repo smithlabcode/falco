@@ -47,7 +47,7 @@ struct analysis_grades {
     "duplication",
     "overrep",
     "adapters",
-    "kmers",
+    "kmer",
   };
   static constexpr auto labels = std::array{
     "Basic Statistics",
