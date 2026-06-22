@@ -30,6 +30,7 @@
 #include <ranges>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 
 [[nodiscard]] auto
 analysis_grades::summary(const std::string &infile_path) const -> std::string {

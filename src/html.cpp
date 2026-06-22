@@ -37,7 +37,6 @@
 #include <array>
 #include <chrono>
 #include <string>
-#include <tuple>
 #include <vector>
 
 static constexpr auto style = R"(<style type="text/css">
@@ -227,14 +226,10 @@ get_html_module(const std::string &name, const std::string &label,
                 const std::string &text) -> std::string {
   static constexpr auto module_template =
     R"(<div class="module">
-<h2 class="{module_grade}" id="{module_id}">{module_name}: {module_grade}</h2>
+<h2 class="{}" id="{}">{}: {}</h2>
 {module_text}
 </div>)";
-  return fmt::format(module_template,                  //
-                     fmt::arg("module_grade", grade),  //
-                     fmt::arg("module_id", name),
-                     fmt::arg("module_name", label),
-                     fmt::arg("module_text", text));
+  return fmt::format(module_template, grade, name, label, text);
 }
 
 static constexpr auto falco_html_body =
