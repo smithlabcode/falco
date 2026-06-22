@@ -47,7 +47,7 @@ static constexpr auto report_section_order = std::array{
   "duplication",
   "overrep",
   "adapters",
-  "kmers",
+  "kmer",
 };
 // clang-format on
 
