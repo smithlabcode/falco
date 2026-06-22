@@ -132,21 +132,23 @@ tile_processor::trim() -> void {
   }
 }
 
-[[nodiscard]] static auto
+[[nodiscard]] static inline auto
 get_max_size(const auto &x) {
+  assert(!x.empty());
   const auto sz = [](const auto &y) { return std::size(y); };
   return std::ranges::max(std::views::transform(x | std::views::values, sz));
 }
 
 auto
 tile_processor::finalize(const run_mode &mode, const file_info &info) -> void {
+  assert(!quals.empty());
   trim();
   if (!is_mapped_reads(info.format))
     adjust_fastq_qual_encoding(info.encoding);
   if (do_groups(mode)) {
     const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
-    for (auto &x : std::views::values(quals))
-      apply_base_groups(groups, x, [](auto &a, const auto &b) {
+    for (auto &quals_for_tile : std::views::values(quals))
+      apply_base_groups(groups, quals_for_tile, [](auto &a, const auto &b) {
         a.first += b.first;
         a.second += b.second;
       });
@@ -213,7 +215,7 @@ yaxis: {{title: "tile", type: "category"}},
 {}
 );</script>
 )";
-  assert(get_max_size(centered) == std::size(groups));
+  assert(centered.empty() || get_max_size(centered) == std::size(groups));
   if (centered.empty())
     return {};  // ADS: in case we are here but tile analysis was not done
   const auto tag = [&](const auto &g) { return make_group_tag_quoted(g); };
