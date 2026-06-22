@@ -86,7 +86,7 @@ struct analysis_grades {
   grade(const std::string &name) const -> std::string;
 
   [[nodiscard]] auto
-  label(const std::string &name) const -> std::string;
+  get_label(const std::string &name) const -> std::string;
 
   [[nodiscard]] auto
   summary(const std::string &infile_path) const -> std::string;

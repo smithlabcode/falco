@@ -37,6 +37,7 @@
 #include <array>
 #include <chrono>
 #include <string>
+#include <tuple>
 #include <vector>
 
 static constexpr auto style = R"(<style type="text/css">
@@ -211,13 +212,12 @@ get_summary(const analysis_grades &ag) -> std::string {
 </div>
 )";
   static constexpr auto list_item =
-    R"(<li><a class="{grade}" href="#{module_id}">{module_name}</a></li>)";
+    R"(<li><a class="{}" href="#{}">{}</a></li>)";
   std::vector<std::string> sections;
   for (const auto &name : analysis_grades::names)
     if (ag.is_configured(name))
-      sections.emplace_back(fmt::format(
-        list_item, fmt::arg("grade", ag.grade(name)),
-        fmt::arg("module_id", name), fmt::arg("module_name", ag.label(name))));
+      sections.emplace_back(
+        fmt::format(list_item, ag.grade(name), name, ag.get_label(name)));
   return fmt::format(summary, fmt::join(sections, "\n"));
 }
 

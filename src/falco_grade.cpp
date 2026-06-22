@@ -56,7 +56,7 @@ analysis_grades::grade(const std::string &name) const -> std::string {
 }
 
 [[nodiscard]] auto
-analysis_grades::label(const std::string &name) const -> std::string {
+analysis_grades::get_label(const std::string &name) const -> std::string {
   const auto itr = std::ranges::find(names, name);
   if (itr == std::cend(names))
     throw std::runtime_error(std::format("bad grade category: {}", name));

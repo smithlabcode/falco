@@ -284,8 +284,8 @@ struct alignas(assumed_page_size) falco_results {
     for (const auto &field : report_section_order)
       if (const auto res_itr = res.find(field); res_itr != std::cend(res)) {
         const auto &[name, text] = *res_itr;
-        modules +=
-          get_html_module(name, grades.label(name), grades.grade(name), text);
+        modules += get_html_module(name, grades.get_label(name),
+                                   grades.grade(name), text);
       }
     return falco_get_html(info, grades, modules);
   }
