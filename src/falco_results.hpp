@@ -327,19 +327,22 @@ struct falco_results_tile : public falco_results {
   init_impl(const auto &info) {
     falco_results::init_impl(info);
     has_tiles = info.has_tiles;
-    tp.init(info);
+    if (has_tiles)
+      tp.init(info);
   };
 
   auto
   get_grades_impl(analysis_grades &grades) {
     falco_results::get_grades_impl(grades);
-    grades.emplace("tiles", tp.get_grade());
+    if (has_tiles)
+      grades.emplace("tiles", tp.get_grade());
   }
 
   auto
   finalize_impl(const run_mode &mode, const file_info &info) {
     falco_results::finalize_impl(mode, info);
-    tp.finalize(mode, info);
+    if (has_tiles)
+      tp.finalize(mode, info);
   }
 
   auto
@@ -361,8 +364,11 @@ struct falco_results_tile : public falco_results {
                   const analysis_grades &grades) const {
     assert(array_contains(report_section_order, "tiles"));
     auto report = falco_results::get_report_impl(mode, info, grades);
-    const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
-    report.emplace("tiles", tp.get_report(groups, grades.grade("tiles")));
+    if (has_tiles) {
+      const auto groups =
+        get_default_base_groups(max_read_len, do_groups(mode));
+      report.emplace("tiles", tp.get_report(groups, grades.grade("tiles")));
+    }
     return report;
   }
 
@@ -370,8 +376,11 @@ struct falco_results_tile : public falco_results {
   get_html_impl(const run_mode &mode, const file_info &info) const {
     assert(array_contains(report_section_order, "tiles"));
     auto html = falco_results::get_html_impl(mode, info);
-    const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
-    html.emplace("tiles", tp.get_html(groups));
+    if (has_tiles) {
+      const auto groups =
+        get_default_base_groups(max_read_len, do_groups(mode));
+      html.emplace("tiles", tp.get_html(groups));
+    }
     return html;
   }
 };
