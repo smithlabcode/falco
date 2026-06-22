@@ -432,15 +432,15 @@ yaxis: {{title: "Density"}}
 </script>
 )";
   static constexpr auto gc_fmt = R"({{
-x: [{}],
-y: [{}],
+x: {},
+y: {},
 type: "line",
 line: {{color: "red"}},
 name: "GC distribution"
 }},
 {{
-x: [{}],
-y: [{:.3f}],
+x: {},
+y: {},
 type: "line",
 line: {{color : "blue"}},
 name: "Theoretical distribution"
@@ -449,9 +449,7 @@ name: "Theoretical distribution"
   const auto total_count =
     std::reduce(std::cbegin(gc_content), std::cend(gc_content));
   const auto theor = get_theoretical_distribution(gc_content, total_count);
-  const auto lines_data =
-    fmt::format(gc_fmt, fmt::join(x, ","), fmt::join(gc_content, ","),
-                fmt::join(x, ","), fmt::join(theor, ","));
+  const auto lines_data = fmt::format(gc_fmt, x, gc_content, x, theor);
   return fmt::format(plot_fmt, lines_data);
 }
 
