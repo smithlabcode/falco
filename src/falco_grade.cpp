@@ -43,10 +43,9 @@ analysis_grades::summary(const std::string &infile_path) const -> std::string {
     return g.empty() ? std::string{} : std::format(f, up(g), lbl, infile);
   };
   std::string r;
-  for (const auto [idx, lbl] : std::views::enumerate(labels))
-    if (is_configured(lbl))
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-      r += compose(grade(lbl), labels[idx]);
+  for (const auto [name, label] : std::views::zip(names, labels))
+    if (is_configured(name))
+      r += compose(grade(name), label);
   return r;
 }
 
