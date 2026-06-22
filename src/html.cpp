@@ -227,9 +227,9 @@ get_html_module(const std::string &name, const std::string &label,
   static constexpr auto module_template =
     R"(<div class="module">
 <h2 class="{}" id="{}">{}: {}</h2>
-{module_text}
+{}
 </div>)";
-  return fmt::format(module_template, grade, name, label, text);
+  return fmt::format(module_template, grade, name, label, grade, text);
 }
 
 static constexpr auto falco_html_body =
