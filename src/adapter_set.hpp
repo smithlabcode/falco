@@ -66,10 +66,15 @@ struct adapter_set {
   std::vector<std::string> adapter_names;
   std::vector<std::string> adapters;
 
-  // clang-format off
-  [[nodiscard]] auto size() const { return std::size(adapters); }
-  [[nodiscard]] auto ssize() const { return std::ssize(adapters); }
-  // clang-format on
+  [[nodiscard]] static auto
+  n_adapters() {
+    return std::size(instance().adapters);
+  }
+
+  [[nodiscard]] static auto
+  adapter_size() {
+    return std::size(instance().adapters.front());
+  }
 
   static auto
   instance(const std::string &filename = std::string{}) -> const adapter_set & {
