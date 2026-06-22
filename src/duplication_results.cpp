@@ -46,7 +46,12 @@
 #include <tuple>
 #include <vector>
 
-// clang-format off
+// ADS issues:
+// 1. Number of bins is not user-adjustable.
+// 2. Matching an overrep sequence with contaminants might be done twice.
+
+static constexpr auto n_bins = 16;
+
 static constexpr auto bin_breaks = std::array{
   1,
   2,
@@ -67,6 +72,9 @@ static constexpr auto bin_breaks = std::array{
   std::numeric_limits<int>::max(),
 };
 
+// clang-format off
+
+// ADS: previously for plots: std::array{"1", "2", ..., "5k+", "10k+"}
 static constexpr auto bin_labels = std::array{
   "0",
   "1",
@@ -86,8 +94,12 @@ static constexpr auto bin_labels = std::array{
   ">5k",
   ">10k",
 };
+
 // clang-format on
-static_assert(std::size(bin_labels) == std::size(bin_breaks));
+
+// ADS: One extra bin (at max) for analyis, and one more (at min) among labels
+static_assert(std::size(bin_labels) == std::size(bin_breaks) &&
+              n_bins + 1 == std::size(bin_labels));
 
 auto
 duplication_results::initialize(const std::uint64_t est_n_reads) -> void {
@@ -132,7 +144,7 @@ duplication_results::format_overrep(const std::string &grade) const
   if (!overrep.empty()) {
     r += header;
     for (const auto &[n_obs, seq] : overrep)
-      r += std::format("{}\t{}\t{}\t{}\n", seq, n_obs,
+      r += std::format("{}\t{}\t{:.3g}\t{}\n", seq, n_obs,
                        pct(as_frac(n_obs, n_reads)),
                        match_contaminant(seq.string(), contaminants));
   }
@@ -203,13 +215,14 @@ duplication_results::format_duplication(const std::string &grade) const
   r += header;
   for (const auto [label, mass] :
        std::views::zip(bin_labels, binned_mass_pct) | std::views::drop(1))
-    r += std::format("{}\t{:.6g}\n", label, mass);
+    r += std::format("{}\t{:.3g}\n", label, mass);  // Percentage format is .3g
   return r + end_module_tag;
 }
 
 [[nodiscard]] auto
 duplication_results::format_overrep_html() const -> std::string {
-  static constexpr auto html_table = R"(<table><thead>
+  static constexpr auto html_table = R"(<table>
+<thead>
 <tr>
 <th>Sequence</th>
 <th>Count</th>
@@ -222,83 +235,69 @@ duplication_results::format_overrep_html() const -> std::string {
 </tbody>
 </table>
 )";
-  static constexpr auto row_fmt =
-    "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>";
-  const auto n_reads = std::reduce(std::cbegin(std::views::values(dups)),
-                                   std::cend(std::views::values(dups)));
+  static constexpr auto html_table_row_fmt =  // Percentage format is .3g
+    "<tr><td>{}</td><td>{}</td><td>{:.3g}</td><td>{}</td></tr>";
+  const auto dups_v = std::views::values(dups);
+  const auto n_reads = std::reduce(std::cbegin(dups_v), std::cend(dups_v));
   const auto cutoff = static_cast<double>(n_reads) * overrep_cutoff;
-  const auto gt_cutoff = [&](const auto p) { return p.second >= cutoff; };
+  const auto is_ge_cutoff = [&](const auto p) { return p.second >= cutoff; };
   const auto rev_p = [&](const auto p) { return std::pair{p.second, p.first}; };
-  auto overrep = dups | std::views::filter(gt_cutoff) |
+  auto overrep = dups | std::views::filter(is_ge_cutoff) |
                  std::views::transform(rev_p) | std::ranges::to<std::vector>();
   if (overrep.empty())
     return "No overrep sequences";
   std::ranges::sort(overrep, std::greater{});
-  const auto reduce = [](const auto &v) {
-    return std::reduce(std::cbegin(v), std::cend(v));
-  };
-  const auto tot = reduce(std::views::values(dups));
   std::vector<std::string> rows;
   for (const auto &[n_obs, seq] : overrep)
-    rows.emplace_back(
-      fmt::format(row_fmt,                   //
-                  seq.string(),              //
-                  n_obs,                     //
-                  pct(as_frac(n_obs, tot)),  //
-                  match_contaminant(seq.string(), contaminants)));
-  return fmt::format(html_table, fmt::join(rows, ",\n"));
+    rows.emplace_back(fmt::format(
+      html_table_row_fmt, seq.string(), n_obs, pct(as_frac(n_obs, n_reads)),
+      match_contaminant(seq.string(), contaminants)));
+  return fmt::format(html_table, fmt::join(rows, "\n"));
 }
 
 [[nodiscard]] auto
 duplication_results::format_duplication_html() const -> std::string {
-  // ADS: template holds the actual tick values
-  static constexpr auto n_bins = 16;
-  static constexpr auto total_sequences_fmt = R"({{
+  static constexpr auto plot_format = R"(<div id="duplication_plot"></div>
+<script>Plotly.newPlot("duplication_plot",
+[{{
 x: {},
 y: {},
 type: "line",
-line: {{color : "blue"}},
-name: "total sequences"
-}})";
-  static constexpr auto dedup_sequences_fmt = R"({{
+line: {{color: "blue"}},
+name: "total sequences",
+}},
+{{
 x: {},
 y: {},
 type: "line",
-line: {{color : "red"}},
-name: "deduplicated sequences"
-}})";
-  static constexpr auto outer_fmt = R"([
-{}
+line: {{color: "red"}},
+name: "deduplicated sequences",
+}}
 ],
 {{
 margin: {{t: 0}},
 showlegend: true,
 xaxis: {{
-title : "Duplication rate",
-tickvals: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],
-ticktext: ['1','2','3','4','5','6','7','8','9','10+','50+','100+','500+','1k+','5k+','10k+'],
+  title: "Duplication rate",
+  tickvals: {},
+  ticktext: {},
 }},
 yaxis: {{title: "% of sequences"}},
-}})";
-  static constexpr auto plot_format = R"(<div id="{}"></div>
-<script>Plotly.newPlot("{}",
-{}
+}}
 );</script>
 )";
+  static constexpr auto x = std::views::iota(1, n_bins + 1);
+  static constexpr auto x_text =  // has one extra element at "0"
+    std::ranges::subrange(std::cbegin(bin_labels), std::cend(bin_labels));
   const auto [max_dup, hist_mass, hist_dedup] = get_dups_summary(dups);
   const auto to_pct = [&](const auto &v) {
     const auto sum = std::reduce(std::cbegin(v), std::cend(v));
     const auto p = [&](const auto d) { return pct(as_frac(d, sum)); };
-    return make_bins(bin_breaks, v) | std::views::transform(p) |
-           std::ranges::to<std::vector>();
+    return make_bins(bin_breaks, v) | std::views::transform(p);
   };
-  static const auto x = std::views::iota(1, n_bins + 1);
-  static const auto y_tot = to_pct(hist_mass) | std::views::drop(1);
-  static const auto y_dedup = to_pct(hist_dedup) | std::views::drop(1);
-  return fmt::format(
-    plot_format, "duplication_plot", "duplication_plot",
-    fmt::format(outer_fmt,
-                fmt::format("{},\n{}\n",  //
-                            fmt::format(total_sequences_fmt, x, y_tot),
-                            fmt::format(dedup_sequences_fmt, x, y_dedup))));
+  return fmt::format(plot_format,                                  //
+                     x, to_pct(hist_mass) | std::views::drop(1),   // y_tot,
+                     x, to_pct(hist_dedup) | std::views::drop(1),  // y_dedup
+                     x, x_text | std::views::drop(1)               // tickvals
+  );
 }
