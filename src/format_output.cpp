@@ -121,6 +121,24 @@ get_theoretical_distribution(const auto &gc, const auto &total_count) {
 }
 
 [[nodiscard]] static inline auto
+smooth(const auto &data, const auto window_size) {
+  const auto get_mean = [&](std::ranges::viewable_range auto &&r) {
+    return as_frac(std::reduce(std::cbegin(r), std::cend(r)), std::size(r));
+  };
+  assert(window_size < std::size(data));
+  std::vector<double> smoothed;
+  for (auto w = 1; w < (window_size + 1) / 2; ++w)
+    smoothed.push_back(get_mean(
+      std::ranges::subrange(std::cbegin(data), std::cbegin(data) + w)));
+  for (const auto &window : data | std::views::slide(window_size))
+    smoothed.push_back(get_mean(window));
+  for (auto w = (window_size + 1) / 2; w > 1; --w)
+    smoothed.push_back(get_mean(
+      std::ranges::subrange(std::cend(data) - w + 1, std::cend(data))));
+  return smoothed;
+}
+
+[[nodiscard]] static inline auto
 sum_deviation_from_normal(const auto &gc) {
   const auto gc_beg = std::cbegin(gc);
   const auto gc_end = std::cend(gc);
@@ -418,6 +436,7 @@ name: "Sequence length distribution"
 [[nodiscard]] auto
 format_gc_content_html(const falco::gc_content_array &gc_content)
   -> std::string {
+  static constexpr auto smoothing_window = 5;
   static constexpr auto plot_fmt =
     R"(<div id="gc_content_plot"></div>
 <script>
@@ -449,7 +468,8 @@ name: "Theoretical distribution"
   const auto total_count =
     std::reduce(std::cbegin(gc_content), std::cend(gc_content));
   const auto theor = get_theoretical_distribution(gc_content, total_count);
-  const auto lines_data = fmt::format(gc_fmt, x, gc_content, x, theor);
+  const auto gc_smoothed = smooth(gc_content, smoothing_window);
+  const auto lines_data = fmt::format(gc_fmt, x, gc_smoothed, x, theor);
   return fmt::format(plot_fmt, lines_data);
 }
 
