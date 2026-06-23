@@ -273,7 +273,7 @@ struct fastq_bgzf_file {
     }
     buf.sz = cursor + r;
     sentinel_position = buf.sz;
-    cursor = 0;  // cursor always moves to zero because buffer is not mmapped
+    cursor = 0;
   }
 };
 
@@ -469,6 +469,7 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   static constexpr auto rec_lines = 4;  // FASTQ
   // clang-format off
   const auto not_read_start = [](const auto s, const auto p) {
+    assert(p >= 3);
     // ADS: could get confused if '+' lines have full name info
     return s[p] != '@' || s[p-1] != '\n' || (s[p-2] == '+' && s[p-3] == '\n');
   };
