@@ -26,9 +26,6 @@
 
 #include "nlohmann/json.hpp"
 
-#include <htslib/sam.h>
-#include <htslib/thread_pool.h>
-
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -319,34 +316,6 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
   };
 }
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
-
-[[nodiscard]] static auto
-make_thread_pool(const auto n_threads) {
-  return n_threads > 0 ? hts_tpool_init(n_threads) : nullptr;
-}
-
-struct falco_thread_pool {
-  htsThreadPool t{};
-
-  explicit falco_thread_pool(const std::uint64_t n_threads) :
-    t{make_thread_pool(n_threads), 0} {
-    if (n_threads > 0 && t.pool == nullptr)
-      throw std::runtime_error("failed to construct thread pool");
-  }
-
-  [[nodiscard]] auto
-  n_threads() const -> std::uint64_t {
-    return t.pool ? hts_tpool_size(t.pool) : 0LU;
-  }
-
-  // clang-format off
-  falco_thread_pool(const falco_thread_pool &) = delete;
-  auto operator=(const falco_thread_pool &) -> falco_thread_pool & = delete;
-  falco_thread_pool(falco_thread_pool &&) noexcept = delete;
-  auto operator=(falco_thread_pool &&) noexcept -> falco_thread_pool & = delete;
-  ~falco_thread_pool() { if (t.pool) hts_tpool_destroy(t.pool); }
-  // clang-format on
-};
 
 [[nodiscard]] auto
 size_to_units(const std::int64_t s) -> std::string;
