@@ -24,53 +24,72 @@
 #ifndef SRC_FALCO_GRADE_HPP_
 #define SRC_FALCO_GRADE_HPP_
 
+#include "boost/boost_unordered.hpp"
+#include "nlohmann/json.hpp"
+
 #include <algorithm>
 #include <array>
 #include <iterator>
+#include <map>
 #include <ranges>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <utility>
+#include <vector>
 
-struct analysis_grades {
-  // clang-format off
-  static constexpr auto names = std::array{
-    "basic_stats",
-    "qual_by_pos",
-    "tiles",
-    "qual_by_read",
-    "base_comp",
-    "gc_content",
-    "n_content",
-    "read_lengths",
-    "duplication",
-    "overrep",
-    "adapters",
-    "kmer",
-  };
-  static constexpr auto labels = std::array{
-    "Basic Statistics",
-    "Per base sequence quality",
-    "Per tile sequence quality",
-    "Per sequence quality scores",
-    "Per base sequence content",
-    "Per sequence GC content",
-    "Per base N content",
-    "Sequence Length Distribution",
-    "Sequence Duplication Levels",
-    "Overrepresented sequences",
-    "Adapter Content",
-    "Kmer Content",
-  };
-  static_assert(std::size(names) == std::size(labels));
-  // clang-format on
-  std::unordered_map<std::string, std::string> g;
+// clang-format off
 
-  [[nodiscard]] static auto
-  is_valid(const std::string &name) -> bool {
-    return std::ranges::find(labels, name) != std::cend(labels);
-  }
+static constexpr auto section_names = std::array{
+  "basic_stats",
+  "quality_base",
+  "tile",
+  "quality_sequence",
+  "sequence",
+  "gc_sequence",
+  "n_content",
+  "sequence_length",
+  "duplication",
+  "overrepresented",
+  "adapter",
+  "kmer",
+};
+
+static constexpr auto section_titles = std::array{
+  "Basic Statistics",
+  "Per base sequence quality",
+  "Per tile sequence quality",
+  "Per sequence quality scores",
+  "Per base sequence content",
+  "Per sequence GC content",
+  "Per base N content",
+  "Sequence Length Distribution",
+  "Sequence Duplication Levels",
+  "Overrepresented sequences",
+  "Adapter Content",
+  "Kmer Content",
+};
+
+static constexpr auto grade_labels = std::array{
+  "basic_stats",
+  "quality_base_median",
+  "quality_base_lower",
+  "quality_sequence",
+  "tile",
+  "sequence",
+  "gc_sequence",
+  "n_content",
+  "sequence_length",
+  "duplication",
+  "overrepresented",
+  "adapter",
+  "kmer",
+};
+
+static_assert(std::size(section_names) == std::size(section_titles));
+// clang-format on
+
+struct file_grades {
+  std::map<std::string, std::string> g;
 
   [[nodiscard]] auto
   is_configured(const std::string &name) const -> bool {
@@ -86,19 +105,52 @@ struct analysis_grades {
   grade(const std::string &name) const -> std::string;
 
   [[nodiscard]] auto
-  get_label(const std::string &name) const -> std::string;
+  get_title(const std::string &name) const -> std::string;
 
   [[nodiscard]] auto
   summary(const std::string &infile_path) const -> std::string;
 };
 
-[[nodiscard]] inline auto
-identify_grade(const auto &cutoffs, const auto c) {
-  const auto a = std::pair{c, std::string{}};
-  const auto b = std::ranges::lower_bound(cutoffs, a);
-  if (b == std::cend(cutoffs))
-    throw std::runtime_error("error in identifying grade");
-  return b->second;
-}
+struct grader {
+  std::string name;
+  double warn{};
+  double fail{};
+
+  [[nodiscard]] auto
+  identify_grade(const double value) const -> std::string;
+
+  [[nodiscard]] auto
+  to_string() const -> std::string;
+  NLOHMANN_DEFINE_TYPE_INTRUSIVE(grader, name, warn, fail);
+};
+
+template <> struct std::formatter<grader> : std::formatter<std::string> {
+  auto
+  format(const grader &g, auto &ctx) const {
+    return std::formatter<std::string>::format(g.to_string(), ctx);
+  }
+};
+
+class grader_set {
+public:
+  static auto
+  instance(const std::string &filename = std::string{}) -> const grader_set & {
+    static const grader_set s(filename);
+    return s;
+  }
+
+  [[nodiscard]] static auto
+  get_grader(const std::string &label) -> const grader &;
+
+  [[nodiscard]] static auto
+  get_grade(const std::string &label, const double value) -> std::string;
+
+private:
+  grader_set(const std::string &filename);
+  grader_set() = default;
+  ~grader_set() = default;
+
+  boost::unordered_flat_map<std::string, grader> graders;
+};  // grader_set
 
 #endif  // SRC_FALCO_GRADE_HPP_
