@@ -21,8 +21,8 @@
  * SOFTWARE.
  */
 
-#ifndef SRC_FALCO_RESULTS_HPP_
-#define SRC_FALCO_RESULTS_HPP_
+#ifndef SRC_RESULTS_COLLECTOR_HPP_
+#define SRC_RESULTS_COLLECTOR_HPP_
 
 #include "adapter_matcher.hpp"
 #include "bam_file.hpp"
@@ -51,12 +51,13 @@ array_contains(const auto &a, const auto &b) {
 };
 
 static constexpr auto assumed_page_size = 4096;
-struct alignas(assumed_page_size) falco_results {
-  // struct alignas(std::hardware_destructive_interference_size) falco_results {
+struct alignas(assumed_page_size) results_collector {
+  // struct alignas(std::hardware_destructive_interference_size)
+  // results_collector {
   std::uint64_t n_reads{};
   std::uint64_t max_read_len{};
-  std::vector<falco::nuc_array> nucs;
-  falco::gc_content_array gcs{};
+  std::vector<falco::nuc_array> base_counts;
+  falco::gc_content_array gc_content{};
   std::vector<std::uint64_t> n_counts;
   std::vector<std::uint64_t> lengths;
   std::vector<falco::qual_array> qual_by_pos;
@@ -65,11 +66,11 @@ struct alignas(assumed_page_size) falco_results {
   adapter_matcher am;
   std::string seq;
 
-  falco_results() : lengths(1, 0) {}  // in case all reads have length 0
+  results_collector() : lengths(1, 0) {}  // in case all reads have length 0
 
   auto
   resize(const std::uint32_t updated_length) {
-    nucs.resize(updated_length);
+    base_counts.resize(updated_length);
     n_counts.resize(updated_length);
     lengths.resize(updated_length + 1);  // need one extra here
     qual_by_pos.resize(updated_length);
@@ -85,24 +86,25 @@ struct alignas(assumed_page_size) falco_results {
 
   template <typename self_t>
   auto
-  get_grades(this self_t &self) -> analysis_grades {
-    analysis_grades grades;
+  get_grades(this self_t &self) -> file_grades {
+    file_grades grades;
     self.get_grades_impl(grades);
     return grades;
   }
 
   auto
-  get_grades_impl(analysis_grades &ag) {
-    ag.emplace("basic_stats", get_grade_basic_stats());
-    ag.emplace("qual_by_pos", get_grade_qual_by_pos(qual_by_pos));
-    ag.emplace("qual_by_read", get_grade_qual_by_read(qual_by_read));
-    ag.emplace("base_comp", get_grade_base_comp(nucs));
-    ag.emplace("gc_content", get_grade_gc_content(gcs));
-    ag.emplace("n_content", get_grade_n_content(n_counts, nucs));
-    ag.emplace("read_lengths", get_grade_read_lengths(lengths));
-    ag.emplace("duplication", dr.get_grade_duplication());
-    ag.emplace("overrep", dr.get_grade_overrep());
-    ag.emplace("adapters", am.get_grade(n_reads));
+  get_grades_impl(file_grades &grades) {
+    grades.emplace("basic_stats", get_grade_basic_stats());
+    grades.emplace("quality_base", get_grade_quality_base(qual_by_pos));
+    grades.emplace("quality_sequence",
+                   get_grade_quality_sequence(qual_by_read));
+    grades.emplace("sequence", get_grade_sequence(base_counts));
+    grades.emplace("gc_sequence", get_grade_gc_sequence(gc_content));
+    grades.emplace("n_content", get_grade_n_content(n_counts, base_counts));
+    grades.emplace("sequence_length", get_grade_sequence_length(lengths));
+    grades.emplace("duplication", dr.get_grade_duplication());
+    grades.emplace("overrepresented", dr.get_grade_overrepresented());
+    grades.emplace("adapter", am.get_grade(n_reads));
   }
 
   template <typename self_t>
@@ -113,13 +115,13 @@ struct alignas(assumed_page_size) falco_results {
 
   auto
   finalize_impl(const run_mode &mode, const file_info &info) {
-    adjust_nucs_for_ns();
+    adjust_base_counts_for_ns();
     if (!is_mapped_reads(info.format))
       adjust_fastq_qual_encoding(qual_by_pos, qual_by_read, info.encoding);
     if (do_groups(mode)) {
       const auto groups =
         get_default_base_groups(max_read_len, do_groups(mode));
-      apply_base_groups(groups, nucs);
+      apply_base_groups(groups, base_counts);
       apply_base_groups(groups, n_counts);
       // ADS: need one for lengths
       apply_base_groups(groups, qual_by_pos);
@@ -128,9 +130,10 @@ struct alignas(assumed_page_size) falco_results {
   }
 
   auto
-  adjust_nucs_for_ns() -> void {  // Ns were counted among the C in nucs
-    for (auto i = 0u; i < std::size(nucs); ++i)
-      nucs[i][3] -= n_counts[i];
+  adjust_base_counts_for_ns()
+    -> void {  // Ns were counted among the C in base_counts
+    for (auto i = 0u; i < std::size(base_counts); ++i)
+      base_counts[i][3] -= n_counts[i];
   }
 
   template <typename self_t>
@@ -205,9 +208,9 @@ struct alignas(assumed_page_size) falco_results {
     max_read_len = read_len > max_read_len ? read_len : max_read_len;
     const auto seq_itr = make_seq_begin(rec);
     const auto seq_end = seq_itr + read_len;
-    count_nucs(seq_itr, seq_end, nucs);
+    count_nucs(seq_itr, seq_end, base_counts);
     const auto gc = count_gc(seq_itr, seq_end);
-    ++gcs[discrete_pct(gc, read_len)];
+    ++gc_content[discrete_pct(gc, read_len)];
     count_ns(seq_itr, seq_end, n_counts);
     const auto tot = process_quality_scores(rec);
     ++qual_by_read[tot / read_len];
@@ -217,11 +220,11 @@ struct alignas(assumed_page_size) falco_results {
   }
 
   auto
-  operator+=(const falco_results &rhs) -> const falco_results & {
+  operator+=(const results_collector &rhs) -> const results_collector & {
     n_reads += rhs.n_reads;
     max_read_len = std::max(max_read_len, rhs.max_read_len);
-    two_dim_add(nucs, rhs.nucs);
-    add(gcs, rhs.gcs);
+    two_dim_add(base_counts, rhs.base_counts);
+    add(gc_content, rhs.gc_content);
     vec_add(lengths, rhs.lengths);
     vec_add(n_counts, rhs.n_counts);
     two_dim_add(qual_by_pos, rhs.qual_by_pos);
@@ -234,10 +237,10 @@ struct alignas(assumed_page_size) falco_results {
   template <typename self_t>
   [[nodiscard]] auto
   get_report(this self_t &self, const run_mode &mode, const file_info &info,
-             const analysis_grades &grades) {
+             const file_grades &grades) {
     const auto res = self.get_report_impl(mode, info, grades);
     std::string report;
-    for (const auto &field : report_section_order)
+    for (const auto &field : section_names)
       if (const auto res_itr = res.find(field); res_itr != std::cend(res))
         report += res_itr->second;
     return report;
@@ -245,13 +248,13 @@ struct alignas(assumed_page_size) falco_results {
 
   [[nodiscard]] auto
   get_report_impl(const run_mode &mode, const file_info &info,
-                  const analysis_grades &ag) const {
-    const auto total_nucs = tabular_dot(lengths);
+                  const file_grades &grades) const {
+    const auto total_bases = tabular_dot(lengths);
     const auto gc_acc = [](const auto a, const auto &nuc) {
       return a + nuc[1] + nuc[3];  // NOLINT(*-avoid-magic-numbers)
     };
-    const auto total_gc =
-      std::accumulate(std::cbegin(nucs), std::cend(nucs), 0ul, gc_acc);
+    const auto total_gc = std::accumulate(std::cbegin(base_counts),
+                                          std::cend(base_counts), 0ul, gc_acc);
     const auto gt0 = [](const auto c) { return c > 0; };
     const std::uint64_t min_read_len =
       std::distance(std::cbegin(lengths), std::ranges::find_if(lengths, gt0));
@@ -259,221 +262,223 @@ struct alignas(assumed_page_size) falco_results {
     return std::unordered_map<std::string, std::string>{
       {"basic_stats",
        format_basic_stats(info, n_reads, min_read_len, max_read_len, total_gc,
-                          total_nucs, ag.grade("basic_stats"))},
-      {"qual_by_pos",
-       format_qual_by_pos(qual_by_pos, groups, ag.grade("qual_by_pos"))},
-      {"qual_by_read",
-       format_qual_by_read(qual_by_read, ag.grade("qual_by_read"))},
-      {"base_comp", format_base_comp(nucs, groups, ag.grade("base_comp"))},
-      {"gc_content", format_gc_content(gcs, ag.grade("gc_content"))},
-      {"n_content",
-       format_n_content(n_counts, nucs, groups, ag.grade("n_content"))},
-      {"read_lengths", format_read_lengths(lengths, ag.grade("read_lengths"))},
-      {"duplication", dr.format_duplication(ag.grade("duplication"))},
-      {"overrep", dr.format_overrep(ag.grade("overrep"))},
-      {"adapters", am.get_report(n_reads, groups, ag.grade("adapters"))},
+                          total_bases, grades)},
+      {"quality_base", format_quality_base(qual_by_pos, groups, grades)},
+      {"quality_sequence", format_quality_sequence(qual_by_read, grades)},
+      {"sequence", format_sequence(base_counts, groups, grades)},
+      {"gc_sequence", format_gc_sequence(gc_content, grades)},
+      {"n_content", format_n_content(n_counts, base_counts, groups, grades)},
+      {"sequence_length", format_sequence_length(lengths, grades)},
+      {"duplication", dr.format_duplication(grades)},
+      {"overrepresented", dr.format_overrepresented(grades)},
+      {"adapter", am.get_report(n_reads, groups, grades)},
     };
   }
 
   template <typename self_t>
   [[nodiscard]] auto
   get_html(this self_t &self, const run_mode &mode, const file_info &info,
-           const analysis_grades &grades) {
-    const auto res = self.get_html_impl(mode, info);
+           const file_grades &grades) {
+    const auto res = self.get_html_impl(mode, info, grades);
     std::string modules;
-    for (const auto &field : report_section_order)
-      if (const auto res_itr = res.find(field); res_itr != std::cend(res)) {
-        const auto &[name, text] = *res_itr;
-        modules += get_html_module(name, grades.get_label(name),
-                                   grades.grade(name), text);
-      }
+    for (const auto &section_name : section_names)
+      if (const auto res_itr = res.find(section_name);
+          res_itr != std::cend(res))
+        modules += res_itr->second;
     return falco_get_html(info, grades, modules);
   }
 
   [[nodiscard]] auto
-  get_html_impl(const run_mode &mode, const file_info &info) const {
-    const auto total_nucs = tabular_dot(lengths);
+  get_html_impl(const run_mode &mode, const file_info &info,
+                const file_grades &grades) const {
+    const auto total_bases = tabular_dot(lengths);
     const auto gc_acc = [](const auto a, const auto &nuc) {
       return a + nuc[1] + nuc[3];  // NOLINT(*-avoid-magic-numbers)
     };
-    const auto total_gc =
-      std::accumulate(std::cbegin(nucs), std::cend(nucs), 0ul, gc_acc);
+    const auto total_gc = std::accumulate(std::cbegin(base_counts),
+                                          std::cend(base_counts), 0ul, gc_acc);
     const auto gt0 = [](const auto c) { return c > 0; };
     const std::uint64_t min_read_len =
       std::distance(std::cbegin(lengths), std::ranges::find_if(lengths, gt0));
     const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
     const auto basic_stats_html = format_basic_stats_html(
-      info, n_reads, min_read_len, max_read_len, total_gc, total_nucs);
+      info, n_reads, min_read_len, max_read_len, total_gc, total_bases, grades);
     return std::unordered_map<std::string, std::string>{
       {"basic_stats", basic_stats_html},
-      {"qual_by_pos", format_qual_by_pos_html(qual_by_pos, groups)},
-      {"qual_by_read", format_qual_by_read_html(qual_by_read)},
-      {"base_comp", format_base_comp_html(nucs, groups)},
-      {"gc_content", format_gc_content_html(gcs)},
-      {"n_content", format_n_content_html(n_counts, nucs, groups)},
-      {"read_lengths", format_read_lengths_html(lengths)},
-      {"duplication", dr.format_duplication_html()},
-      {"overrep", dr.format_overrep_html()},
-      {"adapters", am.get_html(n_reads, groups)},
+      {"quality_base", format_quality_base_html(qual_by_pos, groups, grades)},
+      {"quality_sequence", format_quality_sequence_html(qual_by_read, grades)},
+      {"sequence", format_sequence_html(base_counts, groups, grades)},
+      {"gc_sequence", format_gc_sequence_html(gc_content, grades)},
+      {"n_content",
+       format_n_content_html(n_counts, base_counts, groups, grades)},
+      {"sequence_length", format_sequence_length_html(lengths, grades)},
+      {"duplication", dr.format_duplication_html(grades)},
+      {"overrepresented", dr.format_overrepresented_html(grades)},
+      {"adapter", am.get_html(n_reads, groups, grades)},
     };
   }
 };
 
-struct falco_results_tile : public falco_results {
+struct results_collector_tile : public results_collector {
   tile_processor tp;
   bool has_tiles{};
 
   auto
   init_impl(const auto &info) {
-    falco_results::init_impl(info);
+    results_collector::init_impl(info);
     has_tiles = info.has_tiles;
     if (has_tiles)
       tp.init(info);
   };
 
   auto
-  get_grades_impl(analysis_grades &grades) {
-    falco_results::get_grades_impl(grades);
+  get_grades_impl(file_grades &grades) {
+    results_collector::get_grades_impl(grades);
     if (has_tiles)
-      grades.emplace("tiles", tp.get_grade());
+      grades.emplace("tile", tp.get_grade());
   }
 
   auto
   finalize_impl(const run_mode &mode, const file_info &info) {
-    falco_results::finalize_impl(mode, info);
+    results_collector::finalize_impl(mode, info);
     if (has_tiles)
       tp.finalize(mode, info);
   }
 
   auto
   process_one_read_impl(const auto &rec) {
-    falco_results::process_one_read_impl(rec);
+    results_collector::process_one_read_impl(rec);
     if (has_tiles) [[likely]]
       tp(rec);
   }
 
   auto
-  operator+=(const falco_results_tile &rhs) -> const falco_results_tile & {
-    falco_results::operator+=(rhs);
+  operator+=(const results_collector_tile &rhs)
+    -> const results_collector_tile & {
+    results_collector::operator+=(rhs);
     tp += rhs.tp;
     return *this;
   }
 
   [[nodiscard]] auto
   get_report_impl(const run_mode &mode, const file_info &info,
-                  const analysis_grades &grades) const {
-    assert(array_contains(report_section_order, "tiles"));
-    auto report = falco_results::get_report_impl(mode, info, grades);
+                  const file_grades &grades) const {
+    assert(array_contains(section_names, "tile"));
+    auto report = results_collector::get_report_impl(mode, info, grades);
     if (has_tiles) {
       const auto groups =
         get_default_base_groups(max_read_len, do_groups(mode));
-      report.emplace("tiles", tp.get_report(groups, grades.grade("tiles")));
+      report.emplace("tile", tp.get_report(groups, grades.grade("tile")));
     }
     return report;
   }
 
   [[nodiscard]] auto
-  get_html_impl(const run_mode &mode, const file_info &info) const {
-    assert(array_contains(report_section_order, "tiles"));
-    auto html = falco_results::get_html_impl(mode, info);
+  get_html_impl(const run_mode &mode, const file_info &info,
+                const file_grades &grades) const {
+    assert(array_contains(section_names, "tile"));
+    auto html = results_collector::get_html_impl(mode, info, grades);
     if (has_tiles) {
       const auto groups =
         get_default_base_groups(max_read_len, do_groups(mode));
-      html.emplace("tiles", tp.get_html(groups));
+      html.emplace("tile", tp.get_html(groups, grades));
     }
     return html;
   }
 };
 
-struct falco_results_kmer : public falco_results {
+struct results_collector_kmer : public results_collector {
   kmer_counter kc;
 
   auto
-  get_grades_impl(analysis_grades &grades) {
-    falco_results::get_grades_impl(grades);
+  get_grades_impl(file_grades &grades) {
+    results_collector::get_grades_impl(grades);
     grades.emplace("kmer", kc.get_grade());
   }
 
   auto
   finalize_impl(const run_mode &mode, const file_info &info) {
-    falco_results::finalize_impl(mode, info);
+    results_collector::finalize_impl(mode, info);
     kc.finalize(mode);
   }
 
   auto
   process_one_read_impl(const auto &rec) {
-    falco_results::process_one_read_impl(rec);
+    results_collector::process_one_read_impl(rec);
     kc.count_kmers(get_seq_begin(rec), get_seq_size(rec));
   }
 
   auto
-  operator+=(const falco_results_kmer &rhs) -> const falco_results_kmer & {
-    falco_results::operator+=(rhs);
+  operator+=(const results_collector_kmer &rhs)
+    -> const results_collector_kmer & {
+    results_collector::operator+=(rhs);
     kc += rhs.kc;
     return *this;
   }
 
   [[nodiscard]] auto
   get_report_impl(const run_mode &mode, const file_info &info,
-                  const analysis_grades &grades) const {
-    assert(array_contains(report_section_order, "kmer"));
-    auto report = falco_results::get_report_impl(mode, info, grades);
+                  const file_grades &grades) const {
+    assert(array_contains(section_names, "kmer"));
+    auto report = results_collector::get_report_impl(mode, info, grades);
     report.emplace("kmer", kc.get_report(grades.grade("kmer")));
     return report;
   }
 
   [[nodiscard]] auto
-  get_html_impl(const run_mode &mode, const file_info &info) const {
-    assert(array_contains(report_section_order, "kmer"));
-    auto html = falco_results::get_html_impl(mode, info);
-    html.emplace("kmer", kc.get_html());
+  get_html_impl(const run_mode &mode, const file_info &info,
+                const file_grades &grades) const {
+    assert(array_contains(section_names, "kmer"));
+    auto html = results_collector::get_html_impl(mode, info, grades);
+    html.emplace("kmer", kc.get_html(grades));
     return html;
   }
 };
 
-struct falco_results_tile_kmer : public falco_results_tile {
+struct results_collector_tile_kmer : public results_collector_tile {
   kmer_counter kc;
 
   auto
-  get_grades_impl(analysis_grades &grades) {
-    falco_results_tile::get_grades_impl(grades);
+  get_grades_impl(file_grades &grades) {
+    results_collector_tile::get_grades_impl(grades);
     grades.emplace("kmer", kc.get_grade());
   }
 
   auto
   finalize_impl(const run_mode &mode, const file_info &info) {
-    falco_results_tile::finalize_impl(mode, info);
+    results_collector_tile::finalize_impl(mode, info);
     kc.finalize(mode);
   }
 
   auto
   process_one_read_impl(const auto &rec) {
-    falco_results_tile::process_one_read_impl(rec);
+    results_collector_tile::process_one_read_impl(rec);
     kc.count_kmers(get_seq_begin(rec), get_seq_size(rec));
   }
 
   auto
-  operator+=(const falco_results_tile_kmer &rhs)
-    -> const falco_results_tile_kmer & {
-    falco_results_tile::operator+=(rhs);
+  operator+=(const results_collector_tile_kmer &rhs)
+    -> const results_collector_tile_kmer & {
+    results_collector_tile::operator+=(rhs);
     kc += rhs.kc;
     return *this;
   }
 
   [[nodiscard]] auto
   get_report_impl(const run_mode &mode, const file_info &info,
-                  const analysis_grades &grades) const {
-    assert(array_contains(report_section_order, "kmer"));
-    auto report = falco_results_tile::get_report_impl(mode, info, grades);
+                  const file_grades &grades) const {
+    assert(array_contains(section_names, "kmer"));
+    auto report = results_collector_tile::get_report_impl(mode, info, grades);
     report.emplace("kmer", kc.get_report(grades.grade("kmer")));
     return report;
   }
 
   [[nodiscard]] auto
-  get_html_impl(const run_mode &mode, const file_info &info) const {
-    assert(array_contains(report_section_order, "kmer"));
-    auto html = falco_results_tile::get_html_impl(mode, info);
-    html.emplace("kmer", kc.get_html());
+  get_html_impl(const run_mode &mode, const file_info &info,
+                const file_grades &grades) const {
+    assert(array_contains(section_names, "kmer"));
+    auto html = results_collector_tile::get_html_impl(mode, info, grades);
+    html.emplace("kmer", kc.get_html(grades));
     return html;
   }
 };
@@ -500,4 +505,4 @@ accumulate_results(std::vector<results_t> &r, const auto file_id) {
   }
 }
 
-#endif  // SRC_FALCO_RESULTS_HPP_
+#endif  // SRC_RESULTS_COLLECTOR_HPP_
