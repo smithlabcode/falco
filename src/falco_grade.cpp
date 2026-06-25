@@ -84,11 +84,8 @@ file_grades::get_title(const std::string &name) const -> std::string {
   return section_titles[std::distance(std::cbegin(section_names), itr)];
 }
 
-#include <print>
-
 [[nodiscard]] auto
 grader::identify_grade(const double value) const -> std::string {
-  std::println("value={}\twarn={}\tfail={}", value, warn, fail);
   if (warn < fail) {
     if (value < warn)
       return "pass";
