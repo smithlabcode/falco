@@ -41,6 +41,7 @@ read duplication is analyzed (borrowing from preseq).
 #include "fastq_file.hpp"
 #include "quality_score.hpp"
 #include "results_collector.hpp"
+#include "thread_pool_wrapper.hpp"
 #include "tile_processor.hpp"
 
 #include "CLI11/CLI11.hpp"
