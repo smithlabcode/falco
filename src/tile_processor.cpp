@@ -160,10 +160,11 @@ tile_processor::finalize(const run_mode &mode, const file_info &info) -> void {
 
 [[nodiscard]] auto
 tile_processor::get_grade() const -> std::string {
+  static constexpr auto label = "tile";
   assert(!centered.empty());
   const auto neg_min_cent_qual =
     -std::ranges::min(centered | std::views::values | std::views::join);
-  return identify_grade(grade_cutoffs, neg_min_cent_qual);
+  return grader_set::get_grade(label, neg_min_cent_qual);
 }
 
 [[nodiscard]] auto
@@ -186,11 +187,12 @@ tile_processor::get_report(const std::vector<base_group_t> &groups,
 }
 
 [[nodiscard]] auto
-tile_processor::get_html(const std::vector<base_group_t> &groups) const
-  -> std::string {
+tile_processor::get_html(const std::vector<base_group_t> &groups,
+                         const file_grades &grades) const -> std::string {
+  static constexpr auto label = "tile";
   static constexpr auto n_quants = 20.0;
   // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
-  static constexpr auto tiles_plot_format =
+  static constexpr auto tiles_plot_fmt =
     R"""([{{
 x: [{}],
 y: [{}],
@@ -210,7 +212,7 @@ xaxis: {{title: "Base position"}},
 yaxis: {{title: "tile", type: "category"}},
 }}
 )""";
-  static constexpr auto plot_format = R"(<div id="{}"></div>
+  static constexpr auto plot_fmt = R"(<div id="{}"></div>
 <script>Plotly.newPlot("{}",
 {}
 );</script>
@@ -232,13 +234,18 @@ yaxis: {{title: "tile", type: "category"}},
     return fmt::format("[{:.3f}]", fmt::join(c, ","));  // inner lists
   };
   const auto z = std::views::transform(centered | std::views::values, format1);
+
+  const auto grade = grades.grade(label);
+  const auto title = grades.get_title(label);
   return fmt::format(
-    plot_format, "tiles_plot", "tiles_plot",
-    fmt::format(tiles_plot_format,
-                fmt::join(groups | std::views::transform(tag), ","),  // x
-                fmt::join(centered | std::views::keys, ","),          // y
-                fmt::join(z, ","),                                    // z
-                mid_discrete));
+    html_module_fmt, grade, label, title, grade,
+    fmt::format(
+      plot_fmt, "tiles_plot", "tiles_plot",
+      fmt::format(tiles_plot_fmt,
+                  fmt::join(groups | std::views::transform(tag), ","),  // x
+                  fmt::join(centered | std::views::keys, ","),          // y
+                  fmt::join(z, ","),                                    // z
+                  mid_discrete)));
 }
 
 auto
