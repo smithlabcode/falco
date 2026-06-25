@@ -24,6 +24,7 @@
 #ifndef SRC_FORMAT_OUTPUT_HPP_
 #define SRC_FORMAT_OUTPUT_HPP_
 
+#include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
@@ -34,57 +35,41 @@
 #include <string>
 #include <vector>  // IWYU pragma: keep
 
-// clang-format off
-static constexpr auto report_section_order = std::array{
-  "basic_stats",
-  "qual_by_pos",
-  "tiles",
-  "qual_by_read",
-  "base_comp",
-  "gc_content",
-  "n_content",
-  "read_lengths",
-  "duplication",
-  "overrep",
-  "adapters",
-  "kmer",
-};
-// clang-format on
-
 [[nodiscard]] auto
-get_grade_read_lengths(const std::vector<std::uint64_t> &lengths)
+get_grade_sequence_length(const std::vector<std::uint64_t> &lengths)
   -> std::string;
 
 [[nodiscard]] auto
-format_read_lengths(const std::vector<std::uint64_t> &lengths,
-                    const std::string &grade) -> std::string;
+format_sequence_length(const std::vector<std::uint64_t> &lengths,
+                       const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-format_read_lengths_html(const std::vector<std::uint64_t> &lengths)
-  -> std::string;
+format_sequence_length_html(const std::vector<std::uint64_t> &lengths,
+                            const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-get_grade_gc_content(const falco::gc_content_array &gc_content) -> std::string;
+get_grade_gc_sequence(const falco::gc_content_array &gc_content) -> std::string;
 
 [[nodiscard]] auto
-format_gc_content(const falco::gc_content_array &gc_content,
-                  const std::string &grade) -> std::string;
+format_gc_sequence(const falco::gc_content_array &gc_content,
+                   const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-format_gc_content_html(const falco::gc_content_array &gc_content)
-  -> std::string;
+format_gc_sequence_html(const falco::gc_content_array &gc_content,
+                        const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-get_grade_base_comp(const std::vector<falco::nuc_array> &nucs) -> std::string;
+get_grade_sequence(const std::vector<falco::nuc_array> &nucs) -> std::string;
 
 [[nodiscard]] auto
-format_base_comp(const std::vector<falco::nuc_array> &nucs,
-                 const std::vector<base_group_t> &groups,
-                 const std::string &grade) -> std::string;
+format_sequence(const std::vector<falco::nuc_array> &nucs,
+                const std::vector<base_group_t> &groups,
+                const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-format_base_comp_html(const std::vector<falco::nuc_array> &nucs,
-                      const std::vector<base_group_t> &groups) -> std::string;
+format_sequence_html(const std::vector<falco::nuc_array> &nucs,
+                     const std::vector<base_group_t> &groups,
+                     const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
 get_grade_n_content(const std::vector<std::uint64_t> &n_counts,
@@ -94,35 +79,39 @@ get_grade_n_content(const std::vector<std::uint64_t> &n_counts,
 format_n_content(const std::vector<std::uint64_t> &n_counts,
                  const std::vector<falco::nuc_array> &nucs,
                  const std::vector<base_group_t> &groups,
-                 const std::string &grade) -> std::string;
+                 const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
 format_n_content_html(const std::vector<std::uint64_t> &n_counts,
                       const std::vector<falco::nuc_array> &nucs,
-                      const std::vector<base_group_t> &groups) -> std::string;
+                      const std::vector<base_group_t> &groups,
+                      const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-get_grade_qual_by_read(const falco::qual_array &qual_by_read) -> std::string;
-
-[[nodiscard]] auto
-format_qual_by_read(const falco::qual_array &qual_by_read,
-                    const std::string &grade) -> std::string;
-
-[[nodiscard]] auto
-format_qual_by_read_html(const falco::qual_array &qual_by_read) -> std::string;
-
-[[nodiscard]] auto
-get_grade_qual_by_pos(const std::vector<falco::qual_array> &qual)
+get_grade_quality_sequence(const falco::qual_array &qual_by_read)
   -> std::string;
 
 [[nodiscard]] auto
-format_qual_by_pos(const std::vector<falco::qual_array> &qual,
-                   const std::vector<base_group_t> &groups,
-                   const std::string &grade) -> std::string;
+format_quality_sequence(const falco::qual_array &qual_by_read,
+                        const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-format_qual_by_pos_html(const std::vector<falco::qual_array> &qual,
-                        const std::vector<base_group_t> &groups) -> std::string;
+format_quality_sequence_html(const falco::qual_array &qual_by_read,
+                             const file_grades &grades) -> std::string;
+
+[[nodiscard]] auto
+get_grade_quality_base(const std::vector<falco::qual_array> &qual)
+  -> std::string;
+
+[[nodiscard]] auto
+format_quality_base(const std::vector<falco::qual_array> &qual,
+                    const std::vector<base_group_t> &groups,
+                    const file_grades &grades) -> std::string;
+
+[[nodiscard]] auto
+format_quality_base_html(const std::vector<falco::qual_array> &qual,
+                         const std::vector<base_group_t> &groups,
+                         const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
 get_grade_basic_stats() -> std::string;
@@ -132,13 +121,14 @@ format_basic_stats(const file_info &info, const std::uint64_t n_reads,
                    const std::uint64_t min_read_len,
                    const std::uint64_t max_read_len,
                    const std::uint64_t total_gc, const std::uint64_t total_nucs,
-                   const std::string &grade) -> std::string;
+                   const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
 format_basic_stats_html(const file_info &info, const std::uint64_t n_reads,
                         const std::uint64_t min_read_len,
                         const std::uint64_t max_read_len,
                         const std::uint64_t total_gc,
-                        const std::uint64_t total_nucs) -> std::string;
+                        const std::uint64_t total_nucs,
+                        const file_grades &grades) -> std::string;
 
 #endif  // SRC_FORMAT_OUTPUT_HPP_
