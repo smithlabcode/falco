@@ -36,6 +36,8 @@
 #include <utility>
 #include <vector>
 
+struct file_grades;
+
 struct kmer_result {
   // holds info for {kmer} x {position} to be sorted, filtered and output
   std::uint64_t kmer{};
@@ -121,7 +123,7 @@ struct kmer_counter {
   get_report(const std::string &grade) const -> std::string;
 
   [[nodiscard]] auto
-  get_html() const -> std::string;
+  get_html(const file_grades &grades) const -> std::string;
 
   [[nodiscard]] static auto
   decode_kmer(auto word, const auto n_bases) -> std::string;

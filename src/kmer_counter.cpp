@@ -178,12 +178,13 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
 
 [[nodiscard]] auto
 kmer_counter::get_grade() const -> std::string {
+  static constexpr auto label = "kmer";
   // ADS!!!: Major redundant work here
   const auto results = get_kmer_results();
   const auto pval = results.front().pval;
   const auto neg_log_p_val =
     pval > 0.0 ? -std::log10(pval) : std::numeric_limits<double>::max();
-  return identify_grade(grade_cutoffs, neg_log_p_val);
+  return grader_set::get_grade(label, neg_log_p_val);
 }
 
 [[nodiscard]] auto
@@ -228,7 +229,8 @@ kmer_counter::finalize([[maybe_unused]] const run_mode &mode) -> void {
 }
 
 [[nodiscard]] auto
-kmer_counter::get_html() const -> std::string {
+kmer_counter::get_html(const file_grades &grades) const -> std::string {
+  static constexpr auto label = "kmer";
   static constexpr auto plot_format = R"(<div id="{}"></div>
 <script>Plotly.newPlot("{}",
 {}
@@ -258,8 +260,12 @@ name: "{}",
                        fmt::join(mostly0, ", "),
                        decode_kmer(k.kmer, kmer_size));
   };
+  const auto grade = grades.grade(label);
+  const auto title = grades.get_title(label);
   return fmt::format(
-    plot_format, "kmer_plot", "kmer_plot",
-    fmt::format("[{}]",
-                fmt::join(std::views::transform(to_report, format1), ",\n")));
+    html_module_fmt, grade, label, title, grade,
+    fmt::format(
+      plot_format, "kmer_plot", "kmer_plot",
+      fmt::format(
+        "[{}]", fmt::join(std::views::transform(to_report, format1), ",\n"))));
 }
