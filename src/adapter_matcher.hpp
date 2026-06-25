@@ -24,56 +24,36 @@
 #ifndef SRC_ADAPTER_MATCHER_HPP_
 #define SRC_ADAPTER_MATCHER_HPP_
 
+#include "adapter_set.hpp"
+#include "falco_grade.hpp"
 #include "falco_utils.hpp"
 
 #include <array>
 #include <cstdint>
 #include <format>  // IWYU pragma: keep
+#include <iterator>
 #include <limits>
 #include <string>
 #include <thread>  // IWYU pragma: keep
 #include <utility>
 #include <vector>
 
+struct file_grades;
+
 struct adapter_matcher {
-  static constexpr auto grade_cutoffs = std::array{
-    std::pair{0.05, "pass"},
-    std::pair{0.10, "warn"},
-    std::pair{std::numeric_limits<double>::max(), "fail"},
-  };
-  static constexpr auto n_adapters = 6;
-  static constexpr auto adapter_size = 12;
-  static constexpr auto adapter_names = std::array{
-    // clang-format off
-    "Illumina Universal Adapter",
-    "Illumina Small RNA 3' Adapter",
-    "Illumina Small RNA 5' Adapter",
-    "Nextera Transposase Sequence",
-    "PolyA",
-    "PolyG",
-    // clang-format on
-  };
-  static constexpr auto adapters = std::array{
-    // clang-format off
-    "AGATCGGAAGAG",  // Illumina Universal Adapter
-    "TGGAATTCTCGG",  // Illumina Small RNA 3' Adapter
-    "GATCGTCGGACT",  // Illumina Small RNA 5' Adapter
-    "CTGTCTCTTATA",  // Nextera Transposase Sequence
-    "AAAAAAAAAAAA",  // PolyA
-    "GGGGGGGGGGGG",  // PolyG
-    // clang-format on
-  };
-  std::array<std::uint64_t, n_adapters> encoded_adapters{};
-  std::vector<std::array<std::uint64_t, n_adapters>> adap_counts;
+  std::uint32_t n_adapters;
+  std::uint32_t adapter_size;
+  std::vector<std::uint64_t> encoded_adapters;
+  std::vector<std::vector<std::uint64_t>> adap_counts;
 
   auto
   finalize(const run_mode &mode) -> void;
 
   adapter_matcher();
 
-  [[nodiscard]] static auto
-  match_adapter(const auto &t, const auto m, auto adap) -> std::uint32_t {
-    static constexpr auto adap_mask = (1ul << adapter_size * nibble_size) - 1ul;
+  [[nodiscard]] auto
+  match_adapter(const auto &t, const auto m, auto adap) const -> std::uint32_t {
+    static const auto adap_mask = (1ul << adapter_size * nibble_size) - 1ul;
     std::uint64_t t_enc{};
     auto i = 0u;
     for (; i + 1 < adapter_size; ++i)
@@ -104,15 +84,15 @@ struct adapter_matcher {
   match_adapters(const auto seq, const auto len) {
     if (len < adapter_size) [[unlikely]]
       return;
-    for (auto i = 0; i < n_adapters; ++i)
-      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
+    for (auto i = 0u; i < n_adapters; ++i)
       if (const auto p = match_adapter(seq, len, encoded_adapters[i]); p < len)
         ++adap_counts[p][i];
   }
 
   auto
   resize(const std::uint32_t updated_length) {
-    adap_counts.resize(updated_length);
+    adap_counts.resize(updated_length,
+                       std::vector<std::uint64_t>(n_adapters, 0));
   }
 
   auto
@@ -124,11 +104,11 @@ struct adapter_matcher {
   [[nodiscard]] auto
   get_report(const std::uint64_t n_reads,
              const std::vector<base_group_t> &groups,
-             const std::string &grade) const -> std::string;
+             const file_grades &grades) const -> std::string;
 
   [[nodiscard]] auto
-  get_html(const std::uint64_t n_reads,
-           const std::vector<base_group_t> &groups) const -> std::string;
+  get_html(const std::uint64_t n_reads, const std::vector<base_group_t> &groups,
+           const file_grades &grades) const -> std::string;
 };
 
 #endif  // SRC_ADAPTER_MATCHER_HPP_
