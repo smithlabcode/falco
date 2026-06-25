@@ -24,7 +24,7 @@
 #ifndef SRC_FASTQ_FILE_HPP_
 #define SRC_FASTQ_FILE_HPP_
 
-#include "falco_utils.hpp"  // for falco_thread_pool
+#include "thread_pool_wrapper.hpp"
 
 #ifdef HAVE_ISAL
 #include <isa-l/igzip_lib.h>
@@ -163,9 +163,8 @@ struct fastq_file {
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
     if (buf_size < min_buf_size)
-      throw std::runtime_error(
-        std::format("requested buffer too small {} (min is {})",
-                    size_to_units(buf_size), size_to_units(min_buf_size)));
+      throw std::runtime_error(std::format(
+        "requested buffer too small {}B (min is {}B)", buf_size, min_buf_size));
   }
 
   // clang-format off
@@ -226,9 +225,8 @@ struct fastq_bgzf_file {
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
     if (buf_size < min_buf_size)
-      throw std::runtime_error(
-        std::format("requested buffer too small {} (min is {})",
-                    size_to_units(buf_size), size_to_units(min_buf_size)));
+      throw std::runtime_error(std::format(
+        "requested buffer too small {} (min is {})", buf_size, min_buf_size));
     if (t.n_threads() > 0 && bgzf_compression(f.get()) == bgzf_fmt_code) {
       // threads can be used
       const auto r = bgzf_thread_pool(f.get(), t.t.pool, t.t.qsize);
@@ -313,9 +311,8 @@ public:
     if (in == nullptr)
       throw std::runtime_error("failed to open " + filename);
     if (buf_size < min_buf_size)
-      throw std::runtime_error(
-        std::format("requested buffer too small {} (min is {})",
-                    size_to_units(buf_size), size_to_units(min_buf_size)));
+      throw std::runtime_error(std::format(
+        "requested buffer too small {} (min is {})", buf_size, min_buf_size));
 
     isal_inflate_init(&state);
     state.crc_flag = ISAL_GZIP_NO_HDR_VER;
@@ -419,9 +416,8 @@ struct fastq_gz_file {
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
     if (buf_size < min_buf_size)
-      throw std::runtime_error(
-        std::format("requested buffer too small {} (min is {})",
-                    size_to_units(buf_size), size_to_units(min_buf_size)));
+      throw std::runtime_error(std::format(
+        "requested buffer too small {} (min is {})", buf_size, min_buf_size));
     buf.data = std::data(buffer);
   }
 
