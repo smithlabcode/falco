@@ -22,6 +22,7 @@
  */
 
 #include "fastq_file.hpp"
+#include "falco_utils.hpp"
 
 #include <htslib/bgzf.h>  // for BGZF
 #include <htslib/hfile.h>
