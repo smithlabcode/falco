@@ -37,10 +37,10 @@ read duplication is analyzed (borrowing from preseq).
 #include "contaminants.hpp"
 #include "falco_analyzer.hpp"
 #include "falco_file_format.hpp"
-#include "falco_results.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
 #include "quality_score.hpp"
+#include "results_collector.hpp"
 #include "tile_processor.hpp"
 
 #include "CLI11/CLI11.hpp"
@@ -142,14 +142,15 @@ run_mode_selector(const run_mode &mode, std::vector<file_info> &infos,
                   auto &reads_files, const auto n_threads,
                   const auto &outdirs) {
   if (do_tiles(mode) && do_kmers(mode))
-    run<falco_results_tile_kmer>(mode, infos, reads_files, n_threads, outdirs);
+    run<results_collector_tile_kmer>(mode, infos, reads_files, n_threads,
+                                     outdirs);
   else if (do_tiles(mode))
-    run<falco_results_tile>(mode, infos, reads_files, n_threads, outdirs);
+    run<results_collector_tile>(mode, infos, reads_files, n_threads, outdirs);
   else if (do_kmers(mode))
-    return run<falco_results_kmer>(mode, infos, reads_files, n_threads,
-                                   outdirs);
+    return run<results_collector_kmer>(mode, infos, reads_files, n_threads,
+                                       outdirs);
   else
-    run<falco_results>(mode, infos, reads_files, n_threads, outdirs);
+    run<results_collector>(mode, infos, reads_files, n_threads, outdirs);
 }
 
 static auto
@@ -247,6 +248,7 @@ main(int argc, char *argv[]) {
     static constexpr auto buffer_size_default = 256 * 1024 * 1024;
     std::vector<std::string> infiles;
     std::string contam_file;
+    std::string config_file;
     std::string adapters_file;
     std::string outdir;
     std::int64_t buffer_size{buffer_size_default};
@@ -289,6 +291,10 @@ main(int argc, char *argv[]) {
     app.add_option("-o,--output", outdir, "Output directory")
       ->required()
       ->option_text("DIR");
+    app.add_option("--config", config_file,
+                   "Configuration file")
+      ->option_text("FILE")
+      ->check(CLI::ExistingFile);
     app.add_option("-c,--contaminants", contam_file,
                    "File of contaminant sequences to use")
       ->option_text("FILE")
@@ -322,6 +328,9 @@ main(int argc, char *argv[]) {
       return EXIT_SUCCESS;
     }
     CLI11_PARSE(app, argc, argv);
+
+    if (!config_file.empty())
+      grader_set::instance(config_file);
 
     const auto outdirs = make_outdirs(infiles, outdir);
 
