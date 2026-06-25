@@ -24,7 +24,7 @@
 #ifndef SRC_BAM_FILE_HPP_
 #define SRC_BAM_FILE_HPP_
 
-#include "falco_utils.hpp"  // for falco_thread_pool
+#include "thread_pool_wrapper.hpp"  // for falco_thread_pool
 
 #include <htslib/sam.h>
 
@@ -173,9 +173,8 @@ struct bam_file {
     buf(buf_size), f(hts_open(std::data(filename), "r"), &hts_close),
     h(sam_hdr_read(f.get()), &sam_hdr_destroy) {
     if (buf_size < min_buf_size)
-      throw std::runtime_error(
-        std::format("requested buffer too small {} (min is {})",
-                    size_to_units(buf_size), size_to_units(min_buf_size)));
+      throw std::runtime_error(std::format(
+        "requested buffer too small {}B (min is {}B)", buf_size, min_buf_size));
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
