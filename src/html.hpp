@@ -26,16 +26,11 @@
 
 #include <string>
 
-struct analysis_grades;
+struct file_grades;
 struct file_info;
 
 [[nodiscard]] auto
-get_html_module(const std::string &name, const std::string &label,
-                const std::string &grade,
-                const std::string &text) -> std::string;
-
-[[nodiscard]] auto
-falco_get_html(const file_info &info, const analysis_grades &grades,
+falco_get_html(const file_info &info, const file_grades &grades,
                const std::string &analysis_modules) -> std::string;
 
 #endif  // SRC_HTML_HPP_

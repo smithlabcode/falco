@@ -34,7 +34,6 @@
 
 #include <config.h>
 
-#include <array>
 #include <chrono>
 #include <string>
 #include <vector>
@@ -202,7 +201,7 @@ p {
 </style>)";
 
 [[nodiscard]] auto
-get_summary(const analysis_grades &ag) -> std::string {
+get_summary(const file_grades &grades) -> std::string {
   static constexpr auto summary = R"(
 <div class="summary"><h2>Summary</h2>
 <ul>
@@ -213,23 +212,24 @@ get_summary(const analysis_grades &ag) -> std::string {
   static constexpr auto list_item =
     R"(<li><a class="{}" href="#{}">{}</a></li>)";
   std::vector<std::string> sections;
-  for (const auto &name : analysis_grades::names)
-    if (ag.is_configured(name))
-      sections.emplace_back(
-        fmt::format(list_item, ag.grade(name), name, ag.get_label(name)));
+  for (const auto &name : section_names)
+    if (grades.is_configured(name))
+      sections.emplace_back(fmt::format(list_item, grades.grade(name), name,
+                                        grades.get_title(name)));
   return fmt::format(summary, fmt::join(sections, "\n"));
 }
 
 [[nodiscard]] auto
-get_html_module(const std::string &name, const std::string &label,
-                const std::string &grade,
-                const std::string &text) -> std::string {
+get_html_module(const std::string &label, const std::string &text,
+                const file_grades &grades) -> std::string {
   static constexpr auto module_template =
     R"(<div class="module">
 <h2 class="{}" id="{}">{}: {}</h2>
 {}
 </div>)";
-  return fmt::format(module_template, grade, name, label, grade, text);
+  const auto grade = grades.grade(label);
+  const auto title = grades.get_title(label);
+  return fmt::format(module_template, label, grade, title, grade, text);
 }
 
 static constexpr auto falco_html_body =
@@ -256,7 +256,7 @@ static constexpr auto falco_html_body =
 )";
 
 [[nodiscard]] auto
-falco_get_html(const file_info &info, const analysis_grades &grades,
+falco_get_html(const file_info &info, const file_grades &grades,
                const std::string &analysis_modules) -> std::string {
   return fmt::format(falco_html_body,
                      fmt::arg("date", std::chrono::system_clock::now()),
