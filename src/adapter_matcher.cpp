@@ -23,6 +23,7 @@
 
 #include "adapter_matcher.hpp"
 
+#include "adapter_set.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 
@@ -35,6 +36,7 @@
 #include <cassert>
 #include <cstdint>
 #include <format>
+#include <fstream>
 #include <functional>
 #include <iterator>
 #include <numeric>
@@ -47,10 +49,15 @@ adapter_matcher::adapter_matcher() {
   static constexpr auto shift_plus = [&](const auto r, const auto c) {
     return (r << nibble_size) + encode_nibble(c);
   };
-  std::ranges::transform(
-    adapters, std::begin(encoded_adapters), [&](const auto &a) {
-      return std::accumulate(a, a + adapter_size, 0ul, shift_plus);
-    });
+  static constexpr auto do_encoding = [&](const auto &a) {
+    return std::accumulate(std::cbegin(a), std::cend(a), 0ul, shift_plus);
+  };
+  const auto &as = adapter_set::instance();
+  assert(!as.instance().adapters.empty());
+  n_adapters = adapter_set::n_adapters();
+  adapter_size = adapter_set::adapter_size();
+  std::ranges::transform(as.adapters, std::back_inserter(encoded_adapters),
+                         do_encoding);
 }
 
 auto
@@ -62,25 +69,28 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 
 [[nodiscard]] auto
 adapter_matcher::get_grade(const std::uint64_t n_reads) const -> std::string {
+  static constexpr auto label = "adapter";
   const auto max_count =
     std::ranges::max(adap_counts | std::views::transform(std::ranges::max));
-  return identify_grade(grade_cutoffs, as_frac(max_count, n_reads));
+  return grader_set::get_grade(label, as_frac(max_count, n_reads));
 }
 
 [[nodiscard]] auto
 adapter_matcher::get_report(const std::uint64_t n_reads,
                             const std::vector<base_group_t> &groups,
-                            const std::string &grade) const -> std::string {
+                            const file_grades &grades) const -> std::string {
+  static constexpr auto label = "adapter";
   static constexpr auto start_module_tag = ">>Adapter Content\t{}\n";
   static constexpr auto header = "#Position";
-  static constexpr auto to_flat = [](const auto data, const auto &fun) {
+  static constexpr auto to_flat = [](const auto &data, const auto &fun) {
     return data | std::views::transform(fun) | std::views::join |
            std::ranges::to<std::string>();
   };
-  auto r = std::format(start_module_tag, grade);
+  auto r = std::format(start_module_tag, grades.grade(label));
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+  const auto &adapter_names = adapter_set::instance().adapter_names;
   r += header + to_flat(adapter_names,
-                        [](const auto x) { return std::format("\t{}", x); });
+                        [](const auto &x) { return std::format("\t{}", x); });
   r += '\n';
 
   auto cumulative = adap_counts;
@@ -101,14 +111,15 @@ adapter_matcher::get_report(const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 adapter_matcher::get_html(const std::uint64_t n_reads,
-                          const std::vector<base_group_t> &groups) const
-  -> std::string {
-  static constexpr auto module_format =
+                          const std::vector<base_group_t> &groups,
+                          const file_grades &grades) const -> std::string {
+  static constexpr auto label = "adapter";
+  static constexpr auto plot_fmt =
     R"(<div id="adapters_plot"></div>
 <script>
-Plotly.newPlot("adapters_plot", [
-{}
-], {{
+Plotly.newPlot("adapters_plot",
+{},
+{{
 margin: {{t: 0}},
 showlegend: true,
 xaxis: {{title: "Base position"}},
@@ -117,7 +128,7 @@ yaxis: {{title: "% sequences with adapter before position"}},
 </script>)";
   static constexpr auto adapter_fmt = R"({{
 x: {},
-y: [{:.6g}],
+y: {},
 type: "line",
 name: "{}",
 }})";
@@ -137,21 +148,19 @@ name: "{}",
     return pct(as_frac(c, n_reads));
   };
   std::vector<std::string> html_by_adapter;
-  for (const auto adap_id : std::views::iota(0, n_adapters)) {
-    std::vector<double> y;
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-    for (const auto pos : std::views::iota(0UL, n_pos))
-      y.emplace_back(pct_of_reads(cumulative[pos][adap_id]));
-    html_by_adapter.emplace_back(         //
-      fmt::format(adapter_fmt,            //
-                  x,                      //
-                  fmt::join(y, ","),      //
-                  adapter_names[adap_id]  //
-                  ));
-    // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
+  const auto adapter_names = adapter_set::instance().adapter_names;
+  for (const auto [adap_id, adap_name] : std::views::enumerate(adapter_names)) {
+    const auto make_y = [&](const auto &cumul) {
+      return pct_of_reads(cumul[adap_id]);
+    };
+    const auto y = cumulative | std::views::transform(make_y);
+    html_by_adapter.emplace_back(fmt::format(adapter_fmt, x, y, adap_name));
   }
-  return std::format(module_format,
-                     fmt::format("{}", fmt::join(html_by_adapter, ",\n")));
+  const auto grade = grades.grade(label);
+  const auto title = grades.get_title(label);
+  return fmt::format(
+    html_module_fmt, grade, label, title, grade,
+    std::format(plot_fmt, fmt::format("[{:n:}]", html_by_adapter)));
 }
 
 auto
