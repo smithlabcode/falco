@@ -117,16 +117,18 @@ duplication_results::operator+=(const duplication_results &rhs)
 }
 
 [[nodiscard]] auto
-duplication_results::get_grade_overrep() const -> std::string {
+duplication_results::get_grade_overrepresented() const -> std::string {
+  static constexpr auto label = "overrepresented";
   const auto max_n_obs = std::ranges::max(std::views::values(dups));
   const auto dups_v = std::views::values(dups);
   const auto n_reads = std::reduce(std::cbegin(dups_v), std::cend(dups_v));
-  return identify_grade(overrep_grade_cutoffs, as_frac(max_n_obs, n_reads));
+  return grader_set::get_grade(label, as_frac(max_n_obs, n_reads));
 }
 
 [[nodiscard]] auto
-duplication_results::format_overrep(const std::string &grade) const
+duplication_results::format_overrepresented(const file_grades &grades) const
   -> std::string {
+  static constexpr auto label = "overrepresented";
   static constexpr auto start_tag = ">>Overrepresented sequences\t{}\n";
   static constexpr auto header = "#Sequence\t"
                                  "Count\t"
@@ -140,7 +142,7 @@ duplication_results::format_overrep(const std::string &grade) const
   auto overrep = dups | std::views::filter(gt_cutoff) |
                  std::views::transform(rev_p) | std::ranges::to<std::vector>();
   std::ranges::sort(overrep, std::greater{});
-  auto r = std::format(start_tag, grade);
+  auto r = std::format(start_tag, grades.grade(label));
   if (!overrep.empty()) {
     r += header;
     for (const auto &[n_obs, seq] : overrep)
@@ -182,18 +184,20 @@ get_dups_summary(const auto &dups)
 
 [[nodiscard]] auto
 duplication_results::get_grade_duplication() const -> std::string {
+  static constexpr auto label = "duplication";
   // ADS: major redundunant work here
   const auto [_, hist_mass, hist_dedup] = get_dups_summary(dups);
   const auto reduce = [](const auto &v) {
     return std::reduce(std::cbegin(v), std::cend(v));
   };
   const auto frac_dedup = as_frac(reduce(hist_dedup), reduce(hist_mass));
-  return identify_grade(grade_cutoffs, frac_dedup);
+  return grader_set::get_grade(label, frac_dedup);
 }
 
 [[nodiscard]] auto
-duplication_results::format_duplication(const std::string &grade) const
+duplication_results::format_duplication(const file_grades &grades) const
   -> std::string {
+  static constexpr auto label = "duplication";
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
                                     "#Total Deduplicated Percentage\t{:.6f}\n";
   static constexpr auto header = "#Duplication Level\t"
@@ -211,7 +215,7 @@ duplication_results::format_duplication(const std::string &grade) const
     return std::reduce(std::cbegin(v), std::cend(v));
   };
   const auto frac_dedup = as_frac(reduce(hist_dedup), reduce(hist_mass));
-  auto r = std::format(start_tag, grade, pct(frac_dedup));
+  auto r = std::format(start_tag, grades.grade(label), pct(frac_dedup));
   r += header;
   for (const auto [label, mass] :
        std::views::zip(bin_labels, binned_mass_pct) | std::views::drop(1))
@@ -220,7 +224,9 @@ duplication_results::format_duplication(const std::string &grade) const
 }
 
 [[nodiscard]] auto
-duplication_results::format_overrep_html() const -> std::string {
+duplication_results::format_overrepresented_html(
+  const file_grades &grades) const -> std::string {
+  static constexpr auto label = "overrepresented";
   static constexpr auto html_table = R"(<table>
 <thead>
 <tr>
@@ -244,19 +250,25 @@ duplication_results::format_overrep_html() const -> std::string {
   const auto rev_p = [&](const auto p) { return std::pair{p.second, p.first}; };
   auto overrep = dups | std::views::filter(is_ge_cutoff) |
                  std::views::transform(rev_p) | std::ranges::to<std::vector>();
+  const auto grade = grades.grade(label);
+  const auto title = grades.get_title(label);
   if (overrep.empty())
-    return "No overrep sequences";
+    return fmt::format(html_module_fmt, grade, label, title, grade,
+                       "No overrepresented sequences");
   std::ranges::sort(overrep, std::greater{});
   std::vector<std::string> rows;
   for (const auto &[n_obs, seq] : overrep)
     rows.emplace_back(fmt::format(
       html_table_row_fmt, seq.string(), n_obs, pct(as_frac(n_obs, n_reads)),
       match_contaminant(seq.string(), contaminants)));
-  return fmt::format(html_table, fmt::join(rows, "\n"));
+  return fmt::format(html_module_fmt, grade, label, title, grade,
+                     fmt::format(html_table, fmt::join(rows, "\n")));
 }
 
 [[nodiscard]] auto
-duplication_results::format_duplication_html() const -> std::string {
+duplication_results::format_duplication_html(const file_grades &grades) const
+  -> std::string {
+  static constexpr auto label = "duplication";
   static constexpr auto plot_format = R"(<div id="duplication_plot"></div>
 <script>Plotly.newPlot("duplication_plot",
 [{{
@@ -295,9 +307,13 @@ yaxis: {{title: "% of sequences"}},
     const auto p = [&](const auto d) { return pct(as_frac(d, sum)); };
     return make_bins(bin_breaks, v) | std::views::transform(p);
   };
-  return fmt::format(plot_format,                                  //
-                     x, to_pct(hist_mass) | std::views::drop(1),   // y_tot,
-                     x, to_pct(hist_dedup) | std::views::drop(1),  // y_dedup
-                     x, x_text | std::views::drop(1)               // tickvals
-  );
+  const auto grade = grades.grade(label);
+  const auto title = grades.get_title(label);
+  return fmt::format(
+    html_module_fmt, grade, label, title, grade,
+    fmt::format(plot_format,                                  //
+                x, to_pct(hist_mass) | std::views::drop(1),   // y_tot,
+                x, to_pct(hist_dedup) | std::views::drop(1),  // y_dedup
+                x, x_text | std::views::drop(1)               // tickvals
+                ));
 }

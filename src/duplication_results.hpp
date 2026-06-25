@@ -24,6 +24,7 @@
 #ifndef SRC_DUPLICATION_RESULTS_HPP_
 #define SRC_DUPLICATION_RESULTS_HPP_
 
+#include "falco_grade.hpp"
 #include "falco_word.hpp"
 
 #include "boost/boost_unordered.hpp"
@@ -58,22 +59,22 @@ struct duplication_results {
   initialize(const std::uint64_t est_n_reads) -> void;
 
   [[nodiscard]] auto
-  get_grade_overrep() const -> std::string;
+  get_grade_overrepresented() const -> std::string;
 
   [[nodiscard]] auto
-  format_overrep(const std::string &grade) const -> std::string;
+  format_overrepresented(const file_grades &grades) const -> std::string;
 
   [[nodiscard]] auto
-  format_overrep_html() const -> std::string;
+  format_overrepresented_html(const file_grades &grades) const -> std::string;
 
   [[nodiscard]] auto
   get_grade_duplication() const -> std::string;
 
   [[nodiscard]] auto
-  format_duplication(const std::string &grade) const -> std::string;
+  format_duplication(const file_grades &grades) const -> std::string;
 
   [[nodiscard]] auto
-  format_duplication_html() const -> std::string;
+  format_duplication_html(const file_grades &grades) const -> std::string;
 
   auto
   operator+=(const duplication_results &rhs) -> const duplication_results &;
