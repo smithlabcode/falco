@@ -46,6 +46,15 @@
 #include <utility>
 #include <vector>
 
+/// ADS: to wrap a module in the HTML output; put here because used in many
+/// files.
+// grade / section_label / section_title / grade / text
+static constexpr auto html_module_fmt =
+  R"(<div class="module">
+<h2 class="{}" id="{}">{}: {}</h2>
+{}
+</div>)";
+
 static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
 static constexpr std::int64_t megabytes = 1024 * 1024;
 static constexpr std::int64_t kilobytes = 1024;
