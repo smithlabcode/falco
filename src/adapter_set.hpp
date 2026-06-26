@@ -85,7 +85,7 @@ struct adapter_set {
   operator=(const adapter_set &) -> adapter_set & = delete;
 
 private:
-  adapter_set(const std::string &filename);
+  explicit adapter_set(const std::string &filename);
   adapter_set() = default;
   ~adapter_set() = default;
 };  // adapter_set
