@@ -25,9 +25,9 @@
 
 #include <algorithm>
 #include <cctype>
+#include <charconv>
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -37,12 +37,13 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 // clang-format off
-static const auto default_graders = std::array{ // NOLINT(cert-err58-cpp)
+static const auto default_graders = std::array{  // NOLINT(cert-err58-cpp)
   grader{.name = "quality_base_median", .warn = 25.0, .fail = 20.0},
   grader{.name = "quality_base_lower",  .warn = 10.0, .fail = 5.00},
   grader{.name = "quality_sequence",    .warn = 27.0, .fail = 20.0},
