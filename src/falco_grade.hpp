@@ -111,7 +111,7 @@ struct file_grades {
   get_title(const std::string &name) const -> std::string;
 
   [[nodiscard]] auto
-  summary(const std::string &infile_path) const -> std::string;
+  to_string(const std::string &infile_path) const -> std::string;
 };
 
 struct grader {

@@ -51,7 +51,7 @@ static const auto default_graders = std::array{
 // clang-format on
 
 [[nodiscard]] auto
-file_grades::summary(const std::string &infile_path) const -> std::string {
+file_grades::to_string(const std::string &infile_path) const -> std::string {
   const auto infile = std::filesystem::path(infile_path).filename().string();
   const auto up = [](const auto &s) {
     const auto u = [](const std::uint8_t c) { return std::toupper(c); };
