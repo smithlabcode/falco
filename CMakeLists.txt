@@ -116,9 +116,6 @@ target_link_libraries(falco_file_format PRIVATE HTSLIB::HTSLIB)
 add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
 target_link_libraries(adapter_matcher PRIVATE HTSLIB::HTSLIB)
 
-add_library(format_output OBJECT src/format_output.cpp)
-target_link_libraries(format_output PRIVATE HTSLIB::HTSLIB)
-
 add_library(falco_utils OBJECT src/falco_utils.cpp)
 target_link_libraries(falco_utils PRIVATE HTSLIB::HTSLIB)
 
@@ -126,6 +123,9 @@ add_library(falco_grade OBJECT src/falco_grade.cpp)
 add_library(contaminants OBJECT src/contaminants.cpp)
 add_library(adapter_set OBJECT src/adapter_set.cpp)
 add_library(html OBJECT src/html.cpp)
+add_library(report OBJECT src/report.cpp)
+add_library(results_summary OBJECT src/results_summary.cpp)
+add_library(quality_score OBJECT src/quality_score.cpp)
 
 add_executable(falco2 src/falco2.cpp)
 target_link_libraries(falco2 PRIVATE
@@ -137,11 +137,13 @@ target_link_libraries(falco2 PRIVATE
   kmer_counter
   fastq_file
   bam_file
-  format_output
   falco_file_format
   falco_utils
   falco_grade
+  results_summary
+  quality_score
   html
+  report
   HTSLIB::HTSLIB
   LIBDEFLATE::LIBDEFLATE
   ZLIB::ZLIB
