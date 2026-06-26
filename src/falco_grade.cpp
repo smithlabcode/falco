@@ -42,7 +42,7 @@
 #include <vector>
 
 // clang-format off
-static const auto default_graders = std::array{
+static const auto default_graders = std::array{ // NOLINT(cert-err58-cpp)
   grader{.name = "quality_base_median", .warn = 25.0, .fail = 20.0},
   grader{.name = "quality_base_lower",  .warn = 10.0, .fail = 5.00},
   grader{.name = "quality_sequence",    .warn = 27.0, .fail = 20.0},
@@ -183,11 +183,18 @@ load_grades(const std::string &filename)
     for (const auto &label : grade_labels) {
       if (!json_in.contains(label))
         continue;
-      const auto fail_elem = json_in[label]["error"].get<std::string>();
-      const auto warn_elem = json_in[label]["warn"].get<std::string>();
-      // ADS: fix this below
-      const auto fail_val = std::atof(std::data(fail_elem));
-      const auto warn_val = std::atof(std::data(warn_elem));
+      const auto get_cutoff = [&](const std::string &label0) {
+        const auto x = json_in[label][label0].get<std::string>();
+        const auto beg = std::data(x);
+        const auto end = beg + std::size(x);  // NOLINT(*-pointer-arithmetic)
+        double val{};
+        const auto res = std::from_chars(beg, end, val);
+        if (res.ec != std::errc{})
+          throw std::runtime_error("error parsing cutoff: " + x);
+        return val;
+      };
+      const auto fail_val = get_cutoff("error");
+      const auto warn_val = get_cutoff("warn");
       graders.emplace(label, grader(label, warn_val, fail_val));
     }
   }
@@ -208,8 +215,6 @@ grader_set::grader_set(const std::string &filename) {
   else
     graders = load_grades(filename);
 }
-
-// grades
 
 [[nodiscard]] auto
 get_grade_sequence_length(const std::vector<std::uint64_t> &lengths)
@@ -272,7 +277,7 @@ get_grade_quality_sequence(const falco::qual_array &qual_by_read)
   const auto q_beg = std::cbegin(qual_by_read);
   const auto max_itr = std::ranges::max_element(qual_by_read);
   const auto qual_val_mode = std::distance(q_beg, max_itr);
-  return grader_set::get_grade(label, qual_val_mode);
+  return grader_set::get_grade(label, static_cast<double>(qual_val_mode));
 }
 
 [[nodiscard]] auto
@@ -289,9 +294,10 @@ get_grade_quality_base(const std::vector<falco::qual_array> &qual)
   }
   const auto lq_grade = grader_set::get_grade(label_lquart, min_qual_lquart);
   const auto med_grade = grader_set::get_grade(label_median, min_qual_median);
-  return (lq_grade == "fail" || med_grade == "fail")   ? "fail"
-         : (lq_grade == "warn" || med_grade == "warn") ? "warn"
-                                                       : "pass";
+  using std::string_literals::operator""s;
+  return (lq_grade == "fail"s || med_grade == "fail"s)   ? "fail"s
+         : (lq_grade == "warn"s || med_grade == "warn"s) ? "warn"s
+                                                         : "pass"s;
 }
 
 [[nodiscard]] auto
