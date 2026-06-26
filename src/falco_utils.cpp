@@ -141,7 +141,7 @@ get_theoretical_distribution(const falco::gc_content_array &gc,
   // get mode
   const auto mode_itr = std::ranges::max_element(gc);
   const std::uint64_t mode_pos = std::distance(gc_beg, mode_itr);
-  const auto mode_val = *mode_itr;
+  const auto mode_val = static_cast<double>(*mode_itr);
 
   // ADS: in case mode is not sharp average nearby values (not clear on why)
   const auto gt_cut = [&](const double x) { return x < mode_width * mode_val; };
@@ -149,7 +149,7 @@ get_theoretical_distribution(const falco::gc_content_array &gc,
   const auto left_itr =
     std::find_if(std::reverse_iterator(mode_itr), std::crend(gc), gt_cut);
   const auto n = std::distance(std::reverse_iterator(right_itr), left_itr);
-  const double mode = mode_pos + (n - 1) / 2.0;
+  const auto mode = static_cast<double>(mode_pos) + as_frac(n - 1, 2.0);
 
   // theoretical distribution
   const auto cntr_sq = [m = mode](const auto v) { return (v - m) * (v - m); };
@@ -157,8 +157,8 @@ get_theoretical_distribution(const falco::gc_content_array &gc,
     return cntr_sq(std::get<0>(x)) * std::get<1>(x);
   };
   const auto id_gc = std::views::enumerate(gc) | std::views::transform(sd_term);
-  const auto sd = std::sqrt(std::reduce(std::cbegin(id_gc), std::cend(id_gc)) /
-                            (total_count - 1));
+  const auto sd = std::sqrt(as_frac(
+    std::reduce(std::cbegin(id_gc), std::cend(id_gc)), total_count - 1));
   const auto to_normal = [&](const auto val) {
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     return std::exp(-cntr_sq(val) / (2.0 * sd * sd));
