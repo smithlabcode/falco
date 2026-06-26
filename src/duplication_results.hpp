@@ -62,19 +62,19 @@ struct duplication_results {
   get_grade_overrepresented() const -> std::string;
 
   [[nodiscard]] auto
-  format_overrepresented(const file_grades &grades) const -> std::string;
+  overrepresented_report(const file_grades &grades) const -> std::string;
 
   [[nodiscard]] auto
-  format_overrepresented_html(const file_grades &grades) const -> std::string;
+  overrepresented_html(const file_grades &grades) const -> std::string;
 
   [[nodiscard]] auto
   get_grade_duplication() const -> std::string;
 
   [[nodiscard]] auto
-  format_duplication(const file_grades &grades) const -> std::string;
+  duplication_report(const file_grades &grades) const -> std::string;
 
   [[nodiscard]] auto
-  format_duplication_html(const file_grades &grades) const -> std::string;
+  duplication_html(const file_grades &grades) const -> std::string;
 
   auto
   operator+=(const duplication_results &rhs) -> const duplication_results &;

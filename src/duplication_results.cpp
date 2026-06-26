@@ -27,6 +27,7 @@
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "falco_word.hpp"
+#include "html.hpp"  // for html_module_fmt
 
 #include "boost/boost_unordered.hpp"
 
@@ -126,7 +127,7 @@ duplication_results::get_grade_overrepresented() const -> std::string {
 }
 
 [[nodiscard]] auto
-duplication_results::format_overrepresented(const file_grades &grades) const
+duplication_results::overrepresented_report(const file_grades &grades) const
   -> std::string {
   static constexpr auto label = "overrepresented";
   static constexpr auto start_tag = ">>Overrepresented sequences\t{}\n";
@@ -195,7 +196,7 @@ duplication_results::get_grade_duplication() const -> std::string {
 }
 
 [[nodiscard]] auto
-duplication_results::format_duplication(const file_grades &grades) const
+duplication_results::duplication_report(const file_grades &grades) const
   -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
@@ -224,8 +225,8 @@ duplication_results::format_duplication(const file_grades &grades) const
 }
 
 [[nodiscard]] auto
-duplication_results::format_overrepresented_html(
-  const file_grades &grades) const -> std::string {
+duplication_results::overrepresented_html(const file_grades &grades) const
+  -> std::string {
   static constexpr auto label = "overrepresented";
   static constexpr auto html_table = R"(<table>
 <thead>
@@ -266,7 +267,7 @@ duplication_results::format_overrepresented_html(
 }
 
 [[nodiscard]] auto
-duplication_results::format_duplication_html(const file_grades &grades) const
+duplication_results::duplication_html(const file_grades &grades) const
   -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto plot_format = R"(<div id="duplication_plot"></div>
