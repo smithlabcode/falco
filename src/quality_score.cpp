@@ -91,5 +91,5 @@ adjust_fastq_qual_encoding(std::vector<falco::qual_array> &qual_by_pos,
 to_string(const falco::encoding e) -> std::string {
   const auto u = std::to_underlying(e);
   assert(u < std::size(falco::format_labels));
-  return falco::format_labels[u];
+  return falco::format_labels[u];  // NOLINT(*-pro-bounds-constant-array-index)
 }
