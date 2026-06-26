@@ -56,12 +56,7 @@ enum class encoding : std::uint8_t;
 // - Among the first 10k reads, all should contribute to tiles?
 
 struct tile_processor {
-  static constexpr auto grade_cutoffs = std::array{
-    std::pair{5.0, "pass"},
-    std::pair{10.0, "warn"},
-    std::pair{std::numeric_limits<double>::max(), "fail"},
-  };
-
+  using tiles_centered_t = std::map<std::uint32_t, std::vector<double>>;
   // ADS: needs to count roughly ~1M reads each contributing up to 128
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
   static constexpr auto read_skip = 10 - 1;
@@ -70,9 +65,8 @@ struct tile_processor {
   std::int32_t read_idx{};
   std::uint32_t max_read_len{};
   std::uint32_t tile_id{};
-  qual_vec::iterator qual{};
+  qual_vec::iterator qual{};  // because we often don't change tile id
   boost::unordered_flat_map<std::uint32_t, qual_vec> quals;
-  std::map<std::uint32_t, std::vector<double>> centered;
 
   auto
   trim() -> void;
@@ -80,19 +74,31 @@ struct tile_processor {
   auto
   adjust_fastq_qual_encoding(const falco::encoding enc) -> void;
 
-  /// finalize does 5 things:
-  /// (1) trims tile data that's too long for the given tile
-  /// (2) adjust the quality scores based on the encoding
-  /// (3) makes groups for each tile's data vectors
-  /// (4) calculates the (ordered) map of centered values
-  /// (5) clears the 'quals' to force a crash if it's used afterwards
-  auto
-  finalize(const run_mode &mode, const file_info &info) -> void;
-
   auto
   init(const file_info &info) {
     tile_id_position = info.tile_id_position;
   }
+
+  /// finalize does 4 things:
+  /// (1) trims tile data that's too long for the given tile
+  /// (2) adjust the quality scores based on the encoding
+  /// (3) makes groups for each tile's data vectors
+  /// (4) returns the (ordered) map of centered values
+  auto
+  finalize(const file_info &info) -> void;
+
+  [[nodiscard]] auto
+  get_centered() -> tile_processor::tiles_centered_t;
+
+  auto
+  apply_groups(const run_mode &mode) -> void;
+
+  [[nodiscard]] auto
+  get_report(const std::vector<base_group_t> &groups,
+             const std::string &grade) const -> std::string;
+
+  auto
+  operator+=(const tile_processor &rhs) -> const tile_processor &;
 
   auto
   resize(const std::uint32_t updated_length) {
@@ -125,20 +131,6 @@ struct tile_processor {
     }
   }
 
-  [[nodiscard]] auto
-  get_grade() const -> std::string;
-
-  [[nodiscard]] auto
-  get_report(const std::vector<base_group_t> &groups,
-             const std::string &grade) const -> std::string;
-
-  [[nodiscard]] auto
-  get_html(const std::vector<base_group_t> &groups,
-           const file_grades &grades) const -> std::string;
-
-  auto
-  operator+=(const tile_processor &rhs) -> const tile_processor &;
-
   auto
   operator()(const auto &rec) {
     if (read_idx-- == 0) [[unlikely]] {
@@ -161,5 +153,8 @@ struct tile_processor {
 
 auto
 get_tile_info(const std::string &fastq_filename) -> std::uint32_t;
+
+[[nodiscard]] auto
+get_grade_tile(const tile_processor::tiles_centered_t &centered) -> std::string;
 
 #endif  // SRC_TILE_PROCESSOR_HPP_

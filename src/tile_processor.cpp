@@ -85,8 +85,7 @@ get_name_bam(const std::string &filename) -> std::string {
 }
 
 [[nodiscard]] auto
-get_centered(const auto max_read_len, const auto &quals)
-  -> std::map<std::uint32_t, std::vector<double>> {
+tile_processor::get_centered() -> tile_processor::tiles_centered_t {
   std::vector<double> means(max_read_len);
   std::vector<double> n_tiles_for_size(max_read_len);
   for (const auto &tile_quals : quals | std::views::values) {
@@ -103,14 +102,16 @@ get_centered(const auto max_read_len, const auto &quals)
     [&](const auto m, const auto l) { return as_frac(m, l); });
 
   // using map to get sorted order by tile id
-  const auto cent = [](const auto &a, const auto mean) {
+  const auto get_cent = [](const auto &a, const auto mean) {
     const auto [qual_sum, n_obs] = a;
     return as_frac(qual_sum, n_obs) - mean;
   };
-  std::map<std::uint32_t, std::vector<double>> centered;
-  for (const auto &[id, vals] : quals)
-    centered.emplace(id, std::views::zip_transform(cent, vals, means) |
-                           std::ranges::to<std::vector>());
+
+  tile_processor::tiles_centered_t centered;
+  for (const auto &[id, vals] : quals) {
+    const auto cent_vals = std::views::zip_transform(get_cent, vals, means);
+    centered.emplace(id, cent_vals | std::ranges::to<std::vector>());
+  }
   return centered;
 };
 
@@ -132,19 +133,15 @@ tile_processor::trim() -> void {
   }
 }
 
-[[nodiscard]] static inline auto
-get_max_size(const auto &x) {
-  assert(!x.empty());
-  const auto sz = [](const auto &y) { return std::size(y); };
-  return std::ranges::max(std::views::transform(x | std::views::values, sz));
-}
-
 auto
-tile_processor::finalize(const run_mode &mode, const file_info &info) -> void {
-  assert(!quals.empty() && centered.empty());
+tile_processor::finalize(const file_info &info) -> void {
   trim();
   if (!is_mapped_reads(info.format))
     adjust_fastq_qual_encoding(info.encoding);
+}
+
+auto
+tile_processor::apply_groups(const run_mode &mode) -> void {
   if (do_groups(mode)) {
     const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
     for (auto &quals_for_tile : std::views::values(quals))
@@ -153,105 +150,11 @@ tile_processor::finalize(const run_mode &mode, const file_info &info) -> void {
         a.second += b.second;
       });
   }
-  // ADS: max_read_len not useful after grouping
-  centered = get_centered(get_max_size(quals), quals);
-  quals.clear();  // ADS: force a crash if this is used after centering
-}
-
-[[nodiscard]] auto
-tile_processor::get_grade() const -> std::string {
-  static constexpr auto label = "tile";
-  assert(!centered.empty());
-  const auto neg_min_cent_qual =
-    -std::ranges::min(centered | std::views::values | std::views::join);
-  return grader_set::get_grade(label, neg_min_cent_qual);
-}
-
-[[nodiscard]] auto
-tile_processor::get_report(const std::vector<base_group_t> &groups,
-                           const std::string &grade) const -> std::string {
-  static constexpr auto max_precision{std::numeric_limits<double>::digits10};
-  static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
-  static constexpr auto header = "#Tile\t"
-                                 "Base\t"
-                                 "Mean\n";
-  if (quals.empty() && centered.empty())
-    return {};  // ADS: in case this fun is called for files w/o tile info
-  auto r = std::format(start_tag, grade);
-  r += header;
-  for (const auto &[tile_id, q] : centered)
-    for (auto j = 0u; j < std::size(q); ++j)
-      r += std::format("{}\t{}\t{:.{}f}\n", tile_id, make_group_tag(groups[j]),
-                       q[j], max_precision);
-  return r + end_module_tag;
-}
-
-[[nodiscard]] auto
-tile_processor::get_html(const std::vector<base_group_t> &groups,
-                         const file_grades &grades) const -> std::string {
-  static constexpr auto label = "tile";
-  static constexpr auto n_quants = 20.0;
-  // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
-  static constexpr auto tiles_plot_fmt =
-    R"""([{{
-x: [{}],
-y: [{}],
-z: [{}],
-type: "heatmap",
-colorscale: [
-[0.0, "rgb(210,65,83)"],
-[{}, "rgb(178,236,254)"],
-[1.0, "rgb(34,57,212)"]
-],
-showscale: true,
-}}],
-{{
-margin: {{t: 0}},
-showlegend: false,
-xaxis: {{title: "Base position"}},
-yaxis: {{title: "tile", type: "category"}},
-}}
-)""";
-  static constexpr auto plot_fmt = R"(<div id="{}"></div>
-<script>Plotly.newPlot("{}",
-{}
-);</script>
-)";
-  assert(centered.empty() || get_max_size(centered) == std::size(groups));
-  if (centered.empty())
-    return {};  // ADS: in case we are here but tile analysis was not done
-  const auto tag = [&](const auto &g) { return make_group_tag_quoted(g); };
-
-  const auto [minval, maxval] =
-    std::ranges::minmax(centered | std::views::values | std::views::join);
-  // discretize quantiles so plotly understands color scheme (???)
-  const auto midpoint = minval / (minval - maxval);
-  const auto mid_discrete = std::round(n_quants * midpoint) / n_quants;
-
-  // z: one formatted vector of quality z scores per tile
-  const auto format1 = [](const auto &c) {
-    // ADS: note the format and precision (3) here
-    return fmt::format("[{:.3f}]", fmt::join(c, ","));  // inner lists
-  };
-  const auto z = std::views::transform(centered | std::views::values, format1);
-
-  const auto grade = grades.grade(label);
-  const auto title = grades.get_title(label);
-  return fmt::format(
-    html_module_fmt, grade, label, title, grade,
-    fmt::format(
-      plot_fmt, "tiles_plot", "tiles_plot",
-      fmt::format(tiles_plot_fmt,
-                  fmt::join(groups | std::views::transform(tag), ","),  // x
-                  fmt::join(centered | std::views::keys, ","),          // y
-                  fmt::join(z, ","),                                    // z
-                  mid_discrete)));
 }
 
 auto
 tile_processor::operator+=(const tile_processor &rhs)
   -> const tile_processor & {
-  assert(centered.empty());
   const auto pair_plus = [](const auto &a, const auto &b) {
     return std::pair{a.first + b.first, a.second + b.second};
   };
@@ -293,4 +196,14 @@ get_tile_info(const std::string &filename) -> std::uint32_t {
   return colons_found >= colon_cutoff_1
            ? colon_cutoff_1_val
            : (colons_found >= colon_cutoff_2 ? colon_cutoff_2_val : 0);
+}
+
+[[nodiscard]] auto
+get_grade_tile(const tile_processor::tiles_centered_t &centered)
+  -> std::string {
+  static constexpr auto label = "tile";
+  assert(!centered.empty());
+  const auto neg_min_cent_qual =
+    -std::ranges::min(centered | std::views::values | std::views::join);
+  return grader_set::get_grade(label, neg_min_cent_qual);
 }
