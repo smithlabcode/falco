@@ -41,6 +41,7 @@ read duplication is analyzed (borrowing from preseq).
 #include "fastq_file.hpp"
 #include "quality_score.hpp"
 #include "results_collector.hpp"
+#include "results_summary.hpp"
 #include "thread_pool_wrapper.hpp"
 #include "tile_processor.hpp"
 
@@ -95,7 +96,7 @@ static auto
 write_file(const auto &filename, const auto &data) {
   std::ofstream out(filename);
   if (!out)
-    throw std::runtime_error("failed to open file: " + filename);
+    throw std::runtime_error("failed to open file: " + std::string(filename));
   std::print(out, "{}", data);
 }
 
@@ -108,33 +109,29 @@ run(const run_mode &mode, std::vector<file_info> &infos, auto &reads_files,
   static constexpr auto html_filename = "fastqc_report.html";
   static constexpr auto summary_filename = "summary.txt";
 
-  const auto n_files = std::size(reads_files);
+  auto final_results = [&] {
+    const auto n_files = std::size(reads_files);
+    analyzer_t<results_t, rec_t> analyzer(n_threads.workers, n_threads.readers,
+                                          n_files, reads_files, infos);
+    // ADS: combine results for same input file collected by different threads
+    for (const auto file_id : std::views::iota(0u, n_files))
+      accumulate_results(analyzer.results, file_id);
+    return std::move(analyzer.results.front());
+  }();
 
-  analyzer_t<results_t, rec_t> analyzer(n_threads.workers, n_threads.readers,
-                                        n_files, reads_files, infos);
-
-  for (const auto file_id : std::views::iota(0u, n_files))
-    accumulate_results(analyzer.results, file_id);
+  // ADS: finalize() makes sure the variables mean what is intended
+  for (const auto &[results, info] : std::views::zip(final_results, infos)) {
+    results.finalize(info);
+    info.set_encoding(identify_encoding(results.qual_by_pos, info));
+  }
 
   for (const auto [results, info, outdir] :
-       std::views::zip(analyzer.results.front(), infos, outdirs)) {
-    set_quality_score_encoding(results.qual_by_pos, info);
-    results.finalize(mode, info);
-    const auto grades = results.get_grades();
-    const auto report = results.get_report(mode, info, grades);
-
-    const auto report_path =
-      (std::filesystem::path{outdir} / report_filename).string();
-    write_file(report_path, report);
-
-    const auto html = results.get_html(mode, info, grades);
-    const auto html_path =
-      (std::filesystem::path{outdir} / html_filename).string();
-    write_file(html_path, html);
-
-    const auto summary_path =
-      (std::filesystem::path{outdir} / summary_filename).string();
-    write_file(summary_path, grades.summary(info.name));
+       std::views::zip(final_results, infos, outdirs)) {
+    const auto outdir_path = std::filesystem::path{outdir};
+    const auto summary = results_summary(results, mode, info);
+    write_file(outdir_path / report_filename, summary.get_report());
+    write_file(outdir_path / html_filename, summary.get_html());
+    write_file(outdir_path / summary_filename, summary.get_summary());
   }
 }
 
