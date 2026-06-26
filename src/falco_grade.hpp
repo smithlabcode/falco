@@ -24,6 +24,9 @@
 #ifndef SRC_FALCO_GRADE_HPP_
 #define SRC_FALCO_GRADE_HPP_
 
+#include "falco_utils.hpp"
+#include "quality_score.hpp"
+
 #include "boost/boost_unordered.hpp"
 #include "nlohmann/json.hpp"
 
@@ -152,5 +155,30 @@ private:
 
   boost::unordered_flat_map<std::string, grader> graders;
 };  // grader_set
+
+[[nodiscard]] auto
+get_grade_sequence_length(const std::vector<std::uint64_t> &lengths)
+  -> std::string;
+
+[[nodiscard]] auto
+get_grade_gc_sequence(const falco::gc_content_array &gc_content) -> std::string;
+
+[[nodiscard]] auto
+get_grade_sequence(const std::vector<falco::nuc_array> &nucs) -> std::string;
+
+[[nodiscard]] auto
+get_grade_n_content(const std::vector<std::uint64_t> &n_counts,
+                    const std::vector<falco::nuc_array> &nucs) -> std::string;
+
+[[nodiscard]] auto
+get_grade_quality_sequence(const falco::qual_array &qual_by_read)
+  -> std::string;
+
+[[nodiscard]] auto
+get_grade_quality_base(const std::vector<falco::qual_array> &qual)
+  -> std::string;
+
+[[nodiscard]] auto
+get_grade_basic_stats() -> std::string;
 
 #endif  // SRC_FALCO_GRADE_HPP_
