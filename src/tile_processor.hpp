@@ -29,22 +29,16 @@
 
 #include "boost/boost_unordered.hpp"
 
-#include <array>
 #include <charconv>
 #include <cstdint>
-#include <format>
 #include <iterator>
-#include <limits>
 #include <map>
 #include <ranges>
 #include <string>
 #include <system_error>
-#include <thread>  // IWYU pragma: keep
 #include <type_traits>
 #include <utility>
 #include <vector>
-
-struct file_grades;
 
 namespace falco {
 enum class encoding : std::uint8_t;

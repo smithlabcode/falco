@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <format>
 #include <iterator>
 #include <ranges>

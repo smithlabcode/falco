@@ -23,19 +23,14 @@
 
 #include "adapter_set.hpp"
 
-#include "falco_utils.hpp"
-
 #include <algorithm>
-#include <array>
-#include <cassert>
-#include <cstdint>
+#include <cctype>
 #include <format>
 #include <fstream>
-#include <functional>
 #include <iterator>
-#include <numeric>
-#include <ranges>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <vector>
 

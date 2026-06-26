@@ -23,15 +23,23 @@
 
 #include "falco_grade.hpp"
 
+#include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <limits>
+#include <numeric>
 #include <ranges>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <utility>
+#include <vector>
 
 // clang-format off
 static const auto default_graders = std::array{

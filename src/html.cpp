@@ -26,6 +26,7 @@
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "html_boilerplate.hpp"
+#include "kmer_counter.hpp"  // IWYU pragma: keep
 
 #define FMT_HEADER_ONLY
 #include "fmt/base.h"
@@ -35,7 +36,16 @@
 
 #include <config.h>
 
+#include <algorithm>
+#include <array>
+#include <cassert>
 #include <chrono>
+#include <cmath>
+#include <initializer_list>
+#include <iterator>
+#include <map>
+#include <numeric>
+#include <ranges>
 #include <string>
 #include <vector>
 

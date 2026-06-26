@@ -36,8 +36,6 @@
 #include <utility>
 #include <vector>
 
-struct file_grades;
-
 struct kmer_result {
   // holds info for {kmer} x {position} to be sorted, filtered and output
   std::uint64_t kmer{};

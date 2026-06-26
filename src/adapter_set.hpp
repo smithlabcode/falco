@@ -24,16 +24,11 @@
 #ifndef SRC_ADAPTER_SET_HPP_
 #define SRC_ADAPTER_SET_HPP_
 
-#include "falco_utils.hpp"
-
 #include <array>
-#include <cstdint>
-#include <format>  // IWYU pragma: keep
 #include <iterator>
-#include <limits>
 #include <string>
-#include <thread>  // IWYU pragma: keep
-#include <utility>
+#include <tuple>
+#include <variant>
 #include <vector>
 
 struct adapter_set {

@@ -30,21 +30,17 @@
 
 #include "boost/boost_unordered.hpp"
 
-#define FMT_HEADER_ONLY
-#include "fmt/format.h"
-#include "fmt/ranges.h"
-
 #include <htslib/bgzf.h>
 #include <htslib/sam.h>
 
+#define FMT_HEADER_ONLY
+#include "fmt/format.h"
+
 #include <algorithm>
-#include <array>
 #include <cassert>
-#include <cmath>
 #include <cstdint>
 #include <format>
 #include <iterator>
-#include <limits>
 #include <map>
 #include <memory>
 #include <numeric>

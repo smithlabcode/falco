@@ -25,27 +25,24 @@
 
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
-#include "kmer_counter.hpp"
+#include "kmer_counter.hpp"  // IWYU pragma: keep
 #include "quality_score.hpp"
 #include "tile_processor.hpp"
-
-#include <config.h>
 
 #define FMT_HEADER_ONLY
 #include "fmt/base.h"
 #include "fmt/format.h"
-#include "fmt/ranges.h"
+
+#include <config.h>
 
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <cmath>
-#include <filesystem>
 #include <format>
-#include <functional>
 #include <initializer_list>
 #include <iterator>
 #include <limits>
+#include <map>
 #include <numeric>
 #include <ranges>
 #include <string>

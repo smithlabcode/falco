@@ -25,16 +25,15 @@
 #define SRC_HTML_HPP_
 
 #include "falco_utils.hpp"
-#include "kmer_counter.hpp"
 #include "quality_score.hpp"
 #include "tile_processor.hpp"
 
 #include <cstdint>
+#include <format>
 #include <string>
-#include <vector>
 
 struct file_grades;
-struct file_info;
+struct kmer_result;
 
 // grade / section_label / section_title / grade / text
 static constexpr auto html_module_fmt =

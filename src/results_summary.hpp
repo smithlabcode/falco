@@ -24,24 +24,19 @@
 #ifndef SRC_RESULTS_SUMMARY_HPP_
 #define SRC_RESULTS_SUMMARY_HPP_
 
-#include "results_collector.hpp"
-
 #include "adapter_matcher.hpp"
-#include "bam_file.hpp"
 #include "duplication_results.hpp"
-#include "falco_file_format.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
-#include "fastq_file.hpp"
 #include "kmer_counter.hpp"
+#include "quality_score.hpp"
+#include "results_collector.hpp"
 #include "tile_processor.hpp"
 
-#include <algorithm>
 #include <cstdint>
-#include <ranges>
+#include <format>
 #include <string>
-#include <type_traits>
-#include <unordered_map>
+#include <utility>
 #include <vector>
 
 struct results_summary {

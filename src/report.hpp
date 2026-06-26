@@ -24,18 +24,16 @@
 #ifndef SRC_REPORT_HPP_
 #define SRC_REPORT_HPP_
 
-#include "falco_grade.hpp"
 #include "falco_utils.hpp"
-#include "kmer_counter.hpp"
 #include "quality_score.hpp"
 #include "tile_processor.hpp"
 
-#include <array>
 #include <cstdint>
 #include <format>
-#include <limits>  // IWYU pragma: keep
 #include <string>
-#include <vector>  // IWYU pragma: keep
+
+struct file_grades;
+struct kmer_result;
 
 [[nodiscard]] auto
 sequence_length_report(const std::vector<std::uint64_t> &lengths,

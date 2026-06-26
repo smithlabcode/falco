@@ -29,12 +29,12 @@
 #include "tile_processor.hpp"
 
 #include <algorithm>
-#include <cstdint>
+#include <array>
+#include <assert.h>
 #include <iterator>
+#include <numeric>
 #include <ranges>
 #include <string>
-#include <thread>
-#include <type_traits>
 #include <unordered_map>
 #include <vector>
 

@@ -37,6 +37,7 @@ read duplication is analyzed (borrowing from preseq).
 #include "contaminants.hpp"
 #include "falco_analyzer.hpp"
 #include "falco_file_format.hpp"
+#include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
 #include "quality_score.hpp"

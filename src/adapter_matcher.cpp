@@ -26,18 +26,16 @@
 #include "adapter_set.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
-#include "html.hpp"  // for html_module_fmt
+#include "html.hpp"
 
 #define FMT_HEADER_ONLY
 #include "fmt/format.h"
-#include "fmt/ranges.h"
+#include "fmt/ranges.h"  // IWYU pragma: keep
 
 #include <algorithm>
-#include <array>
 #include <cassert>
 #include <cstdint>
 #include <format>
-#include <fstream>
 #include <functional>
 #include <iterator>
 #include <numeric>

@@ -24,18 +24,11 @@
 #ifndef SRC_ADAPTER_MATCHER_HPP_
 #define SRC_ADAPTER_MATCHER_HPP_
 
-#include "adapter_set.hpp"
-#include "falco_grade.hpp"
 #include "falco_utils.hpp"
 
-#include <array>
 #include <cstdint>
-#include <format>  // IWYU pragma: keep
-#include <iterator>
-#include <limits>
+#include <format>
 #include <string>
-#include <thread>  // IWYU pragma: keep
-#include <utility>
 #include <vector>
 
 struct file_grades;

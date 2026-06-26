@@ -30,15 +30,11 @@
 #include "boost/boost_unordered.hpp"
 #include "nlohmann/json.hpp"
 
-#include <algorithm>
 #include <array>
+#include <cstdint>
+#include <format>
 #include <iterator>
-#include <map>
-#include <ranges>
-#include <stdexcept>
 #include <string>
-#include <utility>
-#include <vector>
 
 // clang-format off
 
@@ -92,7 +88,7 @@ static_assert(std::size(section_names) == std::size(section_titles));
 // clang-format on
 
 struct file_grades {
-  std::map<std::string, std::string> g;
+  boost::unordered_flat_map<std::string, std::string> g;
 
   [[nodiscard]] auto
   is_configured(const std::string &name) const -> bool {

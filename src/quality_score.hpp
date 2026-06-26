@@ -26,14 +26,10 @@
 
 #include "nlohmann/json.hpp"
 
-#include <algorithm>
 #include <array>
+#include <cstdint>
 #include <format>
-#include <iterator>
-#include <ranges>
-#include <stdexcept>
-#include <utility>
-#include <vector>
+#include <string>
 
 struct file_info;
 

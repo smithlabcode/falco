@@ -24,7 +24,6 @@
 #ifndef SRC_DUPLICATION_RESULTS_HPP_
 #define SRC_DUPLICATION_RESULTS_HPP_
 
-#include "falco_grade.hpp"
 #include "falco_word.hpp"
 
 #include "boost/boost_unordered.hpp"
@@ -33,6 +32,8 @@
 #include <cstdint>
 #include <string>
 #include <utility>
+
+struct file_grades;
 
 struct duplication_results {
   static constexpr auto max_n_reads_total{1'000'000};
