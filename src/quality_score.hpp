@@ -35,6 +35,8 @@
 #include <utility>
 #include <vector>
 
+struct file_info;
+
 namespace falco {
 enum class encoding : std::uint8_t {
   unknown = 0,
@@ -70,61 +72,22 @@ using qual_array = std::array<std::uint64_t, max_qual_val>;
 // clang-format on
 }  // namespace falco
 
-[[nodiscard]] inline auto
-to_string(const falco::encoding e) -> std::string {
-  const auto u = std::to_underlying(e);
-  assert(u < std::size(falco::format_labels));
-  return falco::format_labels[u];
-}
+[[nodiscard]] auto
+to_string(const falco::encoding e) -> std::string;
 
-[[nodiscard]] static inline auto
-set_quality_score_encoding_impl(const auto &qual_counts,
-                                const std::int32_t qual_offset) {
-  const auto gt0 = [](const auto c) { return c > 0; };
-  const auto first_non_zero = [&](const auto &v) {
-    return std::distance(std::cbegin(v), std::ranges::find_if(v, gt0));
-  };
-  const auto min_qual =
-    std::ranges::min(qual_counts | std::views::transform(first_non_zero)) +
-    qual_offset;
-  if (min_qual > falco::max_qual_val)
-    throw std::runtime_error("invalid qual score: " + std::to_string(min_qual));
-  if (min_qual < falco::sanger_min_qual)
-    return falco::encoding::unknown;
-  if (min_qual < falco::solexa_min_qual)
-    return falco::encoding::sanger;
-  return falco::encoding::solexa;
-}
+[[nodiscard]] auto
+get_quality_score_offset(const auto encoding) -> std::int64_t;
 
-[[nodiscard]] inline auto
-set_quality_score_encoding(const auto &qual_counts, auto &info) {
-  const auto shift = is_mapped_reads(info.format) ? falco::bam_qual_offset : 0;
-  info.encoding = set_quality_score_encoding_impl(qual_counts, shift);
-}
+[[nodiscard]] auto
+identify_encoding(const std::vector<falco::qual_array> &qual_counts,
+                  file_info &info) -> falco::encoding;
 
-[[nodiscard]] inline auto
-get_quality_score_offset(const auto encoding) {
-  // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
-  return falco::min_qual_offsets[std::to_underlying(encoding)];
-}
+[[nodiscard]] auto
+get_quality_score_label(const auto encoding) -> std::string;
 
-[[nodiscard]] inline auto
-get_quality_score_label(const auto encoding) {
-  return falco::format_labels[std::to_underlying(encoding)];
-}
-
-inline auto
+auto
 adjust_fastq_qual_encoding(std::vector<falco::qual_array> &qual_by_pos,
                            falco::qual_array &qual_by_read,
-                           const falco::encoding enc) {
-  const auto qual_offset = get_quality_score_offset(enc);
-  // cppcheck-suppress constParameterReference
-  const auto shift_and_fill = [&](auto &x) {
-    const auto itr = std::shift_left(std::begin(x), std::end(x), qual_offset);
-    std::ranges::fill_n(itr, qual_offset, 0);
-  };
-  std::ranges::for_each(qual_by_pos, shift_and_fill);
-  shift_and_fill(qual_by_read);
-}
+                           const falco::encoding enc) -> void;
 
 #endif  // SRC_QUALITY_SCORE_HPP_
