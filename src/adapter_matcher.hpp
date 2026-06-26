@@ -47,7 +47,7 @@ struct adapter_matcher {
   std::vector<std::vector<std::uint64_t>> adap_counts;
 
   auto
-  finalize(const run_mode &mode) -> void;
+  apply_groups(const run_mode &mode) -> void;
 
   adapter_matcher();
 
@@ -102,13 +102,12 @@ struct adapter_matcher {
   get_grade(const std::uint64_t n_reads) const -> std::string;
 
   [[nodiscard]] auto
-  get_report(const std::uint64_t n_reads,
-             const std::vector<base_group_t> &groups,
-             const file_grades &grades) const -> std::string;
+  report(const std::uint64_t n_reads, const std::vector<base_group_t> &groups,
+         const file_grades &grades) const -> std::string;
 
   [[nodiscard]] auto
-  get_html(const std::uint64_t n_reads, const std::vector<base_group_t> &groups,
-           const file_grades &grades) const -> std::string;
+  html(const std::uint64_t n_reads, const std::vector<base_group_t> &groups,
+       const file_grades &grades) const -> std::string;
 };
 
 #endif  // SRC_ADAPTER_MATCHER_HPP_

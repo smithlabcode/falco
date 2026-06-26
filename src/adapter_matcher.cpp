@@ -26,6 +26,7 @@
 #include "adapter_set.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
+#include "html.hpp"  // for html_module_fmt
 
 #define FMT_HEADER_ONLY
 #include "fmt/format.h"
@@ -76,9 +77,9 @@ adapter_matcher::get_grade(const std::uint64_t n_reads) const -> std::string {
 }
 
 [[nodiscard]] auto
-adapter_matcher::get_report(const std::uint64_t n_reads,
-                            const std::vector<base_group_t> &groups,
-                            const file_grades &grades) const -> std::string {
+adapter_matcher::report(const std::uint64_t n_reads,
+                        const std::vector<base_group_t> &groups,
+                        const file_grades &grades) const -> std::string {
   static constexpr auto label = "adapter";
   static constexpr auto start_module_tag = ">>Adapter Content\t{}\n";
   static constexpr auto header = "#Position";
@@ -110,9 +111,9 @@ adapter_matcher::get_report(const std::uint64_t n_reads,
 }
 
 [[nodiscard]] auto
-adapter_matcher::get_html(const std::uint64_t n_reads,
-                          const std::vector<base_group_t> &groups,
-                          const file_grades &grades) const -> std::string {
+adapter_matcher::html(const std::uint64_t n_reads,
+                      const std::vector<base_group_t> &groups,
+                      const file_grades &grades) const -> std::string {
   static constexpr auto label = "adapter";
   static constexpr auto plot_fmt =
     R"(<div id="adapters_plot"></div>
@@ -164,10 +165,8 @@ name: "{}",
 }
 
 auto
-adapter_matcher::finalize(const run_mode &mode) -> void {
-  if (do_groups(mode)) {
-    const auto groups =
-      get_default_base_groups(std::size(adap_counts), do_groups(mode));
-    apply_base_groups(groups, adap_counts);
-  }
+adapter_matcher::apply_groups(const run_mode &mode) -> void {
+  const auto groups =
+    get_default_base_groups(std::size(adap_counts), do_groups(mode));
+  apply_base_groups(groups, adap_counts);
 }
