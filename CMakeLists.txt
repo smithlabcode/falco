@@ -92,19 +92,13 @@ if(CMAKE_BUILD_TYPE STREQUAL Release)
   endif()
 endif()
 
-add_library(tile_processor OBJECT src/tile_processor.cpp)
-target_link_libraries(tile_processor PRIVATE HTSLIB::HTSLIB)
-
-add_library(kmer_counter OBJECT src/kmer_counter.cpp)
-target_link_libraries(kmer_counter PRIVATE HTSLIB::HTSLIB)
-
-add_library(duplication_results OBJECT src/duplication_results.cpp)
-target_link_libraries(duplication_results PRIVATE HTSLIB::HTSLIB)
+add_library(adapter_set OBJECT src/adapter_set.cpp)
+add_library(falco_utils OBJECT src/falco_utils.cpp)
 
 add_library(fastq_file OBJECT src/fastq_file.cpp)
 target_link_libraries(fastq_file PRIVATE HTSLIB::HTSLIB)
 if(USE_ISAL)
-  target_link_libraries(fastq_file PUBLIC ISAL::ISAL)
+  target_link_libraries(fastq_file PRIVATE ISAL::ISAL)
 endif()
 
 add_library(bam_file OBJECT src/bam_file.cpp)
@@ -113,19 +107,72 @@ target_link_libraries(bam_file PRIVATE HTSLIB::HTSLIB)
 add_library(falco_file_format OBJECT src/falco_file_format.cpp)
 target_link_libraries(falco_file_format PRIVATE HTSLIB::HTSLIB)
 
-add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
-target_link_libraries(adapter_matcher PRIVATE HTSLIB::HTSLIB)
+add_library(quality_score OBJECT src/quality_score.cpp)
+target_link_libraries(quality_score PRIVATE falco_file_format)
 
-add_library(falco_utils OBJECT src/falco_utils.cpp)
-target_link_libraries(falco_utils PRIVATE HTSLIB::HTSLIB)
+add_library(tile_processor OBJECT src/tile_processor.cpp)
+target_link_libraries(tile_processor PRIVATE
+  bam_file  # ADS: hope to remove this dep
+  falco_file_format
+  HTSLIB::HTSLIB
+)
 
 add_library(falco_grade OBJECT src/falco_grade.cpp)
+target_link_libraries(falco_grade PRIVATE
+  falco_utils
+  quality_score
+)
+
+add_library(kmer_counter OBJECT src/kmer_counter.cpp)
+target_link_libraries(kmer_counter PRIVATE
+  falco_grade
+  falco_utils
+)
+
 add_library(contaminants OBJECT src/contaminants.cpp)
-add_library(adapter_set OBJECT src/adapter_set.cpp)
-add_library(html OBJECT src/html.cpp)
+
+add_library(duplication_results OBJECT src/duplication_results.cpp)
+target_link_libraries(duplication_results PRIVATE
+  falco_grade
+  falco_utils
+  contaminants
+)
+
+add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
+target_link_libraries(adapter_matcher PRIVATE
+  falco_utils
+  falco_grade
+  adapter_set
+)
+
 add_library(report OBJECT src/report.cpp)
+target_link_libraries(report PRIVATE
+  tile_processor
+  quality_score
+  kmer_counter
+  falco_utils
+)
+
+add_library(html OBJECT src/html.cpp)
+target_link_libraries(report PRIVATE
+  tile_processor
+  quality_score
+  kmer_counter
+  falco_utils
+)
+
 add_library(results_summary OBJECT src/results_summary.cpp)
-add_library(quality_score OBJECT src/quality_score.cpp)
+target_link_libraries(results_summary PRIVATE
+  adapter_matcher
+  duplication_results
+  falco_grade
+  falco_utils
+  html
+  kmer_counter
+  quality_score
+  report
+  tile_processor
+)
 
 add_executable(falco2 src/falco2.cpp)
 target_link_libraries(falco2 PRIVATE
