@@ -43,14 +43,15 @@
 #include <utility>
 #include <vector>
 
-/// ADS: to wrap a module in the HTML output; put here because used in many
-/// files.
-// grade / section_label / section_title / grade / text
-static constexpr auto html_module_fmt =
-  R"(<div class="module">
-<h2 class="{}" id="{}">{}: {}</h2>
-{}
-</div>)";
+static constexpr auto cytosine_index = 3;
+static constexpr auto guanine_index = 1;
+
+namespace falco {
+static constexpr auto alphabet_size = 4;
+using nuc_array = std::array<std::uint64_t, alphabet_size>;
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
+using gc_content_array = std::array<std::uint64_t, 101>;
+}  // namespace falco
 
 static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
 static constexpr std::int64_t megabytes = 1024 * 1024;
@@ -62,6 +63,18 @@ enum class encoding : std::uint8_t;
 namespace falco {
 enum class file_format : std::uint8_t;
 }
+
+[[nodiscard]] auto
+smooth_gc_content(const falco::gc_content_array &data,
+                  const std::int64_t window_size) -> std::vector<double>;
+
+[[nodiscard]] auto
+get_theoretical_distribution(const falco::gc_content_array &gc,
+                             const std::uint64_t total_count)
+  -> std::vector<double>;
+
+[[nodiscard]] auto
+sum_deviation_from_normal(const falco::gc_content_array &gc) -> double;
 
 [[nodiscard]] constexpr auto
 duration(const auto start, const auto stop) {
@@ -88,17 +101,15 @@ struct file_info {
     return data.dump(n_indent);
   }
 
+  auto
+  set_encoding(const falco::encoding &e) {
+    encoding = e;
+  }
+
   NLOHMANN_DEFINE_TYPE_INTRUSIVE(file_info, name, format, description, size,
                                  n_reads_est, read_len_est, encoding, has_tiles,
                                  tile_id_position);
 };
-
-namespace falco {
-static constexpr auto alphabet_size = 4;
-using nuc_array = std::array<std::uint64_t, alphabet_size>;
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
-using gc_content_array = std::array<std::uint64_t, 101>;
-}  // namespace falco
 
 struct run_mode {
   bool do_tiles{};
@@ -372,6 +383,13 @@ apply_base_groups(const std::vector<base_group_t> &groups, auto &rows,
   }
   ++current_row;  // move past the last row used
   rows.resize(current_row);
+}
+
+[[nodiscard]] static inline auto
+get_max_size(const auto &x) {
+  assert(!x.empty());
+  const auto sz = [](const auto &y) { return std::size(y); };
+  return std::ranges::max(std::views::transform(x | std::views::values, sz));
 }
 
 #endif  // SRC_FALCO_UTILS_HPP_
