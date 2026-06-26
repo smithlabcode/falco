@@ -33,7 +33,6 @@
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
-#include "format_output.hpp"
 #include "kmer_counter.hpp"
 #include "tile_processor.hpp"
 
@@ -152,6 +151,9 @@ struct results_summary {
 
   [[nodiscard]] auto
   get_html() const -> std::string;
+
+  [[nodiscard]] auto
+  get_summary() const -> std::string;
 };
 
 #endif  // SRC_RESULTS_SUMMARY_HPP_

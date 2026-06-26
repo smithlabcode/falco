@@ -159,3 +159,8 @@ results_summary::get_html() const -> std::string {
       modules += itr->second;
   return falco_get_html(info, grades, modules);
 }
+
+[[nodiscard]] auto
+results_summary::get_summary() const -> std::string {
+  return grades.to_string(info.name);
+}
