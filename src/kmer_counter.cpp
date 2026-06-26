@@ -53,7 +53,12 @@ kmer_result::operator<=>(const kmer_result &rhs) const {
 }
 
 [[nodiscard]] auto
-kmer_result::string() const {
+kmer_result::decode() const -> std::string {
+  return kmer_counter::decode_kmer(kmer, kmer_counter::kmer_size);
+}
+
+[[nodiscard]] auto
+kmer_result::string() const -> std::string {
   // ADS: format a row for output of a kmer
   return std::format("{}\t{}\t{:.6g}\t{:.6g}\t{}",
                      kmer_counter::decode_kmer(kmer, kmer_counter::kmer_size),
@@ -173,6 +178,7 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
   });
   results.erase(std::cbegin(to_erase), std::cend(to_erase));
   std::ranges::sort(results, std::greater{});
+  results.resize(n_kmers_to_report);
   return results;
 }
 
@@ -199,7 +205,7 @@ kmer_counter::get_report(const std::string &grade) const -> std::string {
   r += header;
   // ADS: should set 'results' as member that can be set in 'finalize'
   const auto results = get_kmer_results();
-  for (const auto &res : results | std::views::take(n_kmers_to_report))
+  for (const auto &res : results)
     // cppcheck-suppress useStlAlgorithm
     r += std::format("{}\n", res.string());
   return r + end_module_tag;
@@ -220,7 +226,7 @@ kmer_counter::decode_kmer(auto word, const auto n_bases) -> std::string {
 }
 
 auto
-kmer_counter::finalize([[maybe_unused]] const run_mode &mode) -> void {
+kmer_counter::apply_groups([[maybe_unused]] const run_mode &mode) -> void {
   // ADS: !!! should we be computing the 'results' here?
   // if (mode.do_groups) {
   //   const auto groups = get_default_base_groups(max_read_len,
@@ -229,43 +235,10 @@ kmer_counter::finalize([[maybe_unused]] const run_mode &mode) -> void {
 }
 
 [[nodiscard]] auto
-kmer_counter::get_html(const file_grades &grades) const -> std::string {
+get_grade_kmer(const std::vector<kmer_result> &results) -> std::string {
   static constexpr auto label = "kmer";
-  static constexpr auto plot_format = R"(<div id="{}"></div>
-<script>Plotly.newPlot("{}",
-{}
-);</script>
-)";
-  static constexpr auto kmer_line_format =
-    R"({{
-x: [{}],
-y: [{}],
-type: "line",
-name: "{}",
-}})";
-  const auto results = get_kmer_results();  // ADS: redundant
-  const auto to_report = results | std::views::take(n_kmers_to_report);
-  const auto get_pos = [&](const auto &x) { return x.pos; };
-  // xlim: max pos with kmer to report
-  const auto xlim = std::ranges::max(std::views::transform(to_report, get_pos));
-  auto mostly0 = std::vector(xlim, 0.0);  // change one position each kmer
-  const auto xvals = std::views::iota(0u, xlim);
-  auto prev = 0;
-  const auto format1 = [&](const auto &k) {
-    // x: positions in read; y: zeros except at 'pos' for the kmer
-    mostly0[prev] = 0.0;  // replace the zero for previous position 'k.pos'
-    mostly0[k.pos] = std::log2(k.obs_exp);
-    prev = k.pos;
-    return fmt::format(kmer_line_format, fmt::join(xvals, ", "),
-                       fmt::join(mostly0, ", "),
-                       decode_kmer(k.kmer, kmer_size));
-  };
-  const auto grade = grades.grade(label);
-  const auto title = grades.get_title(label);
-  return fmt::format(
-    html_module_fmt, grade, label, title, grade,
-    fmt::format(
-      plot_format, "kmer_plot", "kmer_plot",
-      fmt::format(
-        "[{}]", fmt::join(std::views::transform(to_report, format1), ",\n"))));
+  const auto pval = results.front().pval;
+  const auto neg_log_p_val =
+    pval > 0.0 ? -std::log10(pval) : std::numeric_limits<double>::max();
+  return grader_set::get_grade(label, neg_log_p_val);
 }

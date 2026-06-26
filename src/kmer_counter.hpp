@@ -48,7 +48,9 @@ struct kmer_result {
   [[nodiscard]] auto
   operator<=>(const kmer_result &rhs) const;
   [[nodiscard]] auto
-  string() const;
+  string() const -> std::string;
+  [[nodiscard]] auto
+  decode() const -> std::string;
 };
 
 struct kmer_counter {
@@ -108,7 +110,7 @@ struct kmer_counter {
   }
 
   auto
-  finalize(const run_mode &mode) -> void;
+  apply_groups(const run_mode &mode) -> void;
 
   auto
   operator+=(const kmer_counter &rhs) -> const kmer_counter &;
@@ -122,11 +124,11 @@ struct kmer_counter {
   [[nodiscard]] auto
   get_report(const std::string &grade) const -> std::string;
 
-  [[nodiscard]] auto
-  get_html(const file_grades &grades) const -> std::string;
-
   [[nodiscard]] static auto
   decode_kmer(auto word, const auto n_bases) -> std::string;
 };
+
+[[nodiscard]] auto
+get_grade_kmer(const std::vector<kmer_result> &results) -> std::string;
 
 #endif  // SRC_KMER_COUNTER_HPP_
