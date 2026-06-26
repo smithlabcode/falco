@@ -43,18 +43,18 @@
 
 // clang-format off
 static const auto default_graders = std::array{
-  grader{.name="quality_base_median", .warn=25.0, .fail=20.0},
-  grader{.name="quality_base_lower",  .warn=10.0, .fail=5.00},
-  grader{.name="quality_sequence",    .warn=27.0, .fail=20.0},
-  grader{.name="n_content",           .warn=0.05, .fail=0.20},
-  grader{.name="sequence",            .warn=10.0, .fail=20.0},
-  grader{.name="sequence_length",     .warn=1.00, .fail=1.00},
-  grader{.name="gc_sequence",         .warn=15.0, .fail=30.0},
-  grader{.name="duplication",         .warn=0.70, .fail=0.50},
-  grader{.name="overrepresented",     .warn=0.10, .fail=1.00},
-  grader{.name="kmer",                .warn=2.00, .fail=5.00},
-  grader{.name="tile",                .warn=5.00, .fail=10.0},
-  grader{.name="adapter",             .warn=0.05, .fail=0.10},
+  grader{.name = "quality_base_median", .warn = 25.0, .fail = 20.0},
+  grader{.name = "quality_base_lower",  .warn = 10.0, .fail = 5.00},
+  grader{.name = "quality_sequence",    .warn = 27.0, .fail = 20.0},
+  grader{.name = "n_content",           .warn = 0.05, .fail = 0.20},
+  grader{.name = "sequence",            .warn = 10.0, .fail = 20.0},
+  grader{.name = "sequence_length",     .warn = 1.00, .fail = 1.00},
+  grader{.name = "gc_sequence",         .warn = 15.0, .fail = 30.0},
+  grader{.name = "duplication",         .warn = 0.70, .fail = 0.50},
+  grader{.name = "overrepresented",     .warn = 0.10, .fail = 1.00},
+  grader{.name = "kmer",                .warn = 2.00, .fail = 5.00},
+  grader{.name = "tile",                .warn = 5.00, .fail = 10.0},
+  grader{.name = "adapter",             .warn = 0.05, .fail = 0.10},
 };
 // clang-format on
 
