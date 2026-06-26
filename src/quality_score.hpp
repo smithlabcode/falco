@@ -72,14 +72,14 @@ using qual_array = std::array<std::uint64_t, max_qual_val>;
 to_string(const falco::encoding e) -> std::string;
 
 [[nodiscard]] auto
-get_quality_score_offset(const auto encoding) -> std::int64_t;
+get_quality_score_offset(const falco::encoding e) -> std::int64_t;
 
 [[nodiscard]] auto
 identify_encoding(const std::vector<falco::qual_array> &qual_counts,
                   file_info &info) -> falco::encoding;
 
 [[nodiscard]] auto
-get_quality_score_label(const auto encoding) -> std::string;
+get_quality_score_label(const falco::encoding e) -> std::string;
 
 auto
 adjust_fastq_qual_encoding(std::vector<falco::qual_array> &qual_by_pos,
