@@ -232,3 +232,51 @@ load_contaminants(const std::string &filename) -> void {
     contaminants.emplace_back(name, seq);
   }
 }
+
+[[nodiscard]] auto
+get_contam_name(const std::int64_t contam_idx) -> const std::string & {
+  using std::string_literals::operator""s;
+  static constexpr auto no_hit_label = "No Hit"s;
+  if (contam_idx < 0 || contam_idx >= std::ssize(contaminants))
+    return no_hit_label;
+  return contaminants[contam_idx].first;
+}
+
+auto
+load_contaminants(const std::string &filename) -> void;
+
+// get the longest substring of left that is a prefix of right
+[[nodiscard]] static inline auto
+get_overlap(const auto &left, const auto &right) {
+  const auto left_beg = std::cbegin(left);
+  const auto left_end = std::cend(left);
+  auto best_n_matches = 0L;
+  for (auto left_itr = left_beg; left_itr != left_end; ++left_itr) {
+    const auto [mm_left, _] =
+      std::ranges::mismatch(std::ranges::subrange(left_itr, left_end), right);
+    const auto n_matches = std::distance(left_itr, mm_left);
+    best_n_matches = std::max(best_n_matches, n_matches);
+  }
+  return best_n_matches;
+}
+
+[[nodiscard]] auto
+match_contaminant(const std::string &query) -> std::int64_t {
+  auto best_idx = 0;
+  auto best_match = 0L;
+  auto best_match_len = 0LU;
+  auto idx = 0;
+  for (const auto &[name, seq] : contaminants) {
+    const auto n_match =
+      std::max(get_overlap(query, seq), get_overlap(seq, query));
+    if (n_match > best_match) {
+      best_idx = idx;
+      best_match = n_match;
+      best_match_len = std::size(seq);
+    }
+    ++idx;
+  }
+  const auto match_cutoff = std::min(best_match_len, std::size(query)) / 2.0;
+  // If any sequence is a match, return the best one
+  return best_match < match_cutoff ? -1 : best_idx;
+}
