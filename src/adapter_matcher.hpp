@@ -25,6 +25,7 @@
 #define SRC_ADAPTER_MATCHER_HPP_
 
 #include "falco_utils.hpp"
+#include "run_mode.hpp"
 
 #include <cstdint>
 #include <format>
