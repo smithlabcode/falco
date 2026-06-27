@@ -82,8 +82,9 @@ get_name_bam(const std::string &filename) -> std::string {
 
 [[nodiscard]] auto
 tile_processor::get_centered() -> tile_processor::tiles_centered_t {
-  std::vector<double> means(max_read_len);
-  std::vector<double> n_tiles_for_size(max_read_len);
+  const auto current_max_len = get_max_size(quals);
+  std::vector<double> means(current_max_len);
+  std::vector<double> n_tiles_for_size(current_max_len);
   for (const auto &tile_quals : quals | std::views::values) {
     for (const auto [i, q] : std::views::enumerate(tile_quals))
       means[i] += as_frac(q.first, q.second);
@@ -112,7 +113,10 @@ tile_processor::get_centered() -> tile_processor::tiles_centered_t {
 };
 
 auto
-tile_processor::adjust_fastq_qual_encoding(const falco::encoding enc) -> void {
+tile_processor::adjust_fastq_qual_encoding(const file_info &info) -> void {
+  if (is_mapped_reads(info.format))  // BAM/SAM needs no adjusting
+    return;
+  const falco::encoding enc = info.encoding;
   const auto qual_offset = get_quality_score_offset(enc);
   for (auto &tile_quals : quals | std::views::values)
     for (auto &q : tile_quals)
@@ -121,6 +125,8 @@ tile_processor::adjust_fastq_qual_encoding(const falco::encoding enc) -> void {
 
 auto
 tile_processor::trim() -> void {
+  // ADS: all tiles are assumed to have the same max read length during
+  // analysis, so we trim each tile to its own max read length post-analysis
   for (auto &tile_quals : quals | std::views::values) {
     auto first_trailing_zero = 0L;
     for (const auto [i, q] : std::views::enumerate(tile_quals))
@@ -132,20 +138,18 @@ tile_processor::trim() -> void {
 auto
 tile_processor::finalize(const file_info &info) -> void {
   trim();
-  if (!is_mapped_reads(info.format))
-    adjust_fastq_qual_encoding(info.encoding);
+  adjust_fastq_qual_encoding(info);
 }
 
 auto
 tile_processor::apply_groups(const run_mode &mode) -> void {
-  if (do_groups(mode)) {
-    const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
-    for (auto &quals_for_tile : std::views::values(quals))
-      apply_base_groups(groups, quals_for_tile, [](auto &a, const auto &b) {
-        a.first += b.first;
-        a.second += b.second;
-      });
-  }
+  assert(max_read_len == get_max_size(quals));
+  const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
+  for (auto &quals_for_tile : std::views::values(quals))
+    apply_base_groups(groups, quals_for_tile, [](auto &a, const auto &b) {
+      a.first += b.first;
+      a.second += b.second;
+    });
 }
 
 auto

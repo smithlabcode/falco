@@ -26,6 +26,7 @@
 
 #include "bam_file.hpp"
 #include "falco_utils.hpp"
+#include "run_mode.hpp"
 
 #include "boost/boost_unordered.hpp"
 
@@ -49,7 +50,8 @@ enum class encoding : std::uint8_t;
 // - The number of tiles should never exceed 2500?
 // - Among the first 10k reads, all should contribute to tiles?
 
-struct tile_processor {
+class tile_processor {
+public:
   using tiles_centered_t = std::map<std::uint32_t, std::vector<double>>;
   // ADS: needs to count roughly ~1M reads each contributing up to 128
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
@@ -63,21 +65,13 @@ struct tile_processor {
   boost::unordered_flat_map<std::uint32_t, qual_vec> quals;
 
   auto
-  trim() -> void;
-
-  auto
-  adjust_fastq_qual_encoding(const falco::encoding enc) -> void;
-
-  auto
   init(const file_info &info) {
     tile_id_position = info.tile_id_position;
   }
 
-  /// finalize does 4 things:
+  /// finalize does 2 things:
   /// (1) trims tile data that's too long for the given tile
   /// (2) adjust the quality scores based on the encoding
-  /// (3) makes groups for each tile's data vectors
-  /// (4) returns the (ordered) map of centered values
   auto
   finalize(const file_info &info) -> void;
 
@@ -92,7 +86,33 @@ struct tile_processor {
              const std::string &grade) const -> std::string;
 
   auto
+  operator()(const auto &rec) {
+    if (read_idx-- == 0) [[unlikely]] {
+      read_idx = read_skip;
+      const auto curr_len = static_cast<std::uint32_t>(get_seq_size(rec));
+      update_tile_id(get_name(rec), get_name_end(rec));
+      if (curr_len > max_read_len)
+        resize(curr_len);
+      if constexpr (std::is_same_v<std::decay_t<decltype(rec)>, bamrec>) {
+        if (rec.is_rev)
+          count_quals_itr_rev(get_qual(rec), get_qual_end(rec), qual);
+        else
+          count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
+      }
+      else
+        count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
+    }
+  }
+
+  auto
   operator+=(const tile_processor &rhs) -> const tile_processor &;
+
+private:
+  auto
+  trim() -> void;
+
+  auto
+  adjust_fastq_qual_encoding(const file_info &info) -> void;
 
   auto
   resize(const std::uint32_t updated_length) {
@@ -122,25 +142,6 @@ struct tile_processor {
         tile_id_itr =
           quals.emplace(tile_id, qual_vec(max_read_len, {0, 0})).first;
       qual = std::begin(tile_id_itr->second);
-    }
-  }
-
-  auto
-  operator()(const auto &rec) {
-    if (read_idx-- == 0) [[unlikely]] {
-      read_idx = read_skip;
-      const auto curr_len = static_cast<std::uint32_t>(get_seq_size(rec));
-      update_tile_id(get_name(rec), get_name_end(rec));
-      if (curr_len > max_read_len)
-        resize(curr_len);
-      if constexpr (std::is_same_v<std::decay_t<decltype(rec)>, bamrec>) {
-        if (rec.is_rev)
-          count_quals_itr_rev(get_qual(rec), get_qual_end(rec), qual);
-        else
-          count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
-      }
-      else
-        count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
     }
   }
 };
