@@ -35,6 +35,20 @@
 
 struct file_grades;
 
+struct overrep_t {
+  falco_word w;
+  std::uint64_t n_obs{};     // number of observations
+  double pct_val{};          // corresponding percentage
+  std::int32_t contam_id{};  // index of matching contaminant
+};
+
+struct dup_summary_t {
+  std::uint64_t max_dup{};
+  std::uint64_t n_reads{};
+  std::vector<std::uint64_t> hist_mass;
+  std::vector<std::uint64_t> hist_dedup;
+};
+
 struct duplication_results {
   static constexpr auto max_n_reads_total{1'000'000};
 #ifdef ORIGINAL_DUPS
@@ -59,23 +73,15 @@ struct duplication_results {
   auto
   initialize(const std::uint64_t est_n_reads) -> void;
 
-  [[nodiscard]] auto
-  get_grade_overrepresented() const -> std::string;
+  auto
+  get_n_reads() const -> std::uint64_t;
 
   [[nodiscard]] auto
-  overrepresented_report(const file_grades &grades) const -> std::string;
+  get_dups_summary() const -> dup_summary_t;
 
   [[nodiscard]] auto
-  overrepresented_html(const file_grades &grades) const -> std::string;
-
-  [[nodiscard]] auto
-  get_grade_duplication() const -> std::string;
-
-  [[nodiscard]] auto
-  duplication_report(const file_grades &grades) const -> std::string;
-
-  [[nodiscard]] auto
-  duplication_html(const file_grades &grades) const -> std::string;
+  get_overrepresented(const std::uint64_t n_reads) const
+    -> std::vector<overrep_t>;
 
   auto
   operator+=(const duplication_results &rhs) -> const duplication_results &;
@@ -97,5 +103,28 @@ struct duplication_results {
   }
 #endif  // ORIGINAL_DUPS
 };
+
+[[nodiscard]] auto
+get_grade_duplication(const dup_summary_t &summary) -> std::string;
+
+[[nodiscard]] auto
+duplication_report(const dup_summary_t &summary,
+                   const file_grades &grades) -> std::string;
+
+[[nodiscard]] auto
+duplication_html(const dup_summary_t &summary,
+                 const file_grades &grades) -> std::string;
+
+[[nodiscard]] auto
+get_grade_overrepresented(const std::uint64_t n_reads,
+                          const duplication_results &dr) -> std::string;
+
+[[nodiscard]] auto
+overrepresented_report(const std::vector<overrep_t> &overrep,
+                       const file_grades &grades) -> std::string;
+
+[[nodiscard]] auto
+overrepresented_html(const std::vector<overrep_t> &overrep,
+                     const file_grades &grades) -> std::string;
 
 #endif  // SRC_DUPLICATION_RESULTS_HPP_

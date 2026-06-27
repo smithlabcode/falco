@@ -103,6 +103,28 @@ static_assert(std::size(bin_labels) == std::size(bin_breaks) &&
               n_bins + 1 == std::size(bin_labels));
 
 auto
+duplication_results::get_n_reads() const -> std::uint64_t {
+  const auto dups_v = std::views::values(dups);
+  return std::reduce(std::cbegin(dups_v), std::cend(dups_v));
+}
+
+[[nodiscard]] auto
+duplication_results::get_overrepresented(const std::uint64_t n_reads) const
+  -> std::vector<overrep_t> {
+  const auto cutoff = static_cast<double>(n_reads) * overrep_cutoff;
+  const auto gt_cutoff = [&](const auto p) { return p.second >= cutoff; };
+  const auto rev_p = [&](const auto p) { return std::pair{p.second, p.first}; };
+  auto overrep = dups | std::views::filter(gt_cutoff) |
+                 std::views::transform(rev_p) | std::ranges::to<std::vector>();
+  std::ranges::sort(overrep, std::greater{});
+  std::vector<overrep_t> ret;
+  for (const auto &[n_obs, seq] : overrep)
+    ret.emplace_back(seq, n_obs, pct(as_frac(n_obs, n_reads)),
+                     match_contaminant(seq.string()));
+  return ret;
+}
+
+auto
 duplication_results::initialize(const std::uint64_t est_n_reads) -> void {
   read_skip = est_n_reads < max_n_reads_total
                 ? 0
@@ -118,38 +140,28 @@ duplication_results::operator+=(const duplication_results &rhs)
 }
 
 [[nodiscard]] auto
-duplication_results::get_grade_overrepresented() const -> std::string {
+get_grade_overrepresented(const std::uint64_t n_reads,
+                          const duplication_results &dr) -> std::string {
   static constexpr auto label = "overrepresented";
-  const auto max_n_obs = std::ranges::max(std::views::values(dups));
-  const auto dups_v = std::views::values(dups);
-  const auto n_reads = std::reduce(std::cbegin(dups_v), std::cend(dups_v));
+  const auto max_n_obs = std::ranges::max(std::views::values(dr.dups));
   return grader_set::get_grade(label, as_frac(max_n_obs, n_reads));
 }
 
 [[nodiscard]] auto
-duplication_results::overrepresented_report(const file_grades &grades) const
-  -> std::string {
+overrepresented_report(const std::vector<overrep_t> &overrep,
+                       const file_grades &grades) -> std::string {
   static constexpr auto label = "overrepresented";
   static constexpr auto start_tag = ">>Overrepresented sequences\t{}\n";
   static constexpr auto header = "#Sequence\t"
                                  "Count\t"
                                  "Percentage\t"
                                  "Possible Source\n";
-  const auto dups_v = std::views::values(dups);
-  const auto n_reads = std::reduce(std::cbegin(dups_v), std::cend(dups_v));
-  const auto cutoff = static_cast<double>(n_reads) * overrep_cutoff;
-  const auto gt_cutoff = [&](const auto p) { return p.second >= cutoff; };
-  const auto rev_p = [&](const auto p) { return std::pair{p.second, p.first}; };
-  auto overrep = dups | std::views::filter(gt_cutoff) |
-                 std::views::transform(rev_p) | std::ranges::to<std::vector>();
-  std::ranges::sort(overrep, std::greater{});
   auto r = std::format(start_tag, grades.grade(label));
   if (!overrep.empty()) {
     r += header;
-    for (const auto &[n_obs, seq] : overrep)
-      r += std::format("{}\t{}\t{:.3g}\t{}\n", seq, n_obs,
-                       pct(as_frac(n_obs, n_reads)),
-                       match_contaminant(seq.string(), contaminants));
+    for (const auto &[seq, n_obs, pct_val, contam_id] : overrep)
+      r += std::format("{}\t{}\t{:.3g}\t{}\n", seq, n_obs, pct_val,
+                       contaminants[contam_id].second);
   }
   return r + end_module_tag;
 }
@@ -168,9 +180,7 @@ make_bins(const auto &breaks, const auto &hist) {
 }
 
 [[nodiscard]] auto
-get_dups_summary(const auto &dups)
-  -> std::tuple<std::uint64_t, std::vector<std::uint64_t>,
-                std::vector<std::uint64_t>> {
+duplication_results::get_dups_summary() const -> dup_summary_t {
   const auto max_dup = std::ranges::max(std::views::values(dups));
   std::vector<std::uint64_t> hist_dedup(max_dup + 1);
   for (const auto n_copies : std::views::values(dups))
@@ -180,42 +190,46 @@ get_dups_summary(const auto &dups)
       std::views::enumerate(hist_dedup),
       [](const auto x) { return std::get<0>(x) * std::get<1>(x); }) |
     std::ranges::to<std::vector>();
-  return std::tuple{max_dup, std::move(hist_mass), std::move(hist_dedup)};
+  // ADS: move needed to avoid copying during creation of the tuple
+  return dup_summary_t{
+    max_dup,
+    get_n_reads(),
+    std::move(hist_mass),
+    std::move(hist_dedup),
+  };
 }
 
 [[nodiscard]] auto
-duplication_results::get_grade_duplication() const -> std::string {
+get_grade_duplication(const dup_summary_t &summary) -> std::string {
   static constexpr auto label = "duplication";
-  // ADS: major redundunant work here
-  const auto [_, hist_mass, hist_dedup] = get_dups_summary(dups);
   const auto reduce = [](const auto &v) {
     return std::reduce(std::cbegin(v), std::cend(v));
   };
-  const auto frac_dedup = as_frac(reduce(hist_dedup), reduce(hist_mass));
+  const auto frac_dedup =
+    as_frac(reduce(summary.hist_dedup), reduce(summary.hist_mass));
   return grader_set::get_grade(label, frac_dedup);
 }
 
 [[nodiscard]] auto
-duplication_results::duplication_report(const file_grades &grades) const
-  -> std::string {
+duplication_report(const dup_summary_t &summary,
+                   const file_grades &grades) -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
                                     "#Total Deduplicated Percentage\t{:.6f}\n";
   static constexpr auto header = "#Duplication Level\t"
                                  "Percentage of total\n";
-  // clang-format on
-  const auto [max_dup, hist_mass, hist_dedup] = get_dups_summary(dups);
   const auto to_pct = [&](const auto &v) {
     const auto sum = std::reduce(std::cbegin(v), std::cend(v));
     const auto p = [&](const auto d) { return pct(as_frac(d, sum)); };
-    return make_bins(bin_breaks, v) | std::views::transform(p) |
-           std::ranges::to<std::vector>();
+    return make_bins(bin_breaks, v) | std::views::transform(p);
   };
-  const auto binned_mass_pct = to_pct(hist_mass);
+  const auto binned_mass_pct =
+    to_pct(summary.hist_mass) | std::ranges::to<std::vector>();
   const auto reduce = [](const auto &v) {
     return std::reduce(std::cbegin(v), std::cend(v));
   };
-  const auto frac_dedup = as_frac(reduce(hist_dedup), reduce(hist_mass));
+  const auto frac_dedup =
+    as_frac(reduce(summary.hist_dedup), reduce(summary.hist_mass));
   auto r = std::format(start_tag, grades.grade(label), pct(frac_dedup));
   r += header;
   for (const auto [label, mass] :
@@ -225,8 +239,8 @@ duplication_results::duplication_report(const file_grades &grades) const
 }
 
 [[nodiscard]] auto
-duplication_results::overrepresented_html(const file_grades &grades) const
-  -> std::string {
+overrepresented_html(const std::vector<overrep_t> &overrep,
+                     const file_grades &grades) -> std::string {
   static constexpr auto label = "overrepresented";
   static constexpr auto html_table = R"(<table>
 <thead>
@@ -244,31 +258,22 @@ duplication_results::overrepresented_html(const file_grades &grades) const
 )";
   static constexpr auto html_table_row_fmt =  // Percentage format is .3g
     "<tr><td>{}</td><td>{}</td><td>{:.3g}</td><td>{}</td></tr>";
-  const auto dups_v = std::views::values(dups);
-  const auto n_reads = std::reduce(std::cbegin(dups_v), std::cend(dups_v));
-  const auto cutoff = static_cast<double>(n_reads) * overrep_cutoff;
-  const auto is_ge_cutoff = [&](const auto p) { return p.second >= cutoff; };
-  const auto rev_p = [&](const auto p) { return std::pair{p.second, p.first}; };
-  auto overrep = dups | std::views::filter(is_ge_cutoff) |
-                 std::views::transform(rev_p) | std::ranges::to<std::vector>();
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
   if (overrep.empty())
     return fmt::format(html_module_fmt, grade, label, title, grade,
                        "No overrepresented sequences");
-  std::ranges::sort(overrep, std::greater{});
   std::vector<std::string> rows;
-  for (const auto &[n_obs, seq] : overrep)
-    rows.emplace_back(fmt::format(
-      html_table_row_fmt, seq.string(), n_obs, pct(as_frac(n_obs, n_reads)),
-      match_contaminant(seq.string(), contaminants)));
+  for (const auto &[seq, n_obs, pct_val, contam_id] : overrep)
+    rows.push_back(fmt::format(html_table_row_fmt, seq.string(), n_obs, pct_val,
+                               contaminants[contam_id].second));
   return fmt::format(html_module_fmt, grade, label, title, grade,
                      fmt::format(html_table, fmt::join(rows, "\n")));
 }
 
 [[nodiscard]] auto
-duplication_results::duplication_html(const file_grades &grades) const
-  -> std::string {
+duplication_html(const dup_summary_t &summary,
+                 const file_grades &grades) -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto plot_format = R"(<div id="duplication_plot"></div>
 <script>Plotly.newPlot("duplication_plot",
@@ -302,7 +307,6 @@ yaxis: {{title: "% of sequences"}},
   static constexpr auto x = std::views::iota(1, n_bins + 1);
   static constexpr auto x_text =  // has one extra element at "0"
     std::ranges::subrange(std::cbegin(bin_labels), std::cend(bin_labels));
-  const auto [max_dup, hist_mass, hist_dedup] = get_dups_summary(dups);
   const auto to_pct = [&](const auto &v) {
     const auto sum = std::reduce(std::cbegin(v), std::cend(v));
     const auto p = [&](const auto d) { return pct(as_frac(d, sum)); };
@@ -312,9 +316,9 @@ yaxis: {{title: "% of sequences"}},
   const auto title = grades.get_title(label);
   return fmt::format(
     html_module_fmt, grade, label, title, grade,
-    fmt::format(plot_format,                                  //
-                x, to_pct(hist_mass) | std::views::drop(1),   // y_tot,
-                x, to_pct(hist_dedup) | std::views::drop(1),  // y_dedup
-                x, x_text | std::views::drop(1)               // tickvals
+    fmt::format(plot_format,                                          //
+                x, to_pct(summary.hist_mass) | std::views::drop(1),   // y_tot,
+                x, to_pct(summary.hist_dedup) | std::views::drop(1),  // y_dedup
+                x, x_text | std::views::drop(1)  // tickvals
                 ));
 }
