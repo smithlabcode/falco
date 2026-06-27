@@ -52,6 +52,9 @@ struct results_summary {
   std::vector<falco::qual_array> qual_by_pos;
   falco::qual_array qual_by_read{};
   duplication_results dr;
+  std::uint64_t n_reads_for_dups{};
+  std::vector<overrep_t> overrep;
+  dup_summary_t dup_summary;
   adapter_matcher am;
   tile_processor tp;
   tile_processor::tiles_centered_t centered;

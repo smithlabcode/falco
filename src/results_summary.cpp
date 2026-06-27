@@ -63,6 +63,9 @@ results_summary::initialize() -> void {
   }
 
   // get summary structures
+  n_reads_for_dups = dr.get_n_reads();
+  overrep = dr.get_overrepresented(n_reads_for_dups);
+  dup_summary = dr.get_dups_summary();
   centered = tp.get_centered();
   kmer_results = kc.get_kmer_results();
 
@@ -79,8 +82,9 @@ results_summary::assign_grades() -> void {
   grades.emplace("gc_sequence", get_grade_gc_sequence(gc_content));
   grades.emplace("n_content", get_grade_n_content(n_counts, base_counts));
   grades.emplace("sequence_length", get_grade_sequence_length(lengths));
-  grades.emplace("duplication", dr.get_grade_duplication());
-  grades.emplace("overrepresented", dr.get_grade_overrepresented());
+  grades.emplace("duplication", get_grade_duplication(dup_summary));
+  grades.emplace("overrepresented",
+                 get_grade_overrepresented(n_reads_for_dups, dr));
   grades.emplace("adapter", am.get_grade(n_reads));
   if (do_tiles(mode))
     grades.emplace("tile", get_grade_tile(centered));
@@ -100,8 +104,8 @@ results_summary::get_report() const -> std::string {
     {"gc_sequence", gc_sequence_report(gc_content, grades)},
     {"n_content", n_content_report(n_counts, base_counts, groups, grades)},
     {"sequence_length", sequence_length_report(lengths, grades)},
-    {"duplication", dr.duplication_report(grades)},
-    {"overrepresented", dr.overrepresented_report(grades)},
+    {"duplication", duplication_report(dup_summary, grades)},
+    {"overrepresented", overrepresented_report(overrep, grades)},
     {"adapter", am.report(n_reads, groups, grades)},
   };
   if (do_tiles(mode)) {
@@ -137,8 +141,8 @@ results_summary::get_html() const -> std::string {
     {"gc_sequence", gc_sequence_html(gc_content, grades)},
     {"n_content", n_content_html(n_counts, base_counts, groups, grades)},
     {"sequence_length", sequence_length_html(lengths, grades)},
-    {"duplication", dr.duplication_html(grades)},
-    {"overrepresented", dr.overrepresented_html(grades)},
+    {"duplication", duplication_html(dup_summary, grades)},
+    {"overrepresented", overrepresented_html(overrep, grades)},
     {"adapter", am.html(n_reads, groups, grades)},
   };
   if (do_tiles(mode)) {
