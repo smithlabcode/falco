@@ -36,6 +36,7 @@ read duplication is analyzed (borrowing from preseq).
 #include "bam_file.hpp"
 #include "contaminants.hpp"
 #include "falco_analyzer.hpp"
+#include "falco_config.hpp"
 #include "falco_file_format.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
@@ -121,10 +122,8 @@ run(const run_mode &mode, std::vector<file_info> &infos, auto &reads_files,
   }();
 
   // ADS: finalize() makes sure the variables mean what is intended
-  for (const auto &[results, info] : std::views::zip(final_results, infos)) {
+  for (const auto &[results, info] : std::views::zip(final_results, infos))
     results.finalize(info);
-    info.set_encoding(identify_encoding(results.qual_by_pos, info));
-  }
 
   for (const auto [results, info, outdir] :
        std::views::zip(final_results, infos, outdirs)) {
@@ -252,11 +251,12 @@ main(int argc, char *argv[]) {
     std::string outdir;
     std::int64_t buffer_size{buffer_size_default};
 
-    thread_counter n_threads{1, 0, 0};
-
     bool do_tiles{};
     bool do_kmers{};
     bool do_groups{};
+
+    thread_counter n_threads{1, 0, 0};
+
     bool verbose{};
 
     using std::literals::string_literals::operator""s;
@@ -265,6 +265,11 @@ main(int argc, char *argv[]) {
       {"M"s, megabytes},
       {"k"s, kilobytes},
     });
+
+    const auto license_callback = [&](auto) {
+      std::print("{}", license_text);
+      throw CLI::Success();
+    };
 
     CLI::App app{about};
     argv = app.ensure_utf8(argv);
@@ -278,10 +283,8 @@ main(int argc, char *argv[]) {
     app.set_help_flag("-h,--help", "Print more detailed help");
     app.set_version_flag("--version", VERSION, "Print program version");
     // clang-format off
-    app.add_flag("--license",
-                 [&](auto) { std::print("{}", license_text); throw CLI::Success(); },
-                 "Print full license")
-      ->callback_priority(CLI::CallbackPriority::First);
+    app.add_flag("--license", license_callback, "Print full license")
+      ->callback_priority(CLI::CallbackPriority::PreRequirementsCheck);
     app.add_option("INFILES", infiles,
                    "Input file: FASTQ (plain, GZIP or BGZF) or BAM/SAM")
       ->required()
@@ -291,7 +294,7 @@ main(int argc, char *argv[]) {
       ->required()
       ->option_text("DIR");
     app.add_option("--config", config_file,
-                   "Configuration file")
+                   "Configuration file (command line args take precedence)")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
     app.add_option("-c,--contaminants", contam_file,
@@ -328,8 +331,20 @@ main(int argc, char *argv[]) {
     }
     CLI11_PARSE(app, argc, argv);
 
+    run_mode mode;  // declare mode here so we can assign from config file
     if (!config_file.empty())
-      grader_set::instance(config_file);
+      load_config_and_set_graders(config_file, mode);
+    else
+      // if no config file, use default graders
+      grader_set::instance();
+
+    // now set run mode values to take priority over anything set in config file
+    if (do_tiles)
+      mode.do_tiles = true;
+    if (do_kmers)
+      mode.do_kmers = true;
+    if (do_groups)
+      mode.do_groups = true;
 
     const auto outdirs = make_outdirs(infiles, outdir);
 
@@ -382,16 +397,11 @@ main(int argc, char *argv[]) {
                    "use base groups in output: {}\n"
                    "input file format: {}\n"
                    "input files:",  //
-                   size_to_units(buffer_size), do_tiles, do_kmers, do_groups,
-                   format_description);
+                   size_to_units(buffer_size), mode.do_tiles, mode.do_kmers,
+                   mode.do_groups, format_description);
       std::ranges::for_each(infiles,
                             [](const auto &fn) { std::println("{}", fn); });
     }
-
-    run_mode mode;
-    mode.tiles(do_tiles);
-    mode.kmers(do_kmers);
-    mode.groups(do_groups);
 
     start_analysis(mode, buffer_size, n_threads, infos, infiles, outdirs);
 
