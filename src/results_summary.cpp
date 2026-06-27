@@ -51,18 +51,20 @@ results_summary::initialize() -> void {
   total_gc = std::accumulate(std::cbegin(base_counts), std::cend(base_counts),
                              0ul, gc_acc);
 
-  // get summary structures
-  centered = tp.get_centered();
-  kmer_results = kc.get_kmer_results();
-
-  // apply groups
+  // apply groups before making summary stats like in FastQC
   groups = get_default_base_groups(max_read_len, do_groups(mode));
   if (do_groups(mode)) {
     apply_base_groups(groups, base_counts);
     apply_base_groups(groups, n_counts);
     // ADS: need one for lengths
     apply_base_groups(groups, qual_by_pos);
+    am.apply_groups(mode);
+    tp.apply_groups(mode);
   }
+
+  // get summary structures
+  centered = tp.get_centered();
+  kmer_results = kc.get_kmer_results();
 
   // assign grades
   assign_grades();
