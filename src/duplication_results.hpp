@@ -56,16 +56,7 @@ struct duplication_results {
 #endif  // ORIGINAL_DUPS
   static constexpr auto default_read_skip{10};
   static constexpr auto overrep_cutoff = 0.001;
-  static constexpr auto grade_cutoffs = std::array{
-    std::pair{0.50, "fail"},
-    std::pair{0.70, "warn"},
-    std::pair{1.00, "pass"},
-  };
-  static constexpr auto overrep_grade_cutoffs = std::array{
-    std::pair{0.10, "pass"},
-    std::pair{1.00, "warn"},
-    std::pair{1.00, "fail"},
-  };
+
   std::int32_t read_skip{default_read_skip};
   std::int32_t read_idx{};
   boost::unordered_flat_map<falco_word, std::uint64_t> dups;

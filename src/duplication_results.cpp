@@ -47,9 +47,7 @@
 #include <tuple>
 #include <vector>
 
-// ADS issues:
-// 1. Number of bins is not user-adjustable.
-// 2. Matching an overrep sequence with contaminants might be done twice.
+// ADS: Number of bins is not user-adjustable.
 
 static constexpr auto n_bins = 16;
 
@@ -296,9 +294,9 @@ name: "deduplicated sequences",
 margin: {{t: 0}},
 showlegend: true,
 xaxis: {{
-  title: "Duplication rate",
-  tickvals: {},
-  ticktext: {},
+title: "Duplication rate",
+tickvals: {},
+ticktext: {},
 }},
 yaxis: {{title: "% of sequences"}},
 }}
