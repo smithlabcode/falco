@@ -221,10 +221,10 @@ duplication_report(const dup_summary_t &summary,
   const auto to_pct = [&](const auto &v) {
     const auto sum = std::reduce(std::cbegin(v), std::cend(v));
     const auto p = [&](const auto d) { return pct(as_frac(d, sum)); };
-    return make_bins(bin_breaks, v) | std::views::transform(p);
+    return make_bins(bin_breaks, v) | std::views::transform(p) |
+           std::ranges::to<std::vector>();
   };
-  const auto binned_mass_pct =
-    to_pct(summary.hist_mass) | std::ranges::to<std::vector>();
+  const auto binned_mass_pct = to_pct(summary.hist_mass);
   const auto reduce = [](const auto &v) {
     return std::reduce(std::cbegin(v), std::cend(v));
   };
