@@ -180,6 +180,12 @@ target_link_libraries(results_summary PUBLIC
   results_collector
 )
 
+add_library(run_mode OBJECT src/run_mode.cpp)
+add_library(falco_config OBJECT src/falco_config.cpp)
+target_link_libraries(falco_config PUBLIC
+  run_mode
+)
+
 add_executable(falco2 src/falco2.cpp)
 target_link_libraries(falco2 PUBLIC
   tile_processor
@@ -195,8 +201,10 @@ target_link_libraries(falco2 PUBLIC
   falco_grade
   results_summary
   quality_score
+  falco_config
   html
   report
+  run_mode
   HTSLIB::HTSLIB
   LIBDEFLATE::LIBDEFLATE
   ZLIB::ZLIB
