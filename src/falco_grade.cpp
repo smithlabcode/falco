@@ -135,86 +135,14 @@ grader_set::get_grade(const std::string &label,
   return get_grader(label).identify_grade(value);
 }
 
-[[nodiscard]] auto
-strip(const std::string &s) -> std::string {
-  if (s.empty())
-    return {};
-  const auto is_print = [](const auto c) { return std::isprint(c); };
-  const auto start = std::ranges::find_if(s, is_print);
-  if (start == std::cend(s))
-    return std::string{};
-  const auto stop = std::ranges::find_last_if(s, is_print);
-  return std::string{start, std::cbegin(stop) + 1};
-}
-
-[[nodiscard]] auto
-split(const std::string &s) {
-  std::istringstream iss(s);
-  return std::vector<std::string>{std::istream_iterator<std::string>{iss}, {}};
-}
-
-[[nodiscard]] static auto
-load_grades(const std::string &filename)
-  -> boost::unordered_flat_map<std::string, grader> {
-  // ADS: (todo) handle carriage returns and other control chars
-  std::ifstream in(filename);
-  if (!in)
-    throw std::runtime_error("failed to open config file: " + filename);
-  nlohmann::json json_in;
-
-  std::string line;
-  while (std::getline(in, line)) {
-    line = strip(line);
-    if (line.empty() || line[0] == '#')
-      continue;
-    const auto parts = split(line);
-    if (std::size(parts) != 3)
-      throw std::runtime_error("malformed config line: " + line);
-    json_in[parts[0]][parts[1]] = parts[2];
-  }
-
-  for (const auto &label : grade_labels)
-    if (json_in.contains(label) &&
-        !(json_in[label].contains("error") && json_in[label].contains("warn")))
-      throw std::runtime_error("missing config value for: " +
-                               std::string(label));
-
-  boost::unordered_flat_map<std::string, grader> graders;
-  try {
-    for (const auto &label : grade_labels) {
-      if (!json_in.contains(label))
-        continue;
-      const auto get_cutoff = [&](const std::string &label0) {
-        const auto x = json_in[label][label0].get<std::string>();
-        const auto beg = std::data(x);
-        const auto end = beg + std::size(x);  // NOLINT(*-pointer-arithmetic)
-        double val{};
-        const auto res = std::from_chars(beg, end, val);
-        if (res.ec != std::errc{})
-          throw std::runtime_error("error parsing cutoff: " + x);
-        return val;
-      };
-      const auto fail_val = get_cutoff("error");
-      const auto warn_val = get_cutoff("warn");
-      graders.emplace(label, grader(label, warn_val, fail_val));
-    }
-  }
-  catch (const nlohmann::json::exception &e) {
-    throw std::runtime_error(
-      std::format("failed parsing config file:\n{}", e.what()));
-  }
-  return graders;
-}
-
-grader_set::grader_set(const std::string &filename) {
-  if (filename.empty()) {
-    using map_t = boost::unordered_flat_map<std::string, grader>;
+grader_set::grader_set(const map_t<std::string, grader> &g) {
+  if (g.empty()) {
     const auto make_elem = [](const auto &x) { return std::pair{x.name, x}; };
     graders = default_graders | std::views::transform(make_elem) |
-              std::ranges::to<map_t>();
+              std::ranges::to<map_t<std::string, grader>>();
   }
   else
-    graders = load_grades(filename);
+    graders = g;
 }
 
 [[nodiscard]] auto

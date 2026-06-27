@@ -131,10 +131,13 @@ template <> struct std::formatter<grader> : std::formatter<std::string> {
 };
 
 class grader_set {
+  template <typename T, typename U>
+  using map_t = boost::unordered_flat_map<T, U>;
+
 public:
   static auto
-  instance(const std::string &filename = std::string{}) -> const grader_set & {
-    static const grader_set s(filename);
+  instance(const map_t<std::string, grader> &g = {}) -> const grader_set & {
+    static const grader_set s(g);
     return s;
   }
 
@@ -145,11 +148,11 @@ public:
   get_grade(const std::string &label, const double value) -> std::string;
 
 private:
-  grader_set(const std::string &filename);
+  grader_set(const map_t<std::string, grader> &g);
   grader_set() = default;
   ~grader_set() = default;
 
-  boost::unordered_flat_map<std::string, grader> graders;
+  map_t<std::string, grader> graders;
 };  // grader_set
 
 [[nodiscard]] auto
