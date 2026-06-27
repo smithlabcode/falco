@@ -110,28 +110,6 @@ struct file_info {
                                  tile_id_position);
 };
 
-struct run_mode {
-  bool do_tiles{};
-  bool do_kmers{};
-  bool do_groups{};
-
-  // clang-format off
-  auto tiles(const bool x) { do_tiles = x; }
-  [[nodiscard]] auto tiles() const { return do_tiles; }
-  auto kmers(const bool x) { do_kmers = x; }
-  [[nodiscard]] auto kmers() const { return do_kmers; }
-  auto groups(const bool x) { do_groups = x; }
-  [[nodiscard]] auto groups() const { return do_groups; }
-  [[nodiscard]] auto string() const -> std::string { return {}; }
-  // clang-format on
-};
-
-// clang-format off
-[[nodiscard]] constexpr inline auto do_tiles(const run_mode &rm) { return rm.do_tiles; }
-[[nodiscard]] constexpr inline auto do_kmers(const run_mode &rm) { return rm.do_kmers; }
-[[nodiscard]] constexpr inline auto do_groups(const run_mode &rm) { return rm.do_groups; }
-// clang-format on
-
 inline constexpr auto end_module_tag = ">>END_MODULE\n";
 
 // N (78)10 = (1001110)2
