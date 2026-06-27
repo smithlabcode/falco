@@ -186,9 +186,16 @@ struct alignas(assumed_page_size) results_collector {
     return *this;
   }
 
+  template <typename self_t>
   auto
-  finalize(const file_info &info) {
+  finalize(this self_t &self, file_info &info) {
+    self.finalize_impl(info);
+  }
+
+  auto
+  finalize_impl(file_info &info) {
     adjust_base_counts_for_ns();
+    info.set_encoding(identify_encoding(qual_by_pos, info));
     if (!is_mapped_reads(info.format))
       adjust_fastq_qual_encoding(qual_by_pos, qual_by_read, info.encoding);
   }
@@ -204,6 +211,12 @@ struct results_collector_tile : public results_collector {
     has_tiles = info.has_tiles;
     if (has_tiles)
       tp.init(info);
+  }
+
+  auto
+  finalize_impl(file_info &info) {
+    results_collector::finalize_impl(info);
+    tp.finalize(info);
   }
 
   auto
@@ -242,6 +255,11 @@ struct results_collector_kmer : public results_collector {
 
 struct results_collector_tile_kmer : public results_collector_tile {
   kmer_counter kc;
+
+  auto
+  finalize_impl(file_info &info) {
+    results_collector_tile::finalize_impl(info);
+  }
 
   auto
   process_one_read_impl(const auto &rec) {
