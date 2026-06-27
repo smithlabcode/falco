@@ -25,6 +25,7 @@
 #define SRC_KMER_COUNTER_HPP_
 
 #include "falco_utils.hpp"
+#include "run_mode.hpp"
 
 #include <array>
 #include <cstdint>
