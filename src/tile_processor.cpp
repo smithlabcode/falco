@@ -82,6 +82,8 @@ get_name_bam(const std::string &filename) -> std::string {
 
 [[nodiscard]] auto
 tile_processor::get_centered() -> tile_processor::tiles_centered_t {
+  if (quals.empty())  // ADS: if tiles weren't found or tile analysis not done
+    return {};
   const auto current_max_len = get_max_size(quals);
   std::vector<double> means(current_max_len);
   std::vector<double> n_tiles_for_size(current_max_len);
