@@ -253,6 +253,7 @@ main(int argc, char *argv[]) {
 
     int do_tiles{};
     int do_kmers{};
+    int do_dups{1};
     bool do_groups{};
 
     thread_counter n_threads{1, 0, 0};
@@ -333,6 +334,9 @@ main(int argc, char *argv[]) {
     app.add_flag("--kmers,!--no-kmers", do_kmers,
                  "Enable/disable k-mer analysis (overrides config file)")
       ->option_text(" ");
+    app.add_flag("--dups,!--no-dups", do_kmers,
+                 "Enable/disable duplication analysis (overrides config file)")
+      ->option_text(" ");
     app.add_flag("--groups", do_groups, "Group base positions in output");
     // clang-format on
 
@@ -356,9 +360,10 @@ main(int argc, char *argv[]) {
       mode.do_tiles = (do_tiles > 0);
     if (do_kmers)
       mode.do_kmers = (do_kmers > 0);
+    if (do_dups)
+      mode.do_dups = (do_dups > 0);
     if (do_groups)
       mode.do_groups = do_groups;
-
     const auto outdirs = make_outdirs(infiles, outdir);
 
     if (!contam_file.empty()) {
@@ -407,11 +412,12 @@ main(int argc, char *argv[]) {
       std::println("memory requested: {}\n"
                    "tile analysis requested: {}\n"
                    "k-mer analysis requested: {}\n"
+                   "dups analysis requested: {}\n"
                    "use base groups in output: {}\n"
                    "input file format: {}\n"
                    "input files:",  //
                    size_to_units(buffer_size), mode.do_tiles, mode.do_kmers,
-                   mode.do_groups, format_description);
+                   mode.do_dups, mode.do_groups, format_description);
       std::ranges::for_each(infiles,
                             [](const auto &fn) { std::println("{}", fn); });
     }
