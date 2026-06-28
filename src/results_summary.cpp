@@ -52,8 +52,8 @@ results_summary::initialize() -> void {
                              0ul, gc_acc);
 
   // apply groups before making summary stats like in FastQC
-  groups = get_default_base_groups(max_read_len, do_groups(mode));
-  if (do_groups(mode)) {
+  groups = get_default_base_groups(max_read_len, mode.do_groups());
+  if (mode.do_groups()) {
     apply_base_groups(groups, base_counts);
     apply_base_groups(groups, n_counts);
     // ADS: need one for lengths
@@ -83,14 +83,14 @@ results_summary::assign_grades() -> void {
   grades.emplace("n_content", get_grade_n_content(n_counts, base_counts));
   grades.emplace("sequence_length", get_grade_sequence_length(lengths));
   grades.emplace("adapter", am.get_grade(n_reads));
-  if (do_dups(mode)) {
+  if (mode.do_dups()) {
     grades.emplace("duplication", get_grade_duplication(dup_summary));
     grades.emplace("overrepresented",
                    get_grade_overrepresented(n_reads_for_dups, dr));
   }
-  if (do_tiles(mode))
+  if (mode.do_tiles())
     grades.emplace("tile", get_grade_tile(centered));
-  if (do_kmers(mode))
+  if (mode.do_kmers())
     grades.emplace("kmer", get_grade_kmer(kmer_results));
 }
 
@@ -108,16 +108,16 @@ results_summary::get_report() const -> std::string {
     {"sequence_length", sequence_length_report(lengths, grades)},
     {"adapter", am.report(n_reads, groups, grades)},
   };
-  if (do_dups(mode)) {
+  if (mode.do_dups()) {
     sections.emplace("duplication", duplication_report(dup_summary, grades));
     sections.emplace("overrepresented",
                      overrepresented_report(overrep, grades));
   }
-  if (do_tiles(mode)) {
+  if (mode.do_tiles()) {
     assert(!centered.empty());
     sections.emplace("tile", tile_report(centered, groups, grades));
   }
-  if (do_kmers(mode)) {
+  if (mode.do_kmers()) {
     assert(!kmer_results.empty());
     sections.emplace("kmer", kmer_report(kmer_results, grades));
   }
@@ -148,15 +148,15 @@ results_summary::get_html() const -> std::string {
     {"sequence_length", sequence_length_html(lengths, grades)},
     {"adapter", am.html(n_reads, groups, grades)},
   };
-  if (do_dups(mode)) {
+  if (mode.do_dups()) {
     sections.emplace("duplication", duplication_html(dup_summary, grades));
     sections.emplace("overrepresented", overrepresented_html(overrep, grades));
   }
-  if (do_tiles(mode)) {
+  if (mode.do_tiles()) {
     assert(!centered.empty());
     sections.emplace("tile", tile_html(centered, groups, grades));
   }
-  if (do_kmers(mode)) {
+  if (mode.do_kmers()) {
     assert(!kmer_results.empty());
     sections.emplace("kmer", kmer_html(kmer_results, grades));
   }
