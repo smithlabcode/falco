@@ -53,6 +53,10 @@ if(STATIC_ANALYSIS)
 endif()
 
 file(READ data/LICENSE LICENSE_TEXT)
+if(USE_ISAL)
+  file(READ data/ISA_license_text.txt ISAL_LICENSE_TEXT)
+  string(APPEND LICENSE_TEXT ${ISAL_LICENSE_TEXT})
+endif()
 configure_file(data/LICENSES.inc.in license.h @ONLY)
 
 option(PACKAGE "Enabling packaging mode (experts only)" off)
