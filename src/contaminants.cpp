@@ -244,9 +244,6 @@ get_contam_name(const std::int64_t contam_idx) -> const std::string & {
   return contaminants[contam_idx].first;
 }
 
-auto
-load_contaminants(const std::string &filename) -> void;
-
 // get the longest substring of left that is a prefix of right
 [[nodiscard]] static inline auto
 get_overlap(const auto &left, const auto &right) {
@@ -264,21 +261,20 @@ get_overlap(const auto &left, const auto &right) {
 
 [[nodiscard]] auto
 match_contaminant(const std::string &query) -> std::int64_t {
-  auto best_idx = 0;
+  auto best_idx = 0L;
   auto best_match = 0L;
-  auto best_match_len = 0LU;
-  auto idx = 0;
-  for (const auto &[name, seq] : contaminants) {
+  auto best_match_len = 0L;
+  for (const auto &[idx, seq] :
+       std::views::enumerate(std::views::elements<1>(contaminants))) {
     const auto n_match =
       std::max(get_overlap(query, seq), get_overlap(seq, query));
     if (n_match > best_match) {
       best_idx = idx;
       best_match = n_match;
-      best_match_len = std::size(seq);
+      best_match_len = std::ssize(seq);
     }
-    ++idx;
   }
-  const auto match_cutoff = std::min(best_match_len, std::size(query)) / 2.0;
+  const auto match_cutoff = std::min(best_match_len, std::ssize(query)) / 2;
   // If any sequence is a match, return the best one
   return best_match < match_cutoff ? -1 : best_idx;
 }
