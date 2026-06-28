@@ -22,6 +22,7 @@
  */
 
 #include "adapter_set.hpp"
+#include "run_mode.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -79,13 +80,16 @@ load_adapters(const std::string &filename) {
   return std::tuple{adapter_names, adapters};
 }
 
-adapter_set::adapter_set(const std::string &filename) {
-  if (filename.empty()) {
-    std::ranges::copy(default_adapter_names, std::back_inserter(adapter_names));
-    std::ranges::copy(default_adapters, std::back_inserter(adapters));
+adapter_set::adapter_set(const run_mode &m, const std::string &filename) {
+  if (m.do_adap()) {  // ADS: if not do_adap, then this is empty
+    if (filename.empty()) {
+      std::ranges::copy(default_adapter_names,
+                        std::back_inserter(adapter_names));
+      std::ranges::copy(default_adapters, std::back_inserter(adapters));
+    }
+    else
+      std::tie(adapter_names, adapters) = load_adapters(filename);
   }
-  else
-    std::tie(adapter_names, adapters) = load_adapters(filename);
 }
 
 [[nodiscard]] auto

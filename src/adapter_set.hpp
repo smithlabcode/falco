@@ -24,6 +24,8 @@
 #ifndef SRC_ADAPTER_SET_HPP_
 #define SRC_ADAPTER_SET_HPP_
 
+#include "run_mode.hpp"
+
 #include <array>
 #include <iterator>
 #include <string>
@@ -72,8 +74,9 @@ struct adapter_set {
   }
 
   static auto
-  instance(const std::string &filename = std::string{}) -> const adapter_set & {
-    static const adapter_set s(filename);
+  instance(const run_mode &mode = {},
+           const std::string &filename = std::string{}) -> const adapter_set & {
+    static const adapter_set s(mode, filename);
     return s;
   }
 
@@ -85,7 +88,7 @@ struct adapter_set {
   operator=(const adapter_set &) -> adapter_set & = delete;
 
 private:
-  explicit adapter_set(const std::string &filename);
+  explicit adapter_set(const run_mode &mode, const std::string &filename);
   adapter_set() = default;
   ~adapter_set() = default;
 };  // adapter_set
