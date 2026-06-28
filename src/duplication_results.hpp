@@ -24,7 +24,9 @@
 #ifndef SRC_DUPLICATION_RESULTS_HPP_
 #define SRC_DUPLICATION_RESULTS_HPP_
 
+#include "falco_utils.hpp"
 #include "falco_word.hpp"
+#include "run_mode.hpp"
 
 #include "boost/boost_unordered.hpp"
 
@@ -57,12 +59,12 @@ struct duplication_results {
   static constexpr auto default_read_skip{10};
   static constexpr auto overrep_cutoff = 0.001;
 
-  std::int32_t read_skip{default_read_skip};
-  std::int32_t read_idx{};
+  std::int64_t read_skip{default_read_skip};
+  std::int64_t read_idx{};
   boost::unordered_flat_map<falco_word, std::uint64_t> dups;
 
   auto
-  initialize(const std::uint64_t est_n_reads) -> void;
+  initialize(const run_mode &mode, const file_info &info) -> void;
 
   auto
   get_n_reads() const -> std::uint64_t;

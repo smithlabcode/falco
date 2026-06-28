@@ -28,6 +28,7 @@
 #include "falco_utils.hpp"
 #include "falco_word.hpp"
 #include "html.hpp"  // for html_module_fmt
+#include "run_mode.hpp"
 
 #include "boost/boost_unordered.hpp"
 
@@ -123,10 +124,20 @@ duplication_results::get_overrepresented(const std::uint64_t n_reads) const
 }
 
 auto
-duplication_results::initialize(const std::uint64_t est_n_reads) -> void {
-  read_skip = est_n_reads < max_n_reads_total
-                ? 0
-                : static_cast<std::int32_t>(est_n_reads / max_n_reads_total);
+duplication_results::initialize(const run_mode &mode,
+                                const file_info &info) -> void {
+  read_skip =
+    info.n_reads_est < max_n_reads_total
+      ? 0
+      : static_cast<std::int32_t>(info.n_reads_est / max_n_reads_total);
+  if (!do_dups(mode)) {
+    // ADS: disabling dups analysis
+#ifdef ORIGINAL_DUPS
+    max_reads_to_hash = 0;
+#else  // NOT ORIGINAL_DUPS
+    read_idx = std::numeric_limits<std::int64_t>::max();
+#endif
+  }
 }
 
 auto
@@ -141,7 +152,8 @@ duplication_results::operator+=(const duplication_results &rhs)
 get_grade_overrepresented(const std::uint64_t n_reads,
                           const duplication_results &dr) -> std::string {
   static constexpr auto label = "overrepresented";
-  const auto max_n_obs = std::ranges::max(std::views::values(dr.dups));
+  const auto max_n_obs =
+    dr.dups.empty() ? 0LU : std::ranges::max(std::views::values(dr.dups));
   return grader_set::get_grade(label, as_frac(max_n_obs, n_reads));
 }
 
@@ -159,7 +171,7 @@ overrepresented_report(const std::vector<overrep_t> &overrep,
     r += header;
     for (const auto &[seq, n_obs, pct_val, contam_id] : overrep)
       r += std::format("{}\t{}\t{:.3g}\t{}\n", seq, n_obs, pct_val,
-                       contaminants[contam_id].second);
+                       get_contam_name(contam_id));
   }
   return r + end_module_tag;
 }
@@ -179,6 +191,8 @@ make_bins(const auto &breaks, const auto &hist) {
 
 [[nodiscard]] auto
 duplication_results::get_dups_summary() const -> dup_summary_t {
+  if (dups.empty())
+    return {};
   const auto max_dup = std::ranges::max(std::views::values(dups));
   std::vector<std::uint64_t> hist_dedup(max_dup + 1);
   for (const auto n_copies : std::views::values(dups))
@@ -264,7 +278,7 @@ overrepresented_html(const std::vector<overrep_t> &overrep,
   std::vector<std::string> rows;
   for (const auto &[seq, n_obs, pct_val, contam_id] : overrep)
     rows.push_back(fmt::format(html_table_row_fmt, seq.string(), n_obs, pct_val,
-                               contaminants[contam_id].second));
+                               get_contam_name(contam_id)));
   return fmt::format(html_module_fmt, grade, label, title, grade,
                      fmt::format(html_table, fmt::join(rows, "\n")));
 }
