@@ -43,6 +43,7 @@ public:
   [[nodiscard]] auto do_tiles() const -> bool { return do_tiles_ == 1; }
   [[nodiscard]] auto do_dups() const -> bool { return do_dups_ == 1; }
   [[nodiscard]] auto do_kmers() const -> bool { return do_kmers_ == 1; }
+  [[nodiscard]] auto do_adap() const -> bool { return do_adap_ == 1; }
   [[nodiscard]] auto do_groups() const -> bool { return do_groups_ == 1; }
   // clang-format on
 
@@ -50,6 +51,7 @@ public:
   auto set_do_tiles(const int x) { if (x) do_tiles_ = x; }
   auto set_do_dups(const int x) { if (x) do_dups_ = x; }
   auto set_do_kmers(const int x) { if (x) do_kmers_ = x; }
+  auto set_do_adap(const int x) { if (x) do_adap_ = x; }
   auto set_do_groups(const int x) { if (x) do_groups_ = x; }
   // clang-format on
 
@@ -67,10 +69,12 @@ private:
   static constexpr auto do_kmers_default = -1;
   static constexpr auto do_groups_default = -1;
   static constexpr auto do_dups_default = 1;
+  static constexpr auto do_adap_default = 1;
 
   int do_tiles_{};
   int do_kmers_{};
   int do_dups_{};
+  int do_adap_{};
   int do_groups_{};
 
   static std::vector<std::string> labels;
