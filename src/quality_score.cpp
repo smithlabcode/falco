@@ -70,6 +70,7 @@ get_quality_score_offset(const falco::encoding e) -> std::int64_t {
 
 [[nodiscard]] auto
 get_quality_score_label(const falco::encoding e) -> std::string {
+  // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
   return falco::format_labels[std::to_underlying(e)];
 }
 
