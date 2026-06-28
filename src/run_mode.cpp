@@ -54,4 +54,5 @@ run_mode::assign(const boost::unordered_flat_map<std::string, bool> &modes)
   };
   set_mode("tile", do_tiles);
   set_mode("kmer", do_kmers);
+  set_mode("duplication", do_dups);
 }

@@ -32,6 +32,7 @@
 struct run_mode {
   bool do_tiles{};
   bool do_kmers{};
+  bool do_dups{};
   bool do_groups{};
 
   auto
@@ -48,6 +49,11 @@ struct run_mode {
 [[nodiscard]] constexpr inline auto
 do_tiles(const run_mode &rm) {
   return rm.do_tiles;
+}
+
+[[nodiscard]] constexpr inline auto
+do_dups(const run_mode &rm) {
+  return rm.do_dups;
 }
 
 [[nodiscard]] constexpr inline auto
