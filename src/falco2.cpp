@@ -114,7 +114,7 @@ run(const run_mode &mode, std::vector<file_info> &infos, auto &reads_files,
   auto final_results = [&] {
     const auto n_files = std::size(reads_files);
     analyzer_t<results_t, rec_t> analyzer(n_threads.workers, n_threads.readers,
-                                          n_files, reads_files, infos);
+                                          n_files, mode, infos, reads_files);
     // ADS: combine results for same input file collected by different threads
     for (const auto file_id : std::views::iota(0u, n_files))
       accumulate_results(analyzer.results, file_id);

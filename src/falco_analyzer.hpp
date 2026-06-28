@@ -27,6 +27,7 @@
 #include "bam_file.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
+#include "run_mode.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -67,8 +68,10 @@ template <typename results_t, typename rec_t> struct analyzer_t {
 
   explicit analyzer_t(const std::uint32_t n_threads,
                       const std::uint32_t n_readers,
-                      const std::uint32_t n_files, auto &reads_files,
-                      const std::vector<file_info> &infos) :
+                      const std::uint32_t n_files,  //
+                      const run_mode &mode,
+                      const std::vector<file_info> &infos,  //
+                      auto &reads_files) :
     n_tasks(n_files), n_active_files{n_files},
     results(n_threads, std::vector<results_t>(n_files)) {
     assert(std::size(reads_files) == std::size(infos));
@@ -76,7 +79,7 @@ template <typename results_t, typename rec_t> struct analyzer_t {
     // set per-file information used to do the analysis
     for (auto &res : results)
       for (const auto [file_id, info] : std::views::enumerate(infos))
-        res[file_id].init(info);
+        res[file_id].init(mode, info);
 
     for (const auto f_id : std::views::iota(0u, n_files))
       file_queue.emplace(f_id);

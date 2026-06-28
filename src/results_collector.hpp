@@ -74,12 +74,16 @@ struct alignas(assumed_page_size) results_collector {
     am.resize(updated_length);
   }
 
-  // clang-format off
   template <typename self_t>
   auto
-  init(this self_t &self, const auto &info) { self.init_impl(info); }
-  auto init_impl(const auto &info) { dr.initialize(info.n_reads_est); };
-  // clang-format on
+  init(this self_t &self, const run_mode &mode, const auto &info) {
+    self.init_impl(mode, info);
+  }
+
+  auto
+  init_impl(const run_mode &mode, const file_info &info) {
+    dr.initialize(mode, info);
+  };
 
   auto
   adjust_base_counts_for_ns() -> void {
@@ -206,8 +210,8 @@ struct results_collector_tile : public results_collector {
   bool has_tiles{};
 
   auto
-  init_impl(const auto &info) {
-    results_collector::init_impl(info);
+  init_impl(const run_mode &mode, const file_info &info) {
+    results_collector::init_impl(mode, info);
     has_tiles = info.has_tiles;
     if (has_tiles)
       tp.init(info);
