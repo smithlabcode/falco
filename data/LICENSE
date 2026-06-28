@@ -23,18 +23,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ========================================================================
-
-Additional licenses/copyrights for Falco dependencies:
-- HTSLib
-- ZLib
-- libdeflate
-- ISA-L
-- CLI11
-- Boost.Unordered
-- Niels Lohmann's JSON
-- {fmt}
-
-========================================================================
 Niels Lohmann's JSON
 
 MIT License
