@@ -254,6 +254,7 @@ main(int argc, char *argv[]) {
     int do_tiles{};
     int do_kmers{};
     int do_dups{};
+    int do_adap{};
     int do_groups{};
 
     thread_counter n_threads{1, 0, 0};
@@ -338,6 +339,9 @@ main(int argc, char *argv[]) {
     app.add_flag("--dups,!--no-dups", do_dups,
                  "Toggle sequence duplication analysis (default: on)")
       ->option_text(" ");
+    app.add_flag("--adap,!--no-adap", do_adap,
+                 "Toggle adapter analysis (default: on)")
+      ->option_text(" ");
     app.add_flag("--groups", do_groups, "Group base positions in output");
     // clang-format on
 
@@ -357,10 +361,13 @@ main(int argc, char *argv[]) {
       grader_set::instance();
 
     // now set run mode values to take priority over config file
+    if (!adapters_file.empty())
+      do_adap = 1;
     mode.set_do_tiles(do_tiles);
     mode.set_do_kmers(do_kmers);
     mode.set_do_dups(do_dups);
     mode.set_do_groups(do_groups);
+    mode.set_do_adap(do_adap);
     mode.set_unassigned();
 
     const auto outdirs = make_outdirs(infiles, outdir);
@@ -373,16 +380,16 @@ main(int argc, char *argv[]) {
                    contam_file, std::size(contaminants));
     }
 
-    if (!adapters_file.empty()) {
-      const auto &as = adapter_set::instance(adapters_file);
-      if (verbose)
-        std::print("adapters file: {}\n"
-                   "number of adapters: {}\n",
-                   adapters_file, adapter_set::n_adapters());
-      if (const auto [is_valid, message] = as.validate(); !is_valid) {
-        std::println("{}", message);
-        return EXIT_FAILURE;
-      }
+    const auto &as = adapter_set::instance(mode, adapters_file);
+    if (const auto [is_valid, message] = as.validate(); !is_valid) {
+      std::println("{}", message);
+      return EXIT_FAILURE;
+    }
+
+    if (!adapters_file.empty() && verbose) {
+      std::print("adapters file: {}\n"
+                 "number of adapters: {}\n",
+                 adapters_file, adapter_set::n_adapters());
     }
 
     auto infos = get_file_info(infiles);
@@ -412,11 +419,13 @@ main(int argc, char *argv[]) {
                    "tile analysis requested: {}\n"
                    "k-mer analysis requested: {}\n"
                    "dups analysis requested: {}\n"
+                   "adapter analysis requested: {}\n"
                    "use base groups in output: {}\n"
                    "input file format: {}\n"
                    "input files:",  //
                    size_to_units(buffer_size), mode.do_tiles(), mode.do_kmers(),
-                   mode.do_dups(), mode.do_groups(), format_description);
+                   mode.do_dups(), mode.do_adap(), mode.do_groups(),
+                   format_description);
       std::ranges::for_each(infiles,
                             [](const auto &fn) { std::println("{}", fn); });
     }
