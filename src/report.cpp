@@ -186,6 +186,7 @@ quality_base_report(const std::vector<falco::qual_array> &qual,
 basic_stats_report(const file_info &info, const std::uint64_t n_reads,
                    const std::uint64_t min_read_len,
                    const std::uint64_t max_read_len,
+                   const std::uint64_t median_read_len,
                    const std::uint64_t total_gc, const std::uint64_t total_nucs,
                    const file_grades &grades) -> std::string {
   static constexpr auto label = "basic_stats";
@@ -209,11 +210,12 @@ basic_stats_report(const file_info &info, const std::uint64_t n_reads,
   r += std::format("Encoding\t{}\n", to_string(info.encoding));
   r += std::format("Total Sequences\t{}\n", n_reads);
   r += std::format("Total Bases\t{}\n", total_nucs);
-  r += std::format("Sequences flagged as poor quality {}\n", 0);
   r += std::format("Sequence length\t{}\n",
                    min_read_len == max_read_len
                      ? std::format("{}", max_read_len)
                      : std::format("{}-{}", min_read_len, max_read_len));
+  r += std::format("Mean Length\t{}\n", as_frac(total_nucs, n_reads));
+  r += std::format("Median Length\t{}\n", median_read_len);
   r += std::format("%GC\t{:.1f}\n", pct(as_frac(total_gc, total_nucs)));
   r += end_module_tag;
   return r;

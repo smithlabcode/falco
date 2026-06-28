@@ -67,6 +67,7 @@ quality_base_report(const std::vector<falco::qual_array> &qual,
 basic_stats_report(const file_info &info, const std::uint64_t n_reads,
                    const std::uint64_t min_read_len,
                    const std::uint64_t max_read_len,
+                   const std::uint64_t median_read_len,
                    const std::uint64_t total_gc, const std::uint64_t total_nucs,
                    const file_grades &grades) -> std::string;
 
