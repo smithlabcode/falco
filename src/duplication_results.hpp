@@ -24,18 +24,18 @@
 #ifndef SRC_DUPLICATION_RESULTS_HPP_
 #define SRC_DUPLICATION_RESULTS_HPP_
 
-#include "falco_utils.hpp"
 #include "falco_word.hpp"
-#include "run_mode.hpp"
 
 #include "boost/boost_unordered.hpp"
 
-#include <array>
 #include <cstdint>
+#include <format>
 #include <string>
-#include <utility>
+#include <vector>
 
+class run_mode;
 struct file_grades;
+struct file_info;
 
 struct overrep_t {
   falco_word w;

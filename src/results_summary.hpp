@@ -31,6 +31,7 @@
 #include "kmer_counter.hpp"
 #include "quality_score.hpp"
 #include "results_collector.hpp"
+#include "run_mode.hpp"
 #include "tile_processor.hpp"
 
 #include <cstdint>

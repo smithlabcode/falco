@@ -25,7 +25,6 @@
 #define SRC_ADAPTER_MATCHER_HPP_
 
 #include "falco_utils.hpp"
-#include "run_mode.hpp"
 
 #include <cstdint>
 #include <format>
@@ -33,6 +32,7 @@
 #include <vector>
 
 struct file_grades;
+class run_mode;
 
 struct adapter_matcher {
   std::uint32_t n_adapters;

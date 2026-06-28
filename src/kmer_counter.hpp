@@ -25,7 +25,6 @@
 #define SRC_KMER_COUNTER_HPP_
 
 #include "falco_utils.hpp"
-#include "run_mode.hpp"
 
 #include <array>
 #include <cstdint>
@@ -36,6 +35,8 @@
 #include <thread>  // IWYU pragma: keep
 #include <utility>
 #include <vector>
+
+class run_mode;
 
 struct kmer_result {
   // holds info for {kmer} x {position} to be sorted, filtered and output

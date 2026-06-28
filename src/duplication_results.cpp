@@ -27,7 +27,7 @@
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "falco_word.hpp"
-#include "html.hpp"  // for html_module_fmt
+#include "html.hpp"
 #include "run_mode.hpp"
 
 #include "boost/boost_unordered.hpp"
@@ -37,6 +37,7 @@
 #include "fmt/ranges.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <format>
 #include <functional>
@@ -46,6 +47,7 @@
 #include <ranges>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 // ADS: Number of bins is not user-adjustable.
