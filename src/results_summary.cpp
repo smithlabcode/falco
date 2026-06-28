@@ -82,10 +82,12 @@ results_summary::assign_grades() -> void {
   grades.emplace("gc_sequence", get_grade_gc_sequence(gc_content));
   grades.emplace("n_content", get_grade_n_content(n_counts, base_counts));
   grades.emplace("sequence_length", get_grade_sequence_length(lengths));
-  grades.emplace("duplication", get_grade_duplication(dup_summary));
-  grades.emplace("overrepresented",
-                 get_grade_overrepresented(n_reads_for_dups, dr));
   grades.emplace("adapter", am.get_grade(n_reads));
+  if (do_dups(mode)) {
+    grades.emplace("duplication", get_grade_duplication(dup_summary));
+    grades.emplace("overrepresented",
+                   get_grade_overrepresented(n_reads_for_dups, dr));
+  }
   if (do_tiles(mode))
     grades.emplace("tile", get_grade_tile(centered));
   if (do_kmers(mode))
@@ -104,10 +106,13 @@ results_summary::get_report() const -> std::string {
     {"gc_sequence", gc_sequence_report(gc_content, grades)},
     {"n_content", n_content_report(n_counts, base_counts, groups, grades)},
     {"sequence_length", sequence_length_report(lengths, grades)},
-    {"duplication", duplication_report(dup_summary, grades)},
-    {"overrepresented", overrepresented_report(overrep, grades)},
     {"adapter", am.report(n_reads, groups, grades)},
   };
+  if (do_dups(mode)) {
+    sections.emplace("duplication", duplication_report(dup_summary, grades));
+    sections.emplace("overrepresented",
+                     overrepresented_report(overrep, grades));
+  }
   if (do_tiles(mode)) {
     assert(!centered.empty());
     sections.emplace("tile", tile_report(centered, groups, grades));
@@ -141,10 +146,12 @@ results_summary::get_html() const -> std::string {
     {"gc_sequence", gc_sequence_html(gc_content, grades)},
     {"n_content", n_content_html(n_counts, base_counts, groups, grades)},
     {"sequence_length", sequence_length_html(lengths, grades)},
-    {"duplication", duplication_html(dup_summary, grades)},
-    {"overrepresented", overrepresented_html(overrep, grades)},
     {"adapter", am.html(n_reads, groups, grades)},
   };
+  if (do_dups(mode)) {
+    sections.emplace("duplication", duplication_html(dup_summary, grades));
+    sections.emplace("overrepresented", overrepresented_html(overrep, grades));
+  }
   if (do_tiles(mode)) {
     assert(!centered.empty());
     sections.emplace("tile", tile_html(centered, groups, grades));
