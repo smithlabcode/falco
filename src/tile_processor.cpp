@@ -27,6 +27,7 @@
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
+#include "run_mode.hpp"
 
 #include "boost/boost_unordered.hpp"
 
@@ -146,7 +147,7 @@ tile_processor::finalize(const file_info &info) -> void {
 auto
 tile_processor::apply_groups(const run_mode &mode) -> void {
   assert(max_read_len == get_max_size(quals));
-  const auto groups = get_default_base_groups(max_read_len, do_groups(mode));
+  const auto groups = get_default_base_groups(max_read_len, mode.do_groups());
   for (auto &quals_for_tile : std::views::values(quals))
     apply_base_groups(groups, quals_for_tile, [](auto &a, const auto &b) {
       a.first += b.first;

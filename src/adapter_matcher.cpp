@@ -165,6 +165,6 @@ name: "{}",
 auto
 adapter_matcher::apply_groups(const run_mode &mode) -> void {
   const auto groups =
-    get_default_base_groups(std::size(adap_counts), do_groups(mode));
+    get_default_base_groups(std::size(adap_counts), mode.do_groups());
   apply_base_groups(groups, adap_counts);
 }

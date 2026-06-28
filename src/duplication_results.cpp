@@ -130,7 +130,7 @@ duplication_results::initialize(const run_mode &mode,
     info.n_reads_est < max_n_reads_total
       ? 0
       : static_cast<std::int32_t>(info.n_reads_est / max_n_reads_total);
-  if (!do_dups(mode)) {
+  if (!mode.do_dups()) {
     // ADS: disabling dups analysis
 #ifdef ORIGINAL_DUPS
     max_reads_to_hash = 0;
