@@ -274,6 +274,15 @@ mean_tabular(const auto &a) {
   return static_cast<double>(num) / static_cast<double>(denom);
 }
 
+[[nodiscard]] inline auto
+median_tabular(const auto &a) {
+  using value_type = std::decay_t<decltype(a)>::value_type;
+  std::vector<value_type> cumul(std::size(a), 0);
+  std::inclusive_scan(std::cbegin(a), std::cend(a), std::begin(cumul));
+  const auto ub = std::ranges::upper_bound(cumul, cumul.back() / 2);
+  return static_cast<std::uint32_t>(std::distance(std::begin(cumul), ub));
+}
+
 // clang-format off
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
 [[nodiscard]] constexpr inline auto median_val(const auto &q) { return q[0]; }
