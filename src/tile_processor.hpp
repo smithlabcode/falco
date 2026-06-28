@@ -115,7 +115,7 @@ private:
   adjust_fastq_qual_encoding(const file_info &info) -> void;
 
   auto
-  resize(const std::uint32_t updated_length) {
+  resize(const std::uint32_t updated_length) -> void {
     max_read_len = updated_length;
     for (auto &q : quals | std::views::values)
       q.resize(max_read_len);
