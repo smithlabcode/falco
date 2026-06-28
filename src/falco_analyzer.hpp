@@ -84,55 +84,60 @@ template <typename results_t, typename rec_t> struct analyzer_t {
     for (const auto f_id : std::views::iota(0u, n_files))
       file_queue.emplace(f_id);
 
-    std::vector<std::jthread> workers;
-    workers.reserve(n_threads);
-    for (const auto th_id : std::views::iota(0u, n_threads))
-      workers.emplace_back([this, th_id](const std::stop_token &stop) {
-        auto &res = results[th_id];
-        while (true) {
-          std::unique_lock task_queue_lock(task_queue_mtx);
-          task_queue_cv.wait(task_queue_lock, stop,
-                             [this] { return !task_queue.empty(); });
-          if (stop.stop_requested() && task_queue.empty())
-            return;
-          const auto task = pop_task(task_queue_lock);
-          res[task.file_id].template process_reads<rec_t>(task.beg, task.end);
-          if (n_tasks[task.file_id].fetch_sub(1) == 1)
-            push_file(task.file_id);
-        }
-      });
-
-    std::vector<std::jthread> readers;
-    readers.reserve(n_readers);
-    for (const auto _ : std::views::iota(0u, n_readers))
-      readers.emplace_back([&]() {
-        while (true) {
-          std::unique_lock file_queue_lock(file_queue_mtx);
-          file_queue_cv.wait(file_queue_lock, [this] {
-            return n_active_files == 0 || !file_queue.empty();
-          });
-          if (n_active_files == 0)
-            return;
-          const auto f_id = pop_file(file_queue_lock);
-          if (!reads_files[f_id]) {
-            if (--n_active_files == 0) {
-              file_queue_cv.notify_all();
+    {
+      std::vector<std::jthread> workers;
+      workers.reserve(n_threads);
+      for (const auto th_id : std::views::iota(0u, n_threads))
+        workers.emplace_back([this, th_id](const std::stop_token &stop) {
+          auto &res = results[th_id];
+          while (true) {
+            std::unique_lock task_queue_lock(task_queue_mtx);
+            task_queue_cv.wait(task_queue_lock, stop,
+                               [this] { return !task_queue.empty(); });
+            if (stop.stop_requested() && task_queue.empty())
               return;
-            }
-            continue;
+            const auto task = pop_task(task_queue_lock);
+            res[task.file_id].template process_reads<rec_t>(task.beg, task.end);
+            if (n_tasks[task.file_id].fetch_sub(1) == 1)
+              push_file(task.file_id);
           }
-          reads_files[f_id].load_next();
-          n_tasks[f_id] = n_chunks_per_file;
-          const auto chunks = get_chunks(reads_files[f_id], n_chunks_per_file);
-          std::ranges::for_each(chunks,
-                                [&](const auto &c) { push_task(f_id, c); });
-        }
-      });
-    std::ranges::for_each(readers, [](auto &reader) { reader.join(); });
+        });
 
-    std::unique_lock task_queue_lock(task_queue_mtx);
-    task_queue_cv.wait(task_queue_lock, [this] { return task_queue.empty(); });
-    std::ranges::for_each(workers, [](auto &worker) { worker.request_stop(); });
+      std::vector<std::jthread> readers;
+      readers.reserve(n_readers);
+      for (const auto _ : std::views::iota(0u, n_readers))
+        readers.emplace_back([&]() {
+          while (true) {
+            std::unique_lock file_queue_lock(file_queue_mtx);
+            file_queue_cv.wait(file_queue_lock, [this] {
+              return n_active_files == 0 || !file_queue.empty();
+            });
+            if (n_active_files == 0)
+              return;
+            const auto f_id = pop_file(file_queue_lock);
+            if (!reads_files[f_id]) {
+              if (--n_active_files == 0) {
+                file_queue_cv.notify_all();
+                return;
+              }
+              continue;
+            }
+            reads_files[f_id].load_next();
+            n_tasks[f_id] = n_chunks_per_file;
+            const auto chunks =
+              get_chunks(reads_files[f_id], n_chunks_per_file);
+            std::ranges::for_each(chunks,
+                                  [&](const auto &c) { push_task(f_id, c); });
+          }
+        });
+      std::ranges::for_each(readers, [](auto &reader) { reader.join(); });
+
+      std::unique_lock task_queue_lock(task_queue_mtx);
+      task_queue_cv.wait(task_queue_lock,
+                         [this] { return task_queue.empty(); });
+      std::ranges::for_each(workers,
+                            [](auto &worker) { worker.request_stop(); });
+    }
   }
 
   auto
