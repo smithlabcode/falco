@@ -44,6 +44,7 @@ struct results_summary {
   std::uint64_t n_reads{};
   std::uint64_t min_read_len{};
   std::uint64_t max_read_len{};
+  std::uint64_t median_read_len{};
   std::uint64_t total_bases{};
   std::uint64_t total_gc{};
   std::vector<falco::nuc_array> base_counts;

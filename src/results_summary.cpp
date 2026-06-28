@@ -50,6 +50,7 @@ results_summary::initialize() -> void {
   };
   total_gc = std::accumulate(std::cbegin(base_counts), std::cend(base_counts),
                              0ul, gc_acc);
+  median_read_len = median_tabular(lengths);
 
   // apply groups before making summary stats like in FastQC
   groups = get_default_base_groups(max_read_len, mode.do_groups());
@@ -82,7 +83,8 @@ results_summary::assign_grades() -> void {
   grades.emplace("gc_sequence", get_grade_gc_sequence(gc_content));
   grades.emplace("n_content", get_grade_n_content(n_counts, base_counts));
   grades.emplace("sequence_length", get_grade_sequence_length(lengths));
-  grades.emplace("adapter", am.get_grade(n_reads));
+  if (mode.do_adap())
+    grades.emplace("adapter", am.get_grade(n_reads));
   if (mode.do_dups()) {
     grades.emplace("duplication", get_grade_duplication(dup_summary));
     grades.emplace("overrepresented",
@@ -96,8 +98,9 @@ results_summary::assign_grades() -> void {
 
 [[nodiscard]] auto
 results_summary::get_report() const -> std::string {
-  const auto basic_stats = basic_stats_report(
-    info, n_reads, min_read_len, max_read_len, total_gc, total_bases, grades);
+  const auto basic_stats =
+    basic_stats_report(info, n_reads, min_read_len, max_read_len,
+                       median_read_len, total_gc, total_bases, grades);
   auto sections = std::unordered_map<std::string, std::string>{
     {"basic_stats", basic_stats},
     {"quality_base", quality_base_report(qual_by_pos, groups, grades)},
@@ -106,8 +109,9 @@ results_summary::get_report() const -> std::string {
     {"gc_sequence", gc_sequence_report(gc_content, grades)},
     {"n_content", n_content_report(n_counts, base_counts, groups, grades)},
     {"sequence_length", sequence_length_report(lengths, grades)},
-    {"adapter", am.report(n_reads, groups, grades)},
   };
+  if (mode.do_adap())
+    sections.emplace("adapter", am.report(n_reads, groups, grades));
   if (mode.do_dups()) {
     sections.emplace("duplication", duplication_report(dup_summary, grades));
     sections.emplace("overrepresented",
@@ -146,8 +150,9 @@ results_summary::get_html() const -> std::string {
     {"gc_sequence", gc_sequence_html(gc_content, grades)},
     {"n_content", n_content_html(n_counts, base_counts, groups, grades)},
     {"sequence_length", sequence_length_html(lengths, grades)},
-    {"adapter", am.html(n_reads, groups, grades)},
   };
+  if (mode.do_adap())
+    sections.emplace("adapter", am.html(n_reads, groups, grades));
   if (mode.do_dups()) {
     sections.emplace("duplication", duplication_html(dup_summary, grades));
     sections.emplace("overrepresented", overrepresented_html(overrep, grades));
