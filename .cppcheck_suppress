@@ -34,6 +34,7 @@ missingInclude
 # Exclude external files
 *:*CLI11.hpp
 *:*json.hpp
+*:*boost_unordered.hpp
 # Problem caused by external files
 toomanyconfigs
 # More problems caused by external files -- with too many ifdefs
