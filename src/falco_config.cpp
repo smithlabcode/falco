@@ -38,6 +38,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 [[nodiscard]] auto
 strip(const std::string &s) -> std::string {
