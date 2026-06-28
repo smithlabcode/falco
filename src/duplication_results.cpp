@@ -199,7 +199,7 @@ duplication_results::get_dups_summary() const -> dup_summary_t {
   std::vector<std::uint64_t> hist_dedup(max_dup + 1);
   for (const auto n_copies : std::views::values(dups))
     ++hist_dedup[n_copies];
-  const auto hist_mass =
+  auto hist_mass =
     std::views::transform(
       std::views::enumerate(hist_dedup),
       [](const auto x) { return std::get<0>(x) * std::get<1>(x); }) |
@@ -277,10 +277,10 @@ overrepresented_html(const std::vector<overrep_t> &overrep,
   if (overrep.empty())
     return fmt::format(html_module_fmt, grade, label, title, grade,
                        "No overrepresented sequences");
-  std::vector<std::string> rows;
-  for (const auto &[seq, n_obs, pct_val, contam_id] : overrep)
-    rows.push_back(fmt::format(html_table_row_fmt, seq.string(), n_obs, pct_val,
-                               get_contam_name(contam_id)));
+  const auto rows = std::views::transform(overrep, [&](const auto &o) {
+    return fmt::format(html_table_row_fmt, o.w.string(), o.n_obs, o.pct_val,
+                       get_contam_name(o.contam_id));
+  });
   return fmt::format(html_module_fmt, grade, label, title, grade,
                      fmt::format(html_table, fmt::join(rows, "\n")));
 }

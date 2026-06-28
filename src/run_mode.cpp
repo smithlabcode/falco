@@ -30,7 +30,7 @@
 #include <vector>
 
 // clang-format off
-std::vector<std::string> run_mode::labels{
+std::vector<std::string> run_mode::labels{  // NOLINT(cert-err58-cpp)
   "duplication",
   "kmer",
   "n_content",
@@ -48,7 +48,7 @@ std::vector<std::string> run_mode::labels{
 auto
 run_mode::assign(const boost::unordered_flat_map<std::string, bool> &modes)
   -> void {
-  static const auto set_mode = [&](const auto &label, auto &the_mode) {
+  static const auto set_mode = [&](const std::string &label, auto &the_mode) {
     const auto itr = modes.find(label);
     if (itr != std::cend(modes))
       the_mode = itr->second ? 1 : -1;
