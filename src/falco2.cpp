@@ -334,7 +334,7 @@ main(int argc, char *argv[]) {
     app.add_flag("--kmers,!--no-kmers", do_kmers,
                  "Enable/disable k-mer analysis (overrides config file)")
       ->option_text(" ");
-    app.add_flag("--dups,!--no-dups", do_kmers,
+    app.add_flag("--dups,!--no-dups", do_dups,
                  "Enable/disable duplication analysis (overrides config file)")
       ->option_text(" ");
     app.add_flag("--groups", do_groups, "Group base positions in output");
