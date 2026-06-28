@@ -50,9 +50,21 @@ run_mode::assign(const boost::unordered_flat_map<std::string, bool> &modes)
   static const auto set_mode = [&](const auto &label, auto &the_mode) {
     const auto itr = modes.find(label);
     if (itr != std::cend(modes))
-      the_mode = itr->second;
+      the_mode = itr->second ? 1 : -1;
   };
-  set_mode("tile", do_tiles);
-  set_mode("kmer", do_kmers);
-  set_mode("duplication", do_dups);
+  set_mode("tile", do_tiles_);
+  set_mode("kmer", do_kmers_);
+  set_mode("duplication", do_dups_);
+}
+
+auto
+run_mode::set_unassigned() -> void {
+  if (do_tiles_ == 0)
+    do_tiles_ = do_tiles_default;
+  if (do_kmers_ == 0)
+    do_kmers_ = do_kmers_default;
+  if (do_dups_ == 0)
+    do_dups_ = do_dups_default;
+  if (do_groups_ == 0)
+    do_groups_ = do_groups_default;
 }
