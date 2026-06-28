@@ -139,12 +139,12 @@ static auto
 run_mode_selector(const run_mode &mode, std::vector<file_info> &infos,
                   auto &reads_files, const auto n_threads,
                   const auto &outdirs) {
-  if (do_tiles(mode) && do_kmers(mode))
+  if (mode.do_tiles() && mode.do_kmers())
     run<results_collector_tile_kmer>(mode, infos, reads_files, n_threads,
                                      outdirs);
-  else if (do_tiles(mode))
+  else if (mode.do_tiles())
     run<results_collector_tile>(mode, infos, reads_files, n_threads, outdirs);
-  else if (do_kmers(mode))
+  else if (mode.do_kmers())
     return run<results_collector_kmer>(mode, infos, reads_files, n_threads,
                                        outdirs);
   else
@@ -253,8 +253,8 @@ main(int argc, char *argv[]) {
 
     int do_tiles{};
     int do_kmers{};
-    int do_dups{1};
-    bool do_groups{};
+    int do_dups{};
+    int do_groups{};
 
     thread_counter n_threads{1, 0, 0};
 
@@ -307,11 +307,12 @@ main(int argc, char *argv[]) {
                    "Configuration file (command line args take precedence)")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
-    app.add_option("-c,--contaminants", contam_file,
-                   "File of contaminant sequences to use")
+    app.add_option("--contaminants", contam_file,
+                   "File of non-default contaminant sequences to use")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
-    app.add_option("-a,--adapters", adapters_file, "File of adapters sequences to use")
+    app.add_option("--adapters", adapters_file,
+                   "File of non-default adapters sequences to use")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
     app.add_option("-t,--threads", n_threads.workers,
@@ -327,15 +328,15 @@ main(int argc, char *argv[]) {
       ->option_text(std::format("[{}]", size_to_units(buffer_size_default)))
       ->capture_default_str()
       ->transform(size_from_units);
-    app.add_flag("-v,--verbose", verbose, "Print more info while running.");
+    app.add_flag("-v,--verbose", verbose, "Print more info while running");
     app.add_flag("--tiles,!--no-tiles", do_tiles,
-                 "Enable/disable tile analysis (overrides config file)")
+                 "Toggle tile analysis (default: off)")
       ->option_text(" ");
     app.add_flag("--kmers,!--no-kmers", do_kmers,
-                 "Enable/disable k-mer analysis (overrides config file)")
+                 "Toggle k-mer analysis (default: off)")
       ->option_text(" ");
     app.add_flag("--dups,!--no-dups", do_dups,
-                 "Enable/disable duplication analysis (overrides config file)")
+                 "Toggle sequence duplication analysis (default: on)")
       ->option_text(" ");
     app.add_flag("--groups", do_groups, "Group base positions in output");
     // clang-format on
@@ -355,15 +356,13 @@ main(int argc, char *argv[]) {
       // if no config file, use default graders
       grader_set::instance();
 
-    // now set run mode values to take priority over anything set in config file
-    if (do_tiles)
-      mode.do_tiles = (do_tiles > 0);
-    if (do_kmers)
-      mode.do_kmers = (do_kmers > 0);
-    if (do_dups)
-      mode.do_dups = (do_dups > 0);
-    if (do_groups)
-      mode.do_groups = do_groups;
+    // now set run mode values to take priority over config file
+    mode.set_do_tiles(do_tiles);
+    mode.set_do_kmers(do_kmers);
+    mode.set_do_dups(do_dups);
+    mode.set_do_groups(do_groups);
+    mode.set_unassigned();
+
     const auto outdirs = make_outdirs(infiles, outdir);
 
     if (!contam_file.empty()) {
@@ -416,8 +415,8 @@ main(int argc, char *argv[]) {
                    "use base groups in output: {}\n"
                    "input file format: {}\n"
                    "input files:",  //
-                   size_to_units(buffer_size), mode.do_tiles, mode.do_kmers,
-                   mode.do_dups, mode.do_groups, format_description);
+                   size_to_units(buffer_size), mode.do_tiles(), mode.do_kmers(),
+                   mode.do_dups(), mode.do_groups(), format_description);
       std::ranges::for_each(infiles,
                             [](const auto &fn) { std::println("{}", fn); });
     }
