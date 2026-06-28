@@ -308,7 +308,8 @@ yaxis: {{title: "% of sequences"}},
   const auto to_pct = [&](const auto &v) {
     const auto sum = std::reduce(std::cbegin(v), std::cend(v));
     const auto p = [&](const auto d) { return pct(as_frac(d, sum)); };
-    return make_bins(bin_breaks, v) | std::views::transform(p);
+    return make_bins(bin_breaks, v) | std::views::transform(p) |
+           std::ranges::to<std::vector>();
   };
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
