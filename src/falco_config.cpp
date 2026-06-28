@@ -78,14 +78,14 @@ load_config_and_set_graders(const std::string &filename,
   }
 
   // modes
-  for (const auto &label : run_mode::labels)
+  for (const auto &label : run_mode::get_labels())
     if (json_in.contains(label) && !json_in[label].contains("ignore"))
       throw std::runtime_error("invalid config: " + to_string(json_in[label]));
 
   boost::unordered_flat_map<std::string, bool> modes_in;
   try {
     static constexpr auto ignore = "ignore";
-    for (const auto &label : run_mode::labels)
+    for (const auto &label : run_mode::get_labels())
       if (json_in.contains(label) && json_in[label].contains(ignore)) {
         if (json_in[label][ignore] != "0" && json_in[label][ignore] != "1")
           throw std::runtime_error("malformed config entry: " +
