@@ -25,6 +25,7 @@
 
 #include "boost/boost_unordered.hpp"
 
+#include <iterator>
 #include <string>
 #include <vector>
 

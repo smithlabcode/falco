@@ -26,6 +26,8 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <iterator>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <string_view>

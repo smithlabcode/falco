@@ -26,7 +26,6 @@
 
 #include "bam_file.hpp"
 #include "falco_utils.hpp"
-#include "run_mode.hpp"
 
 #include "boost/boost_unordered.hpp"
 
@@ -41,9 +40,7 @@
 #include <utility>
 #include <vector>
 
-namespace falco {
-enum class encoding : std::uint8_t;
-}
+class run_mode;
 
 // Notes
 //
