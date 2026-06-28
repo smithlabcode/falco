@@ -251,8 +251,8 @@ main(int argc, char *argv[]) {
     std::string outdir;
     std::int64_t buffer_size{buffer_size_default};
 
-    bool do_tiles{};
-    bool do_kmers{};
+    int do_tiles{};
+    int do_kmers{};
     bool do_groups{};
 
     thread_counter n_threads{1, 0, 0};
@@ -271,7 +271,16 @@ main(int argc, char *argv[]) {
       throw CLI::Success();
     };
 
+    struct FormatWithoutFlagDefaults : public CLI::Formatter {
+      FormatWithoutFlagDefaults() : Formatter() {
+        CLI::FormatterBase::enable_default_flag_values_ = false;
+      }
+    };
+
     CLI::App app{about};
+    const auto fmt = std::make_shared<FormatWithoutFlagDefaults>();
+    app.formatter(fmt);
+
     argv = app.ensure_utf8(argv);
     app.usage(
       std::format("Usage: {} [options] -o OUTDIR INFILES", PROJECT_NAME));
@@ -318,9 +327,13 @@ main(int argc, char *argv[]) {
       ->capture_default_str()
       ->transform(size_from_units);
     app.add_flag("-v,--verbose", verbose, "Print more info while running.");
-    app.add_flag("--tiles", do_tiles, "Enable per-tile analysis");
-    app.add_flag("--kmers", do_kmers, "Enable k-mer analysis");
-    app.add_flag("--groups", do_groups, "Use base groups in output");
+    app.add_flag("--tiles,!--no-tiles", do_tiles,
+                 "Enable/disable tile analysis (overrides config file)")
+      ->option_text(" ");
+    app.add_flag("--kmers,!--no-kmers", do_kmers,
+                 "Enable/disable k-mer analysis (overrides config file)")
+      ->option_text(" ");
+    app.add_flag("--groups", do_groups, "Group base positions in output");
     // clang-format on
 
     const auto start_time{std::chrono::high_resolution_clock::now()};
@@ -340,11 +353,11 @@ main(int argc, char *argv[]) {
 
     // now set run mode values to take priority over anything set in config file
     if (do_tiles)
-      mode.do_tiles = true;
+      mode.do_tiles = (do_tiles > 0);
     if (do_kmers)
-      mode.do_kmers = true;
+      mode.do_kmers = (do_kmers > 0);
     if (do_groups)
-      mode.do_groups = true;
+      mode.do_groups = do_groups;
 
     const auto outdirs = make_outdirs(infiles, outdir);
 
