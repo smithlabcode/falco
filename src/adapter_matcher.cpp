@@ -27,6 +27,7 @@
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "html.hpp"
+#include "run_mode.hpp"
 
 #define FMT_HEADER_ONLY
 #include "fmt/format.h"

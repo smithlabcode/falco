@@ -29,7 +29,6 @@
 #include "boost/boost_unordered.hpp"
 
 #include <cstdint>
-#include <format>
 #include <string>
 #include <vector>
 
@@ -101,12 +100,12 @@ struct duplication_results {
 get_grade_duplication(const dup_summary_t &summary) -> std::string;
 
 [[nodiscard]] auto
-duplication_report(const dup_summary_t &summary,
-                   const file_grades &grades) -> std::string;
+duplication_report(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string;
 
 [[nodiscard]] auto
-duplication_html(const dup_summary_t &summary,
-                 const file_grades &grades) -> std::string;
+duplication_html(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string;
 
 [[nodiscard]] auto
 get_grade_overrepresented(const std::uint64_t n_reads,
