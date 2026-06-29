@@ -52,12 +52,12 @@ adapter_matcher::adapter_matcher() {
   static constexpr auto do_encoding = [&](const auto &a) {
     return std::accumulate(std::cbegin(a), std::cend(a), 0ul, shift_plus);
   };
-  const auto &as = adapter_set::instance();
-  assert(!as.instance().adapters.empty());
-  n_adapters = adapter_set::n_adapters();
-  adapter_size = adapter_set::adapter_size();
-  std::ranges::transform(as.adapters, std::back_inserter(encoded_adapters),
-                         do_encoding);
+  if (const auto &as = adapter_set::instance(); !as.adapters.empty()) {
+    n_adapters = adapter_set::n_adapters();
+    adapter_size = adapter_set::adapter_size();
+    std::ranges::transform(as.adapters, std::back_inserter(encoded_adapters),
+                           do_encoding);
+  }
 }
 
 auto

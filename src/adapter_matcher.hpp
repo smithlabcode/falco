@@ -35,8 +35,8 @@ struct file_grades;
 class run_mode;
 
 struct adapter_matcher {
-  std::uint32_t n_adapters;
-  std::uint32_t adapter_size;
+  std::uint32_t n_adapters{};
+  std::uint32_t adapter_size{};
   std::vector<std::uint64_t> encoded_adapters;
   std::vector<std::vector<std::uint64_t>> adap_counts;
 
