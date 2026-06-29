@@ -153,7 +153,7 @@ struct alignas(assumed_page_size) results_collector {
       return (100 * a) / b;  // NOLINT(cppcoreguidelines-avoid-magic-numbers)
     };
     const auto read_len = static_cast<std::uint32_t>(get_seq_size(rec));
-    if (read_len > max_read_len) {
+    if (read_len > max_read_len) [[unlikely]] {
       resize(read_len);
       if constexpr (std::is_same_v<std::decay_t<decltype(rec)>, bamrec>)
         seq.resize(read_len);
