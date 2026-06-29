@@ -134,19 +134,29 @@ duplication_results::initialize(const run_mode &mode,
       : static_cast<std::int32_t>(info.n_reads_est / max_n_reads_total);
   if (!mode.do_dups()) {
     // ADS: disabling dups analysis
-#ifdef ORIGINAL_DUPS
-    max_reads_to_hash = 0;
-#else  // NOT ORIGINAL_DUPS
     read_idx = std::numeric_limits<std::int64_t>::max();
-#endif
+    // ADS: for ORIGINAL_DUPS this still does lots of work
   }
 }
 
 auto
 duplication_results::operator+=(const duplication_results &rhs)
   -> const duplication_results & {
+#ifndef ORIGINAL_DUPS
   for (const auto &[k, v] : rhs.dups)
     dups[k] += v;
+#else   // ORIGINAL_DUPS
+  for (const auto &[k, v] : rhs.dups)
+    dups[k] += v;
+  std::vector<std::uint64_t, falco_word> for_top;
+  for_top.reserve(std::size(dups));
+  for (const auto &[k, v] : dups)
+    for_top.emplace_back(v, k);
+  std::ranges::sort(for_top, std::greater{});
+  dups.clear();
+  for (const auto &[v, k] : for_top | std::views::take(max_reads_to_hash))
+    dups.emplace(k, v);
+#endif  // ORIGINAL_DUPS
   return *this;
 }
 
