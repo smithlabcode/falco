@@ -58,6 +58,9 @@ struct duplication_results {
   static constexpr auto default_read_skip{10};
   static constexpr auto overrep_cutoff = 0.001;
 
+#ifdef ORIGINAL_DUPS
+  std::int64_t count_at_limit{};
+#endif  // ORIGINAL_DUPS
   std::int64_t read_skip{default_read_skip};
   std::int64_t read_idx{};
   boost::unordered_flat_map<falco_word, std::uint64_t> dups;
@@ -86,9 +89,12 @@ struct duplication_results {
 #ifdef ORIGINAL_DUPS
   auto
   count_seqs(const auto seq_itr, const auto sz) {
+    ++read_idx;
     const auto fw = falco_word(seq_itr, sz);
-    if (read_idx++ < max_reads_to_hash || dups.contains(fw))
+    if (std::size(dups) < max_reads_to_hash || dups.contains(fw))
       ++dups[fw];
+    else if (count_at_limit == 0)
+      count_at_limit = read_idx;
   }
 #else   // NOT ORIGINAL_DUPS
   auto

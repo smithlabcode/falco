@@ -147,7 +147,7 @@ duplication_results::operator+=(const duplication_results &rhs)
     dups[k] += v;
 #else   // ORIGINAL_DUPS
   for (const auto &[k, v] : rhs.dups)
-    if (dups.contains(k) || std::size(dups) < max_reads_to_hash)
+    if (std::size(dups) < max_reads_to_hash || dups.contains(k))
       dups[k] += v;
 #endif  // ORIGINAL_DUPS
   return *this;
@@ -226,13 +226,10 @@ get_corrected_count(const std::uint64_t count_at_limit,
                                  1.0 - prob_not_observed));
 }
 
-[[nodiscard]] auto
-duplication_results::get_dups_summary(const std::uint64_t n_reads) const
-  -> dup_summary_t {
-#else   // ORIGINAL_DUPS
+#endif  // ORIGINAL_DUPS
+
 [[nodiscard]] auto
 duplication_results::get_dups_summary() const -> dup_summary_t {
-#endif  // ORIGINAL_DUPS
   if (dups.empty())
     return {};
   const auto max_dup = std::ranges::max(std::views::values(dups));
@@ -242,7 +239,7 @@ duplication_results::get_dups_summary() const -> dup_summary_t {
 #ifdef ORIGINAL_DUPS
   for (auto [idx, val] : std::views::enumerate(hist_dedup))
     val = static_cast<std::uint64_t>(
-      get_corrected_count(max_reads_to_hash, n_reads, idx, val));
+      get_corrected_count(count_at_limit, n_reads, idx, val));
 #endif  // ORIGINAL_DUPS
   auto hist_mass =
     std::views::transform(
