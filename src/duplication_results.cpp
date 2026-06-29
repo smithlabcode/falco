@@ -132,7 +132,7 @@ duplication_results::initialize(const run_mode &mode,
     info.n_reads_est < max_n_reads_total
       ? 0
       : static_cast<std::int32_t>(info.n_reads_est / max_n_reads_total);
-  if (!mode.do_dups()) {
+  if (!mode.do_dup_analysis()) {
     // ADS: disabling dups analysis
     read_idx = std::numeric_limits<std::int64_t>::max();
     // ADS: for ORIGINAL_DUPS this still does lots of work
