@@ -138,7 +138,7 @@ struct results_summary {
   }
 
   auto
-  apply_groups(const std::vector<base_group_t> &groups) -> void;
+  apply_groups() -> void;
 
   auto
   assign_grades() -> void;

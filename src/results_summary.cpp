@@ -39,6 +39,19 @@
 #include <vector>
 
 auto
+results_summary::apply_groups() -> void {
+  groups = get_default_base_groups(max_read_len, mode.do_groups());
+  if (mode.do_groups()) {
+    apply_base_groups(groups, base_counts);
+    apply_base_groups(groups, n_counts);
+    // ADS: need one for lengths
+    apply_base_groups(groups, qual_by_pos);
+    am.apply_groups(mode);
+    tp.apply_groups(mode);
+  }
+}
+
+auto
 results_summary::initialize() -> void {
   // assign scalar variables
   const auto gt0 = [](const auto c) { return c > 0; };
@@ -53,15 +66,7 @@ results_summary::initialize() -> void {
   median_read_len = median_tabular(lengths);
 
   // apply groups before making summary stats like in FastQC
-  groups = get_default_base_groups(max_read_len, mode.do_groups());
-  if (mode.do_groups()) {
-    apply_base_groups(groups, base_counts);
-    apply_base_groups(groups, n_counts);
-    // ADS: need one for lengths
-    apply_base_groups(groups, qual_by_pos);
-    am.apply_groups(mode);
-    tp.apply_groups(mode);
-  }
+  apply_groups();
 
   // get summary structures
 #ifdef ORIGINAL_DUPS
@@ -83,23 +88,41 @@ results_summary::initialize() -> void {
 auto
 results_summary::assign_grades() -> void {
   grades.emplace("basic_stats", get_grade_basic_stats());
-  grades.emplace("quality_base", get_grade_quality_base(qual_by_pos));
-  grades.emplace("quality_sequence", get_grade_quality_sequence(qual_by_read));
-  grades.emplace("sequence", get_grade_sequence(base_counts));
-  grades.emplace("gc_sequence", get_grade_gc_sequence(gc_content));
-  grades.emplace("n_content", get_grade_n_content(n_counts, base_counts));
-  grades.emplace("sequence_length", get_grade_sequence_length(lengths));
+
   if (mode.do_adap())
     grades.emplace("adapter", am.get_grade(n_reads));
-  if (mode.do_dups()) {
+
+  if (mode.do_dups())
     grades.emplace("duplication", get_grade_duplication(dup_summary));
-    grades.emplace("overrepresented",
-                   get_grade_overrepresented(n_reads_for_dups, dr));
-  }
-  if (mode.do_tiles())
-    grades.emplace("tile", get_grade_tile(centered));
+
+  if (mode.do_gc_content())
+    grades.emplace("gc_sequence", get_grade_gc_sequence(gc_content));
+
   if (mode.do_kmers())
     grades.emplace("kmer", get_grade_kmer(kmer_results));
+
+  if (mode.do_length())
+    grades.emplace("sequence_length", get_grade_sequence_length(lengths));
+
+  if (mode.do_n_content())
+    grades.emplace("n_content", get_grade_n_content(n_counts, base_counts));
+
+  if (mode.do_overrep())
+    grades.emplace("overrepresented",
+                   get_grade_overrepresented(n_reads_for_dups, dr));
+
+  if (mode.do_qual_base())
+    grades.emplace("quality_base", get_grade_quality_base(qual_by_pos));
+
+  if (mode.do_qual_seq())
+    grades.emplace("quality_sequence",
+                   get_grade_quality_sequence(qual_by_read));
+
+  if (mode.do_sequence())
+    grades.emplace("sequence", get_grade_sequence(base_counts));
+
+  if (mode.do_tiles())
+    grades.emplace("tile", get_grade_tile(centered));
 }
 
 [[nodiscard]] auto
@@ -109,39 +132,55 @@ results_summary::get_report() const -> std::string {
                        median_read_len, total_gc, total_bases, grades);
   auto sections = std::unordered_map<std::string, std::string>{
     {"basic_stats", basic_stats},
-    {"quality_base", quality_base_report(qual_by_pos, groups, grades)},
-    {"quality_sequence", quality_sequence_report(qual_by_read, grades)},
-    {"sequence", sequence_report(base_counts, groups, grades)},
-    {"gc_sequence", gc_sequence_report(gc_content, grades)},
-    {"n_content", n_content_report(n_counts, base_counts, groups, grades)},
-    {"sequence_length", sequence_length_report(lengths, grades)},
   };
+
   if (mode.do_adap())
     sections.emplace("adapter", am.report(n_reads, groups, grades));
-  if (mode.do_dups()) {
+
+  if (mode.do_dups())
     sections.emplace("duplication", duplication_report(dup_summary, grades));
-    sections.emplace("overrepresented",
-                     overrepresented_report(overrep, grades));
-  }
-  if (mode.do_tiles()) {
-    assert(!centered.empty());
-    sections.emplace("tile", tile_report(centered, groups, grades));
-  }
+
+  if (mode.do_gc_content())
+    sections.emplace("gc_sequence", gc_sequence_report(gc_content, grades));
+
   if (mode.do_kmers()) {
     assert(!kmer_results.empty());
     sections.emplace("kmer", kmer_report(kmer_results, grades));
   }
+
+  if (mode.do_length())
+    sections.emplace("sequence_length",
+                     sequence_length_report(lengths, grades));
+
+  if (mode.do_n_content())
+    sections.emplace("n_content",
+                     n_content_report(n_counts, base_counts, groups, grades));
+
+  if (mode.do_overrep())
+    sections.emplace("overrepresented",
+                     overrepresented_report(overrep, grades));
+
+  if (mode.do_qual_base())
+    sections.emplace("quality_base",
+                     quality_base_report(qual_by_pos, groups, grades));
+
+  if (mode.do_qual_seq())
+    sections.emplace("quality_sequence",
+                     quality_sequence_report(qual_by_read, grades));
+
+  if (mode.do_sequence())
+    sections.emplace("sequence", sequence_report(base_counts, groups, grades));
+
+  if (mode.do_tiles()) {
+    assert(!centered.empty());
+    sections.emplace("tile", tile_report(centered, groups, grades));
+  }
+
   std::string report;
   for (const auto &name : section_names)
     if (const auto itr = sections.find(name); itr != std::cend(sections))
       report += itr->second;
   return report;
-}
-
-auto
-results_summary::apply_groups(
-  [[maybe_unused]] const std::vector<base_group_t> &groups) -> void {
-  return;
 }
 
 [[nodiscard]] auto
@@ -150,26 +189,46 @@ results_summary::get_html() const -> std::string {
     info, n_reads, min_read_len, max_read_len, total_gc, total_bases, grades);
   auto sections = std::unordered_map<std::string, std::string>{
     {"basic_stats", basic_stats},
-    {"quality_base", quality_base_html(qual_by_pos, groups, grades)},
-    {"quality_sequence", quality_sequence_html(qual_by_read, grades)},
-    {"sequence", sequence_html(base_counts, groups, grades)},
-    {"gc_sequence", gc_sequence_html(gc_content, grades)},
-    {"n_content", n_content_html(n_counts, base_counts, groups, grades)},
-    {"sequence_length", sequence_length_html(lengths, grades)},
   };
+
   if (mode.do_adap())
     sections.emplace("adapter", am.html(n_reads, groups, grades));
-  if (mode.do_dups()) {
+
+  if (mode.do_dups())
     sections.emplace("duplication", duplication_html(dup_summary, grades));
-    sections.emplace("overrepresented", overrepresented_html(overrep, grades));
-  }
-  if (mode.do_tiles()) {
-    assert(!centered.empty());
-    sections.emplace("tile", tile_html(centered, groups, grades));
-  }
+
+  if (mode.do_gc_content())
+    sections.emplace("gc_sequence", gc_sequence_html(gc_content, grades));
+
   if (mode.do_kmers()) {
     assert(!kmer_results.empty());
     sections.emplace("kmer", kmer_html(kmer_results, grades));
+  }
+
+  if (mode.do_length())
+    sections.emplace("sequence_length", sequence_length_html(lengths, grades));
+
+  if (mode.do_n_content())
+    sections.emplace("n_content",
+                     n_content_html(n_counts, base_counts, groups, grades));
+
+  if (mode.do_overrep())
+    sections.emplace("overrepresented", overrepresented_html(overrep, grades));
+
+  if (mode.do_qual_base())
+    sections.emplace("quality_base",
+                     quality_base_html(qual_by_pos, groups, grades));
+
+  if (mode.do_qual_seq())
+    sections.emplace("quality_sequence",
+                     quality_sequence_html(qual_by_read, grades));
+
+  if (mode.do_sequence())
+    sections.emplace("sequence", sequence_html(base_counts, groups, grades));
+
+  if (mode.do_tiles()) {
+    assert(!centered.empty());
+    sections.emplace("tile", tile_html(centered, groups, grades));
   }
 
   assert(std::ranges::all_of(
