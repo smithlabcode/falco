@@ -148,7 +148,7 @@ duplication_results::operator+=(const duplication_results &rhs)
 #else   // ORIGINAL_DUPS
   for (const auto &[k, v] : rhs.dups)
     dups[k] += v;
-  std::vector<std::uint64_t, falco_word> for_top;
+  std::vector<std::pair<std::uint64_t, falco_word>> for_top;
   for_top.reserve(std::size(dups));
   for (const auto &[k, v] : dups)
     for_top.emplace_back(v, k);
