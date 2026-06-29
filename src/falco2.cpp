@@ -214,7 +214,7 @@ get_file_info(const auto &infiles) {
       std::unreachable();
     }();
     infos.push_back({
-      .name = infile,
+      .name = std::filesystem::path{infile}.filename().string(),
       .format = input_format,
       .description = format_description,
       .size = filesize,
