@@ -22,13 +22,8 @@
  */
 
 // clang-format off
-static constexpr auto about =
-  R"(Falco2: an in-progress redesign and rewrite of falco)";
-
-static constexpr auto description =
-  R"(Falco2 aims to improve speed while still doing the same analysis as in falco.
-There will likely be changes to some of the statistics, including the way
-read duplication is analyzed (borrowing from preseq).
+static constexpr auto about = R"(Falco v2.0: an in-progress redesign of Falco)";
+static constexpr auto description = R"(Examples to be added
 )";
 // clang-format on
 
@@ -253,13 +248,13 @@ main(int argc, char *argv[]) {
 
     int do_tiles{};
     int do_kmers{};
-    int do_dups{};
+    int do_dup_analysis{};
     int do_adap{};
     int do_groups{};
 
     thread_counter n_threads{1, 0, 0};
 
-    bool verbose{};
+    int verbose{};
 
     using std::literals::string_literals::operator""s;
     const auto size_from_units = CLI::AsNumberWithUnit(std::map{
@@ -305,7 +300,7 @@ main(int argc, char *argv[]) {
       ->required()
       ->option_text("DIR");
     app.add_option("--config", config_file,
-                   "Configuration file (command line args take precedence)")
+                   "Configuration file (command line arguments have priority)")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
     app.add_option("--contaminants", contam_file,
@@ -321,28 +316,32 @@ main(int argc, char *argv[]) {
                                std::thread::hardware_concurrency()))
       ->option_text(std::format("[{}]", n_threads.workers));
     app.add_option("-r,--readers", n_threads.readers,
-                   "Threads for reading input (default: one per input file)");
+                   "Threads for reading input (default: one per input file)")
+      ->group("");
     app.add_option("-d,--decomp", n_threads.decomp,
-                   "Threads for BAM/BGZF decompression (default: analysis threads)");
+                   "Threads for BAM/BGZF decompression (default: analysis threads)")
+      ->group("");
     app.add_option("-m,--mem", buffer_size,
-                   "Memory buffer size for IO (G/M/K units ok)")
+                   "Input memory buffer size (G/M/K units ok)")
       ->option_text(std::format("[{}]", size_to_units(buffer_size_default)))
       ->capture_default_str()
       ->transform(size_from_units);
-    app.add_flag("-v,--verbose", verbose, "Print more info while running");
+    app.add_flag("-v,--verbose", verbose, "Print more info while running")
+      ->option_text(" ");
+    app.add_flag("--groups", do_groups, "Group base positions in output")
+      ->option_text(" ");
     app.add_flag("--tiles,!--no-tiles", do_tiles,
-                 "Toggle tile analysis (default: off)")
+                 "Toggle per-tile quality analysis (default: off)")
       ->option_text(" ");
     app.add_flag("--kmers,!--no-kmers", do_kmers,
                  "Toggle k-mer analysis (default: off)")
       ->option_text(" ");
-    app.add_flag("--dups,!--no-dups", do_dups,
-                 "Toggle sequence duplication analysis (default: on)")
+    app.add_flag("--dups,!--no-dups", do_dup_analysis,
+                 "Toggle duplication/overrepresentation analysis (default: on)")
       ->option_text(" ");
     app.add_flag("--adap,!--no-adap", do_adap,
                  "Toggle adapter analysis (default: on)")
       ->option_text(" ");
-    app.add_flag("--groups", do_groups, "Group base positions in output");
     // clang-format on
 
     const auto start_time{std::chrono::high_resolution_clock::now()};
@@ -363,11 +362,12 @@ main(int argc, char *argv[]) {
     // now set run mode values to take priority over config file
     if (!adapters_file.empty())
       do_adap = 1;
-    mode.set_do_tiles(do_tiles);
-    mode.set_do_kmers(do_kmers);
-    mode.set_do_dups(do_dups);
-    mode.set_do_groups(do_groups);
     mode.set_do_adap(do_adap);
+    mode.set_do_dups(do_dup_analysis);
+    mode.set_do_overrep(do_dup_analysis);
+    mode.set_do_kmers(do_kmers);
+    mode.set_do_tiles(do_tiles);
+    mode.set_do_groups(do_groups);
     mode.set_unassigned();
 
     const auto outdirs = make_outdirs(infiles, outdir);
@@ -410,12 +410,12 @@ main(int argc, char *argv[]) {
     buffer_size = buffer_size < max_sz ? buffer_size : max_sz;
 
     if (verbose) {
-      std::print("threads requested: {}\n"
-                 "reader threads: {}\n",
-                 n_threads.workers, n_threads.readers);
-      if (is_bgzf(input_format))
+      std::print("threads requested: {}\n", n_threads.workers);
+      if (verbose > 1)
+        std::print("reader threads: {}\n", n_threads.readers);
+      if (is_bgzf(input_format) && verbose > 1)
         std::print("decompression threads: {}\n", n_threads.decomp);
-      std::println("memory requested: {}\n"
+      std::println("input memory buffer size: {}\n"
                    "tile analysis requested: {}\n"
                    "k-mer analysis requested: {}\n"
                    "dups analysis requested: {}\n"
