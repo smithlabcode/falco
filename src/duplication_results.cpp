@@ -222,7 +222,7 @@ get_corrected_count(const std::uint64_t count_at_limit,
   }
 
   // assume the number observed can be scaled up by this proportion
-  return as_frac(n_obs, std::max(std::numeric_limits<double>::epsilon,
+  return as_frac(n_obs, std::max(std::numeric_limits<double>::epsilon(),
                                  1.0 - prob_not_observed));
 }
 
@@ -240,7 +240,7 @@ duplication_results::get_dups_summary() const -> dup_summary_t {
   for (const auto n_copies : std::views::values(dups))
     ++hist_dedup[n_copies];
 #ifdef ORIGINAL_DUPS
-  for (auto &[idx, val] : std::views::enumerate(hist_dedup))
+  for (auto [idx, val] : std::views::enumerate(hist_dedup))
     val = static_cast<std::uint64_t>(
       get_corrected_count(max_reads_to_hash, n_reads, idx, val));
 #endif  // ORIGINAL_DUPS
