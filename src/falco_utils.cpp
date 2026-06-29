@@ -23,6 +23,8 @@
 
 #include "falco_utils.hpp"
 
+#include "nlohmann/json.hpp"
+
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -31,6 +33,13 @@
 #include <string>
 #include <tuple>
 #include <vector>
+
+[[nodiscard]] auto
+file_info::string() const -> std::string {
+  static constexpr auto n_indent = 4;
+  nlohmann::json data = *this;
+  return data.dump(n_indent);
+}
 
 [[nodiscard]] auto
 size_to_units(const std::int64_t s) -> std::string {

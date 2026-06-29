@@ -94,11 +94,7 @@ struct file_info {
   std::uint32_t tile_id_position{};
 
   [[nodiscard]] auto
-  string() const -> std::string {
-    static constexpr auto n_indent = 4;
-    nlohmann::json data = *this;
-    return data.dump(n_indent);
-  }
+  string() const -> std::string;
 
   auto
   set_encoding(const falco::encoding &e) {
