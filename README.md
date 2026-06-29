@@ -1,3 +1,7 @@
+# Notice
+
+*Falco v2.0 is coming. See discussion [here](https://github.com/smithlabcode/falco/discussions) for more info.* 
+
 # Falco: FastQC Alternative Code
 
 [![GitHub Downloads](https://img.shields.io/github/downloads/smithlabcode/falco/total.svg?style=social&logo=github&label=Download)](https://github.com/smithlabcode/falco/releases/latest)
