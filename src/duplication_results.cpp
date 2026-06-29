@@ -228,8 +228,14 @@ get_corrected_count(const std::uint64_t count_at_limit,
 
 #endif  // ORIGINAL_DUPS
 
+#ifdef ORIGINAL_DUPS
+[[nodiscard]] auto
+duplication_results::get_dups_summary(const std::uint64_t n_reads) const
+  -> dup_summary_t {
+#else  // ORIGINAL_DUPS
 [[nodiscard]] auto
 duplication_results::get_dups_summary() const -> dup_summary_t {
+#endif
   if (dups.empty())
     return {};
   const auto max_dup = std::ranges::max(std::views::values(dups));
