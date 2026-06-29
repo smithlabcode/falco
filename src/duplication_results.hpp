@@ -68,8 +68,13 @@ struct duplication_results {
   auto
   get_n_reads() const -> std::uint64_t;
 
+#ifdef ORIGINAL_DUPS
+  [[nodiscard]] auto
+  get_dups_summary(const std::uint64_t n_reads) const -> dup_summary_t;
+#else   // ORIGINAL_DUPS
   [[nodiscard]] auto
   get_dups_summary() const -> dup_summary_t;
+#endif  // ORIGINAL_DUPS
 
   [[nodiscard]] auto
   get_overrepresented(const std::uint64_t n_reads) const

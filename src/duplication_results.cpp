@@ -147,15 +147,8 @@ duplication_results::operator+=(const duplication_results &rhs)
     dups[k] += v;
 #else   // ORIGINAL_DUPS
   for (const auto &[k, v] : rhs.dups)
-    dups[k] += v;
-  std::vector<std::pair<std::uint64_t, falco_word>> for_top;
-  for_top.reserve(std::size(dups));
-  for (const auto &[k, v] : dups)
-    for_top.emplace_back(v, k);
-  std::ranges::sort(for_top, std::greater{});
-  dups.clear();
-  for (const auto &[v, k] : for_top | std::views::take(max_reads_to_hash))
-    dups.emplace(k, v);
+    if (dups.contains(k) || std::size(dups) < max_reads_to_hash)
+      dups[k] += v;
 #endif  // ORIGINAL_DUPS
   return *this;
 }
@@ -201,14 +194,56 @@ make_bins(const auto &breaks, const auto &hist) {
   return binned;
 }
 
+#ifdef ORIGINAL_DUPS
+
+// ADS: for original dups, from FastQC extrapolation of dup counts.
+[[nodiscard]] auto
+get_corrected_count(const std::uint64_t count_at_limit,
+                    const std::uint64_t n_reads, const std::uint64_t dup_level,
+                    const std::uint64_t n_obs) -> double {
+  static constexpr auto epsilon = 0.01;
+  if (count_at_limit == n_reads)  // we saw everything
+    return n_obs;
+
+  // not enough uncounted reads to hide one with this number of obs
+  if (n_reads - n_obs < count_at_limit)
+    return n_obs;
+
+  // ADS: an approach to estimate the number of reads that should be counted
+  // towards this number of observations
+  double prob_not_observed{1.0};
+  const double ignore_below_this = 1.0 - as_frac(n_obs, n_obs + epsilon);
+  for (auto i = 0LU; i < count_at_limit; ++i) {
+    prob_not_observed *= as_frac(n_reads - i - dup_level, n_reads - i);
+    if (prob_not_observed < ignore_below_this) {
+      prob_not_observed = 0;
+      break;
+    }
+  }
+
+  // assume the number observed can be scaled up by this proportion
+  return as_frac(n_obs, std::max(std::numeric_limits<double>::epsilon,
+                                 1.0 - prob_not_observed));
+}
+
+[[nodiscard]] auto
+duplication_results::get_dups_summary(const std::uint64_t n_reads) const
+  -> dup_summary_t {
+#else   // ORIGINAL_DUPS
 [[nodiscard]] auto
 duplication_results::get_dups_summary() const -> dup_summary_t {
+#endif  // ORIGINAL_DUPS
   if (dups.empty())
     return {};
   const auto max_dup = std::ranges::max(std::views::values(dups));
   std::vector<std::uint64_t> hist_dedup(max_dup + 1);
   for (const auto n_copies : std::views::values(dups))
     ++hist_dedup[n_copies];
+#ifdef ORIGINAL_DUPS
+  for (auto &[idx, val] : std::views::enumerate(hist_dedup))
+    val = static_cast<std::uint64_t>(
+      get_corrected_count(max_reads_to_hash, n_reads, idx, val));
+#endif  // ORIGINAL_DUPS
   auto hist_mass =
     std::views::transform(
       std::views::enumerate(hist_dedup),
