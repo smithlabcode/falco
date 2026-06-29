@@ -94,7 +94,10 @@ adapter_set::adapter_set(const run_mode &m, const std::string &filename) {
 
 [[nodiscard]] auto
 adapter_set::validate() const -> std::tuple<bool, std::string> {
-  const auto adap_len = std::size(instance().adapters.front());
+  const auto &adapters = instance().adapters;
+  if (adapters.empty())
+    return {true, std::string{}};
+  const auto adap_len = std::size(adapters.front());
   if (!std::ranges::all_of(instance().adapters, [&](const auto &a) {
         return std::size(a) == adap_len;
       }))
