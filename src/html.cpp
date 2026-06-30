@@ -85,7 +85,8 @@ get_html_module(const std::string &label, const std::string &text,
 falco_get_html(const file_info &info, const file_grades &grades,
                const std::string &analysis_modules) -> std::string {
   return fmt::format(falco_html_body,
-                     fmt::arg("date", std::chrono::system_clock::now()),
+                     fmt::arg("date", std::chrono::floor<std::chrono::seconds>(
+                                        std::chrono::system_clock::now())),
                      fmt::arg("filename", info.name),           //
                      fmt::arg("style", style),                  //
                      fmt::arg("summary", get_summary(grades)),  //
