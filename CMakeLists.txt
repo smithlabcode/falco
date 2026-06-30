@@ -36,6 +36,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS on)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
+include(CheckIncludeFileCXX)
+include(CheckFunctionExists)
+include(CheckCXXCompilerFlag)
+include(GNUInstallDirs)
+
+include(cmake/configure_data.cmake)
+
 configure_file(config.h.in config.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -66,16 +73,7 @@ configure_file(data/LICENSES.inc.in license.h @ONLY)
 
 option(PACKAGE "Enabling packaging mode (experts only)" off)
 if(PACKAGE)
-  set(LIBDEFLATE_USE_STATIC_LIBS on)
-  set(HTSLIB_USE_STATIC_LIBS on)
-  set(ZLIB_USE_STATIC_LIBS on)
-  if(USE_ISAL)
-    set(ISAL_USE_STATIC_LIBS on)
-  endif()
-  add_link_options(-static-libgcc -static-libstdc++)
-  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # not macOS
-    add_link_options(-s)
-  endif()
+  include(cmake/package.cmake)
 endif()
 
 if(ORIGINAL_DUPS)
@@ -220,4 +218,4 @@ target_link_libraries(falco2 PUBLIC
   Threads::Threads
 )
 
-install(TARGETS falco2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+include(cmake/install.cmake)
