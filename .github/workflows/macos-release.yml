@@ -17,9 +17,11 @@ jobs:
         run: sudo mkdir -p /opt/falco2/lib /opt/falco2/include
       - name: Install dependency headers and static libs
         run: |
-          brew install zlib automake
+          brew install zlib automake isa-l
           sudo cp $(brew --prefix zlib)/lib/*.a /opt/falco2/lib
           sudo cp -r $(brew --prefix zlib)/include/* /opt/falco2/include
+          sudo cp $(brew --prefix isa-l)/lib/*.a /opt/falco2/lib
+          sudo cp -r $(brew --prefix isa-l)/include/* /opt/falco2/include
       - name: Build and install libdeflate
         run: |
           git clone https://github.com/ebiggers/libdeflate.git && \
@@ -52,7 +54,9 @@ jobs:
         run: |
           cmake -B build -DPACKAGE=on -DFULL_LICENSE=on \
           -DCMAKE_CXX_COMPILER=g++-15 \
+          -DUSE_ISAL=on \
           -DHTSLIB_ROOT=/opt/falco2 \
+          -DISAL_ROOT=/opt/falco2 \
           -DLIBDEFLATE_ROOT=/opt/falco2 \
           -DZLIB_ROOT=/opt/falco2 \
           -DCMAKE_BUILD_TYPE=Release && \
