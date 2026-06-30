@@ -83,7 +83,7 @@ if(ORIGINAL_DUPS)
 endif()
 
 find_package(LIBDEFLATE REQUIRED)
-find_package(HTSLIB REQUIRED)
+find_package(HTSLIB 1.18 REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(Threads REQUIRED)
 if(USE_ISAL)
