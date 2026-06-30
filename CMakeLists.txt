@@ -52,6 +52,11 @@ if(STATIC_ANALYSIS)
   include(cmake/static_analysis.cmake)
 endif()
 
+option(FALCO_TESTS "Enable testing (ctest or make test)" on)
+if(FALCO_TESTS)
+  include(cmake/tests.cmake)
+endif()
+
 file(READ data/LICENSE LICENSE_TEXT)
 if(USE_ISAL)
   file(READ data/ISA_license_text.txt ISAL_LICENSE_TEXT)
