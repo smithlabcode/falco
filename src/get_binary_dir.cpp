@@ -40,6 +40,7 @@
 
 #include <array>
 #include <filesystem>
+#include <iterator>
 #include <string>
 
 namespace falco {
@@ -69,7 +70,7 @@ get_binary_dir() -> std::string {
 #else
   (void)path_buf;
 #endif
-  if (path_to_binary.empty())
+  if (path_to_binary.empty())  // cppcheck-suppress knownConditionTrueFalse
     return std::string{};
   return std::filesystem::path{path_to_binary}.parent_path();
 }
