@@ -24,6 +24,9 @@
 // clang-format off
 static constexpr auto about = R"(Falco v2.0: an in-progress redesign of Falco)";
 static constexpr auto description = R"(Examples to be added
+
+Default configuration files can be found in:
+{}
 )";
 // clang-format on
 
@@ -36,6 +39,7 @@ static constexpr auto description = R"(Examples to be added
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
+#include "get_binary_dir.hpp"
 #include "quality_score.hpp"
 #include "results_collector.hpp"
 #include "results_summary.hpp"
@@ -282,7 +286,7 @@ main(int argc, char *argv[]) {
     app.usage(
       std::format("Usage: {} [options] -o OUTDIR INFILES", PROJECT_NAME));
     if (argc >= 2)
-      app.footer(description);
+      app.footer(std::format(description, falco::get_share_dir()));
 
     // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
     app.get_formatter()->long_option_alignment_ratio(0.2);
