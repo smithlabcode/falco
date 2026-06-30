@@ -187,6 +187,7 @@ target_link_libraries(results_summary PUBLIC
   results_collector
 )
 
+add_library(get_binary_dir OBJECT src/get_binary_dir.cpp)
 add_library(run_mode OBJECT src/run_mode.cpp)
 add_library(falco_config OBJECT src/falco_config.cpp)
 target_link_libraries(falco_config PUBLIC
@@ -211,6 +212,7 @@ target_link_libraries(falco2 PUBLIC
   falco_config
   html
   report
+  get_binary_dir
   run_mode
   HTSLIB::HTSLIB
   LIBDEFLATE::LIBDEFLATE
