@@ -77,6 +77,7 @@ jobs:
             cd /workspace && \
             cmake -B build \
                 -DPACKAGE=on \
+                -DCMAKE_VERBOSE_MAKEFILE=on \
                 -DUSE_ISAL=on \
                 -DCMAKE_BUILD_TYPE=Release && \
             cmake --build build -j4 && \

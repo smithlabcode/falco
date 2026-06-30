@@ -52,7 +52,8 @@ jobs:
           sudo cp libhts.a /opt/falco2/lib
       - name: Build falco2
         run: |
-          cmake -B build -DPACKAGE=on -DFULL_LICENSE=on \
+          cmake -B build -DPACKAGE=on \
+          -DCMAKE_VERBOSE_MAKEFILE=on \
           -DCMAKE_CXX_COMPILER=g++-15 \
           -DUSE_ISAL=on \
           -DHTSLIB_ROOT=/opt/falco2 \
