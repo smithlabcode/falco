@@ -21,8 +21,8 @@
  * SOFTWARE.
  */
 
-#ifndef LIB_GET_BINARY_DIR_HPP_
-#define LIB_GET_BINARY_DIR_HPP_
+#ifndef SRC_GET_BINARY_DIR_HPP_
+#define SRC_GET_BINARY_DIR_HPP_
 
 #include <string>
 
@@ -36,4 +36,4 @@ get_binary_dir() -> std::string;
 
 }  // namespace falco
 
-#endif  // LIB_GET_BINARY_DIR_HPP_
+#endif  // SRC_GET_BINARY_DIR_HPP_

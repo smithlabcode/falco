@@ -35,6 +35,7 @@
 #include <format>
 #include <iterator>
 #include <string>
+#include <vector>
 
 // clang-format off
 
@@ -100,8 +101,8 @@ struct file_grades {
     g.emplace(name, grade);
   }
 
-  [[nodiscard]] auto
-  grade(const std::string &name) const -> std::string;
+  [[nodiscard]] auto explicit grade(const std::string &name) const
+    -> std::string;
 
   [[nodiscard]] auto
   get_title(const std::string &name) const -> std::string;
@@ -148,7 +149,7 @@ public:
   get_grade(const std::string &label, const double value) -> std::string;
 
 private:
-  grader_set(const map_t<std::string, grader> &g);
+  explicit grader_set(const map_t<std::string, grader> &g);
   grader_set() = default;
   ~grader_set() = default;
 

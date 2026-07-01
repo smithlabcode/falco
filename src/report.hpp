@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <format>
 #include <string>
+#include <vector>
 
 struct file_grades;
 struct kmer_result;
@@ -73,11 +74,11 @@ basic_stats_report(const file_info &info, const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 tile_report(const tile_processor::tiles_centered_t &centered,
-            const std::vector<base_group_t> &groups,
-            const file_grades &grades) -> std::string;
+            const std::vector<base_group_t> &groups, const file_grades &grades)
+  -> std::string;
 
 [[nodiscard]] auto
-kmer_report(const std::vector<kmer_result> &results,
-            const file_grades &grades) -> std::string;
+kmer_report(const std::vector<kmer_result> &results, const file_grades &grades)
+  -> std::string;
 
 #endif  // SRC_REPORT_HPP_
