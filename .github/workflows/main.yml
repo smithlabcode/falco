@@ -1,0 +1,11 @@
+name: Release (Linux)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  message:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Message to user
+        run: echo "Not set up in current branch"
