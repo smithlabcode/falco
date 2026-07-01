@@ -173,21 +173,16 @@ h2 {
   clear:left;
 }
 table {
-  margin-left: 3em;
-  text-align: center;
 }
 th {
-  text-align: center;
+  padding: 0.1em 0.5em 0.1em 0.5em;
   background-color: #000080;
   color: #FFF;
-  padding: 0.4em;
 }
 td {
-  font-family: monospace;
-  text-align: left;
+  padding: 0.1em 0.5em 0.1em 0.5em;
   background-color: #EEE;
   color: #000;
-  padding: 0.4em;
 }
 img {
   padding-top: 0;
