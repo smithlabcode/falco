@@ -61,12 +61,12 @@ get_binary_dir() -> std::string {
   const pid_t pid = getpid();
   const ssize_t length = proc_pidpath(pid, std::data(path_buf), path_buf_len);
   if (length > 0)
-    path_to_binary = std::string{path_buf};
+    path_to_binary = std::data(path_buf);
 #elif defined(_WIN32)
   const DWORD size =
     GetModuleFileName(nullptr, std::data(path_buf), path_buf_len);
   if (size > 0)
-    path_to_binary = std::string{path_buf};
+    path_to_binary = std::data(path_buf);
 #else
   (void)path_buf;
 #endif
