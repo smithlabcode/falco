@@ -22,7 +22,7 @@
 
 ## DATADIR is used in sources and assigned in config.h
 set(DATADIR "${CMAKE_INSTALL_DATADIR}")
-set(BUILD_DATA_DIR "${PROJECT_BINARY_DIR}/${DATADIR}/falco2")
+set(BUILD_DATA_DIR "${PROJECT_BINARY_DIR}/${DATADIR}/falco")
 file(MAKE_DIRECTORY ${BUILD_DATA_DIR})
 set(FastQC_DATA_DIR "${PROJECT_SOURCE_DIR}/data/Configuration")
 set(

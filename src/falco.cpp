@@ -22,7 +22,7 @@
  */
 
 // clang-format off
-static constexpr auto about = R"(Falco v2.0: an in-progress redesign of Falco)";
+static constexpr auto about = R"(Falco v{}: an in-progress redesign of Falco)";
 static constexpr auto description = R"(Examples to be added
 
 Default configuration files can be found in:
@@ -278,7 +278,7 @@ main(int argc, char *argv[]) {
       }
     };
 
-    CLI::App app{about};
+    CLI::App app{std::format(about, VERSION)};
     const auto fmt = std::make_shared<FormatWithoutFlagDefaults>();
     app.formatter(fmt);
 

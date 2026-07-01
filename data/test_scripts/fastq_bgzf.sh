@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
 
-prog=./falco2
+prog=./falco
 infile=test_data/fastq_bgzip_1.fq.gz
 outdir=fastq_bgzf_out
 if [[ -e "${infile}" ]]; then

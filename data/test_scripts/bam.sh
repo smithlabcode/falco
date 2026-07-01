@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
 
-prog=./falco2
+prog=./falco
 infile=test_data/bam_1.bam
 outdir=bam_out
 if [[ -e "${infile}" ]]; then

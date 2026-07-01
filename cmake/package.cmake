@@ -80,7 +80,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(APPEND CPACK_GENERATOR "DEB")
     set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Andrew D Smith <andrewds@usc.edu>")
     set(CPACK_DEBIAN_PACKAGE_HOMEPAGE
-      "https://github.com/andrewdavidsmith/falco2"
+      "https://github.com/smithlabcode/falco"
     )
     # Set dependency libc6 with the version constraint
     set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= ${GLIBC_VERSION})")

@@ -24,8 +24,8 @@
 # $ cmake --version
 cmake_minimum_required(VERSION 3.30)
 project(
-  falco2
-  VERSION 0.1.0
+  falco
+  VERSION 2.0.0
   LANGUAGES CXX)
 
 # Set language version used
@@ -194,8 +194,8 @@ target_link_libraries(falco_config PUBLIC
   run_mode
 )
 
-add_executable(falco2 src/falco2.cpp)
-target_link_libraries(falco2 PUBLIC
+add_executable(falco src/falco.cpp)
+target_link_libraries(falco PUBLIC
   tile_processor
   contaminants
   adapter_matcher

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
 
-prog=./falco2
+prog=./falco
 infile1=test_data/fastq_bgzip_1.fq.gz
 infile2=test_data/fastq_bgzip_2.fq.gz
 outdir=fastq_bgzf_mult_out
