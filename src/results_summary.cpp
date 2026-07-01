@@ -185,8 +185,9 @@ results_summary::get_report() const -> std::string {
 
 [[nodiscard]] auto
 results_summary::get_html() const -> std::string {
-  const auto basic_stats = basic_stats_html(
-    info, n_reads, min_read_len, max_read_len, total_gc, total_bases, grades);
+  const auto basic_stats =
+    basic_stats_html(info, n_reads, min_read_len, max_read_len, median_read_len,
+                     total_gc, total_bases, grades);
   auto sections = std::unordered_map<std::string, std::string>{
     {"basic_stats", basic_stats},
   };
