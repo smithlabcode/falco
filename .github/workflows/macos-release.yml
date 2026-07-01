@@ -1,0 +1,11 @@
+name: Release (macOS)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  message:
+    runs-on: macos-26
+    steps:
+      - name: Message to user
+        run: echo "Not set up in current branch"
