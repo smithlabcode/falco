@@ -47,7 +47,7 @@
 #include <numeric>
 #include <ranges>
 #include <string>
-#include <vector>
+#include <vector>  // IWYU pragma: keep
 
 [[nodiscard]] auto
 get_summary(const file_grades &grades) -> std::string {
@@ -404,8 +404,8 @@ basic_stats_html(const file_info &info, const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 tile_html(const tile_processor::tiles_centered_t &centered,
-          const std::vector<base_group_t> &groups,
-          const file_grades &grades) -> std::string {
+          const std::vector<base_group_t> &groups, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto n_quants = 20.0;
   // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
@@ -466,8 +466,8 @@ yaxis: {{title: "tile", type: "category"}},
 }
 
 [[nodiscard]] auto
-kmer_html(const std::vector<kmer_result> &results,
-          const file_grades &grades) -> std::string {
+kmer_html(const std::vector<kmer_result> &results, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "kmer";
   static constexpr auto plot_format = R"(<div id="{}"></div>
 <script>Plotly.newPlot("{}",

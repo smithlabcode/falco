@@ -35,7 +35,7 @@
 #include <format>
 #include <iterator>
 #include <string>
-#include <vector>
+#include <vector>  // IWYU pragma: keep
 
 // clang-format off
 
@@ -101,8 +101,8 @@ struct file_grades {
     g.emplace(name, grade);
   }
 
-  [[nodiscard]] auto explicit grade(const std::string &name) const
-    -> std::string;
+  [[nodiscard]] auto
+  grade(const std::string &name) const -> std::string;
 
   [[nodiscard]] auto
   get_title(const std::string &name) const -> std::string;

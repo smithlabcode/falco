@@ -30,7 +30,7 @@
 #include <cstdint>
 #include <format>
 #include <string>
-#include <vector>
+#include <vector>  // IWYU pragma: keep
 
 struct file_info;
 
