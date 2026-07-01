@@ -77,8 +77,9 @@ quality_base_html(const std::vector<falco::qual_array> &qual,
 [[nodiscard]] auto
 basic_stats_html(const file_info &info, const std::uint64_t n_reads,
                  const std::uint64_t min_read_len,
-                 const std::uint64_t max_read_len, const std::uint64_t total_gc,
-                 const std::uint64_t total_nucs,
+                 const std::uint64_t max_read_len,
+                 const std::uint64_t median_read_len,
+                 const std::uint64_t total_gc, const std::uint64_t total_nucs,
                  const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto

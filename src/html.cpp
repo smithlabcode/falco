@@ -367,8 +367,9 @@ yaxis: {{title: "Phread quality"}},
 [[nodiscard]] auto
 basic_stats_html(const file_info &info, const std::uint64_t n_reads,
                  const std::uint64_t min_read_len,
-                 const std::uint64_t max_read_len, const std::uint64_t total_gc,
-                 const std::uint64_t total_nucs,
+                 const std::uint64_t max_read_len,
+                 const std::uint64_t median_read_len,
+                 const std::uint64_t total_gc, const std::uint64_t total_nucs,
                  const file_grades &grades) -> std::string {
   static constexpr auto label = "basic_stats";
   static constexpr auto table_fmt =
@@ -377,8 +378,9 @@ basic_stats_html(const file_info &info, const std::uint64_t n_reads,
 <tr><td>File type</td><td>{file_type}</td></tr>
 <tr><td>Encoding</td><td>{encoding}</td></tr>
 <tr><td>Total Sequences</td><td>{n_reads}</td></tr>
-<tr><td>Sequences Flagged As Poor Quality</td><td>{n_poor}</td></tr>
 <tr><td>Sequence length</td><td>{lengths_label}</td></tr>
+<tr><td>Mean length</td><td>{mean_length:.1f}</td></tr>
+<tr><td>Median length</td><td>{median_length}</td></tr>
 <tr><td>%GC:</td><td>{gc_sequence_label:.1f}</td></tr>
 </tbody></table>)";
   const auto lengths_label =
@@ -386,7 +388,6 @@ basic_stats_html(const file_info &info, const std::uint64_t n_reads,
       ? std::format("{}", max_read_len)
       : std::format("{}-{}", min_read_len, max_read_len);
   const auto gc_content_frac = pct(as_frac(total_gc, total_nucs));
-
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
   return fmt::format(
@@ -395,8 +396,9 @@ basic_stats_html(const file_info &info, const std::uint64_t n_reads,
                 fmt::arg("file_type", info.description),
                 fmt::arg("encoding", to_string(info.encoding)),
                 fmt::arg("n_reads", n_reads),
-                fmt::arg("n_poor", 0),  // ADS: where to calcualte this?
                 fmt::arg("lengths_label", lengths_label),
+                fmt::arg("mean_length", as_frac(total_nucs, n_reads)),
+                fmt::arg("median_length", median_read_len),
                 fmt::arg("gc_sequence_label", gc_content_frac)));
 }
 
