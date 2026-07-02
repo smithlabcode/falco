@@ -30,10 +30,8 @@
 #include <cstdint>
 #include <format>
 #include <iterator>
-#include <limits>
 #include <string>
 #include <thread>  // IWYU pragma: keep
-#include <utility>
 #include <vector>
 
 class run_mode;
@@ -54,12 +52,6 @@ struct kmer_result {
 };
 
 struct kmer_counter {
-  static constexpr auto grade_cutoffs = std::array{
-    std::pair{2.0, "pass"},
-    std::pair{5.0, "warn"},
-    std::pair{std::numeric_limits<double>::max(), "fail"},
-  };
-
   // cutoffs for what to report
   static constexpr auto min_obs_exp_to_report = 5.0;
   static constexpr auto max_pval_to_report = 0.01;
@@ -117,12 +109,6 @@ struct kmer_counter {
 
   [[nodiscard]] auto
   get_kmer_results() const -> std::vector<kmer_result>;
-
-  [[nodiscard]] auto
-  get_grade() const -> std::string;
-
-  [[nodiscard]] auto
-  get_report(const std::string &grade) const -> std::string;
 
   [[nodiscard]] static auto
   decode_kmer(auto word, const auto n_bases) -> std::string;

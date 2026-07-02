@@ -37,6 +37,7 @@
 #include <cstdlib>
 #include <format>
 #include <functional>
+#include <limits>
 #include <numeric>
 #include <ranges>
 #include <string>
@@ -177,37 +178,9 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
   });
   results.erase(std::cbegin(to_erase), std::cend(to_erase));
   std::ranges::sort(results, std::greater{});
-  results.resize(n_kmers_to_report);
+  if (std::size(results) > n_kmers_to_report)
+    results.resize(n_kmers_to_report);
   return results;
-}
-
-[[nodiscard]] auto
-kmer_counter::get_grade() const -> std::string {
-  static constexpr auto label = "kmer";
-  // ADS!!!: Major redundant work here
-  const auto results = get_kmer_results();
-  const auto pval = results.front().pval;
-  const auto neg_log_p_val =
-    pval > 0.0 ? -std::log10(pval) : std::numeric_limits<double>::max();
-  return grader_set::get_grade(label, neg_log_p_val);
-}
-
-[[nodiscard]] auto
-kmer_counter::get_report(const std::string &grade) const -> std::string {
-  static constexpr auto start_tag = ">>Kmer Content\t{}\n";
-  static constexpr auto header = "#Sequence\t"
-                                 "Count\t"
-                                 "PValue\t"
-                                 "Obs/Exp Max\t"
-                                 "Max Obs/Exp Position\n";
-  auto r = std::format(start_tag, grade);
-  r += header;
-  // ADS: should set 'results' as member that can be set in 'finalize'
-  const auto results = get_kmer_results();
-  for (const auto &res : results)
-    // cppcheck-suppress useStlAlgorithm
-    r += std::format("{}\n", res.string());
-  return r + end_module_tag;
 }
 
 [[nodiscard]] auto
