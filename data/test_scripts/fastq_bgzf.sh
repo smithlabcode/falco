@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
 
+# Most basic test on BGZF compressed fastq file
+
 prog=./falco
 infile=test_data/fastq_bgzip_1.fq.gz
 outdir=fastq_bgzf_out
