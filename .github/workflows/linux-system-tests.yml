@@ -1,0 +1,27 @@
+name: System tests (Linux)
+
+on:
+  push:
+    branches:
+      - falco2
+
+jobs:
+  ubuntu-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zlib1g-dev libdeflate-dev libhts-dev
+      - name: Configure for unit tests
+        run: |
+          cmake -B build \
+          -DCMAKE_CXX_COMPILER=g++-14 \
+          -DCMAKE_BUILD_TYPE=Build
+      - name: Build
+        run: |
+          cmake --build build -j4
+      - name: Run the tests
+        run: |
+          ctest --test-dir build
