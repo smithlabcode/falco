@@ -41,7 +41,11 @@ file(CREATE_LINK
 find_program(BASH_PROGRAM bash)
 
 ## Add each test
-add_test(NAME falco_bgzf COMMAND bash test_scripts/fastq_bgzf.sh)
-add_test(NAME falco_bgzf_mult COMMAND bash test_scripts/fastq_bgzf_mult.sh)
-add_test(NAME falco_bam COMMAND bash test_scripts/bam.sh)
-add_test(NAME falco_bam_mult COMMAND bash test_scripts/bam_mult.sh)
+add_test(NAME "BGZF input" COMMAND bash test_scripts/fastq_bgzf.sh)
+add_test(NAME "BGZF multiple" COMMAND bash test_scripts/fastq_bgzf_mult.sh)
+add_test(NAME "BAM input" COMMAND bash test_scripts/bam.sh)
+add_test(NAME "BAM multiple" COMMAND bash test_scripts/bam_mult.sh)
+add_test(NAME "GZ input" COMMAND bash test_scripts/fastq_gz.sh)
+add_test(NAME "BGZF threads" COMMAND bash test_scripts/fastq_bgzf_threads.sh)
+add_test(NAME "Plain FASTQ" COMMAND bash test_scripts/fastq_plain.sh)
+add_test(NAME "Tiles" COMMAND bash test_scripts/fastq_tiles.sh)

@@ -4,3 +4,7 @@ a5639594cc5f1bcbad3a562dc1cf58a8  bam_mult_out/bam_2/fastqc_data.txt
 b9c56f4b0d4529a4f11aca0a7c6ba27e  fastq_bgzf_mult_out/fastq_bgzip_2/fastqc_data.txt
 c7feb696508eedc26a40aa7ae9891458  bam_mult_out/bam_1/fastqc_data.txt
 c7feb696508eedc26a40aa7ae9891458  bam_out/bam_1/fastqc_data.txt
+bf153ad5a8906bb13a7c8b65e4d53a4a  fastq_gz_out/fastq_gz_1/fastqc_data.txt
+6de00a67cdd54102c0deb98ba6ba458d  fastq_bgzf_threads_out/fastq_bgzip_1/fastqc_data.txt
+bd714a4d24c6fbd8441522fb1ad48402  fastq_plain_out/fastq_1/fastqc_data.txt
+e505037e667f763dedbfade2dfd7c444  bam_tiles_out/bam_1/fastqc_data.txt
