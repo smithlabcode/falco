@@ -121,7 +121,7 @@ results_summary::assign_grades() -> void {
   if (mode.do_sequence())
     grades.emplace("sequence", get_grade_sequence(base_counts));
 
-  if (mode.do_tiles())
+  if (mode.do_tiles() && info.has_tiles)
     grades.emplace("tile", get_grade_tile(centered));
 }
 
@@ -171,7 +171,7 @@ results_summary::get_report() const -> std::string {
   if (mode.do_sequence())
     sections.emplace("sequence", sequence_report(base_counts, groups, grades));
 
-  if (mode.do_tiles()) {
+  if (mode.do_tiles() && info.has_tiles) {
     assert(!centered.empty());
     sections.emplace("tile", tile_report(centered, groups, grades));
   }
@@ -227,7 +227,7 @@ results_summary::get_html() const -> std::string {
   if (mode.do_sequence())
     sections.emplace("sequence", sequence_html(base_counts, groups, grades));
 
-  if (mode.do_tiles()) {
+  if (mode.do_tiles() && info.has_tiles) {
     assert(!centered.empty());
     sections.emplace("tile", tile_html(centered, groups, grades));
   }
