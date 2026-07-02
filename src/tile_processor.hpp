@@ -78,10 +78,6 @@ public:
   auto
   apply_groups(const run_mode &mode) -> void;
 
-  [[nodiscard]] auto
-  get_report(const std::vector<base_group_t> &groups,
-             const std::string &grade) const -> std::string;
-
   auto
   operator()(const auto &rec) {
     if (read_idx-- == 0) [[unlikely]] {
