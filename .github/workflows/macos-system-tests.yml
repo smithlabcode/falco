@@ -1,0 +1,29 @@
+name: System tests (macOS)
+
+on:
+  push:
+    branches:
+      - falco2
+
+jobs:
+  macos-tests:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install zlib libdeflate htslib
+      - name: Configure for system tests
+        run: |
+          cmake -B build \
+          -DCMAKE_CXX_COMPILER=g++-15 \
+          -DCMAKE_CXX_FLAGS="-I$(brew --prefix)/include" \
+          -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix)/lib" \
+          -DCMAKE_BUILD_TYPE=Build
+    - name: Build
+      run: |
+        cmake --build build -j3
+    - name: Run the tests
+      run: |
+        ctest --test-dir build --output-on-failure
