@@ -14,7 +14,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y zlib1g-dev libdeflate-dev libhts-dev
-      - name: Configure for unit tests
+      - name: Configure for system tests
         run: |
           cmake -B build \
           -DCMAKE_CXX_COMPILER=g++-14 \
@@ -24,4 +24,4 @@ jobs:
           cmake --build build -j4
       - name: Run the tests
         run: |
-          ctest --test-dir build
+          ctest --test-dir build --output-on-failure
