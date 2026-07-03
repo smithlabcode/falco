@@ -1,4 +1,4 @@
-name: System tests (Linux)
+name: System tests on Linux
 
 on:
   push:
