@@ -101,6 +101,7 @@ endif()
 
 add_library(adapter_set OBJECT src/adapter_set.cpp)
 add_library(falco_utils OBJECT src/falco_utils.cpp)
+add_library(base_groups OBJECT src/base_groups.cpp)
 
 add_library(fastq_file OBJECT src/fastq_file.cpp)
 target_link_libraries(fastq_file PUBLIC HTSLIB::HTSLIB)
@@ -214,6 +215,7 @@ target_link_libraries(falco PUBLIC
   report
   get_binary_dir
   run_mode
+  base_groups
   HTSLIB::HTSLIB
   LIBDEFLATE::LIBDEFLATE
   ZLIB::ZLIB
