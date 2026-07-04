@@ -81,11 +81,11 @@ jobs:
                 -DUSE_ISAL=on \
                 -DCMAKE_BUILD_TYPE=Release && \
             cmake --build build -j4 && \
-            cp build/falco2 falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-Linux
+            cp build/falco falco-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-Linux
         run: |
           docker exec build-container bash -c "$SCRIPT"
       - name: Upload the binary
         uses: actions/upload-artifact@v7
         with:
-          name: falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-Linux
-          path: falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-Linux
+          name: falco-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-Linux
+          path: falco-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-Linux
