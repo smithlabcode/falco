@@ -385,9 +385,10 @@ private:
 
   auto
   read_data() -> void {
-    const auto fread = [&](auto &b, const auto n) {  // cppcheck-suppress
-      return static_cast<std::uint32_t>(std::fread(b, 1, n, in.get()));
-    };
+    const auto fread =
+      [&](auto &b, const auto n) {  // cppcheck-suppress constParameterReference
+        return static_cast<std::uint32_t>(std::fread(b, 1, n, in.get()));
+      };
     // NOLINTNEXTLINE(*-reinterpret-cast)
     state.next_in = reinterpret_cast<std::uint8_t *>(std::data(inbuf));
     state.avail_in = fread(state.next_in, std::size(inbuf));
