@@ -23,6 +23,7 @@
 
 #include "tile_processor.hpp"
 
+#include "base_groups.hpp"
 #include "falco_file_format.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
