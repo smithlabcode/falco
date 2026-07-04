@@ -24,6 +24,7 @@
 #include "adapter_matcher.hpp"
 
 #include "adapter_set.hpp"
+#include "base_groups.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "html.hpp"
@@ -77,6 +78,7 @@ adapter_matcher::get_grade(const std::uint64_t n_reads) const -> std::string {
 
 [[nodiscard]] auto
 adapter_matcher::report(const std::uint64_t n_reads,
+                        const std::uint64_t max_read_len,
                         const std::vector<base_group_t> &groups,
                         const file_grades &grades) const -> std::string {
   static constexpr auto label = "adapter";
@@ -97,9 +99,12 @@ adapter_matcher::report(const std::uint64_t n_reads,
   for (auto [prev, curr] : cumulative | std::views::pairwise)
     std::ranges::transform(curr, prev, std::begin(curr), std::plus{});
 
-  const auto n_pos = std::size(adap_counts);
-  const auto lim = n_pos + 1 >= adapter_size ? n_pos - adapter_size + 1 : n_pos;
-  cumulative.resize(lim);
+  const auto n_pos = max_read_len + 1 >= adapter_size
+                       ? max_read_len - adapter_size + 1
+                       : max_read_len;
+  const auto last_group_to_keep = std::ranges::find_if(
+    groups, [&](const auto &g) { return n_pos <= g.first; });
+  cumulative.resize(std::distance(std::cbegin(groups), last_group_to_keep));
   const auto fmt_pct_of_reads = [n_reads](const auto c) {
     return std::format("\t{:.6g}", pct(as_frac(c, n_reads)));
   };
@@ -111,6 +116,7 @@ adapter_matcher::report(const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 adapter_matcher::html(const std::uint64_t n_reads,
+                      const std::uint64_t max_read_len,
                       const std::vector<base_group_t> &groups,
                       const file_grades &grades) const -> std::string {
   static constexpr auto label = "adapter";
@@ -120,8 +126,6 @@ adapter_matcher::html(const std::uint64_t n_reads,
 Plotly.newPlot("adapters_plot",
 {},
 {{
-margin: {{t: 0}},
-showlegend: true,
 xaxis: {{title: "Base position"}},
 yaxis: {{title: "% sequences with adapter before position"}},
 }});
@@ -135,15 +139,19 @@ name: "{}",
   assert(std::size(groups) == std::size(adap_counts));
   // calcualte the x axis first
   const auto x = groups | std::views::transform([&](const auto &g) {
-                   return make_group_tag_quoted(g);
+                   return make_group_tag(g);  // ADS: purposely unquoted
                  });
   auto cumulative = adap_counts;
   for (auto [prev, curr] : cumulative | std::views::pairwise)
     std::ranges::transform(curr, prev, std::begin(curr), std::plus{});
 
-  const auto n_pos = std::size(adap_counts);
-  const auto lim = n_pos + 1 >= adapter_size ? n_pos - adapter_size + 1 : n_pos;
-  cumulative.resize(lim);
+  const auto n_pos = max_read_len + 1 >= adapter_size
+                       ? max_read_len - adapter_size + 1
+                       : max_read_len;
+  const auto last_group_to_keep = std::ranges::find_if(
+    groups, [&](const auto &g) { return n_pos <= g.first; });
+  cumulative.resize(std::distance(std::cbegin(groups), last_group_to_keep));
+
   const auto pct_of_reads = [n_reads](const auto c) {
     return pct(as_frac(c, n_reads));
   };

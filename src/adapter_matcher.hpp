@@ -24,6 +24,7 @@
 #ifndef SRC_ADAPTER_MATCHER_HPP_
 #define SRC_ADAPTER_MATCHER_HPP_
 
+#include "base_groups.hpp"
 #include "falco_utils.hpp"
 
 #include <cstdint>
@@ -96,11 +97,13 @@ struct adapter_matcher {
   get_grade(const std::uint64_t n_reads) const -> std::string;
 
   [[nodiscard]] auto
-  report(const std::uint64_t n_reads, const std::vector<base_group_t> &groups,
+  report(const std::uint64_t n_reads, const std::uint64_t max_read_len,
+         const std::vector<base_group_t> &groups,
          const file_grades &grades) const -> std::string;
 
   [[nodiscard]] auto
-  html(const std::uint64_t n_reads, const std::vector<base_group_t> &groups,
+  html(const std::uint64_t n_reads, const std::uint64_t max_read_len,
+       const std::vector<base_group_t> &groups,
        const file_grades &grades) const -> std::string;
 };
 
