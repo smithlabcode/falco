@@ -24,6 +24,7 @@
 #ifndef SRC_REPORT_HPP_
 #define SRC_REPORT_HPP_
 
+#include "base_groups.hpp"
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 #include "tile_processor.hpp"
@@ -74,11 +75,11 @@ basic_stats_report(const file_info &info, const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 tile_report(const tile_processor::tiles_centered_t &centered,
-            const std::vector<base_group_t> &groups, const file_grades &grades)
-  -> std::string;
+            const std::vector<base_group_t> &groups,
+            const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-kmer_report(const std::vector<kmer_result> &results, const file_grades &grades)
-  -> std::string;
+kmer_report(const std::vector<kmer_result> &results,
+            const file_grades &grades) -> std::string;
 
 #endif  // SRC_REPORT_HPP_

@@ -23,6 +23,7 @@
 
 #include "report.hpp"
 
+#include "base_groups.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "kmer_counter.hpp"  // IWYU pragma: keep
