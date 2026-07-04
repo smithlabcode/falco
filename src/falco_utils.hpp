@@ -75,7 +75,7 @@ get_theoretical_distribution(const falco::gc_content_array &gc,
 [[nodiscard]] auto
 sum_deviation_from_normal(const falco::gc_content_array &gc) -> double;
 
-[[nodiscard]] constexpr auto
+[[nodiscard]] inline constexpr auto
 duration(const auto start, const auto stop) {
   const auto d = stop - start;
   // ADS: 'count()' because macos has locale issues formatting times
@@ -151,13 +151,12 @@ add(std::ranges::forward_range auto &a1,
 };
 
 template <typename T>
-concept has_addition = std::regular<T> && requires(T x, T y) {
+concept has_plus_equals = std::regular<T> && requires(T x, T y) {
   { x += y } -> std::same_as<T &>;
-  { x + y } -> std::convertible_to<T>;
 };
 
 inline constexpr auto
-add(has_addition auto &a1, const has_addition auto &a2) {
+add(has_plus_equals auto &a1, const has_plus_equals auto &a2) {
   a1 += a2;
 };
 
@@ -174,7 +173,7 @@ two_dim_add(auto &v1, const auto &v2) {
     add(a1, a2);
 };
 
-[[nodiscard]] constexpr auto
+[[nodiscard]] inline constexpr auto
 as_frac(const auto a, const auto b) {
   return static_cast<double>(a) / static_cast<double>(b);
 }
@@ -281,11 +280,11 @@ median_tabular(const auto &a) {
 
 // clang-format off
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
-[[nodiscard]] constexpr inline auto median_val(const auto &q) { return q[0]; }
-[[nodiscard]] constexpr inline auto lquart_val(const auto &q) { return q[1]; }
-[[nodiscard]] constexpr inline auto uquart_val(const auto &q) { return q[2]; }
-[[nodiscard]] constexpr inline auto ldec_val(const auto &q) { return q[3]; }
-[[nodiscard]] constexpr inline auto udec_val(const auto &q) { return q[4]; }
+[[nodiscard]] inline constexpr auto median_val(const auto &q) { return q[0]; }
+[[nodiscard]] inline constexpr auto lquart_val(const auto &q) { return q[1]; }
+[[nodiscard]] inline constexpr auto uquart_val(const auto &q) { return q[2]; }
+[[nodiscard]] inline constexpr auto ldec_val(const auto &q) { return q[3]; }
+[[nodiscard]] inline constexpr auto udec_val(const auto &q) { return q[4]; }
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 // clang-format on
 
@@ -312,60 +311,6 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
 
 [[nodiscard]] auto
 size_to_units(const std::int64_t s) -> std::string;
-
-using base_group_t = std::pair<std::uint64_t, std::uint64_t>;
-
-[[nodiscard]] auto
-make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
-                 const std::uint64_t n_groups_target)
-  -> std::vector<base_group_t>;
-
-[[nodiscard]] auto
-get_default_base_groups(const std::uint64_t n_bases, const bool use_target)
-  -> const std::vector<base_group_t> &;
-
-[[nodiscard]] auto
-make_group_tag(const base_group_t g) -> std::string;
-
-[[nodiscard]] auto
-make_group_tag_quoted(const base_group_t g) -> std::string;
-
-[[nodiscard]] auto
-apply_base_groups(const std::vector<base_group_t> &groups, auto &rows) {
-  assert(std::size(rows) <= groups.back().second);
-  auto group_itr = std::cbegin(groups);
-  auto current_row = 0U;
-  for (const auto [idx, row] :
-       std::views::enumerate(rows) | std::views::drop(1)) {
-    if (static_cast<std::uint64_t>(idx) < group_itr->second)
-      add(rows[current_row], row);
-    else {
-      std::swap(row, rows[++current_row]);
-      ++group_itr;
-    }
-  }
-  ++current_row;  // move past the last row used
-  rows.resize(current_row);
-}
-
-[[nodiscard]] auto
-apply_base_groups(const std::vector<base_group_t> &groups, auto &rows,
-                  const auto &adder) {
-  assert(std::size(rows) <= groups.back().second);
-  auto group_itr = std::cbegin(groups);
-  auto current_row = 0U;
-  for (const auto [idx, row] :
-       std::views::enumerate(rows) | std::views::drop(1)) {
-    if (static_cast<std::uint64_t>(idx) < group_itr->second)
-      adder(rows[current_row], row);
-    else {
-      std::swap(row, rows[++current_row]);
-      ++group_itr;
-    }
-  }
-  ++current_row;  // move past the last row used
-  rows.resize(current_row);
-}
 
 [[nodiscard]] static inline auto
 get_max_size(const auto &x) {
