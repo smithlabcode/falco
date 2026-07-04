@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
 
+# Test two input BAM files
+
 prog=./falco
 infile1=test_data/bam_1.bam
 infile2=test_data/bam_2.bam
