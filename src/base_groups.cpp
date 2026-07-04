@@ -23,10 +23,9 @@
 
 #include "base_groups.hpp"
 
+#include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstdint>
-#include <span>
 #include <stdexcept>
 #include <string>
 #include <tuple>
