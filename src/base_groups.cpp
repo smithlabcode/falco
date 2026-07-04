@@ -107,7 +107,7 @@ make_group_tag(const base_group_t g) -> std::string {
 [[nodiscard]] auto
 make_group_tag_quoted(const base_group_t g) -> std::string {
   return (g.first + 1 == g.second)
-           ? std::format(R"({})", g.first + 1)
+           ? std::format(R"("{}")", g.first + 1)
            // ADS: make a closed interval
-           : std::format(R"({}-{})", g.first + 1, g.second);
+           : std::format(R"("{}-{}")", g.first + 1, g.second);
 }
