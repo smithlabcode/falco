@@ -48,12 +48,12 @@ static constexpr auto falco_html_body =
 )";
 
 static constexpr auto style = R"(<style type="text/css">
-  @media screen {
-    div.summary {
-      width: 18em;
-      position:fixed;
-      top: 4em;
-      margin:1em 0 0 1em;
+@media screen {
+  div.summary {
+    width: 18em;
+    position:fixed;
+    top: 4em;
+    margin:1em 0 0 1em;
   }
   div.main {
     display:block;
@@ -194,13 +194,13 @@ p {
   margin-top: 0;
 }
 .pass {
-  color : #009900;
+  color: #009900;
 }
 .warn {
-  color : #999900;
+  color: #999900;
 }
 .fail {
-  color : #990000;
+  color: #990000;
 }
 </style>)";
 
