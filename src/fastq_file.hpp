@@ -153,8 +153,8 @@ struct fastq_file {
   int fd{};
 
   fastq_file(const std::string &filename, const std::int64_t buf_size) :
-    buf_size{buf_size}, filesize{static_cast<std::int64_t>(
-                          std::filesystem::file_size(filename))},
+    buf_size{buf_size},
+    filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
     stop_pos_in_file{buf_size},  // init this way because used as sentinel
     fd{open(std::data(filename), O_RDONLY, 0)} {
     if (fd < 0)
@@ -216,8 +216,7 @@ struct fastq_bgzf_file {
 
   fastq_bgzf_file(const std::string &filename, const std::int64_t buf_size,
                   falco_thread_pool &t) :
-    buf_size{buf_size},
-    buffer(buf_size), sentinel_position{buf_size},
+    buf_size{buf_size}, buffer(buf_size), sentinel_position{buf_size},
     f(bgzf_open(std::data(filename), "r"), &bgzf_close) {
     static constexpr auto bgzf_fmt_code = 2;  // from bgzf.h
     if (!f)
@@ -293,20 +292,23 @@ private:
   isal_gzip_header gz_hdr{};
   std::vector<char> outbuf;
   std::vector<char> inbuf;
+  bool isal_ok{true};
   std::unique_ptr<std::FILE, int (*)(std::FILE *)> in;
 
 public:
   // clang-format off
   [[nodiscard]] auto get_cursor() const { return cursor; }
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  [[nodiscard]] auto get_buf_end() const { return buf.data + buf.sz; }
   auto set_cursor(const auto c) { cursor = c; }
   // clang-format on
+  [[nodiscard]] auto
+  get_buf_end() const {
+    // NOLINTNEXTLINE(*-reinterpret-cast,*-pointer-arithmetic)
+    return reinterpret_cast<std::uint8_t *>(buf.data + buf.sz);
+  }
 
   explicit fastq_gz_file(const std::string &filename,
                          const std::int64_t buf_size) :
-    outbuf(buf_size / 2),
-    inbuf(buf_size / 2),
+    outbuf(buf_size / 2), inbuf(buf_size / 2),
     in(std::fopen(std::data(filename), "r"), &std::fclose) {
     if (in == nullptr)
       throw std::runtime_error("failed to open " + filename);
@@ -314,83 +316,98 @@ public:
       throw std::runtime_error(std::format(
         "requested buffer too small {} (min is {})", buf_size, min_buf_size));
 
-    isal_inflate_init(&state);
-    state.crc_flag = ISAL_GZIP_NO_HDR_VER;
-    update_state_in();
+    isal_gzip_header_init(&gz_hdr);         // header
+    isal_inflate_init(&state);              // inflate
+    state.crc_flag = ISAL_GZIP_NO_HDR_VER;  // CRC
 
-    // Actually read and save the header info
-    isal_gzip_header_init(&gz_hdr);
+    read_data();
+
     const auto ret = isal_read_gzip_header(&state, &gz_hdr);
     if (ret != ISAL_DECOMP_OK)
       throw std::runtime_error("failed to read gz header from: " + filename);
+
     buf.sz = 0;
     buf.data = std::data(outbuf);
   }
 
-  [[nodiscard]] operator bool() const {
-    // ADS: check both conditions below: small files might hit eof on first read
-    return !std::feof(in.get()) || state.avail_in > 0;
+  [[nodiscard]] operator bool() const {  // does compressed data remain?
+    return isal_ok && (!std::feof(in.get()) || state.avail_in > 0);
   }
 
   auto
   load_next() {
     if (cursor > 0)
-      shift_buffer();
-    // ADS: below likely won't happen just after reading header in constructor
-    if (state.avail_in == 0)
-      update_state_in();
-    if (state.block_state == ISAL_BLOCK_FINISH && !process_header()) {
-      // ADS: we only reach this point if we have multiple gz in the same file
-      return;
+      shift_output_buffer();
+    while (true) {
+      if (need_data())
+        read_data();
+      if (state.block_state == ISAL_BLOCK_FINISH && !next_gzip_header_ok()) {
+        isal_ok = false;  // end of file, but next data not valid file start
+        break;
+      }
+      const auto prev_avail_out = update_output_state();
+      if (prev_avail_out == 0)
+        break;
+      if (const auto r = isal_inflate(&state); r != ISAL_DECOMP_OK)
+        throw std::runtime_error(std::format(inflate_err_msg, r));
+      buf.sz += (prev_avail_out - state.avail_out);
+      if (work_done())
+        break;
     }
-
-    // ADS: buf.sz is right after previous decompressed but not-yet-used data
-    const std::int64_t remaining_capacity = std::ssize(outbuf) - buf.sz;
-
-    state.avail_out = remaining_capacity;
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-    state.next_out = reinterpret_cast<std::uint8_t *>(get_buf_end());
-
-    const auto r = isal_inflate(&state);
-    if (r != ISAL_DECOMP_OK && r != ISAL_END_INPUT)
-      throw std::runtime_error(std::format(inflate_err_msg, r));
-
-    assert(remaining_capacity >= state.avail_out);
-    const std::int64_t n_bytes = remaining_capacity - state.avail_out;
-
-    buf.sz += n_bytes;
-    cursor = 0;
   }
 
 private:
+  [[nodiscard]] auto
+  check_gzip_magic() const -> bool {
+    static constexpr auto magic1 = 31;
+    static constexpr auto magic2 = 139;
+    return state.avail_in > 1 && state.next_in[0] == magic1 &&
+           state.next_in[1] == magic2;
+  }
+
+  [[nodiscard]] auto
+  update_output_state() -> std::int64_t {
+    const std::int64_t available = std::ssize(outbuf) - buf.sz;
+    state.avail_out = available;
+    state.next_out = get_buf_end();
+    return available;
+  }
+
+  [[nodiscard]] auto
+  work_done() const -> bool {
+    return state.avail_in == 0 && std::feof(in.get());
+  }
+
+  [[nodiscard]] auto
+  need_data() const -> bool {
+    return state.avail_in == 0 && !std::feof(in.get());
+  }
+
   auto
-  update_state_in() -> void {
-    const auto fread =
-      [&](auto &b, const auto n) {  // cppcheck-suppress constParameterReference
-        return static_cast<std::uint32_t>(std::fread(b, 1, n, in.get()));
-      };
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  read_data() -> void {
+    const auto fread = [&](auto &b, const auto n) {  // cppcheck-suppress
+      return static_cast<std::uint32_t>(std::fread(b, 1, n, in.get()));
+    };
+    // NOLINTNEXTLINE(*-reinterpret-cast)
     state.next_in = reinterpret_cast<std::uint8_t *>(std::data(inbuf));
     state.avail_in = fread(state.next_in, std::size(inbuf));
   }
 
   [[nodiscard]] auto
-  process_header() -> bool {
-    isal_inflate_reset(&state);
-    state.crc_flag = ISAL_GZIP_NO_HDR;
-    isal_gzip_header_init(&gz_hdr);  // process extra headers
-    // skip the next header
-    const auto ret = isal_read_gzip_header(&state, &gz_hdr);
-    if (ret != ISAL_DECOMP_OK)  // allow trailing junk
-      return false;
-    return true;
+  next_gzip_header_ok() -> bool {
+    if (check_gzip_magic()) {
+      isal_inflate_reset(&state);
+      state.crc_flag = ISAL_GZIP;  // process extra headers
+      return true;
+    }
+    return false;
   }
 
   auto
-  shift_buffer() -> void {
+  shift_output_buffer() -> void {
     const auto buf_data = std::data(outbuf);
     const auto n_bytes_to_keep = buf.sz - cursor;
-    // ADS: need to check the conditions when these might overlap
+    assert(n_bytes_to_keep < cursor);  // ADS: memcpy breaks if overlap
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     std::memcpy(buf_data, buf_data + cursor, n_bytes_to_keep);
     buf.sz = n_bytes_to_keep;
@@ -466,9 +483,10 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   static constexpr auto rec_lines = 4;  // FASTQ
   // clang-format off
   const auto not_read_start = [](const auto s, const auto p) {
-    assert(p >= 3);
+    // assert(p >= 3);
     // ADS: could get confused if '+' lines have full name info
-    return s[p] != '@' || s[p-1] != '\n' || (s[p-2] == '+' && s[p-3] == '\n');
+    return s[p] != '@' || (p > 0 && s[p-1] != '\n') ||
+      (p > 2 && s[p-2] == '+' && s[p-3] == '\n');
   };
   const auto fwd_to_read_start = [&](const auto &buf, auto pos) {
     if (pos == 0) return pos;
@@ -502,8 +520,9 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
 
 // specialization to these two classes to distinguish from BAM/SAM
 template <typename T>
-concept fastq_like = std::same_as<T, fastq_file> ||
-  std::same_as<T, fastq_bgzf_file> || std::same_as<T, fastq_gz_file>;
+concept fastq_like =
+  std::same_as<T, fastq_file> || std::same_as<T, fastq_bgzf_file> ||
+  std::same_as<T, fastq_gz_file>;
 
 template <fastq_like T>
 [[nodiscard]] static inline auto
