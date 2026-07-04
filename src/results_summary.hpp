@@ -25,6 +25,7 @@
 #define SRC_RESULTS_SUMMARY_HPP_
 
 #include "adapter_matcher.hpp"
+#include "base_groups.hpp"
 #include "duplication_results.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"

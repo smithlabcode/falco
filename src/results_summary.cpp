@@ -23,6 +23,7 @@
 
 #include "results_summary.hpp"
 
+#include "base_groups.hpp"
 #include "falco_utils.hpp"
 #include "html.hpp"
 #include "report.hpp"
@@ -47,7 +48,8 @@ results_summary::apply_groups() -> void {
     // ADS: need one for lengths
     apply_base_groups(groups, qual_by_pos);
     am.apply_groups(mode);
-    tp.apply_groups(mode);
+    if (mode.do_tiles() && info.has_tiles)
+      tp.apply_groups(mode);
   }
 }
 
@@ -135,7 +137,8 @@ results_summary::get_report() const -> std::string {
   };
 
   if (mode.do_adap())
-    sections.emplace("adapter", am.report(n_reads, groups, grades));
+    sections.emplace("adapter",
+                     am.report(n_reads, max_read_len, groups, grades));
 
   if (mode.do_dups())
     sections.emplace("duplication", duplication_report(dup_summary, grades));
@@ -193,7 +196,7 @@ results_summary::get_html() const -> std::string {
   };
 
   if (mode.do_adap())
-    sections.emplace("adapter", am.html(n_reads, groups, grades));
+    sections.emplace("adapter", am.html(n_reads, max_read_len, groups, grades));
 
   if (mode.do_dups())
     sections.emplace("duplication", duplication_html(dup_summary, grades));
