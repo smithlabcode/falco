@@ -23,6 +23,7 @@
 
 #include "html.hpp"
 
+#include "base_groups.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "html_boilerplate.hpp"
@@ -104,8 +105,6 @@ sequence_length_html(const std::vector<std::uint64_t> &lengths,
 Plotly.newPlot("length_plot",
 [{}],
 {{
-margin: {{t: 0}},
-showlegend: true,
 xaxis: {{title: "Sequence length"}},
 yaxis: {{title: "Number of sequences"}},
 }});
@@ -117,7 +116,7 @@ y: [{}],
 text: [{}],
 type: "bar",
 marker: {{color: "rgba(55,128,191,1.0)"}},
-line: {{width : 2}},
+line: {{width: 2}},
 name: "Sequence length distribution"
 }})""";
   const auto length_values = std::views::iota(0LU, std::size(lengths));
@@ -144,8 +143,6 @@ gc_sequence_html(const falco::gc_content_array &gc_content,
 Plotly.newPlot("gc_sequence_plot",
 [{}],
 {{
-margin: {{t: 0}},
-showlegend: true,
 xaxis: {{title: "% GC"}},
 yaxis: {{title: "Density"}}
 }});
@@ -162,7 +159,7 @@ name: "GC distribution"
 x: {},
 y: {},
 type: "line",
-line: {{color : "blue"}},
+line: {{color: "blue"}},
 name: "Theoretical distribution"
 }})";
   const auto x = std::views::iota(1, std::ssize(gc_content) + 1);
@@ -189,10 +186,8 @@ sequence_html(const std::vector<falco::nuc_array> &nucs,
 Plotly.newPlot("sequence_plot",
 [{}],
 {{
-margin: {{t: 0}},
-showlegend: true,
 xaxis: {{title: "Base position"}},
-yaxis: {{title: "Phread quality"}},
+yaxis: {{title: "Per base sequence content"}},
 }});
 </script>
 )";
@@ -201,7 +196,7 @@ x: [{}],
 y: [{:.3f}],
 mode: "lines",
 name: "{}",
-line: {{color : "{}"}}
+line: {{color: "{}"}}
 }})";
   static constexpr auto base_permutation = {0, 1, 3, 2};
   // ADS: the permutation is likely wrong...
@@ -252,12 +247,10 @@ Plotly.newPlot("n_content_plot",
 x: [{}],
 y: [{:.6g}],
 type: "line",
-line: {{color : "red"}},
+line: {{color: "red"}},
 name: "Fraction of N reads per base"
 }}],
 {{
-margin: {{t: 0}},
-showlegend: true,
 xaxis: {{title: "Base position"}},
 yaxis: {{title: "% N"}},
 }}
@@ -294,8 +287,6 @@ line: {{color: "red"}},
 name: "Sequence quality distribution"
 }}],
 {{
-margin: {{t: 0}},
-showlegend: true,
 xaxis: {{title: "Phread quality"}},
 yaxis: {{title: "Density"}},
 }});
@@ -332,7 +323,6 @@ quality_base_html(const std::vector<falco::qual_array> &qual,
 Plotly.newPlot("quality_base_plot",
 [{}],
 {{
-margin: {{t: 0}},
 showlegend: false,
 xaxis: {{title: "Base position"}},
 yaxis: {{title: "Phread quality"}},
@@ -340,7 +330,7 @@ yaxis: {{title: "Phread quality"}},
 </script>
 )";
   static constexpr auto row_fmt =
-    R"({{y: [{}], type: "box", name: "{}bp", marker: {{color : "{}"}}}})";
+    R"({{y: [{}], type: "box", name: "{}bp", marker: {{color: "{}"}}}})";
   const auto get_color = [&](const auto &q) {
     static constexpr auto median_error = 0.20;
     static constexpr auto median_warn = 0.25;
@@ -356,6 +346,7 @@ yaxis: {{title: "Phread quality"}},
   for (const auto [idx, q] : std::views::enumerate(qual)) {
     const auto fq = five_quants(q);
     lines.emplace_back(fmt::format(row_fmt, fmt::join(fq, ", "),
+                                   // ADS: unquoted on purpose
                                    make_group_tag(groups[idx]), get_color(fq)));
   }
   const auto grade = grades.grade(label);
@@ -404,8 +395,8 @@ basic_stats_html(const file_info &info, const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 tile_html(const tile_processor::tiles_centered_t &centered,
-          const std::vector<base_group_t> &groups, const file_grades &grades)
-  -> std::string {
+          const std::vector<base_group_t> &groups,
+          const file_grades &grades) -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto n_quants = 20.0;
   // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
@@ -423,14 +414,13 @@ colorscale: [
 showscale: true,
 }}],
 {{
-margin: {{t: 0}},
 showlegend: false,
 xaxis: {{title: "Base position"}},
 yaxis: {{title: "tile", type: "category"}},
 }}
 )""";
-  static constexpr auto plot_fmt = R"(<div id="{}"></div>
-<script>Plotly.newPlot("{}",
+  static constexpr auto plot_fmt = R"(<div id="tile_plot"></div>
+<script>Plotly.newPlot("tile_plot",
 {}
 );</script>
 )";
@@ -457,7 +447,7 @@ yaxis: {{title: "tile", type: "category"}},
   return fmt::format(
     html_module_fmt, grade, label, title, grade,
     fmt::format(
-      plot_fmt, "tiles_plot", "tiles_plot",
+      plot_fmt,
       fmt::format(tiles_plot_fmt,
                   fmt::join(groups | std::views::transform(tag), ","),  // x
                   fmt::join(centered | std::views::keys, ","),          // y
@@ -466,11 +456,11 @@ yaxis: {{title: "tile", type: "category"}},
 }
 
 [[nodiscard]] auto
-kmer_html(const std::vector<kmer_result> &results, const file_grades &grades)
-  -> std::string {
+kmer_html(const std::vector<kmer_result> &results,
+          const file_grades &grades) -> std::string {
   static constexpr auto label = "kmer";
-  static constexpr auto plot_format = R"(<div id="{}"></div>
-<script>Plotly.newPlot("{}",
+  static constexpr auto plot_format = R"(<div id="kmer_plot"></div>
+<script>Plotly.newPlot("kmer_plot",
 {}
 );</script>
 )";
@@ -499,7 +489,7 @@ name: "{}",
   return fmt::format(
     html_module_fmt, grade, label, title, grade,
     fmt::format(
-      plot_format, "kmer_plot", "kmer_plot",
+      plot_format,
       fmt::format("[{}]",
                   fmt::join(std::views::transform(results, format1), ",\n"))));
 }
