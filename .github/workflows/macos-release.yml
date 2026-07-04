@@ -13,15 +13,15 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
-      - name: Make falco2 dependency directories
-        run: sudo mkdir -p /opt/falco2/lib /opt/falco2/include
+      - name: Make falco dependency directories
+        run: sudo mkdir -p /opt/falco/lib /opt/falco/include
       - name: Install dependency headers and static libs
         run: |
           brew install zlib automake isa-l
-          sudo cp $(brew --prefix zlib)/lib/*.a /opt/falco2/lib
-          sudo cp -r $(brew --prefix zlib)/include/* /opt/falco2/include
-          sudo cp $(brew --prefix isa-l)/lib/*.a /opt/falco2/lib
-          sudo cp -r $(brew --prefix isa-l)/include/* /opt/falco2/include
+          sudo cp $(brew --prefix zlib)/lib/*.a /opt/falco/lib
+          sudo cp -r $(brew --prefix zlib)/include/* /opt/falco/include
+          sudo cp $(brew --prefix isa-l)/lib/*.a /opt/falco/lib
+          sudo cp -r $(brew --prefix isa-l)/include/* /opt/falco/include
       - name: Build and install libdeflate
         run: |
           git clone https://github.com/ebiggers/libdeflate.git && \
@@ -33,12 +33,12 @@ jobs:
               -DCMAKE_VERBOSE_MAKEFILE=on \
               -DCMAKE_BUILD_TYPE=Release && \
           cmake --build build -j4 && \
-          sudo cmake --install build --prefix=/opt/falco2
+          sudo cmake --install build --prefix=/opt/falco
       - name: Build and install HTSlib
         run: |
           git clone --recursive https://github.com/samtools/htslib.git
           cd htslib
-          sudo cp -r htslib /opt/falco2/include
+          sudo cp -r htslib /opt/falco/include
           autoreconf -i
           mkdir build && cd build
           ../configure \
@@ -47,23 +47,23 @@ jobs:
             --disable-lzma \
             --disable-ref-cache \
             --with-libdeflate \
-            LDFLAGS="-L/opt/falco2/lib" CPPFLAGS="-I/opt/falco2/include"
+            LDFLAGS="-L/opt/falco/lib" CPPFLAGS="-I/opt/falco/include"
           make -j4 CFLAGS="-Wall -O2 -fvisibility=hidden" libhts.a
-          sudo cp libhts.a /opt/falco2/lib
-      - name: Build falco2
+          sudo cp libhts.a /opt/falco/lib
+      - name: Build falco
         run: |
           cmake -B build -DPACKAGE=on \
           -DCMAKE_VERBOSE_MAKEFILE=on \
           -DCMAKE_CXX_COMPILER=g++-15 \
           -DUSE_ISAL=on \
-          -DHTSLIB_ROOT=/opt/falco2 \
-          -DISAL_ROOT=/opt/falco2 \
-          -DLIBDEFLATE_ROOT=/opt/falco2 \
-          -DZLIB_ROOT=/opt/falco2 \
+          -DHTSLIB_ROOT=/opt/falco \
+          -DISAL_ROOT=/opt/falco \
+          -DLIBDEFLATE_ROOT=/opt/falco \
+          -DZLIB_ROOT=/opt/falco \
           -DCMAKE_BUILD_TYPE=Release && \
           cmake --build build -j4
       - name: Rename the binary
-        run: mv build/falco2 falco2_$(uname -m)
+        run: mv build/falco falco_$(uname -m)
       - name: Get version number
         id: vars
         run: |
@@ -74,9 +74,9 @@ jobs:
       - name: Upload the binary
         uses: actions/upload-artifact@v7
         with:
-          name: falco2-${{ steps.vars.outputs.arch }}
+          name: falco-${{ steps.vars.outputs.arch }}
           path: |
-            falco2_${{ steps.vars.outputs.arch }}
+            falco_${{ steps.vars.outputs.arch }}
   make-lipo:
     needs: build-macos-binaries
     runs-on: macos-15
@@ -93,16 +93,16 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: binaries
-          pattern: falco2-*
+          pattern: falco-*
           merge-multiple: false
       - name: Create universal binary
         run: |
           lipo -create \
-          binaries/falco2-*/falco2_* \
-          -output falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
-          chmod +x falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
+          binaries/falco-*/falco_* \
+          -output falco-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
+          chmod +x falco-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
       - name: Upload the lipo binary
         uses: actions/upload-artifact@v7
         with:
-          name: falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
-          path: falco2-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
+          name: falco-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
+          path: falco-${{ steps.get-vn.outputs.vn }}-${{ steps.get-vn.outputs.hash }}-macOS
