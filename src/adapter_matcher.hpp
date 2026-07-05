@@ -40,33 +40,30 @@ struct adapter_matcher {
   std::uint32_t adapter_size{};
   std::vector<std::uint64_t> encoded_adapters;
   std::vector<std::vector<std::uint64_t>> adap_counts;
+  std::vector<std::uint64_t> encoded_read;
 
   auto
   apply_groups(const run_mode &mode) -> void;
 
   adapter_matcher();
 
-  std::vector<std::uint64_t> encoded_read;
-  std::vector<std::uint64_t>::const_iterator enc_beg;
-
   auto
   match_adapters(const auto seq, const auto len) {
     static const auto adap_mask = (1ul << adapter_size * nibble_size) - 1ul;
     if (len < adapter_size) [[unlikely]]
       return;
-    if (std::size(encoded_read) < len) [[unlikely]] {
+    if (std::size(encoded_read) < len) [[unlikely]]
       encoded_read.resize(len);
-      enc_beg = std::cbegin(encoded_read);
-    }
 
+    const auto enc_beg = std::begin(encoded_read);
     std::uint64_t enc{};
     auto i = 0u;
     while (i + 1 < adapter_size)
       enc = (enc << nibble_size) + encode_nibble(seq[i++]);
-    auto idx = 0;
+    auto itr = enc_beg;
     while (i < len) {
       enc = (enc << nibble_size) + encode_nibble(seq[i++]);
-      encoded_read[idx++] = (enc & adap_mask);
+      *itr++ = (enc & adap_mask);
     }
     const auto lim = enc_beg + len - adapter_size + 1;
     for (auto j = 0u; j < n_adapters; ++j)
