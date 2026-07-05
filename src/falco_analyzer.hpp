@@ -27,6 +27,7 @@
 #include "bam_file.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
+#include "file_info.hpp"
 #include "run_mode.hpp"
 
 #include <algorithm>

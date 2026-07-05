@@ -27,6 +27,7 @@
 #include "falco_file_format.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
+#include "file_info.hpp"
 #include "quality_score.hpp"
 #include "run_mode.hpp"
 
@@ -51,6 +52,11 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+auto
+tile_processor::init(const file_info &info) -> void {
+  tile_id_position = info.tile_id_position;
+}
 
 [[nodiscard]] auto
 get_name_fastq(const std::string &filename) -> std::string {

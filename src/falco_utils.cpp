@@ -34,13 +34,6 @@
 #include <vector>
 
 [[nodiscard]] auto
-file_info::string() const -> std::string {
-  static constexpr auto n_indent = 4;
-  nlohmann::json data = *this;
-  return data.dump(n_indent);
-}
-
-[[nodiscard]] auto
 size_to_units(const std::int64_t s) -> std::string {
   const auto as_frac_3 = [](const auto a, const auto b) {
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)

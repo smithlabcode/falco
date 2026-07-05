@@ -41,6 +41,7 @@
 #include <vector>
 
 class run_mode;
+class file_info;
 
 // Notes
 //
@@ -62,9 +63,7 @@ public:
   boost::unordered_flat_map<std::uint32_t, qual_vec> quals;
 
   auto
-  init(const file_info &info) {
-    tile_id_position = info.tile_id_position;
-  }
+  init(const file_info &info) -> void;
 
   /// finalize does 2 things:
   /// (1) trims tile data that's too long for the given tile

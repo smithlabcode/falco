@@ -31,6 +31,7 @@
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
+#include "file_info.hpp"
 #include "kmer_counter.hpp"
 #include "tile_processor.hpp"
 

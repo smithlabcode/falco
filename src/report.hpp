@@ -36,6 +36,7 @@
 
 struct file_grades;
 struct kmer_result;
+struct file_info;
 
 [[nodiscard]] auto
 sequence_length_report(const std::vector<std::uint64_t> &lengths,

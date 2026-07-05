@@ -25,6 +25,7 @@
 
 #include "falco_file_format.hpp"
 #include "falco_utils.hpp"
+#include "file_info.hpp"
 
 #include <algorithm>
 #include <array>

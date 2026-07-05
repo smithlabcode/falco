@@ -36,6 +36,7 @@
 
 struct file_grades;
 struct kmer_result;
+struct file_info;
 
 // grade / section_label / section_title / grade / text
 static constexpr auto html_module_fmt =

@@ -26,6 +26,7 @@
 #include "base_groups.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
+#include "file_info.hpp"
 #include "html_boilerplate.hpp"
 #include "kmer_counter.hpp"  // IWYU pragma: keep
 

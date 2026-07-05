@@ -24,8 +24,6 @@
 #ifndef SRC_FALCO_UTILS_HPP_
 #define SRC_FALCO_UTILS_HPP_
 
-#include "nlohmann/json.hpp"
-
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -46,21 +44,16 @@ static constexpr auto guanine_index = 1;
 
 namespace falco {
 static constexpr auto alphabet_size = 4;
+static constexpr auto gc_content_arra_size = 101;
 using nuc_array = std::array<std::uint64_t, alphabet_size>;
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
-using gc_content_array = std::array<std::uint64_t, 101>;
+using gc_content_array = std::array<std::uint64_t, gc_content_arra_size>;
+enum class encoding : std::uint8_t;
+enum class file_format : std::uint8_t;
 }  // namespace falco
 
 static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
 static constexpr std::int64_t megabytes = 1024 * 1024;
 static constexpr std::int64_t kilobytes = 1024;
-
-namespace falco {
-enum class encoding : std::uint8_t;
-}
-namespace falco {
-enum class file_format : std::uint8_t;
-}
 
 [[nodiscard]] auto
 smooth_gc_content(const falco::gc_content_array &data,
@@ -79,30 +72,6 @@ duration(const auto start, const auto stop) {
   const auto d = stop - start;
   // ADS: 'count()' because macos has locale issues formatting times
   return std::chrono::duration_cast<std::chrono::duration<double>>(d).count();
-};
-
-struct file_info {
-  std::string name;
-  falco::file_format format{};
-  std::string description;
-  std::int64_t size{};
-  std::uint64_t n_reads_est{};
-  std::uint64_t read_len_est{};
-  falco::encoding encoding{};
-  bool has_tiles{};
-  std::uint32_t tile_id_position{};
-
-  [[nodiscard]] auto
-  string() const -> std::string;
-
-  auto
-  set_encoding(const falco::encoding &e) {
-    encoding = e;
-  }
-
-  NLOHMANN_DEFINE_TYPE_INTRUSIVE(file_info, name, format, description, size,
-                                 n_reads_est, read_len_est, encoding, has_tiles,
-                                 tile_id_position);
 };
 
 inline constexpr auto end_module_tag = ">>END_MODULE\n";

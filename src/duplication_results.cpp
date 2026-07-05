@@ -27,6 +27,7 @@
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "falco_word.hpp"
+#include "file_info.hpp"
 #include "html.hpp"
 #include "run_mode.hpp"
 
