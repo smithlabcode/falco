@@ -46,42 +46,32 @@ struct adapter_matcher {
 
   adapter_matcher();
 
-  [[nodiscard]] auto
-  match_adapter(const auto &t, const auto m, auto adap) const -> std::uint32_t {
-    static const auto adap_mask = (1ul << adapter_size * nibble_size) - 1ul;
-    std::uint64_t t_enc{};
-    auto i = 0u;
-    for (; i + 1 < adapter_size; ++i)
-      t_enc = (t_enc << nibble_size) + encode_nibble(t[i]);
-    while (i < m) {
-      t_enc = (t_enc << nibble_size) + encode_nibble(t[i++]);
-      if (((t_enc ^ adap) & adap_mask) == 0)
-        return i - adapter_size;
-    }
-    return m;
-  }
-
-  // clang-format off
-  // ADS: match_adapter is on a very hot path, and the code below might help
-  // [[nodiscard]] static auto
-  // match_adapter(const auto &t, const auto m, auto adap) -> std::uint32_t {
-  //   static constexpr auto adap_mask = (1ul << adapter_size * nibble_size) - 1ul;
-  //   std::uint64_t t_enc{adap_mask};
-  //   auto t_itr = t;
-  //   const auto t_end = t + m;
-  //   while (t_itr != t_end && (t_enc ^ adap))
-  //     t_enc = ((t_enc << nibble_size) + encode_nibble(*t_itr++)) & adap_mask;
-  //   return ((t_enc ^ adap) == 0) ? std::distance(t, t_itr) - adapter_size : m;
-  // }
-  // clang-format on
+  std::vector<std::uint64_t> encoded_read;
+  std::vector<std::uint64_t>::const_iterator enc_beg;
 
   auto
   match_adapters(const auto seq, const auto len) {
+    static const auto adap_mask = (1ul << adapter_size * nibble_size) - 1ul;
     if (len < adapter_size) [[unlikely]]
       return;
-    for (auto i = 0u; i < n_adapters; ++i)
-      if (const auto p = match_adapter(seq, len, encoded_adapters[i]); p < len)
-        ++adap_counts[p][i];
+    if (std::size(encoded_read) < len) [[unlikely]] {
+      encoded_read.resize(len);
+      enc_beg = std::cbegin(encoded_read);
+    }
+
+    std::uint64_t enc{};
+    auto i = 0u;
+    while (i + 1 < adapter_size)
+      enc = (enc << nibble_size) + encode_nibble(seq[i++]);
+    auto idx = 0;
+    while (i < len) {
+      enc = (enc << nibble_size) + encode_nibble(seq[i++]);
+      encoded_read[idx++] = (enc & adap_mask);
+    }
+    const auto lim = enc_beg + len - adapter_size + 1;
+    for (auto j = 0u; j < n_adapters; ++j)
+      if (const auto p = std::find(enc_beg, lim, encoded_adapters[j]); p != lim)
+        ++adap_counts[std::distance(enc_beg, p)][j];
   }
 
   auto
