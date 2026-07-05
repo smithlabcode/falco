@@ -335,16 +335,16 @@ main(int argc, char *argv[]) {
     app.add_flag("--groups", do_groups, "Group base positions in output")
       ->option_text(" ");
     app.add_flag("--tiles,!--no-tiles", do_tiles,
-                 "Toggle per-tile quality analysis (default: off)")
-      ->option_text(" ");
-    app.add_flag("--kmers,!--no-kmers", do_kmers,
-                 "Toggle k-mer analysis (default: off)")
+                 "Toggle per-tile quality analysis (default: on)")
       ->option_text(" ");
     app.add_flag("--dups,!--no-dups", do_dup_analysis,
                  "Toggle duplication/overrepresentation analysis (default: on)")
       ->option_text(" ");
     app.add_flag("--adap,!--no-adap", do_adap,
                  "Toggle adapter analysis (default: on)")
+      ->option_text(" ");
+    app.add_flag("--kmers,!--no-kmers", do_kmers,
+                 "Toggle k-mer analysis (default: off)")
       ->option_text(" ");
     // clang-format on
 
