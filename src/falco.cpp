@@ -430,8 +430,9 @@ main(int argc, char *argv[]) {
                    size_to_units(buffer_size), mode.do_tiles(), mode.do_kmers(),
                    mode.do_dups(), mode.do_adap(), mode.do_groups(),
                    format_description);
-      std::ranges::for_each(infiles,
-                            [](const auto &fn) { std::println("{}", fn); });
+      std::ranges::for_each(infos, [](const auto &info) {
+        std::println("{} ({})", info.name, size_to_units(info.size));
+      });
     }
 
     start_analysis(mode, buffer_size, n_threads, infos, infiles, outdirs);
