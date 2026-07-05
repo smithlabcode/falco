@@ -96,7 +96,7 @@ private:
   static constexpr auto do_qual_base_default = 1;
   static constexpr auto do_qual_seq_default = 1;
   static constexpr auto do_sequence_default = 1;
-  static constexpr auto do_tiles_default = -1;  // OFF affects processing
+  static constexpr auto do_tiles_default = 1;  // affects processing
 
   int do_groups_{};
 
