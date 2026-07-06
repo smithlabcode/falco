@@ -431,7 +431,8 @@ main(int argc, char *argv[]) {
                    mode.do_dups(), mode.do_adap(), mode.do_groups(),
                    format_description);
       std::ranges::for_each(infos, [](const auto &info) {
-        std::println("{} ({})", info.name, size_to_units(info.size));
+        std::println("{} ({})", info.name,
+                     size_to_units(info.size, std::string{}));
       });
     }
 
