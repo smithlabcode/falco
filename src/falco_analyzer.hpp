@@ -124,9 +124,9 @@ template <typename results_t, typename rec_t> struct analyzer_t {
               continue;
             }
             reads_files[f_id].load_next();
-            n_tasks[f_id] = n_chunks_per_file;
             const auto chunks =
               get_chunks(reads_files[f_id], n_chunks_per_file);
+            n_tasks[f_id] = static_cast<std::int32_t>(std::ssize(chunks));
             std::ranges::for_each(chunks,
                                   [&](const auto &c) { push_task(f_id, c); });
           }
