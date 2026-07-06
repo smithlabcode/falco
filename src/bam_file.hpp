@@ -131,7 +131,7 @@ to_string(const bamrec &b) {
 }
 
 struct bam_buffer {
-  static inline constexpr std::int32_t bam1_t_size = sizeof(bam1_t);
+  static constexpr std::int32_t bam1_t_size = sizeof(bam1_t);
   static constexpr auto min_bytes_per_record = 256;
   std::int64_t n_recs{};
   std::int64_t n_bytes{};
@@ -141,14 +141,19 @@ struct bam_buffer {
   explicit bam_buffer(const std::int64_t buf_size) :
     n_recs{buf_size / (bam1_t_size + min_bytes_per_record)},
     n_bytes{buf_size - n_recs * bam1_t_size},
-    recs(n_recs),
-    data(n_bytes, 0)
-  {}
+    recs(n_recs), data(n_bytes, 0) {
+    std::ranges::for_each(recs, [](auto &r) {
+      bam_set_mempolicy(&r, BAM_USER_OWNS_STRUCT | BAM_USER_OWNS_DATA);
+    });
+  }
   [[nodiscard]] auto begin() {return std::begin(recs);}
   [[nodiscard]] auto begin() const {return std::cbegin(recs);}
   [[nodiscard]] auto end() {return std::end(recs); }
   [[nodiscard]] auto end() const {return std::cend(recs); }
   // clang-format on
+  ~bam_buffer() {
+    std::ranges::for_each(recs, [](auto &r) { bam_destroy1(&r); });
+  }
 };
 
 [[nodiscard]] inline auto
@@ -170,11 +175,9 @@ struct bam_file {
 
   bam_file(const std::string &filename, const std::int64_t buf_size,
            falco_thread_pool &t) :
-    buf(buf_size), f(hts_open(std::data(filename), "r"), &hts_close),
+    buf(buf_size < min_buf_size ? min_buf_size : buf_size),
+    f(hts_open(std::data(filename), "r"), &hts_close),
     h(sam_hdr_read(f.get()), &sam_hdr_destroy) {
-    if (buf_size < min_buf_size)
-      throw std::runtime_error(std::format(
-        "requested buffer too small {}B (min is {}B)", buf_size, min_buf_size));
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
@@ -202,52 +205,20 @@ struct bam_file {
   [[nodiscard]] operator bool() const { return !hit_eof; }
 
   auto
-  load_next() -> const bam_file & {
-    // ADS: need to make sure the buffer starts at the proper alignment
-    const auto align = [](const auto l) {
-      // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
-      return static_cast<std::uint32_t>(l + 7) & ~7u;
-    };
-    auto n_bytes = 0u;
-    auto n_recs = 0u;
-    // ADS: if data buffer capacity exceeded, BAM_USER_OWNS_DATA check fails and
-    // loop terminates; one record will allocate space for data from the heap
-    while (n_recs < std::size(buf.recs)) {
-      auto &rec = buf.recs[n_recs];
-      bam_set_mempolicy(&rec, BAM_USER_OWNS_STRUCT | BAM_USER_OWNS_DATA);
-      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      rec.data = std::data(buf.data) + n_bytes;
-      rec.m_data = std::size(buf.data) - n_bytes;
-      const auto r = sam_read1(f.get(), h.get(), &rec);
-      if (r < -1)
-        throw std::runtime_error("error reading bam file");
-      if (r == -1) {
-        hit_eof = true;
-        break;
-      }
-      // if there is no space for the record, stop
-      if ((bam_get_mempolicy(&rec) & BAM_USER_OWNS_DATA) == 0) {
-        ++n_recs;  // include last record in count
-        break;     // no more space
-      }
-      // round up to 8 bytes for memory alignment
-      rec.m_data = align(rec.l_data);
-      n_bytes += rec.m_data;
-      ++n_recs;
-    }
-    buf.n_recs = n_recs;
-    buf.n_bytes = n_bytes;
-    return *this;
-  }
+  load_next() -> const bam_file &;
 };
 
-[[nodiscard]] static inline auto
-get_chunks(const bam_file &bf, std::int64_t n_chunks) {
+using bam_chunks_t = std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>>;
+
+[[nodiscard]] inline auto
+get_chunks(const bam_file &bf, std::int64_t n_chunks) -> bam_chunks_t {
+  if (bf.buf.n_recs == 0)
+    return {};
   n_chunks = std::min(n_chunks, bf.buf.n_recs);
   const auto [chunk_size, remainder] = std::div(bf.buf.n_recs, n_chunks);
   const auto buffer = std::cbegin(bf.buf);
   std::int64_t start_pos{};
-  std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>> chunks(n_chunks);
+  bam_chunks_t chunks(n_chunks);
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
     const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
     chunks[chunk_idx] = {buffer + start_pos, buffer + stop_pos};
