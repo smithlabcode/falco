@@ -34,17 +34,17 @@
 #include <vector>
 
 [[nodiscard]] auto
-size_to_units(const std::int64_t s) -> std::string {
-  const auto as_frac_3 = [](const auto a, const auto b) {
+size_to_units(const std::int64_t s, const std::string &suffix) -> std::string {
+  const auto as_frac_2 = [](const auto a, const auto b) {
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
-    return std::floor(100 * as_frac(a, b)) / 100;
+    return std::floor(10 * as_frac(a, b)) / 10;
   };
   if (s >= gigabytes)
-    return std::format("{}GiB", as_frac_3(s, gigabytes));
+    return std::format("{}G{}", as_frac_2(s, gigabytes), suffix);
   if (s >= megabytes)
-    return std::format("{}MiB", as_frac_3(s, megabytes));
+    return std::format("{}M{}", as_frac_2(s, megabytes), suffix);
   if (s >= kilobytes)
-    return std::format("{}KiB", as_frac_3(s, kilobytes));
+    return std::format("{}K{}", as_frac_2(s, kilobytes), suffix);
   return std::format("{}", s);
 };
 

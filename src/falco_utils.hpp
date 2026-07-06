@@ -278,7 +278,8 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 
 [[nodiscard]] auto
-size_to_units(const std::int64_t s) -> std::string;
+size_to_units(const std::int64_t s,
+              const std::string &suffix = "iB") -> std::string;
 
 [[nodiscard]] static inline auto
 get_max_size(const auto &x) {
