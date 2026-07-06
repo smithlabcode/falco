@@ -255,7 +255,7 @@ using bam_chunks_t = std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>>;
 [[nodiscard]] inline auto
 get_chunks(const bam_file &bf, std::int64_t n_chunks) -> bam_chunks_t {
   if (bf.buf.n_recs == 0)
-    return {};
+    return bam_chunks_t(1, {std::cbegin(bf.buf), std::cbegin(bf.buf)});
   n_chunks = std::min(n_chunks, bf.buf.n_recs);
   const auto [chunk_size, remainder] = std::div(bf.buf.n_recs, n_chunks);
   const auto buffer = std::cbegin(bf.buf);
