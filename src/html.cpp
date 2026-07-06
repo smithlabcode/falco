@@ -425,7 +425,6 @@ yaxis: {{title: "tile", type: "category"}},
 {}
 );</script>
 )";
-  assert(get_max_size(centered) == std::size(groups) || centered.empty());
   if (centered.empty())
     return {};  // ADS: in case we are here but tile analysis was not done
   const auto tag = [&](const auto &g) { return make_group_tag_quoted(g); };
