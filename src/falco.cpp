@@ -83,10 +83,15 @@ struct thread_counter {
     workers = std::min(workers, max_threads);
     readers = std::min(readers, max_threads);
     decomp = std::min(decomp, max_threads);
-    if (readers == 0)
+    if (readers == 0) {
+      // reader threads are one per file, but max out at number of workers
       readers = workers < n_files ? workers : n_files;
-    if (is_bgzf(input_format) && decomp == 0)
-      decomp = workers;
+    }
+    if (is_bgzf(input_format) && decomp == 0) {
+      // decompression threads are half the number of worker threads
+      decomp = workers > 1 ? workers / 2 : 1;
+      workers = workers > 1 ? workers - decomp : workers;
+    }
     if (!is_bgzf(input_format))
       // ADS: need a warning on this
       decomp = 0;
