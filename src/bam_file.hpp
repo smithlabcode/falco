@@ -205,7 +205,49 @@ struct bam_file {
   [[nodiscard]] operator bool() const { return !hit_eof; }
 
   auto
-  load_next() -> const bam_file &;
+  load_next() -> const bam_file & {
+    // ADS: need to make sure the buffer starts at the proper alignment
+    const auto align = [](const auto l) {
+      // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
+      return static_cast<std::uint32_t>(l + 7) & ~7u;
+    };
+    auto &recs = buf.recs;
+    // release the final BAM record in the previous load_next, if any
+    const auto prev_n = buf.n_recs;
+    if (prev_n > 1 &&
+        (bam_get_mempolicy(&recs[prev_n - 1]) & BAM_USER_OWNS_DATA) == 0)
+      bam_destroy1(&recs[prev_n - 1]);
+
+    auto n_bytes = 0u;
+    auto n_recs = 0u;
+
+    // ADS: if data buffer capacity exceeded, BAM_USER_OWNS_DATA check fails and
+    // loop terminates; one record will allocate space for data from the heap
+    while (n_recs < std::size(recs)) {
+      auto &rec = recs[n_recs];
+      bam_set_mempolicy(&rec, BAM_USER_OWNS_STRUCT | BAM_USER_OWNS_DATA);
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      rec.data = std::data(buf.data) + n_bytes;
+      rec.m_data = std::size(buf.data) - n_bytes;
+      const auto r = sam_read1(f.get(), h.get(), &rec);
+      if (r < -1)
+        throw std::runtime_error("error reading bam file");
+      if (r == -1) {
+        hit_eof = true;
+        break;
+      }
+      ++n_recs;
+      // if there is no space for the record, stop
+      if ((bam_get_mempolicy(&rec) & BAM_USER_OWNS_DATA) == 0)
+        break;  // no more space
+      // round up to 8 bytes for memory alignment
+      rec.m_data = align(rec.l_data);
+      n_bytes += rec.m_data;
+    }
+    buf.n_recs = n_recs;
+    buf.n_bytes = n_bytes;
+    return *this;
+  }
 };
 
 using bam_chunks_t = std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>>;
