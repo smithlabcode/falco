@@ -80,7 +80,6 @@ bam_file::load_next() -> const bam_file & {
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     return static_cast<std::uint32_t>(l + 7) & ~7u;
   };
-  // buf.release();
   auto &recs = buf.recs;
   auto n_bytes = 0u;
   auto n_recs = 0u;
