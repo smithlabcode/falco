@@ -55,13 +55,13 @@ estimate_n_reads_bam(const std::string &filename)
   // NOLINTNEXTLINE (cppcoreguidelines-pro-type-union-access)
   const auto &fp = format->format == bam ? f->fp.bgzf->fp : f->fp.hfile;
   const auto pos_after_header = htell(fp);
-  bam1_t rec{};
+  std::unique_ptr<bam1_t, void (*)(bam1_t *)> rec(bam_init1(), &bam_destroy1);
   std::uint64_t n_reads{};
   std::uint64_t total_read_len{};
   int r{};
   while (n_reads++ < max_n_reads &&
-         (r = sam_read1(f.get(), h.get(), &rec)) >= 0)
-    total_read_len += rec.core.l_qseq;
+         (r = sam_read1(f.get(), h.get(), rec.get())) >= 0)
+    total_read_len += rec->core.l_qseq;
   if (r < -1)  // error
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "error reading bam record from: " + filename);
@@ -71,4 +71,45 @@ estimate_n_reads_bam(const std::string &filename)
   const auto estimate = static_cast<std::uint64_t>(
     as_frac(n_reads * (filesize - pos_after_header), n_compressed_bytes));
   return {estimate, total_read_len / n_reads, filesize};
+}
+
+auto
+bam_file::load_next() -> const bam_file & {
+  // ADS: need to make sure the buffer starts at the proper alignment
+  const auto align = [](const auto l) {
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
+    return static_cast<std::uint32_t>(l + 7) & ~7u;
+  };
+  // buf.release();
+  auto &recs = buf.recs;
+  auto n_bytes = 0u;
+  auto n_recs = 0u;
+  // ADS: if data buffer capacity exceeded, BAM_USER_OWNS_DATA check fails and
+  // loop terminates; one record will allocate space for data from the heap
+  while (n_recs < std::size(recs)) {
+    auto &rec = recs[n_recs];
+    if ((bam_get_mempolicy(&rec) & BAM_USER_OWNS_DATA) == 0)
+      bam_destroy1(&rec);
+    bam_set_mempolicy(&rec, BAM_USER_OWNS_STRUCT | BAM_USER_OWNS_DATA);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    rec.data = std::data(buf.data) + n_bytes;
+    rec.m_data = std::size(buf.data) - n_bytes;
+    const auto r = sam_read1(f.get(), h.get(), &rec);
+    if (r < -1)
+      throw std::runtime_error("error reading bam file");
+    if (r == -1) {
+      hit_eof = true;
+      break;
+    }
+    ++n_recs;
+    // if there is no space for the record, stop
+    if ((bam_get_mempolicy(&rec) & BAM_USER_OWNS_DATA) == 0)
+      break;  // no more space
+    // round up to 8 bytes for memory alignment
+    rec.m_data = align(rec.l_data);
+    n_bytes += rec.m_data;
+  }
+  buf.n_recs = n_recs;
+  buf.n_bytes = n_bytes;
+  return *this;
 }
