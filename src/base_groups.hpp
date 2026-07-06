@@ -29,7 +29,6 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
-#include <format>
 #include <functional>
 #include <iterator>
 #include <ranges>

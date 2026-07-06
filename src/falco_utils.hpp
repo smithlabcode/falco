@@ -30,7 +30,6 @@
 #include <chrono>
 #include <concepts>
 #include <cstdint>
-#include <format>
 #include <functional>
 #include <iterator>
 #include <numeric>
@@ -47,8 +46,6 @@ static constexpr auto alphabet_size = 4;
 static constexpr auto gc_content_arra_size = 101;
 using nuc_array = std::array<std::uint64_t, alphabet_size>;
 using gc_content_array = std::array<std::uint64_t, gc_content_arra_size>;
-enum class encoding : std::uint8_t;
-enum class file_format : std::uint8_t;
 }  // namespace falco
 
 static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;

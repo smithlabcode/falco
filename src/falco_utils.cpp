@@ -23,11 +23,10 @@
 
 #include "falco_utils.hpp"
 
-#include "nlohmann/json.hpp"
-
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <format>
 #include <span>
 #include <string>
 #include <tuple>
@@ -114,12 +113,13 @@ smooth_gc_content(const falco::gc_content_array &data,
   const auto get_mean = [&](std::ranges::viewable_range auto &&r) {
     return as_frac(std::reduce(std::cbegin(r), std::cend(r)), std::size(r));
   };
-  assert(window_size < std::ssize(data));
+  assert(window_size < static_cast<std::int64_t>(std::size(data)));
   std::vector<double> smoothed;
   for (auto w = 1; w < (window_size + 1) / 2; ++w)
     smoothed.push_back(get_mean(
       std::ranges::subrange(std::cbegin(data), std::cbegin(data) + w)));
   for (const auto &window : data | std::views::slide(window_size))
+    // cppcheck-suppress useStlAlgorithm
     smoothed.push_back(get_mean(window));
   for (auto w = (window_size + 1) / 2; w > 1; --w)
     smoothed.push_back(get_mean(

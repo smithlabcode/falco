@@ -35,7 +35,7 @@
 #include <compare>
 #include <cstdint>
 #include <cstdlib>
-#include <format>
+#include <format>  // IWYU pragma: keep
 #include <functional>
 #include <limits>
 #include <numeric>

@@ -58,6 +58,7 @@ estimate_read_length(const auto &data, const auto n) {
   for (const auto l : lines | std::views::adjacent<fastq_lines_per_read - 1>)
     if (data[std::get<0>(l)] == '@' && data[std::get<2>(l)] == '+' &&
         valid(data[std::get<1>(l)]))
+      // cppcheck-suppress useStlAlgorithm
       total += (std::get<2>(l) - std::get<1>(l)) - 1;
   return total / (std::size(lines) / fastq_lines_per_read);
 }

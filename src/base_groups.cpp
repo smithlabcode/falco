@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <format>
 #include <stdexcept>
 #include <string>
 #include <tuple>

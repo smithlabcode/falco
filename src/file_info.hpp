@@ -25,6 +25,7 @@
 #define SRC_FILE_INFO_HPP_
 
 #include "falco_file_format.hpp"
+#include "quality_score.hpp"
 
 #include "nlohmann/json.hpp"
 
