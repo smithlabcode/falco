@@ -195,8 +195,7 @@ get_tile_info(const std::string &filename) -> std::uint32_t {
   const auto hts_fmt = hts_get_format(fp.get());
   if (hts_fmt->format != fastq_format && hts_fmt->format != bam &&
       hts_fmt->format != sam)
-    throw std::runtime_error(std::format("unknown file format: {}",
-                                         std::to_underlying(hts_fmt->format)));
+    return 0;
 
   const auto line = (hts_fmt->format == bam || hts_fmt->format == sam)
                       ? get_name_bam(filename)
