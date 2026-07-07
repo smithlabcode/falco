@@ -121,7 +121,7 @@ duplication_results::get_overrepresented(const std::uint64_t n_reads) const
   std::ranges::sort(overrep, std::greater{});
   std::vector<overrep_t> ret;
   for (const auto &[n_obs, seq] : overrep)
-    ret.emplace_back(seq, n_obs, pct(as_frac(n_obs, n_reads)),
+    ret.emplace_back(seq, n_obs, pct(as_frac(n_obs, std::max(1LU, n_reads))),
                      match_contaminant(seq.string()));
   return ret;
 }
@@ -160,7 +160,8 @@ get_grade_overrepresented(const std::uint64_t n_reads,
   static constexpr auto label = "overrepresented";
   const auto max_n_obs =
     dr.dups.empty() ? 0LU : std::ranges::max(std::views::values(dr.dups));
-  return grader_set::get_grade(label, as_frac(max_n_obs, n_reads));
+  return grader_set::get_grade(label,
+                               as_frac(max_n_obs, std::max(1LU, n_reads)));
 }
 
 [[nodiscard]] auto
@@ -282,7 +283,7 @@ duplication_report(const dup_summary_t &summary,
   static constexpr auto header = "#Duplication Level\t"
                                  "Percentage of total\n";
   const auto to_pct = [&](const auto &v) {
-    const auto sum = std::reduce(std::cbegin(v), std::cend(v));
+    const auto sum = std::max(1LU, std::reduce(std::cbegin(v), std::cend(v)));
     const auto p = [&](const auto d) { return pct(as_frac(d, sum)); };
     return make_bins(bin_breaks, v) | std::views::transform(p) |
            std::ranges::to<std::vector>();
@@ -291,8 +292,8 @@ duplication_report(const dup_summary_t &summary,
   const auto reduce = [](const auto &v) {
     return std::reduce(std::cbegin(v), std::cend(v));
   };
-  const auto frac_dedup =
-    as_frac(reduce(summary.hist_dedup), reduce(summary.hist_mass));
+  const auto frac_dedup = as_frac(reduce(summary.hist_dedup),
+                                  std::max(1LU, reduce(summary.hist_mass)));
   auto r = std::format(start_tag, grades.grade(label), pct(frac_dedup));
   r += header;
   for (const auto [label, mass] :
@@ -371,7 +372,7 @@ yaxis: {{title: "% of sequences"}},
   static constexpr auto x_text =  // has one extra element at "0"
     std::ranges::subrange(std::cbegin(bin_labels), std::cend(bin_labels));
   const auto to_pct = [&](const auto &v) {
-    const auto sum = std::reduce(std::cbegin(v), std::cend(v));
+    const auto sum = std::max(1LU, std::reduce(std::cbegin(v), std::cend(v)));
     const auto p = [&](const auto d) { return pct(as_frac(d, sum)); };
     return make_bins(bin_breaks, v) | std::views::transform(p) |
            std::ranges::to<std::vector>();
