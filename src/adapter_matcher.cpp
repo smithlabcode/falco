@@ -73,8 +73,11 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 adapter_matcher::get_grade(const std::uint64_t n_reads) const -> std::string {
   static constexpr auto label = "adapter";
   const auto max_count =
-    std::ranges::max(adap_counts | std::views::transform(std::ranges::max));
-  return grader_set::get_grade(label, as_frac(max_count, n_reads));
+    adap_counts.empty()
+      ? 0
+      : std::ranges::max(adap_counts | std::views::transform(std::ranges::max));
+  return grader_set::get_grade(label,
+                               as_frac(max_count, std::max(1LU, n_reads)));
 }
 
 [[nodiscard]] auto
