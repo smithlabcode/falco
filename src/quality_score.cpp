@@ -43,6 +43,8 @@ identify_encoding_impl(const auto &qual_counts,
   const auto first_non_zero = [&](const auto &v) {
     return std::distance(std::cbegin(v), std::ranges::find_if(v, gt0));
   };
+  if (qual_counts.empty())
+    return falco::encoding::unknown;
   const auto min_qual =
     std::ranges::min(qual_counts | std::views::transform(first_non_zero)) +
     qual_offset;
