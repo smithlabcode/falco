@@ -25,6 +25,7 @@
 
 #include <array>
 #include <cstdlib>
+#include <filesystem>
 #include <stdexcept>
 
 [[nodiscard]] auto

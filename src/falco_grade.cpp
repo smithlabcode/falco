@@ -24,6 +24,7 @@
 #include "falco_grade.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
