@@ -146,7 +146,9 @@ get_grade_sequence_length(const std::vector<std::uint64_t> &lengths)
   -> std::string {
   // ADS: this module just has binary toggles which need to be
   // incorporated
-  [[maybe_unused]] static constexpr auto label = "sequence_length";
+  static constexpr auto label = "sequence_length";
+  if (lengths.empty())
+    return grader_set::get_grade(label, 0.0);
   const bool has_empty_reads = std::size(lengths) > 0 && lengths[0] > 0;
   if (has_empty_reads)
     return "fail";
@@ -161,12 +163,16 @@ get_grade_sequence_length(const std::vector<std::uint64_t> &lengths)
 get_grade_gc_sequence(const falco::gc_content_array &gc_content)
   -> std::string {
   static constexpr auto label = "gc_sequence";
+  if (gc_content.empty())
+    return grader_set::get_grade(label, 0.0);
   return grader_set::get_grade(label, sum_deviation_from_normal(gc_content));
 }
 
 [[nodiscard]] auto
 get_grade_sequence(const std::vector<falco::nuc_array> &nucs) -> std::string {
   static constexpr auto label = "sequence";
+  if (nucs.empty())
+    return grader_set::get_grade(label, 0.0);
   const auto compl_diff = [](const auto &by_pos) {
     // (A,C,G,T)=(0,1,3,2)
     const auto tot = std::reduce(std::cbegin(by_pos), std::cend(by_pos));
@@ -185,6 +191,9 @@ get_grade_sequence(const std::vector<falco::nuc_array> &nucs) -> std::string {
 get_grade_n_content(const std::vector<std::uint64_t> &n_counts,
                     const std::vector<falco::nuc_array> &nucs) -> std::string {
   static constexpr auto label = "n_content";
+  assert(n_counts.empty() == nucs.empty());
+  if (n_counts.empty())
+    return grader_set::get_grade(label, 0.0);
   // ADS: at this point 'nucs' should not include counts of 'N'
   const auto max_idx =
     std::distance(std::cbegin(n_counts), std::ranges::max_element(n_counts));
@@ -199,6 +208,8 @@ get_grade_n_content(const std::vector<std::uint64_t> &n_counts,
 get_grade_quality_sequence(const falco::qual_array &qual_by_read)
   -> std::string {
   static constexpr auto label = "quality_sequence";
+  if (qual_by_read == falco::qual_array{})
+    return "pass";
   const auto q_beg = std::cbegin(qual_by_read);
   const auto max_itr = std::ranges::max_element(qual_by_read);
   const auto qual_val_mode = std::distance(q_beg, max_itr);
@@ -210,6 +221,9 @@ get_grade_quality_base(const std::vector<falco::qual_array> &qual)
   -> std::string {
   static constexpr auto label_median = "quality_base_median";
   static constexpr auto label_lquart = "quality_base_lower";
+  using std::string_literals::operator""s;
+  if (qual.empty())
+    return "pass"s;  // default grade when no data
   auto min_qual_median = std::numeric_limits<std::uint32_t>::max();
   auto min_qual_lquart = std::numeric_limits<std::uint32_t>::max();
   for (const auto &q : qual) {
@@ -219,7 +233,6 @@ get_grade_quality_base(const std::vector<falco::qual_array> &qual)
   }
   const auto lq_grade = grader_set::get_grade(label_lquart, min_qual_lquart);
   const auto med_grade = grader_set::get_grade(label_median, min_qual_median);
-  using std::string_literals::operator""s;
   return (lq_grade == "fail"s || med_grade == "fail"s)   ? "fail"s
          : (lq_grade == "warn"s || med_grade == "warn"s) ? "warn"s
                                                          : "pass"s;
