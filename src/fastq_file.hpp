@@ -153,16 +153,13 @@ struct fastq_file {
   int fd{};
 
   fastq_file(const std::string &filename, const std::int64_t buf_size) :
-    buf_size{buf_size},
+    buf_size{buf_size < min_buf_size ? min_buf_size : buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
     stop_pos_in_file{buf_size},  // init this way because used as sentinel
     fd{open(std::data(filename), O_RDONLY, 0)} {
     if (fd < 0)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
-    if (buf_size < min_buf_size)
-      throw std::runtime_error(std::format(
-        "requested buffer too small {}B (min is {}B)", buf_size, min_buf_size));
   }
 
   // clang-format off
