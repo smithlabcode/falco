@@ -50,6 +50,8 @@ get_file_format(const std::string &filename)
       return {falco::file_format::fastq_gz, descr};
     return {falco::file_format::fastq, descr};
   }
+  if (std::filesystem::file_size(filename) == 0)
+    return {falco::file_format::fastq, descr};
   return {falco::file_format::unknown, descr};
 }
 
