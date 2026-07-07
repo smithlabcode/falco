@@ -300,7 +300,9 @@ yaxis: {{title: "Density"}},
   const std::int64_t first_obs = std::distance(q_beg, first_obs_itr);
   const auto last_obs_subrange = std::ranges::find_last_if(qual_by_read, gt0);
   const std::int64_t last_obs =
-    std::ssize(qual_by_read) - std::ssize(last_obs_subrange) + 1;
+    first_obs == falco::max_qual_val
+      ? falco::max_qual_val
+      : std::ssize(qual_by_read) - std::ssize(last_obs_subrange) + 1;
   assert(first_obs >= 0 && last_obs <= falco::max_qual_val);
   const auto x = std::views::iota(first_obs, last_obs);
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
