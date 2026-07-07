@@ -76,6 +76,8 @@ estimate_n_reads_fastq(const std::string &filename)
   struct stat buf{};
   fstat(fd, &buf);
   const auto filesize = buf.st_size;
+  if (filesize < n_parts)
+    return {0LU, 0LU, filesize};
 
   const auto part_size =
     filesize < n_parts * max_part_size ? filesize / n_parts : max_part_size;
