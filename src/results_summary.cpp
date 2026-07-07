@@ -57,15 +57,19 @@ auto
 results_summary::initialize() -> void {
   // assign scalar variables
   const auto gt0 = [](const auto c) { return c > 0; };
-  min_read_len = std::ranges::distance(std::cbegin(lengths),
-                                       std::ranges::find_if(lengths, gt0));
+  const auto min_read_len_itr = std::ranges::find_if(lengths, gt0);
+  min_read_len =
+    min_read_len_itr == std::cend(lengths)
+      ? 0LU
+      : std::ranges::distance(std::cbegin(lengths), min_read_len_itr);
   total_bases = tabular_dot(lengths);
   const auto gc_acc = [](const auto a, const auto &nuc) {
     return a + nuc[guanine_index] + nuc[cytosine_index];
   };
   total_gc = std::accumulate(std::cbegin(base_counts), std::cend(base_counts),
                              0ul, gc_acc);
-  median_read_len = median_tabular(lengths);
+  median_read_len =
+    min_read_len_itr == std::cend(lengths) ? 0LU : median_tabular(lengths);
 
   // apply groups before making summary stats like in FastQC
   apply_groups();
