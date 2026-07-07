@@ -216,9 +216,11 @@ basic_stats_report(const file_info &info, const std::uint64_t n_reads,
                    min_read_len == max_read_len
                      ? std::format("{}", max_read_len)
                      : std::format("{}-{}", min_read_len, max_read_len));
-  r += std::format("Mean Length\t{}\n", as_frac(total_nucs, n_reads));
+  r += std::format("Mean Length\t{}\n",
+                   as_frac(total_nucs, std::max(1LU, n_reads)));
   r += std::format("Median Length\t{}\n", median_read_len);
-  r += std::format("%GC\t{:.1f}\n", pct(as_frac(total_gc, total_nucs)));
+  r += std::format("%GC\t{:.1f}\n",
+                   pct(as_frac(total_gc, std::max(1LU, total_nucs))));
   r += end_module_tag;
   return r;
 }
