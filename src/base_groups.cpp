@@ -58,8 +58,7 @@ get_linear_interval(const std::uint64_t n_bases,
 
 [[nodiscard]] auto
 make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
-                 const std::uint64_t n_groups_target)
-  -> std::vector<base_group_t> {
+                 const std::uint64_t n_groups_target) -> base_group_vec {
   static constexpr auto make_one_group = [](const auto a, const auto b) {
     return base_group_t{a, b};
   };
@@ -85,15 +84,13 @@ make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
 }
 
 [[nodiscard]] auto
-get_default_base_groups(const std::uint64_t n_bases, const bool use_target)
-  -> const std::vector<std::pair<std::uint64_t, std::uint64_t>> & {
+get_default_base_groups(const std::uint64_t n_bases,
+                        const bool make_groups) -> base_group_vec {
   static constexpr auto default_n_initial = 9UL;
   static constexpr auto default_n_groups_target = 75UL - default_n_initial;
-  static const auto base_group =
-    use_target
-      ? make_base_groups(n_bases, default_n_initial, default_n_groups_target)
-      : make_base_groups(n_bases, 0UL, n_bases);
-  return base_group;
+  return make_groups ? make_base_groups(n_bases, default_n_initial,
+                                        default_n_groups_target)
+                     : make_base_groups(n_bases, 0UL, n_bases);
 }
 
 [[nodiscard]] auto

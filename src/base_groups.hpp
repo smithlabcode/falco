@@ -37,15 +37,15 @@
 #include <vector>
 
 using base_group_t = std::pair<std::uint64_t, std::uint64_t>;
+using base_group_vec = std::vector<base_group_t>;
 
 [[nodiscard]] auto
 make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
-                 const std::uint64_t n_groups_target)
-  -> std::vector<base_group_t>;
+                 const std::uint64_t n_groups_target) -> base_group_vec;
 
 [[nodiscard]] auto
-get_default_base_groups(const std::uint64_t n_bases, const bool use_target)
-  -> const std::vector<base_group_t> &;
+get_default_base_groups(const std::uint64_t n_bases,
+                        const bool make_groups) -> base_group_vec;
 
 [[nodiscard]] auto
 make_group_tag(const base_group_t g) -> std::string;
@@ -54,7 +54,7 @@ make_group_tag(const base_group_t g) -> std::string;
 make_group_tag_quoted(const base_group_t g) -> std::string;
 
 [[nodiscard]] auto
-apply_base_groups(const std::vector<base_group_t> &groups, auto &rows) {
+apply_base_groups(const base_group_vec &groups, auto &rows) {
   assert(std::size(rows) <= groups.back().second);
   auto group_itr = std::cbegin(groups);
   auto current_row = 0U;
@@ -72,8 +72,7 @@ apply_base_groups(const std::vector<base_group_t> &groups, auto &rows) {
 }
 
 [[nodiscard]] auto
-apply_base_groups(const std::vector<base_group_t> &groups, auto &rows,
-                  const auto &adder) {
+apply_base_groups(const base_group_vec &groups, auto &rows, const auto &adder) {
   assert(std::size(rows) <= groups.back().second);
   auto group_itr = std::cbegin(groups);
   auto current_row = 0U;
