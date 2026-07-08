@@ -164,6 +164,8 @@ get_next(bamrec::pos_t &cursor,
   return bamrec(*tmp);
 }
 
+using bam_chunks_t = std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>>;
+
 struct bam_file {
   using rec_t = bamrec;
   static constexpr auto min_buf_size = static_cast<std::int64_t>(64 * 1024);
@@ -248,9 +250,11 @@ struct bam_file {
     buf.n_bytes = n_bytes;
     return *this;
   }
-};
 
-using bam_chunks_t = std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>>;
+  [[nodiscard]] auto
+  get_chunks(const std::int64_t n_chunks)
+    -> std::vector<std::pair<rec_t::pos_t, rec_t::pos_t>>;
+};
 
 [[nodiscard]] inline auto
 get_chunks(const bam_file &bf, std::int64_t n_chunks) -> bam_chunks_t {
@@ -267,6 +271,11 @@ get_chunks(const bam_file &bf, std::int64_t n_chunks) -> bam_chunks_t {
     start_pos = stop_pos;
   }
   return chunks;
+}
+
+[[nodiscard]] inline auto
+bam_file::get_chunks(const std::int64_t n_chunks) -> bam_chunks_t {
+  return ::get_chunks(*this, n_chunks);
 }
 
 [[nodiscard]] auto
