@@ -83,7 +83,7 @@ adapter_matcher::get_grade(const std::uint64_t n_reads) const -> std::string {
 [[nodiscard]] auto
 adapter_matcher::report(const std::uint64_t n_reads,
                         const std::uint64_t max_read_len,
-                        const std::vector<base_group_t> &groups,
+                        const base_group_vec &groups,
                         const file_grades &grades) const -> std::string {
   static constexpr auto label = "adapter";
   static constexpr auto start_module_tag = ">>Adapter Content\t{}\n";
@@ -121,7 +121,7 @@ adapter_matcher::report(const std::uint64_t n_reads,
 [[nodiscard]] auto
 adapter_matcher::html(const std::uint64_t n_reads,
                       const std::uint64_t max_read_len,
-                      const std::vector<base_group_t> &groups,
+                      const base_group_vec &groups,
                       const file_grades &grades) const -> std::string {
   static constexpr auto label = "adapter";
   static constexpr auto plot_fmt =
@@ -176,8 +176,6 @@ name: "{}",
 }
 
 auto
-adapter_matcher::apply_groups(const run_mode &mode) -> void {
-  const auto groups =
-    get_default_base_groups(std::size(adap_counts), mode.do_groups());
+adapter_matcher::apply_groups(const base_group_vec &groups) -> void {
   apply_base_groups(groups, adap_counts);
 }

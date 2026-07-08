@@ -43,7 +43,7 @@ struct adapter_matcher {
   std::vector<std::uint64_t> encoded_read;
 
   auto
-  apply_groups(const run_mode &mode) -> void;
+  apply_groups(const base_group_vec &groups) -> void;
 
   adapter_matcher();
 
@@ -85,12 +85,12 @@ struct adapter_matcher {
 
   [[nodiscard]] auto
   report(const std::uint64_t n_reads, const std::uint64_t max_read_len,
-         const std::vector<base_group_t> &groups,
+         const base_group_vec &groups,
          const file_grades &grades) const -> std::string;
 
   [[nodiscard]] auto
   html(const std::uint64_t n_reads, const std::uint64_t max_read_len,
-       const std::vector<base_group_t> &groups,
+       const base_group_vec &groups,
        const file_grades &grades) const -> std::string;
 };
 
