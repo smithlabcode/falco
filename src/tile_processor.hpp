@@ -25,6 +25,7 @@
 #define SRC_TILE_PROCESSOR_HPP_
 
 #include "bam_file.hpp"
+#include "base_groups.hpp"
 #include "falco_utils.hpp"
 
 #include "boost/boost_unordered.hpp"
@@ -75,7 +76,7 @@ public:
   get_centered() -> tile_processor::tiles_centered_t;
 
   auto
-  apply_groups(const run_mode &mode) -> void;
+  apply_groups(const base_group_vec &groups) -> void;
 
   auto
   operator()(const auto &rec) {
