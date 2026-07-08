@@ -78,7 +78,7 @@ struct thread_counter {
   std::uint32_t decomp{};
 
   auto
-  initialize(const auto input_format, const auto n_files) {
+  initialize(const auto need_decomp_threads, const auto n_files) {
     const std::uint32_t max_threads = std::thread::hardware_concurrency();
     workers = std::min(workers, max_threads);
     readers = std::min(readers, max_threads);
@@ -87,12 +87,12 @@ struct thread_counter {
       // reader threads are one per file, but max out at number of workers
       readers = workers < n_files ? workers : n_files;
     }
-    if (is_bgzf(input_format) && decomp == 0) {
+    if (need_decomp_threads && decomp == 0) {
       // decompression threads are half the number of worker threads
       decomp = workers > 1 ? workers / 2 : 1;
       workers = workers > 1 ? workers - decomp : workers;
     }
-    if (!is_bgzf(input_format))
+    if (!need_decomp_threads)
       // ADS: need a warning on this
       decomp = 0;
   }
@@ -110,15 +110,14 @@ template <typename results_t>
 static auto
 run(const run_mode &mode, std::vector<file_info> &infos, auto &reads_files,
     const auto n_threads, const auto &outdirs) {
-  using rec_t = std::decay_t<decltype(reads_files)>::value_type::rec_t;
   static constexpr auto report_filename = "fastqc_data.txt";
   static constexpr auto html_filename = "fastqc_report.html";
   static constexpr auto summary_filename = "summary.txt";
 
   auto final_results = [&] {
     const auto n_files = std::size(reads_files);
-    analyzer_t<results_t, rec_t> analyzer(n_threads.workers, n_threads.readers,
-                                          n_files, mode, infos, reads_files);
+    analyzer_t<results_t> analyzer(n_threads.workers, n_threads.readers,
+                                   n_files, mode, infos, reads_files);
     // ADS: combine results for same input file collected by different threads
     for (const auto file_id : std::views::iota(0u, n_files))
       accumulate_results(analyzer.results, file_id);
@@ -159,44 +158,26 @@ static auto
 start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
                std::vector<file_info> &infos, const auto &infiles,
                const auto &outdirs) {
-  // ADS: this function is bloated mostly to avoid allowing default construction
-  // or move assignment in the fastq_file, fastq_gz_file, etc.
-  const auto input_format = infos.front().format;
   const auto n_infiles = std::size(infiles);
-  if (is_mapped_reads(input_format)) {
-    falco_thread_pool p(n_threads.decomp);
-    std::vector<bam_file> f;
-    f.reserve(n_infiles);
-    const auto m = [&](const auto &i) { f.emplace_back(i, buf_size, p); };
-    std::ranges::for_each(infiles, m);
-    run_mode_selector(mode, infos, f, n_threads, outdirs);
+  std::vector<reads_file_t> reads_files;
+  reads_files.reserve(n_infiles);
+  falco_thread_pool p(n_threads.decomp);
+
+  for (const auto [infile, info] : std::views::zip(infiles, infos)) {
+    if (is_mapped_reads(info.format))
+      reads_files.emplace_back(bam_file(infile, buf_size, p));
+    else if (info.format == falco::file_format::fastq_bgzf)
+      reads_files.emplace_back(fastq_bgzf_file(infile, buf_size, p));
+    else if (info.format == falco::file_format::fastq_gz)
+      reads_files.emplace_back(fastq_gz_file(infile, buf_size));
+    else if (info.format == falco::file_format::fastq)
+      reads_files.emplace_back(fastq_file(infile, buf_size));
+    else
+      throw std::runtime_error(
+        std::format("unsupported file format: {}", info.description));
   }
-  else if (input_format == falco::file_format::fastq_bgzf) {
-    falco_thread_pool p(n_threads.decomp);
-    std::vector<fastq_bgzf_file> f;
-    f.reserve(n_infiles);
-    const auto m = [&](const auto &i) { f.emplace_back(i, buf_size, p); };
-    std::ranges::for_each(infiles, m);
-    run_mode_selector(mode, infos, f, n_threads, outdirs);
-  }
-  else if (input_format == falco::file_format::fastq_gz) {
-    std::vector<fastq_gz_file> f;
-    f.reserve(n_infiles);
-    const auto m = [&](const auto &i) { f.emplace_back(i, buf_size); };
-    std::ranges::for_each(infiles, m);
-    run_mode_selector(mode, infos, f, n_threads, outdirs);
-  }
-  else if (input_format == falco::file_format::fastq) {
-    std::vector<fastq_file> f;
-    f.reserve(n_infiles);
-    const auto m = [&](const auto &i) { f.emplace_back(i, buf_size); };
-    std::ranges::for_each(infiles, m);
-    run_mode_selector(mode, infos, f, n_threads, outdirs);
-  }
-  else {
-    const auto format_description = infos.front().description;
-    std::println("unsupported file format: {}", format_description);
-  }
+
+  run_mode_selector(mode, infos, reads_files, n_threads, outdirs);
 }
 
 [[nodiscard]] static auto
@@ -395,23 +376,17 @@ main(int argc, char *argv[]) {
       return EXIT_FAILURE;
     }
 
-    if (!adapters_file.empty() && verbose) {
+    if (!adapters_file.empty() && verbose)
       std::print("adapters file: {}\n"
                  "number of adapters: {}\n",
                  adapters_file, adapter_set::n_adapters());
-    }
 
+    // not const because infos will change later when we can deduce the encoding
     auto infos = get_file_info(infiles);
 
-    const auto format_description = infos.front().description;
-    const auto input_format = infos.front().format;
-    const auto ok_fmt = [&](const auto &x) { return x.format == input_format; };
-    if (!std::ranges::all_of(infos, ok_fmt)) {
-      std::println("unequal input formats [expected {}]", format_description);
-      return EXIT_FAILURE;
-    }
-
-    n_threads.initialize(input_format, std::size(infiles));
+    const auto need_decomp_threads = std::ranges::any_of(
+      infos, [](const auto &x) { return is_bgzf(x.format); });
+    n_threads.initialize(need_decomp_threads, std::size(infiles));
 
     // restrict buffer size to avoid using a possibly harmful amount of memory
     const auto get_sz = [](const auto &i) { return i.size; };
@@ -422,7 +397,7 @@ main(int argc, char *argv[]) {
       std::print("threads requested: {}\n", n_threads.workers);
       if (verbose > 1)
         std::print("reader threads: {}\n", n_threads.readers);
-      if (is_bgzf(input_format) && verbose > 1)
+      if (need_decomp_threads && verbose > 1)
         std::print("decompression threads: {}\n", n_threads.decomp);
       std::println("input memory buffer size: {}\n"
                    "tile analysis requested: {}\n"
@@ -430,13 +405,11 @@ main(int argc, char *argv[]) {
                    "dups analysis requested: {}\n"
                    "adapter analysis requested: {}\n"
                    "use base groups in output: {}\n"
-                   "input file format: {}\n"
                    "input files:",  //
                    size_to_units(buffer_size), mode.do_tiles(), mode.do_kmers(),
-                   mode.do_dups(), mode.do_adap(), mode.do_groups(),
-                   format_description);
+                   mode.do_dups(), mode.do_adap(), mode.do_groups());
       std::ranges::for_each(infos, [](const auto &info) {
-        std::println("{} ({})", info.name,
+        std::println("{}\t{}\t{}", info.name, info.description,
                      size_to_units(info.size, std::string{}));
       });
     }
