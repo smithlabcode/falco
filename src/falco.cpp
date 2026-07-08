@@ -242,7 +242,9 @@ main(int argc, char *argv[]) {
     int do_adap{};
     int do_groups{};
 
-    thread_counter n_threads{1, 0, 0};
+    std::uint32_t n_threads_workers{1};
+    std::uint32_t n_threads_readers{};
+    std::uint32_t n_threads_decomp{};
 
     int verbose{};
 
@@ -301,14 +303,14 @@ main(int argc, char *argv[]) {
                    "File of non-default adapters sequences to use")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
-    app.add_option("-t,--threads", n_threads.workers,
+    app.add_option("-t,--threads", n_threads_workers,
                    std::format("Threads for analysis (this machine supports: {})",
                                std::thread::hardware_concurrency()))
-      ->option_text(std::format("[{}]", n_threads.workers));
-    app.add_option("-r,--readers", n_threads.readers,
+      ->option_text(std::format("[{}]", n_threads_workers));
+    app.add_option("-r,--readers", n_threads_readers,
                    "Threads for reading input (default: one per input file)")
       ->group("");
-    app.add_option("-d,--decomp", n_threads.decomp,
+    app.add_option("-d,--decomp", n_threads_decomp,
                    "Threads for BAM/BGZF decompression (default: analysis threads)")
       ->group("");
     app.add_option("-m,--mem", buffer_size,
@@ -386,6 +388,11 @@ main(int argc, char *argv[]) {
 
     const auto need_decomp_threads = std::ranges::any_of(
       infos, [](const auto &x) { return is_bgzf(x.format); });
+    thread_counter n_threads{
+      .workers = n_threads_workers,
+      .readers = n_threads_readers,
+      .decomp = n_threads_decomp,
+    };
     n_threads.initialize(need_decomp_threads, std::size(infiles));
 
     // restrict buffer size to avoid using a possibly harmful amount of memory
@@ -394,11 +401,13 @@ main(int argc, char *argv[]) {
     buffer_size = buffer_size < max_sz ? buffer_size : max_sz;
 
     if (verbose) {
-      std::print("threads requested: {}\n", n_threads.workers);
+      std::print("threads requested: {}\n", n_threads_workers);
       if (verbose > 1)
         std::print("reader threads: {}\n", n_threads.readers);
       if (need_decomp_threads && verbose > 1)
-        std::print("decompression threads: {}\n", n_threads.decomp);
+        std::print("worker threads: {}\n"
+                   "decompression threads: {}\n",
+                   n_threads.workers, n_threads.decomp);
       std::println("input memory buffer size: {}\n"
                    "tile analysis requested: {}\n"
                    "k-mer analysis requested: {}\n"
