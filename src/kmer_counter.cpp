@@ -200,10 +200,6 @@ kmer_counter::decode_kmer(auto word, const auto n_bases) -> std::string {
 auto
 kmer_counter::apply_groups([[maybe_unused]] const run_mode &mode) -> void {
   // ADS: !!! should we be computing the 'results' here?
-  // if (mode.do_groups) {
-  //   const auto groups = get_default_base_groups(max_read_len,
-  //   do_groups(mode)); apply_base_groups(groups, kmer_counts);
-  // }
 }
 
 [[nodiscard]] auto
