@@ -138,6 +138,13 @@ two_dim_add(auto &v1, const auto &v2) {
     add(a1, a2);
 };
 
+inline constexpr auto
+two_dim_vec_add(auto &v1, const auto &v2) {
+  v1.resize(std::max(std::size(v1), std::size(v2)));
+  for (auto [a1, a2] : std::views::zip(v1, v2))
+    vec_add(a1, a2);
+};
+
 [[nodiscard]] inline constexpr auto
 as_frac(const auto a, const auto b) {
   return static_cast<double>(a) / static_cast<double>(b);
