@@ -47,9 +47,9 @@ results_summary::apply_groups() -> void {
     apply_base_groups(groups, n_counts);
     // ADS: need one for lengths
     apply_base_groups(groups, qual_by_pos);
-    am.apply_groups(mode);
+    am.apply_groups(groups);
     if (mode.do_tiles() && info.has_tiles)
-      tp.apply_groups(mode);
+      tp.apply_groups(groups);
   }
 }
 

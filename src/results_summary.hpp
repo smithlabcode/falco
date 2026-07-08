@@ -65,7 +65,7 @@ struct results_summary {
   file_grades grades;
   run_mode mode;
   file_info info;
-  std::vector<base_group_t> groups;
+  base_group_vec groups;
 
   results_summary(results_collector &rc, const run_mode &mode,
                   const file_info &info) : mode{mode}, info{info} {
