@@ -65,7 +65,7 @@ adapter_matcher::adapter_matcher() {
 auto
 adapter_matcher::operator+=(const adapter_matcher &rhs)
   -> const adapter_matcher & {
-  two_dim_add(adap_counts, rhs.adap_counts);
+  two_dim_vec_add(adap_counts, rhs.adap_counts);
   return *this;
 }
 
