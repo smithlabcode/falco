@@ -216,19 +216,21 @@ basic_stats_report(const file_info &info, const std::uint64_t n_reads,
                    min_read_len == max_read_len
                      ? std::format("{}", max_read_len)
                      : std::format("{}-{}", min_read_len, max_read_len));
-  r += std::format("Mean Length\t{}\n",
-                   as_frac(total_nucs, std::max(1LU, n_reads)));
+  r += std::format(
+    "Mean Length\t{}\n",
+    as_frac(total_nucs, std::max(static_cast<std::uint64_t>(1), n_reads)));
   r += std::format("Median Length\t{}\n", median_read_len);
   r += std::format("%GC\t{:.1f}\n",
-                   pct(as_frac(total_gc, std::max(1LU, total_nucs))));
+                   pct(as_frac(total_gc, std::max(static_cast<std::uint64_t>(1),
+                                                  total_nucs))));
   r += end_module_tag;
   return r;
 }
 
 [[nodiscard]] auto
 tile_report(const tile_processor::tiles_centered_t &centered,
-            const std::vector<base_group_t> &groups,
-            const file_grades &grades) -> std::string {
+            const std::vector<base_group_t> &groups, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto max_precision{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
@@ -247,8 +249,8 @@ tile_report(const tile_processor::tiles_centered_t &centered,
 }
 
 [[nodiscard]] auto
-kmer_report(const std::vector<kmer_result> &results,
-            const file_grades &grades) -> std::string {
+kmer_report(const std::vector<kmer_result> &results, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "kmer";
   static constexpr auto start_tag = ">>Kmer Content\t{}\n";
   static constexpr auto header = "#Sequence\t"
