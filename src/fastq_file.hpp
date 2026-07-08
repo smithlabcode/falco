@@ -175,15 +175,15 @@ struct fastq_file {
   auto operator=(const fastq_file &) -> fastq_file & = delete;
   auto operator=(fastq_file &&) noexcept -> fastq_file & = delete;
   // default move for emplace
-  fastq_file(fastq_file &&src) noexcept {
-    buf_size = src.buf_size;
-    filesize = src.filesize;
-    buf = std::move(src.buf);
-    start_pos_in_file = src.start_pos_in_file;
-    stop_pos_in_file = src.stop_pos_in_file;
-    cursor = src.cursor;
-    fd = dup(src.fd); // LOOK
-  }
+  fastq_file(fastq_file &&src) noexcept :
+    buf_size{src.buf_size},
+    filesize{src.filesize},
+    buf{std::move(src.buf)},
+    start_pos_in_file{src.start_pos_in_file},
+    stop_pos_in_file{src.stop_pos_in_file},
+    cursor{src.cursor},
+    fd{dup(src.fd)} // LOOK
+  {}
   // clang-format on
 
   ~fastq_file() {
