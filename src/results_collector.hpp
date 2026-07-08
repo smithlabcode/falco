@@ -99,10 +99,22 @@ struct alignas(assumed_page_size) results_collector {
     self.process_one_read_impl(rec);
   }
 
-  template <typename rec_t, typename self_t>
+  template <typename self_t>
   auto
-  process_reads(this self_t &self, auto cursor, const auto lim) {
-    rec_t rec{};
+  process_reads_bam(this self_t &self, bamrec::pos_t cursor,
+                    const bamrec::pos_t lim) {
+    bamrec rec{};
+    while (cursor < lim && (rec = get_next(cursor, lim))) {
+      self.process_one_read(rec);
+      ++self.n_reads;
+    }
+  }
+
+  template <typename self_t>
+  auto
+  process_reads_fq(this self_t &self, fqrec::pos_t cursor,
+                   const fqrec::pos_t lim) {
+    fqrec rec{};
     while (cursor < lim && (rec = get_next(cursor, lim))) {
       self.process_one_read(rec);
       ++self.n_reads;
