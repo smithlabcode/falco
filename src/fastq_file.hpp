@@ -141,6 +141,8 @@ cleanup_mmap_fastq(fastq_buffer &buf) {
   buf.sz = 0;
 }
 
+using fq_chunks_t = std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>>;
+
 struct fastq_file {
   using rec_t = fqrec;
   static constexpr auto min_buf_size = 64 * 1024;
@@ -163,7 +165,7 @@ struct fastq_file {
   }
 
   // clang-format off
-  [[nodiscard]] auto get_cursor() const { return cursor; }
+  [[nodiscard]] auto get_cursor() const -> std::int64_t { return cursor; }
   auto set_cursor(const auto c) { cursor = c; }
   // clang-format on
 
@@ -173,7 +175,15 @@ struct fastq_file {
   auto operator=(const fastq_file &) -> fastq_file & = delete;
   auto operator=(fastq_file &&) noexcept -> fastq_file & = delete;
   // default move for emplace
-  fastq_file(fastq_file &&) noexcept = default;
+  fastq_file(fastq_file &&src) noexcept {
+    buf_size = src.buf_size;
+    filesize = src.filesize;
+    buf = std::move(src.buf);
+    start_pos_in_file = src.start_pos_in_file;
+    stop_pos_in_file = src.stop_pos_in_file;
+    cursor = src.cursor;
+    fd = dup(src.fd); // LOOK
+  }
   // clang-format on
 
   ~fastq_file() {
@@ -187,7 +197,7 @@ struct fastq_file {
   }
 
   auto
-  load_next() {
+  load_next() -> void {
     // memory mapped data is page aligned but the data we need is not
     static const auto page_mask = sysconf(_SC_PAGESIZE) - 1;
     std::tie(start_pos_in_file, cursor) = [&] {
@@ -199,6 +209,9 @@ struct fastq_file {
       cleanup_mmap_fastq(buf);
     mmap_fastq(fd, start_pos_in_file, stop_pos_in_file, buf);
   }
+
+  [[nodiscard]] auto
+  get_chunks(const std::int64_t n_chunks) -> fq_chunks_t;
 };
 
 struct fastq_bgzf_file {
@@ -232,7 +245,7 @@ struct fastq_bgzf_file {
   }
 
   // clang-format off
-  [[nodiscard]] auto get_cursor() const { return cursor; }
+  [[nodiscard]] auto get_cursor() const -> std::int64_t { return cursor; }
   auto set_cursor(const auto c) { cursor = c; }
   // clang-format on
 
@@ -249,7 +262,7 @@ struct fastq_bgzf_file {
   [[nodiscard]] operator bool() const { return sentinel_position == buf_size; }
 
   auto
-  load_next() {
+  load_next() -> void {
     if (cursor > 0) {
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       std::copy_n(std::data(buffer) + cursor, buf.sz - cursor,
@@ -268,6 +281,9 @@ struct fastq_bgzf_file {
     sentinel_position = buf.sz;
     cursor = 0;
   }
+
+  [[nodiscard]] auto
+  get_chunks(const std::int64_t n_chunks) -> fq_chunks_t;
 };
 
 #ifdef HAVE_ISAL
@@ -294,7 +310,7 @@ private:
 
 public:
   // clang-format off
-  [[nodiscard]] auto get_cursor() const { return cursor; }
+  [[nodiscard]] auto get_cursor() const -> std::int64_t { return cursor; }
   auto set_cursor(const auto c) { cursor = c; }
   // clang-format on
   [[nodiscard]] auto
@@ -332,7 +348,7 @@ public:
   }
 
   auto
-  load_next() {
+  load_next() -> void {
     if (cursor > 0)
       shift_output_buffer();
     while (true) {
@@ -352,6 +368,9 @@ public:
         break;
     }
   }
+
+  [[nodiscard]] auto
+  get_chunks(const std::int64_t n_chunks) -> fq_chunks_t;
 
 private:
   [[nodiscard]] auto
@@ -438,7 +457,7 @@ struct fastq_gz_file {
   }
 
   // clang-format off
-  [[nodiscard]] auto get_cursor() const { return cursor; }
+  [[nodiscard]] auto get_cursor() const -> std::int64_t { return cursor; }
   auto set_cursor(const auto c) { cursor = c; }
   // clang-format on
 
@@ -455,7 +474,7 @@ struct fastq_gz_file {
   [[nodiscard]] operator bool() const { return buf_used == buf_size; }
 
   auto
-  load_next() {
+  load_next() -> void {
     if (cursor > 0) {
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       std::copy_n(buf.data + cursor, buf.sz - cursor, buf.data);
@@ -472,6 +491,9 @@ struct fastq_gz_file {
     buf_used = buf.sz;
     cursor = 0;  // cursor always moves to zero because buffer is not mmapped
   }
+
+  [[nodiscard]] auto
+  get_chunks(const std::int64_t n_chunks) -> fq_chunks_t;
 };
 
 #endif  // HAVE_ISAL
@@ -516,21 +538,37 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   return chunks;
 }
 
-// specialization to these two classes to distinguish from BAM/SAM
+// gather fastq-like files into one concept
 template <typename T>
-concept fastq_like =
-  std::same_as<T, fastq_file> || std::same_as<T, fastq_bgzf_file> ||
+concept fastq_like =                   //
+  std::same_as<T, fastq_file> ||       //
+  std::same_as<T, fastq_bgzf_file> ||  //
   std::same_as<T, fastq_gz_file>;
 
 template <fastq_like T>
 [[nodiscard]] static inline auto
-get_chunks(T &fq, const std::int64_t n_chunks) {
+get_chunks_fastq(T &fq, const std::int64_t n_chunks) -> fq_chunks_t {
   assert(n_chunks > 0);
   const auto add_offset = [d = fq.buf.data](const auto &x) {
     return std::pair{d + x.first, d + x.second};
   };
   return get_chunks_fastq_impl(fq, n_chunks) |
          std::views::transform(add_offset) | std::ranges::to<std::vector>();
+}
+
+[[nodiscard]] inline auto
+fastq_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
+  return get_chunks_fastq(*this, n_chunks);
+}
+
+[[nodiscard]] inline auto
+fastq_gz_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
+  return get_chunks_fastq(*this, n_chunks);
+}
+
+[[nodiscard]] inline auto
+fastq_bgzf_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
+  return get_chunks_fastq(*this, n_chunks);
 }
 
 [[nodiscard]] auto
