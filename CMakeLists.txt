@@ -1,24 +1,4 @@
-# MIT License
-#
-# Copyright (c) 2026 Andrew Smith
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to
-# deal in the Software without restriction, including without limitation the
-# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-# sell copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-# IN THE SOFTWARE.
+# SPDX-License-Identifier: MIT; (c) 2026 Andrew D Smith
 
 # to find the version of cmake do
 # $ cmake --version
@@ -102,6 +82,10 @@ endif()
 add_library(adapter_set OBJECT src/adapter_set.cpp)
 add_library(falco_utils OBJECT src/falco_utils.cpp)
 add_library(base_groups OBJECT src/base_groups.cpp)
+
+add_library(bgzf_block OBJECT src/bgzf_block.cpp)
+add_library(bgzf_reader OBJECT src/bgzf_reader.cpp)
+target_link_libraries(bgzf_reader PUBLIC bgzf_block)
 
 add_library(fastq_file OBJECT src/fastq_file.cpp)
 target_link_libraries(fastq_file PUBLIC HTSLIB::HTSLIB)
@@ -216,6 +200,8 @@ target_link_libraries(falco PUBLIC
   get_binary_dir
   run_mode
   base_groups
+  bgzf_reader
+  bgzf_block
   HTSLIB::HTSLIB
   LIBDEFLATE::LIBDEFLATE
   ZLIB::ZLIB
