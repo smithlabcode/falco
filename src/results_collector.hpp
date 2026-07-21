@@ -30,8 +30,8 @@
 #include "falco_file_format.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
-#include "fastq_file.hpp"
 #include "file_info.hpp"
+#include "fqrec.hpp"
 #include "kmer_counter.hpp"
 #include "tile_processor.hpp"
 
@@ -313,6 +313,16 @@ accumulate_results(std::vector<results_t> &r, const auto file_id) {
       id[j++] = id.back();
     id.resize(j);
   }
+}
+
+auto
+process_reads_fq(auto &results, auto &&task) {
+  results.process_reads_fq(task.beg, task.end);
+}
+
+auto
+process_reads_bam(auto &results, auto &&task) {
+  results.process_reads_bam(task.beg, task.end);
 }
 
 #endif  // SRC_RESULTS_COLLECTOR_HPP_
