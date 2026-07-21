@@ -1,25 +1,4 @@
-/* MIT License
- *
- * Copyright (c) 2026 Andrew D Smith
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: MIT; (c) 2026 Andrew D Smith
 
 // clang-format off
 static constexpr auto about = R"(Falco v{}: an in-progress redesign of Falco)";
@@ -74,26 +53,19 @@ Default configuration files can be found in:
 
 struct thread_counter {
   std::uint32_t workers{};
-  std::uint32_t readers{};
   std::uint32_t decomp{};
 
   auto
-  initialize(const auto need_decomp_threads, const auto n_files) {
+  initialize(const auto need_decomp_threads) {
     const std::uint32_t max_threads = std::thread::hardware_concurrency();
     workers = std::min(workers, max_threads);
-    readers = std::min(readers, max_threads);
     decomp = std::min(decomp, max_threads);
-    if (readers == 0) {
-      // reader threads are one per file, but max out at number of workers
-      readers = workers < n_files ? workers : n_files;
-    }
     if (need_decomp_threads && decomp == 0) {
       // decompression threads are half the number of worker threads
       decomp = workers > 1 ? workers / 2 : 1;
       workers = workers > 1 ? workers - decomp : workers;
     }
     if (!need_decomp_threads)
-      // ADS: need a warning on this
       decomp = 0;
   }
 };
@@ -116,8 +88,8 @@ run(const run_mode &mode, std::vector<file_info> &infos, auto &reads_files,
 
   auto final_results = [&] {
     const auto n_files = std::size(reads_files);
-    analyzer_t<results_t> analyzer(n_threads.workers, n_threads.readers,
-                                   n_files, mode, infos, reads_files);
+    analyzer_t<results_t> analyzer(n_threads.workers, n_files, mode, infos,
+                                   reads_files);
     // ADS: combine results for same input file collected by different threads
     for (const auto file_id : std::views::iota(0u, n_files))
       accumulate_results(analyzer.results, file_id);
@@ -167,7 +139,7 @@ start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
     if (is_mapped_reads(info.format))
       reads_files.emplace_back(bam_file(infile, buf_size, p));
     else if (info.format == falco::file_format::fastq_bgzf)
-      reads_files.emplace_back(fastq_bgzf_file(infile, buf_size, p));
+      reads_files.emplace_back(fastq_bgzf_file(infile, buf_size));
     else if (info.format == falco::file_format::fastq_gz)
       reads_files.emplace_back(fastq_gz_file(infile, buf_size));
     else if (info.format == falco::file_format::fastq)
@@ -243,7 +215,6 @@ main(int argc, char *argv[]) {
     int do_groups{};
 
     std::uint32_t n_threads_workers{1};
-    std::uint32_t n_threads_readers{};
     std::uint32_t n_threads_decomp{};
 
     int verbose{};
@@ -307,9 +278,6 @@ main(int argc, char *argv[]) {
                    std::format("Threads for analysis (this machine supports: {})",
                                std::thread::hardware_concurrency()))
       ->option_text(std::format("[{}]", n_threads_workers));
-    app.add_option("-r,--readers", n_threads_readers,
-                   "Threads for reading input (default: one per input file)")
-      ->group("");
     app.add_option("-d,--decomp", n_threads_decomp,
                    "Threads for BAM/BGZF decompression (default: analysis threads)")
       ->group("");
@@ -387,13 +355,12 @@ main(int argc, char *argv[]) {
     auto infos = get_file_info(infiles);
 
     const auto need_decomp_threads = std::ranges::any_of(
-      infos, [](const auto &x) { return is_bgzf(x.format); });
+      infos, [](const auto &x) { return is_bam(x.format); });
     thread_counter n_threads{
       .workers = n_threads_workers,
-      .readers = n_threads_readers,
       .decomp = n_threads_decomp,
     };
-    n_threads.initialize(need_decomp_threads, std::size(infiles));
+    n_threads.initialize(need_decomp_threads);
 
     // restrict buffer size to avoid using a possibly harmful amount of memory
     const auto get_sz = [](const auto &i) { return i.size; };
@@ -402,8 +369,6 @@ main(int argc, char *argv[]) {
 
     if (verbose) {
       std::print("threads requested: {}\n", n_threads_workers);
-      if (verbose > 1)
-        std::print("reader threads: {}\n", n_threads.readers);
       if (need_decomp_threads && verbose > 1)
         std::print("worker threads: {}\n"
                    "decompression threads: {}\n",
