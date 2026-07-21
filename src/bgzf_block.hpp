@@ -1,20 +1,16 @@
-// SPDX-License-Identifier: MIT; (c) 2026 Andrew D Smith
+// SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #ifndef SRC_BGZF_BLOCK_HPP_
 #define SRC_BGZF_BLOCK_HPP_
 
-#include <libdeflate.h>
-
-#include <array>
 #include <cstdint>
-#include <vector>
 
 static constexpr auto max_bgzf_block_size = 65536;
 
 struct bgzf_block_t {
   std::int32_t size{};
   char *out_itr{};
-  char *in_itr;
+  char *in_itr{};
 
   bgzf_block_t(const std::int32_t size, char *out_itr, char *in_itr) noexcept :
     size{size}, out_itr{out_itr}, in_itr{in_itr} {}

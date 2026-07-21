@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT; (c) 2026 Andrew D Smith
+// SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "fastq_file.hpp"
 #include "falco_utils.hpp"

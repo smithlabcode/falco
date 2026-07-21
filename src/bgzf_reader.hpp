@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT; (c) 2026 Andrew D Smith
+// SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #ifndef SRC_BGZF_READER_HPP_
 #define SRC_BGZF_READER_HPP_
@@ -6,8 +6,9 @@
 #include "bgzf_block.hpp"
 
 #include <cstdint>
+#include <cstdio>
+#include <iterator>
 #include <memory>
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -58,7 +59,7 @@ public:
   [[nodiscard]] auto
   read_data() -> bool;
 
-  [[nodiscard]] auto
+  auto
   reset() {
     next_out = std::data(outbuf);
   }

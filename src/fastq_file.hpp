@@ -1,18 +1,17 @@
-// SPDX-License-Identifier: MIT; (c) 2026 Andrew D Smith
+// SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #ifndef SRC_FASTQ_FILE_HPP_
 #define SRC_FASTQ_FILE_HPP_
 
-#include "fqrec.hpp"
-
+#include "bgzf_block.hpp"
 #include "bgzf_reader.hpp"
+#include "fqrec.hpp"
 
 #ifdef HAVE_ISAL
 #include <isa-l/igzip_lib.h>
 #endif  // HAVE_ISAL
 
 #include <htslib/bgzf.h>
-#include <htslib/sam.h>
 
 #include <fcntl.h>     // for open, O_RDONLY
 #include <sys/mman.h>  // for mmap, munmap, MAP_FAILED, MAP_PRIVATE

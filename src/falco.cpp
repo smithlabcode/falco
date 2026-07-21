@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT; (c) 2026 Andrew D Smith
+// SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 // clang-format off
 static constexpr auto about = R"(Falco v{}: an in-progress redesign of Falco)";

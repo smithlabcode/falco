@@ -1,18 +1,15 @@
-// SPDX-License-Identifier: MIT; (c) 2026 Andrew D Smith
+// SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "bgzf_reader.hpp"
-#include "bgzf_block.hpp"
+#include "bgzf_block.hpp"  // for bgzf_block_t, max_bgzf_block_size
 
+#include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <cstdint>
 #include <cstring>
-#include <mutex>
 #include <string>
-
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <system_error>
 
 [[nodiscard]] static constexpr auto
 get_unaligned_le32(const std::uint8_t *p) -> std::uint32_t {

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT; (c) 2026 Andrew D Smith
+// SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #ifndef SRC_FALCO_ANALYZER_HPP_
 #define SRC_FALCO_ANALYZER_HPP_
