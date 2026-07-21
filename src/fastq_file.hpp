@@ -1,30 +1,11 @@
-/* MIT License
- *
- * Copyright (c) 2026 Andrew D Smith
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: MIT; (c) 2026 Andrew D Smith
 
 #ifndef SRC_FASTQ_FILE_HPP_
 #define SRC_FASTQ_FILE_HPP_
 
-#include "thread_pool_wrapper.hpp"
+#include "fqrec.hpp"
+
+#include "bgzf_reader.hpp"
 
 #ifdef HAVE_ISAL
 #include <isa-l/igzip_lib.h>
@@ -57,62 +38,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-
-// clang-format off
-struct fqrec {
-  using pos_t = char *;
-  pos_t n{};  // start of "name"
-  pos_t r{};  // start of "read"
-  pos_t o{};  // start of "other"
-  pos_t q{};  // start of "quality" scores
-  pos_t e{};  // end of the record
-  [[nodiscard]] auto
-  size() const { return static_cast<std::int32_t>(std::distance(r, o)) - 1; }
-  [[nodiscard]] operator bool() const { return n != nullptr; }
-  [[nodiscard]] auto
-  string() const -> std::string { return {n, e}; }
-};
-[[nodiscard]] constexpr auto get_name(const fqrec &rec) { return rec.n; }
-[[nodiscard]] constexpr auto get_name_end(const fqrec &rec) { return rec.r - 1; }
-[[nodiscard]] constexpr auto get_seq(const fqrec &rec) { return rec.r; }
-[[nodiscard]] constexpr auto get_seq_end(const fqrec &rec) { return rec.o - 1; }
-[[nodiscard]] constexpr auto get_seq_size(const fqrec &rec) { return std::size(rec); }
-[[nodiscard]] constexpr auto get_qual(const fqrec &rec) { return rec.q; }
-[[nodiscard]] constexpr auto get_qual_end(const fqrec &rec) { return rec.e - 1; }
-[[nodiscard]] constexpr auto get_qual_size(const fqrec &rec) { return std::size(rec); }
-// clang-format on
-
-[[nodiscard]] inline auto
-get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
-  // ADS: need to make sure cursor < end_itr or we will move past
-  const auto n = cursor;
-  auto itr = n + 1;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
-  const auto next_newline = [end_itr](auto &itr) {
-    itr = std::find(itr, end_itr, '\n');
-  };
-
-  // clang-format off
-  next_newline(itr);
-  if (itr++ == end_itr) return {};
-  const auto r = itr;
-
-  next_newline(itr);
-  if (itr++ == end_itr) return {};
-  const auto o = itr;
-
-  next_newline(itr);
-  if (itr++ == end_itr) return {};
-  const auto q = itr;
-
-  next_newline(itr);
-  if (itr++ == end_itr) return {};
-  const auto e = itr;
-  // clang-format on
-
-  cursor = e;
-  return {n, r, o, q, e};
-}
 
 struct fastq_buffer {
   char *data{};       // not necessarily owned
@@ -218,36 +143,21 @@ struct fastq_bgzf_file {
   using rec_t = fqrec;
   static constexpr auto min_buf_size = 64 * 1024;
   std::int64_t buf_size{};  // size of allocated buffer
-  fastq_buffer buf{};
-  std::vector<char> buffer;
-  std::int64_t sentinel_position{};
-  std::int64_t cursor{};  // position in buffer
-  std::unique_ptr<BGZF, int (*)(BGZF *)> f;
+  std::vector<char> input_buffer;
+  std::vector<char> output_buffer;
+  std::int64_t input_last{};
+  std::int64_t output_last{};
+  std::int64_t input_cursor{};
+  std::int64_t output_cursor{};
+  bgzf_reader br;
+  bool is_first_load{true};
+  bool had_last_chunks{false};
+  bool hit_eof{};
+  bgzf_block_t task;
 
-  fastq_bgzf_file(const std::string &filename, const std::int64_t buf_size,
-                  falco_thread_pool &t) :
-    buf_size{buf_size}, buffer(buf_size), sentinel_position{buf_size},
-    f(bgzf_open(std::data(filename), "r"), &bgzf_close) {
-    static constexpr auto bgzf_fmt_code = 2;  // from bgzf.h
-    if (!f)
-      throw std::system_error(std::make_error_code(std::errc(errno)),
-                              "failed to open file: " + filename);
-    if (buf_size < min_buf_size)
-      throw std::runtime_error(std::format(
-        "requested buffer too small {} (min is {})", buf_size, min_buf_size));
-    if (t.n_threads() > 0 && bgzf_compression(f.get()) == bgzf_fmt_code) {
-      // threads can be used
-      const auto r = bgzf_thread_pool(f.get(), t.t.pool, t.t.qsize);
-      if (r < 0)
-        throw std::runtime_error("failed to set thread pool");
-    }
-    buf.data = std::data(buffer);
-  }
-
-  // clang-format off
-  [[nodiscard]] auto get_cursor() const -> std::int64_t { return cursor; }
-  auto set_cursor(const auto c) { cursor = c; }
-  // clang-format on
+  fastq_bgzf_file(const std::string &filename, const std::int64_t buf_size) :
+    buf_size{buf_size / 2}, input_buffer(buf_size / 2),
+    output_buffer(buf_size / 2), br(filename, buf_size / 2) {}
 
   // clang-format off
   // delete copy and assignment
@@ -259,28 +169,10 @@ struct fastq_bgzf_file {
   ~fastq_bgzf_file() = default;
   // clang-format on
 
-  [[nodiscard]] operator bool() const { return sentinel_position == buf_size; }
+  [[nodiscard]] operator bool() const { return !had_last_chunks; }
 
   auto
-  load_next() -> void {
-    if (cursor > 0) {
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      std::copy_n(std::data(buffer) + cursor, buf.sz - cursor,
-                  std::data(buffer));
-      cursor = buf.sz - cursor;  // backup to after previous data
-    }
-    const auto n_bytes = buf_size - cursor;
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    const auto r = bgzf_read(f.get(), std::data(buffer) + cursor, n_bytes);
-    if (r < 0) {
-      // ADS: cleanup
-      throw std::system_error(std::make_error_code(std::errc(errno)),
-                              "failed reading gz input file");
-    }
-    buf.sz = cursor + r;
-    sentinel_position = buf.sz;
-    cursor = 0;
-  }
+  load_next() -> std::vector<bgzf_block_t>;
 
   [[nodiscard]] auto
   get_chunks(const std::int64_t n_chunks) -> fq_chunks_t;
@@ -503,7 +395,6 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   static constexpr auto rec_lines = 4;  // FASTQ
   // clang-format off
   const auto not_read_start = [](const auto s, const auto p) {
-    // assert(p >= 3);
     // ADS: could get confused if '+' lines have full name info
     return s[p] != '@' || (p > 0 && s[p-1] != '\n') ||
       (p > 2 && s[p-2] == '+' && s[p-3] == '\n');
@@ -538,6 +429,10 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   return chunks;
 }
 
+[[nodiscard]] auto
+get_chunks_fastq(fastq_bgzf_file &fq,
+                 const std::int64_t n_chunks) -> fq_chunks_t;
+
 // gather fastq-like files into one concept
 template <typename T>
 concept fastq_like =                   //
@@ -563,11 +458,6 @@ fastq_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
 
 [[nodiscard]] inline auto
 fastq_gz_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
-  return get_chunks_fastq(*this, n_chunks);
-}
-
-[[nodiscard]] inline auto
-fastq_bgzf_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
   return get_chunks_fastq(*this, n_chunks);
 }
 
