@@ -66,6 +66,11 @@ is_mapped_reads(const file_format f) {
 }
 
 [[nodiscard]] constexpr inline auto
+is_bam(const file_format f) {
+  return f == file_format::bam;
+}
+
+[[nodiscard]] constexpr inline auto
 is_bgzf(const file_format f) {
   return f == file_format::bam || f == file_format::fastq_bgzf;
 }
