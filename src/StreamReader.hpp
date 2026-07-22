@@ -122,6 +122,13 @@ class StreamReader{
   // tile value parsed from line 1 of each record
   size_t tile_cur;
 
+  // Whether the current read contributes per-tile quality, and cached
+  // pointers to the tile's quality/count vectors so we avoid re-hashing the
+  // tile maps on every base of the quality line.
+  bool do_tile_quality;
+  std::vector<double> *cur_tile_quality;
+  std::vector<size_t> *cur_tile_count;
+
   // Temp variables to be updated as you pass through the file
   size_t read_pos;  // which base we are at in the read
   size_t quality_value;  // to convert from ascii to number
@@ -186,7 +193,11 @@ class StreamReader{
 class FastqReader : public StreamReader {
  private:
   static const size_t RESERVE_SIZE = (1<<26);
+  // dedicated stdio stream buffer; glibc only enlarges the read size when
+  // setvbuf is given an explicit buffer (a NULL buffer stays at ~4 KiB)
+  static const size_t IO_BUFFER_SIZE = (1<<20);
   char *filebuf;
+  char *iobuf;
   FILE *fileobj;
 
  public:
@@ -222,7 +233,9 @@ class GzFastqReader : public StreamReader {
 class SamReader : public StreamReader {
  private:
   static const size_t RESERVE_SIZE = (1<<26);
+  static const size_t IO_BUFFER_SIZE = (1<<20);
   char *filebuf;
+  char *iobuf;
   FILE *fileobj;
 
  public:

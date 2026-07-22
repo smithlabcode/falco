@@ -177,6 +177,11 @@ StreamReader::StreamReader(FalcoConfig &config, const std::size_t _buffer_size,
 
   // GS: test
   leftover_ind = 0;
+
+  // per-read tile-quality caching
+  do_tile_quality = false;
+  cur_tile_quality = nullptr;
+  cur_tile_count = nullptr;
 }
 
 // Makes sure that any subclass deletes the buffer
@@ -227,8 +232,12 @@ StreamReader::read_fast_forward_line() {
 
 inline void
 StreamReader::read_fast_forward_line_eof() {
-  for (; (*cur_char != field_separator) && (*cur_char != line_separator) &&
-         !is_eof();
+  // is_eof() cannot change while scanning an already-buffered line (there is
+  // no read from the stream inside this loop), so evaluate the virtual call
+  // once instead of on every character.
+  if (is_eof())
+    return;
+  for (; (*cur_char != field_separator) && (*cur_char != line_separator);
        ++cur_char) {
   }
 }
@@ -490,15 +499,16 @@ StreamReader::process_quality_base_from_buffer(FastqStats &stats) {
   ++stats.position_quality_count[(read_pos << Constants::bit_shift_quality) |
                                  quality_value];
 
-  // Tile processing
-  if (!tile_ignore && do_tile_read && tile_cur != 0) {
+  // Tile processing (cur_tile_* point into the tile maps, resolved once per
+  // read in read_quality_line, so we avoid three hash lookups per base)
+  if (do_tile_quality) {
     // allocate more base space if necessary
-    if (std::size(stats.tile_position_quality[tile_cur]) == read_pos) {
-      stats.tile_position_quality[tile_cur].push_back(0.0);
-      stats.tile_position_count[tile_cur].push_back(0);
+    if (std::size(*cur_tile_quality) == read_pos) {
+      cur_tile_quality->push_back(0.0);
+      cur_tile_count->push_back(0);
     }
-    stats.tile_position_quality[tile_cur][read_pos] += quality_value;
-    ++stats.tile_position_count[tile_cur][read_pos];
+    (*cur_tile_quality)[read_pos] += quality_value;
+    ++(*cur_tile_count)[read_pos];
   }
 }
 
@@ -510,12 +520,10 @@ StreamReader::process_quality_base_from_leftover(FastqStats &stats) {
                                        << Constants::bit_shift_quality) |
                                       quality_value];
 
-  // Tile processing
-  if (!tile_ignore) {
-    if (do_tile_read && tile_cur != 0) {
-      stats.tile_position_quality[tile_cur][read_pos] += quality_value;
-      ++stats.tile_position_count[tile_cur][read_pos];
-    }
+  // Tile processing (see process_quality_base_from_buffer)
+  if (do_tile_quality) {
+    (*cur_tile_quality)[read_pos] += quality_value;
+    ++(*cur_tile_count)[read_pos];
   }
 }
 
@@ -535,19 +543,29 @@ StreamReader::read_quality_line(FastqStats &stats) {
   cur_quality = 0;
   still_in_buffer = true;
 
+  // Resolve the tile quality/count vectors once for this read so the per-base
+  // loop does not re-hash the tile maps (see process_quality_base_from_buffer)
+  do_tile_quality = (!tile_ignore && do_tile_read && tile_cur != 0);
+  if (do_tile_quality) {
+    cur_tile_quality = &stats.tile_position_quality[tile_cur];
+    cur_tile_count = &stats.tile_position_count[tile_cur];
+  }
+
+  // is_eof() cannot change while scanning this already-buffered line, so read
+  // the (virtual) end-of-file state once rather than on every base.
+  const bool line_at_eof = is_eof();
+
   // For quality, we do not look for the separator, but rather for an explicit
   // newline or EOF in case the file does not end with newline or we are getting
   // decompressed strings from a stream
   for (; (*cur_char != field_separator) && (*cur_char != line_separator) &&
-         !is_eof();
+         !line_at_eof;
        ++cur_char) {
 
     if (read_pos == buffer_size) {
       still_in_buffer = false;
       leftover_ind = 0;
     }
-
-    get_base_from_buffer();
 
     // update lowest quality
     stats.lowest_char = min8(
@@ -597,11 +615,16 @@ void
 StreamReader::postprocess_fastq_record(FastqStats &stats) {
   if (do_sequence_hash) {
     buffer[get_truncate_point(read_pos)] = '\0';
-    sequence_to_hash = std::string(buffer);
+    // assign() reuses the string's existing capacity instead of allocating a
+    // fresh std::string every read
+    sequence_to_hash.assign(buffer);
+    // Single hash lookup: reuse the iterator for both the insert and the
+    // increment branches
+    const auto it = stats.sequence_count.find(sequence_to_hash);
     // New sequence found
-    if (stats.sequence_count.count(sequence_to_hash) == 0) {
+    if (it == stats.sequence_count.end()) {
       if (continue_storing_sequences) {
-        stats.sequence_count.insert({{sequence_to_hash, 1}});
+        stats.sequence_count.emplace(sequence_to_hash, 1);
         stats.count_at_limit = stats.num_reads;
         ++stats.num_unique_seen;
 
@@ -611,7 +634,7 @@ StreamReader::postprocess_fastq_record(FastqStats &stats) {
       }
     }
     else {
-      ++stats.sequence_count[sequence_to_hash];
+      ++it->second;
       stats.count_at_limit += continue_storing_sequences;
     }
   }
@@ -654,6 +677,7 @@ FastqReader::FastqReader(FalcoConfig &_config, const std::size_t _buffer_size) :
   StreamReader(_config, _buffer_size, get_line_separator(_config.filename),
                get_line_separator(_config.filename)) {
   filebuf = new char[RESERVE_SIZE];
+  iobuf = new char[IO_BUFFER_SIZE];
 }
 
 std::size_t
@@ -675,6 +699,9 @@ FastqReader::load() {
   fileobj = fopen(std::data(filename), "r");
   if (fileobj == NULL)
     throw std::runtime_error("Cannot open FASTQ file : " + filename);
+  // Use a large fully-buffered stdio buffer so fgets issues far fewer read()
+  // syscalls (glibc defaults to ~4 KiB).
+  setvbuf(fileobj, iobuf, _IOFBF, IO_BUFFER_SIZE);
   return get_file_size(filename);
 }
 
@@ -686,7 +713,9 @@ FastqReader::is_eof() {
 
 FastqReader::~FastqReader() {
   delete[] filebuf;
+  // close the stream (which flushes) before releasing its stdio buffer
   fclose(fileobj);
+  delete[] iobuf;
 }
 
 // Parses fastq gz by reading line by line into the gzbuf
@@ -758,6 +787,10 @@ GzFastqReader::load() {
   if (fileobj == Z_NULL)
     throw std::runtime_error("Cannot open gzip FASTQ file : " + filename);
 
+  // Enlarge zlib's internal inflate buffer (default 8 KiB) so decompression
+  // reads bigger chunks; must be set before the first gz read.
+  gzbuffer(fileobj, (1 << 20));
+
   return get_file_size(filename);
 }
 
@@ -820,6 +853,7 @@ SamReader::SamReader(FalcoConfig &_config, const std::size_t _buffer_size) :
   StreamReader(_config, _buffer_size, '\t',
                get_line_separator(_config.filename)) {
   filebuf = new char[RESERVE_SIZE];
+  iobuf = new char[IO_BUFFER_SIZE];
 }
 
 std::size_t
@@ -827,6 +861,9 @@ SamReader::load() {
   fileobj = fopen(std::data(filename), "r");
   if (fileobj == NULL)
     throw std::runtime_error("Cannot open SAM file : " + filename);
+
+  // Large fully-buffered stdio buffer to cut read() syscalls (see FastqReader)
+  setvbuf(fileobj, iobuf, _IOFBF, IO_BUFFER_SIZE);
 
   // skip sam header
   char first_char_in_line;
@@ -883,6 +920,7 @@ SamReader::read_entry(FastqStats &stats, std::size_t &num_bytes_read) {
 SamReader::~SamReader() {
   delete[] filebuf;
   fclose(fileobj);
+  delete[] iobuf;
 }
 
 #ifdef USE_HTS
@@ -995,6 +1033,14 @@ BamReader::read_quality_line(FastqStats &stats) {
   read_pos = 0;
   cur_quality = 0;
   still_in_buffer = true;
+
+  // Resolve the tile quality/count vectors once for this read (see
+  // process_quality_base_from_buffer)
+  do_tile_quality = (!tile_ignore && do_tile_read && tile_cur != 0);
+  if (do_tile_quality) {
+    cur_tile_quality = &stats.tile_position_quality[tile_cur];
+    cur_tile_count = &stats.tile_position_count[tile_cur];
+  }
 
   const std::size_t seq_len = b->core.l_qseq;
   for (std::size_t i = 0; i < seq_len; ++cur_char, i++) {
