@@ -85,7 +85,7 @@ struct kmer_counter {
     if (read_idx-- == 0) [[unlikely]] {
       read_idx = read_skip;
       sz = sz > max_len_for_analysis ? max_len_for_analysis : sz;
-      if (sz > max_read_len) [[unlikely]]
+      if (sz > static_cast<decltype(sz)>(max_read_len)) [[unlikely]]
         resize(sz);
       const auto seq_end = seq_itr + sz;
       auto out_itr = std::begin(kmer_counts);
@@ -94,7 +94,7 @@ struct kmer_counter {
         shift_kmer(kmer, *seq_itr++);
       while (seq_itr != seq_end) {
         shift_kmer(kmer, *seq_itr++);
-        // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
         ++(*out_itr++)[kmer & kmer_mask];
       }
     }
