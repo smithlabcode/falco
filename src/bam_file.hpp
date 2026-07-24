@@ -9,22 +9,11 @@
 #include "bgzf_reader.hpp"
 #include "falco_task.hpp"
 
-#include <algorithm>
-#include <cassert>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <filesystem>
+#include <cstdint>
 #include <format>
-#include <fstream>
-#include <iostream>
 #include <iterator>
-#include <memory>
-#include <print>
-#include <ranges>
-#include <stdexcept>
 #include <string>
-#include <string_view>
+#include <tuple>
 #include <variant>
 #include <vector>
 
@@ -102,7 +91,7 @@ is_active(const bam_file &reads_file) -> bool {
 }
 
 [[nodiscard]] inline auto
-inflate_only(bam_file &reads_file) -> bool {
+inflate_only(const bam_file &reads_file) -> bool {
   return reads_file.inflate_only();
 }
 

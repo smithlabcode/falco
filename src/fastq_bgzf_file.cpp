@@ -3,17 +3,20 @@
 #include "fastq_bgzf_file.hpp"
 #include "falco_utils.hpp"
 
-#include <htslib/bgzf.h>  // for BGZF
+#include <htslib/bgzf.h>
 #include <htslib/hfile.h>
 
-#include <unistd.h>
-
+#include <algorithm>
+#include <cassert>
+#include <cerrno>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <memory>
-#include <ranges>  // IWYU pragma: keep
+#include <ranges>
 #include <string>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 static constexpr auto fastq_lines_per_read = 4;
@@ -148,6 +151,7 @@ fastq_bgzf_file::make_tasks(const std::int64_t n_chunks)
   std::vector<task_t> tasks;
   tasks.reserve(std::size(chunks));
   for (const auto &chunk : chunks)
+    // cppcheck-suppress useStlAlgorithm
     tasks.emplace_back(fq_task_t(chunk.first, chunk.second));
   return tasks;
 }
@@ -159,6 +163,7 @@ fastq_bgzf_file::make_tasks_inflate() -> std::vector<task_t> {
   std::vector<task_t> tasks;
   tasks.reserve(std::size(chunks));
   for (auto &chunk : chunks)
+    // cppcheck-suppress useStlAlgorithm
     tasks.emplace_back(std::move(chunk));
   return tasks;
 }

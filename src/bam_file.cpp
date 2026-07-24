@@ -4,14 +4,20 @@
 #include "bamrec.hpp"
 #include "falco_utils.hpp"
 
-#include <htslib/hfile.h>  // for htell
+#include <htslib/hfile.h>
 #include <htslib/sam.h>
 
+#include <algorithm>
+#include <cassert>
+#include <cerrno>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <system_error>
+#include <utility>
 
 [[nodiscard]] auto
 estimate_n_reads_bam(const std::string &filename)

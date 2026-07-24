@@ -422,7 +422,7 @@ estimate_n_reads_fastq_gz(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
 [[nodiscard]] inline constexpr auto
-inflate_only(fastq_like auto &) -> bool {
+inflate_only(fastq_like const auto &) -> bool {
   return false;
 }
 
@@ -439,6 +439,7 @@ make_tasks(fastq_like auto &reads_file,
   std::vector<task_t> tasks;
   tasks.reserve(std::size(chunks));
   for (const auto &chunk : chunks)
+    // cppcheck-suppress useStlAlgorithm
     tasks.push_back(fq_task_t(chunk.first, chunk.second));
   return tasks;
 }

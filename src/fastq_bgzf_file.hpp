@@ -8,24 +8,11 @@
 #include "falco_task.hpp"
 #include "fqrec.hpp"
 
-#include <algorithm>
-#include <cassert>
-#include <cerrno>
-#include <concepts>
 #include <cstdint>
-#include <cstdio>  // IWYU pragma: keep
-#include <cstdlib>
-#include <cstring>  // IWYU pragma: keep
-#include <filesystem>
-#include <format>  // IWYU pragma: keep
+#include <format>
 #include <iterator>
-#include <memory>
-#include <ranges>
-#include <stdexcept>
 #include <string>
-#include <system_error>
 #include <tuple>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -93,7 +80,7 @@ private:
 };
 
 [[nodiscard]] inline auto
-inflate_only(fastq_bgzf_file &f) -> bool {
+inflate_only(const fastq_bgzf_file &f) -> bool {
   return f.inflate_only();
 }
 

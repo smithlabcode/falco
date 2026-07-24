@@ -5,13 +5,11 @@
 
 #include "bgzf_block.hpp"
 
-#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <iterator>
 #include <memory>
 #include <string>
-#include <vector>
 
 static constexpr auto gzip_header_size = 18;
 

@@ -3,7 +3,6 @@
 #include "bgzf_reader.hpp"
 #include "bgzf_block.hpp"  // for bgzf_block_t, max_bgzf_block_size
 
-#include <algorithm>
 #include <cassert>
 #include <cerrno>
 #include <cstdint>

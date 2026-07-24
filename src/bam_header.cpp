@@ -2,6 +2,7 @@
 
 #include "bam_header.hpp"
 
+#include <format>
 #include <stdexcept>
 
 [[nodiscard]] auto
@@ -23,6 +24,7 @@ bam_header::update(bam_header::iterator itr,
     --l_text_bytes_remaining;
     ++itr;
   }
+  // ADS: change the next loop to if
   while (itr != end && l_text) {
     ++itr;
     --l_text;
@@ -38,6 +40,7 @@ bam_header::update(bam_header::iterator itr,
       --l_name_bytes_remaining;
       ++itr;
     }
+    // ADS: change the next two loops to ifs
     while (itr != end && name_bytes_remaining) {
       --name_bytes_remaining;
       ++itr;
