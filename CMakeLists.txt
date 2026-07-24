@@ -93,6 +93,11 @@ if(USE_ISAL)
   target_link_libraries(fastq_file PUBLIC ISAL::ISAL)
 endif()
 
+add_library(fastq_bgzf_file OBJECT src/fastq_bgzf_file.cpp)
+target_link_libraries(fastq_bgzf_file PUBLIC LIBDEFLATE::LIBDEFLATE)
+
+add_library(bam_header OBJECT src/bam_header.cpp)
+
 add_library(bam_file OBJECT src/bam_file.cpp)
 target_link_libraries(bam_file PUBLIC HTSLIB::HTSLIB)
 
@@ -104,7 +109,6 @@ target_link_libraries(quality_score PUBLIC falco_file_format)
 
 add_library(tile_processor OBJECT src/tile_processor.cpp)
 target_link_libraries(tile_processor PUBLIC
-  bam_file  # ADS: hope to remove this dep
   falco_file_format
   HTSLIB::HTSLIB
 )
@@ -188,7 +192,9 @@ target_link_libraries(falco PUBLIC
   duplication_results
   kmer_counter
   fastq_file
+  fastq_bgzf_file
   bam_file
+  bam_header
   falco_file_format
   falco_utils
   falco_grade
