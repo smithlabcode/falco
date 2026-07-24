@@ -1,0 +1,164 @@
+// SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
+
+#include "fastq_bgzf_file.hpp"
+#include "falco_utils.hpp"
+
+#include <htslib/bgzf.h>  // for BGZF
+#include <htslib/hfile.h>
+
+#include <unistd.h>
+
+#include <cstdint>
+#include <filesystem>
+#include <memory>
+#include <ranges>  // IWYU pragma: keep
+#include <string>
+#include <system_error>
+#include <vector>
+
+static constexpr auto fastq_lines_per_read = 4;
+
+[[nodiscard]] static auto
+estimate_read_length(const auto &data, const auto n) {
+  assert(n >= 1);
+  const auto valid = [](const auto c) {
+    return c == 'A' || c == 'C' || c == 'G' || c == 'T' || c == 'N';
+  };
+  std::vector<std::int64_t> lines;
+  for (auto i = 0u; i + 1 < n; ++i)
+    if (data[i] == '\n')
+      lines.push_back(i + 1);
+  if (std::size(lines) < fastq_lines_per_read)
+    return 1ul;
+  auto total = 0ul;
+  for (const auto l : lines | std::views::adjacent<fastq_lines_per_read - 1>)
+    if (data[std::get<0>(l)] == '@' && data[std::get<2>(l)] == '+' &&
+        valid(data[std::get<1>(l)]))
+      // cppcheck-suppress useStlAlgorithm
+      total += (std::get<2>(l) - std::get<1>(l)) - 1;
+  return total / (std::size(lines) / fastq_lines_per_read);
+}
+
+[[nodiscard]] auto
+estimate_n_reads_fastq_bgzf(const std::string &filename)
+  -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t> {
+  static constexpr auto n_bytes = 1024 * 1024;
+  std::unique_ptr<BGZF, int (*)(BGZF *)> f(bgzf_open(std::data(filename), "r"),
+                                           &bgzf_close);
+  std::vector<std::uint8_t> buf(n_bytes);
+  const auto r = bgzf_read(f.get(), std::data(buf), n_bytes);
+  if (r < 0)
+    throw std::system_error(std::make_error_code(std::errc(errno)),
+                            "failed reading gz input file");
+  // ADS: 'htell' function works below because 'f' has no threadpool
+  const auto n_compressed_bytes = htell(f.get()->fp);
+  const auto total_newlines = std::ranges::count(buf, '\n');
+
+  const auto inflation_factor = as_frac(n_bytes, n_compressed_bytes);
+  const auto filesize = std::filesystem::file_size(filename);
+  const auto estimated_uncompressed_file_size =
+    inflation_factor * static_cast<double>(filesize);
+  const auto n_reads_est = as_frac(total_newlines, fastq_lines_per_read) *
+                           as_frac(estimated_uncompressed_file_size, n_bytes);
+  const auto read_len_est = estimate_read_length(buf, std::size(buf));
+  return {static_cast<std::uint64_t>(n_reads_est), read_len_est, filesize};
+}
+
+auto
+fastq_bgzf_file::shift_buffers() -> void {
+  assert(output_cursor > 0);
+  // make room in the output buffer
+  std::copy_n(std::cbegin(output_buffer) + output_cursor,
+              output_last - output_cursor, std::begin(input_buffer));
+  input_last = (output_last - output_cursor);
+  input_cursor = 0;  // because it's output
+}
+
+auto
+fastq_bgzf_file::load_next() -> std::vector<bgzf_block_t> {
+  if (output_cursor > 0)
+    shift_buffers();
+  br.reset();  // use like monotonic_buffer_resource
+  std::vector<bgzf_block_t> tasks;
+  auto in_itr = std::data(input_buffer) + input_last;
+  while (br.task_ready() && has_in()) {
+    auto task = br.get_decomp_task(in_itr);
+    in_itr += task.size;
+    tasks.emplace_back(std::move(task));
+  }
+  input_last = std::distance(std::data(input_buffer), in_itr);
+  return tasks;
+}
+
+[[nodiscard]] auto
+fastq_bgzf_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
+  static constexpr auto rec_lines = 4;  // FASTQ
+  assert(n_chunks > 0);
+
+  std::swap(input_buffer, output_buffer);
+  output_last = input_last;
+  output_cursor = input_cursor;
+
+  const auto data = std::data(output_buffer);
+  const auto not_read_start = [](const auto s, const auto p) {
+    // ADS: could get confused if '+' lines have full name info
+    return s[p] != '@' || (p > 0 && s[p - 1] != '\n') ||
+           (p > 2 && s[p - 2] == '+' && s[p - 3] == '\n');
+  };
+  const auto fwd_to_read_start = [&](auto pos) {
+    if (pos == 0)
+      return pos;
+    while (pos < output_last && not_read_start(data, pos))
+      ++pos;
+    return pos;
+  };
+  const auto rev_to_read_start = [&](auto pos) {
+    while (pos > 0 && (pos == output_last || not_read_start(data, pos)))
+      --pos;
+    return pos;
+  };
+  const auto n_bytes_available = output_last - output_cursor;
+  const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
+  fq_chunks_t chunks(n_chunks);
+  std::int64_t start_pos = output_cursor;
+  std::int64_t chunk_end{};
+  for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
+    const auto chunk_beg = fwd_to_read_start(start_pos);
+    const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
+    chunk_end = fwd_to_read_start(stop_pos);
+    chunks[chunk_idx] = {data + chunk_beg, data + chunk_end};
+    start_pos = stop_pos;
+  }
+  // make sure final chunk includes only full records
+  const auto prev_start = rev_to_read_start(chunk_end);
+  const auto trailing_lines =
+    std::count(data + prev_start, data + output_last, '\n');
+  if (trailing_lines < rec_lines)
+    chunks.back().second = data + prev_start;
+  output_cursor = std::distance(data, chunks.back().second);
+
+  return chunks;
+}
+
+[[nodiscard]] auto
+fastq_bgzf_file::make_tasks(const std::int64_t n_chunks)
+  -> std::vector<task_t> {
+  const auto chunks = get_chunks(n_chunks);
+  had_last_chunks = !static_cast<bool>(br);  // wait until now to set this?
+  std::vector<task_t> tasks;
+  tasks.reserve(std::size(chunks));
+  for (const auto &chunk : chunks)
+    tasks.emplace_back(fq_task_t(chunk.first, chunk.second));
+  return tasks;
+}
+
+[[nodiscard]] auto
+fastq_bgzf_file::make_tasks_inflate() -> std::vector<task_t> {
+  is_first_load = false;
+  auto chunks = load_next();
+  std::vector<task_t> tasks;
+  tasks.reserve(std::size(chunks));
+  for (auto &chunk : chunks)
+    tasks.emplace_back(std::move(chunk));
+  return tasks;
+}
