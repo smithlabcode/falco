@@ -10,13 +10,14 @@ Default configuration files can be found in:
 // clang-format on
 
 #include "adapter_set.hpp"
-#include "bam_file.hpp"
+#include "bam_file2.hpp"
 #include "contaminants.hpp"
 #include "falco_analyzer.hpp"
 #include "falco_config.hpp"
 #include "falco_file_format.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
+#include "fastq_bgzf_file.hpp"
 #include "fastq_file.hpp"
 #include "get_binary_dir.hpp"
 #include "quality_score.hpp"
@@ -51,25 +52,6 @@ Default configuration files can be found in:
 #include <utility>
 #include <vector>
 
-struct thread_counter {
-  std::uint32_t workers{};
-  std::uint32_t decomp{};
-
-  auto
-  initialize(const auto need_decomp_threads) {
-    const std::uint32_t max_threads = std::thread::hardware_concurrency();
-    workers = std::min(workers, max_threads);
-    decomp = std::min(decomp, max_threads);
-    if (need_decomp_threads && decomp == 0) {
-      // decompression threads are half the number of worker threads
-      decomp = workers > 1 ? workers / 2 : 1;
-      workers = workers > 1 ? workers - decomp : workers;
-    }
-    if (!need_decomp_threads)
-      decomp = 0;
-  }
-};
-
 static auto
 write_file(const auto &filename, const auto &data) {
   std::ofstream out(filename);
@@ -88,7 +70,7 @@ run(const run_mode &mode, std::vector<file_info> &infos, auto &reads_files,
 
   auto final_results = [&] {
     const auto n_files = std::size(reads_files);
-    analyzer_t<results_t> analyzer(n_threads.workers, n_files, mode, infos,
+    analyzer_t<results_t> analyzer(n_threads, n_files, mode, infos,
                                    reads_files);
     // ADS: combine results for same input file collected by different threads
     for (const auto file_id : std::views::iota(0u, n_files))
@@ -133,11 +115,10 @@ start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
   const auto n_infiles = std::size(infiles);
   std::vector<reads_file_t> reads_files;
   reads_files.reserve(n_infiles);
-  falco_thread_pool p(n_threads.decomp);
 
   for (const auto [infile, info] : std::views::zip(infiles, infos)) {
     if (is_mapped_reads(info.format))
-      reads_files.emplace_back(bam_file(infile, buf_size, p));
+      reads_files.emplace_back(bam_file(infile, buf_size));
     else if (info.format == falco::file_format::fastq_bgzf)
       reads_files.emplace_back(fastq_bgzf_file(infile, buf_size));
     else if (info.format == falco::file_format::fastq_gz)
@@ -161,7 +142,7 @@ get_file_info(const auto &infiles) {
     const bool has_tiles = (tile_id_position != 0);
     const auto [n_reads_est, read_len_est, filesize] = [&] {
       if (input_format == falco::file_format::bam)
-        return estimate_n_reads_bam(infile);
+        return estimate_n_reads_bam2(infile);
       if (input_format == falco::file_format::fastq_bgzf)
         return estimate_n_reads_fastq_bgzf(infile);
       if (input_format == falco::file_format::fastq_gz)
@@ -214,9 +195,7 @@ main(int argc, char *argv[]) {
     int do_adap{};
     int do_groups{};
 
-    std::uint32_t n_threads_workers{1};
-    std::uint32_t n_threads_decomp{};
-
+    std::uint32_t n_threads{1};
     int verbose{};
 
     using std::literals::string_literals::operator""s;
@@ -274,13 +253,10 @@ main(int argc, char *argv[]) {
                    "File of non-default adapters sequences to use")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
-    app.add_option("-t,--threads", n_threads_workers,
+    app.add_option("-t,--threads", n_threads,
                    std::format("Threads for analysis (this machine supports: {})",
                                std::thread::hardware_concurrency()))
-      ->option_text(std::format("[{}]", n_threads_workers));
-    app.add_option("-d,--decomp", n_threads_decomp,
-                   "Threads for BAM/BGZF decompression (default: analysis threads)")
-      ->group("");
+      ->option_text(std::format("[{}]", n_threads));
     app.add_option("-m,--mem", buffer_size,
                    "Input memory buffer size (G/M/K units ok)")
       ->option_text(std::format("[{}]", size_to_units(buffer_size_default)))
@@ -354,25 +330,13 @@ main(int argc, char *argv[]) {
     // not const because infos will change later when we can deduce the encoding
     auto infos = get_file_info(infiles);
 
-    const auto need_decomp_threads = std::ranges::any_of(
-      infos, [](const auto &x) { return is_bam(x.format); });
-    thread_counter n_threads{
-      .workers = n_threads_workers,
-      .decomp = n_threads_decomp,
-    };
-    n_threads.initialize(need_decomp_threads);
-
     // restrict buffer size to avoid using a possibly harmful amount of memory
     const auto get_sz = [](const auto &i) { return i.size; };
     const auto max_sz = std::ranges::max(std::views::transform(infos, get_sz));
     buffer_size = buffer_size < max_sz ? buffer_size : max_sz;
 
     if (verbose) {
-      std::print("threads requested: {}\n", n_threads_workers);
-      if (need_decomp_threads && verbose > 1)
-        std::print("worker threads: {}\n"
-                   "decompression threads: {}\n",
-                   n_threads.workers, n_threads.decomp);
+      std::print("threads requested: {}\n", n_threads);
       std::println("input memory buffer size: {}\n"
                    "tile analysis requested: {}\n"
                    "k-mer analysis requested: {}\n"
