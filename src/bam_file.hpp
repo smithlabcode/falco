@@ -3,82 +3,50 @@
 #ifndef SRC_BAM_FILE_HPP_
 #define SRC_BAM_FILE_HPP_
 
+#include "bam_header.hpp"
 #include "bamrec.hpp"
+#include "bgzf_block.hpp"
+#include "bgzf_reader.hpp"
 #include "falco_task.hpp"
-#include "thread_pool_wrapper.hpp"  // for falco_thread_pool
-
-#include <htslib/sam.h>
 
 #include <algorithm>
-#include <cerrno>
-#include <cstdint>
+#include <cassert>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <filesystem>
 #include <format>
+#include <fstream>
+#include <iostream>
 #include <iterator>
-#include <limits>
 #include <memory>
+#include <print>
 #include <ranges>
 #include <stdexcept>
 #include <string>
-#include <system_error>
-#include <tuple>
-#include <utility>
+#include <string_view>
 #include <variant>
 #include <vector>
 
-struct bam_buffer {
-  static constexpr std::int32_t bam1_t_size = sizeof(bam1_t);
-  static constexpr auto min_bytes_per_record = 256;
-  std::int64_t n_recs{};
-  std::int64_t n_bytes{};
-  std::vector<bam1_t> recs;
-  std::vector<std::uint8_t> data;
-  // clang-format off
-  explicit bam_buffer(const std::int64_t buf_size) :
-    n_recs{buf_size / (bam1_t_size + min_bytes_per_record)},
-    n_bytes{buf_size - n_recs * bam1_t_size},
-    recs(n_recs), data(n_bytes, 0) {
-    std::ranges::for_each(recs, [](auto &r) {
-      bam_set_mempolicy(&r, BAM_USER_OWNS_STRUCT | BAM_USER_OWNS_DATA);
-    });
-  }
-  [[nodiscard]] auto begin() {return std::begin(recs);}
-  [[nodiscard]] auto begin() const {return std::cbegin(recs);}
-  [[nodiscard]] auto end() {return std::end(recs); }
-  [[nodiscard]] auto end() const {return std::cend(recs); }
-  // clang-format on
-  ~bam_buffer() {
-    std::ranges::for_each(recs, [](auto &r) { bam_destroy1(&r); });
-  }
-};
-
-struct bam_file {
+class bam_file {
+public:
   using rec_t = bamrec;
-  static constexpr auto min_buf_size = static_cast<std::int64_t>(64 * 1024);
-  static constexpr auto max_buf_size = std::numeric_limits<std::int64_t>::max();
-  bam_buffer buf;
-  std::unique_ptr<htsFile, int (*)(htsFile *)> f;
-  std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h;
-  bool hit_eof{};
+  static constexpr auto min_buf_size = 64 * 1024;
+  std::vector<char> input_buffer;
+  std::vector<char> output_buffer;
+  std::int64_t input_last{};
+  std::int64_t output_last{};
+  std::int64_t output_cursor{};
+  bgzf_reader br;
+  bam_header bh;
+  bool is_first_load{true};
+  bool had_last_chunks{false};
 
-  bam_file(const std::string &filename, const std::int64_t buf_size,
-           falco_thread_pool &t) :
-    buf(buf_size < min_buf_size ? min_buf_size : buf_size),
-    f(hts_open(std::data(filename), "r"), &hts_close),
-    h(sam_hdr_read(f.get()), &sam_hdr_destroy) {
-    if (!f)
-      throw std::system_error(std::make_error_code(std::errc(errno)),
-                              "failed to open file: " + filename);
-    if (!h)
-      throw std::system_error(std::make_error_code(std::errc(errno)),
-                              "failed to read header: " + filename);
-    if (t.n_threads() > 0) {
-      // only use a thread pool if we have more than one thread
-      const auto r = hts_set_thread_pool(f.get(), &t.t);
-      if (r < 0)
-        throw std::runtime_error("failed to set thread pool");
-    }
-  }
+  bam_file(const std::string &filename, const std::int64_t buf_size) :
+    // ADS: diving the buffer size here because there are multiple and the user
+    // presumably gives a total
+    input_buffer(buf_size / 4 + min_buf_size),
+    output_buffer(buf_size / 4 + min_buf_size), br(filename, buf_size / 4) {}
 
   // clang-format off
   // delete copy and assignment
@@ -87,17 +55,41 @@ struct bam_file {
   auto operator=(bam_file &&) noexcept -> bam_file & = delete;
   // default move for emplace
   bam_file(bam_file &&) noexcept = default;
-  ~bam_file() noexcept = default;
+  ~bam_file() = default;
   // clang-format on
 
-  [[nodiscard]] operator bool() const { return !hit_eof; }
+  [[nodiscard]] operator bool() const { return !had_last_chunks; }
 
   auto
-  load_next() -> const bam_file &;
+  shift_buffers() -> void;
+
+  auto
+  load_next() -> std::vector<bgzf_block_t>;
 
   [[nodiscard]] auto
-  get_chunks(std::int64_t n_chunks)
-    -> std::vector<std::pair<rec_t::pos_t, rec_t::pos_t>>;
+  get_chunks(const std::int64_t n_chunks) -> bam_chunks_t;
+
+  [[nodiscard]] auto
+  inflate_only() const -> bool {
+    return is_first_load;
+  }
+
+  [[nodiscard]] auto
+  make_tasks_inflate() -> std::vector<task_t>;
+
+  [[nodiscard]] auto
+  make_tasks(const std::int64_t n_chunks) -> std::vector<task_t>;
+
+  auto
+  read_data() -> void {
+    [[maybe_unused]] const auto r = br.read_data();
+  }
+
+private:
+  [[nodiscard]] auto
+  has_in() const -> bool {
+    return input_last + max_bgzf_block_size < std::ssize(input_buffer);
+  }
 };
 
 [[nodiscard]] auto
@@ -109,18 +101,25 @@ is_active(const bam_file &reads_file) -> bool {
   return static_cast<bool>(reads_file);
 }
 
-[[nodiscard]] inline constexpr auto
-inflate_only(bam_file &) -> bool {
-  return false;
+[[nodiscard]] inline auto
+inflate_only(bam_file &reads_file) -> bool {
+  return reads_file.inflate_only();
 }
 
-[[nodiscard]] inline constexpr auto
-make_tasks_inflate(bam_file &) -> std::vector<task_t> {
-  return {};
+[[nodiscard]] inline auto
+make_tasks_inflate(bam_file &reads_file) -> std::vector<task_t> {
+  return reads_file.make_tasks_inflate();
 }
 
-[[nodiscard]] auto
+[[nodiscard]] inline auto
 make_tasks(bam_file &reads_file,
-           const std::int64_t n_chunks) -> std::vector<task_t>;
+           const std::int64_t n_chunks) -> std::vector<task_t> {
+  return reads_file.make_tasks(n_chunks);
+}
+
+inline auto
+read_data(bam_file &reads_file) -> void {
+  reads_file.read_data();
+}
 
 #endif  // SRC_BAM_FILE_HPP_

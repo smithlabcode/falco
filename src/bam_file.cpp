@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "bam_file.hpp"
+#include "bamrec.hpp"
 #include "falco_utils.hpp"
 
-#include <htslib/bgzf.h>   // for BGZF
 #include <htslib/hfile.h>  // for htell
+#include <htslib/sam.h>
 
 #include <cstdint>
 #include <filesystem>
@@ -53,75 +54,88 @@ estimate_n_reads_bam(const std::string &filename)
 }
 
 auto
-bam_file::load_next() -> const bam_file & {
-  // ADS: need to make sure the buffer starts at the proper alignment
-  const auto align = [](const auto l) {
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
-    return static_cast<std::uint32_t>(l + 7) & ~7u;
-  };
-  auto &recs = buf.recs;
-  // release the final BAM record in the previous load_next, if any
-  const auto prev_n = buf.n_recs;
-  if (prev_n > 1 &&
-      (bam_get_mempolicy(&recs[prev_n - 1]) & BAM_USER_OWNS_DATA) == 0)
-    bam_destroy1(&recs[prev_n - 1]);
+bam_file::shift_buffers() -> void {
+  assert(output_cursor > 0);
+  // make room in the output buffer
+  std::copy_n(std::cbegin(output_buffer) + output_cursor,
+              output_last - output_cursor, std::begin(input_buffer));
+  input_last = (output_last - output_cursor);
+}
 
-  auto n_bytes = 0u;
-  auto n_recs = 0u;
-
-  // ADS: if data buffer capacity exceeded, BAM_USER_OWNS_DATA check fails and
-  // loop terminates; one record will allocate space for data from the heap
-  while (n_recs < std::size(recs)) {
-    auto &rec = recs[n_recs];
-    bam_set_mempolicy(&rec, BAM_USER_OWNS_STRUCT | BAM_USER_OWNS_DATA);
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    rec.data = std::data(buf.data) + n_bytes;
-    rec.m_data = std::size(buf.data) - n_bytes;
-    const auto r = sam_read1(f.get(), h.get(), &rec);
-    if (r < -1)
-      throw std::runtime_error("error reading bam file");
-    if (r == -1) {
-      hit_eof = true;
-      break;
-    }
-    ++n_recs;
-    // if there is no space for the record, stop
-    if ((bam_get_mempolicy(&rec) & BAM_USER_OWNS_DATA) == 0)
-      break;  // no more space
-    // round up to 8 bytes for memory alignment
-    rec.m_data = align(rec.l_data);
-    n_bytes += rec.m_data;
+auto
+bam_file::load_next() -> std::vector<bgzf_block_t> {
+  if (output_cursor > 0)
+    shift_buffers();
+  br.reset();  // use like monotonic_buffer_resource
+  std::vector<bgzf_block_t> tasks;
+  auto in_itr = std::data(input_buffer) + input_last;
+  while (br.task_ready() && has_in()) {
+    auto task = br.get_decomp_task(in_itr);
+    in_itr += task.size;
+    tasks.emplace_back(std::move(task));
   }
-  buf.n_recs = n_recs;
-  buf.n_bytes = n_bytes;
-  return *this;
+  input_last = std::distance(std::data(input_buffer), in_itr);
+  return tasks;
 }
 
 [[nodiscard]] auto
-bam_file::get_chunks(std::int64_t n_chunks) -> bam_chunks_t {
-  if (buf.n_recs == 0)
-    return bam_chunks_t(1, {std::cbegin(buf), std::cbegin(buf)});
-  n_chunks = std::min(n_chunks, buf.n_recs);
-  const auto [chunk_size, remainder] = std::div(buf.n_recs, n_chunks);
-  const auto buffer = std::cbegin(buf);
-  std::int64_t start_pos{};
-  bam_chunks_t chunks(n_chunks);
-  for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
-    const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
-    chunks[chunk_idx] = {buffer + start_pos, buffer + stop_pos};
-    start_pos = stop_pos;
-  }
-  return chunks;
+bam_file::make_tasks_inflate() -> std::vector<task_t> {
+  is_first_load = false;
+  auto chunks = load_next();
+  std::vector<task_t> tasks;
+  tasks.reserve(std::size(chunks));
+  for (auto &chunk : chunks)
+    tasks.emplace_back(std::move(chunk));
+  return tasks;
 }
 
 [[nodiscard]] auto
-make_tasks(bam_file &reads_file,
-           const std::int64_t n_chunks) -> std::vector<task_t> {
-  reads_file.load_next();
-  auto chunks = reads_file.get_chunks(n_chunks);
+bam_file::make_tasks(const std::int64_t n_chunks) -> std::vector<task_t> {
+  const auto chunks = get_chunks(n_chunks);
+  had_last_chunks = !static_cast<bool>(br);  // wait until now to set this?
   std::vector<task_t> tasks;
   tasks.reserve(std::size(chunks));
   for (const auto &chunk : chunks)
     tasks.push_back(bam_task_t(chunk.first, chunk.second));
   return tasks;
+}
+
+[[nodiscard]] inline auto
+partition(auto itr, const auto end,
+          const std::int64_t n_chunks) -> bam_chunks_t {
+  // ADS: this isn't working as desired: the end position of each part should be
+  // the first record end past the 'end_itr' below unless end_itr == end
+  const auto dist = std::distance(itr, end);
+  const auto [chunk_size, remainder] = std::div(dist, n_chunks);
+  bam_chunks_t positions;
+  while (itr != end) {
+    const auto dist = std::distance(itr, end);
+    auto end_itr = itr + (dist < chunk_size ? dist : chunk_size);
+    auto next_itr = bamrec::find_end_pos(itr, end_itr);
+    if (next_itr == itr)
+      break;
+    positions.emplace_back(itr, next_itr);
+    itr = next_itr;
+  }
+  return positions;
+}
+
+[[nodiscard]] auto
+bam_file::get_chunks(const std::int64_t n_chunks) -> bam_chunks_t {
+  std::swap(input_buffer, output_buffer);
+  std::swap(output_last, input_last);
+
+  auto itr = std::data(output_buffer);
+  const auto end = itr + output_last;
+
+  if (bh)  // if we are still parsing the header
+    itr = bh.update(itr, end);
+  const auto n_remaining = std::distance(itr, end);
+  bam_chunks_t parts;
+  if (n_remaining > 0) {
+    parts = partition(itr, end, n_chunks);
+    itr = parts.back().second;
+  }
+  output_cursor = std::distance(std::data(output_buffer), itr);
+  return parts;
 }
