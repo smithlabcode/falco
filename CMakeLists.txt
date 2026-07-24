@@ -84,6 +84,8 @@ add_library(falco_utils OBJECT src/falco_utils.cpp)
 add_library(base_groups OBJECT src/base_groups.cpp)
 
 add_library(bgzf_block OBJECT src/bgzf_block.cpp)
+target_link_libraries(bgzf_block PUBLIC LIBDEFLATE::LIBDEFLATE)
+
 add_library(bgzf_reader OBJECT src/bgzf_reader.cpp)
 target_link_libraries(bgzf_reader PUBLIC bgzf_block)
 
@@ -94,7 +96,7 @@ if(USE_ISAL)
 endif()
 
 add_library(fastq_bgzf_file OBJECT src/fastq_bgzf_file.cpp)
-target_link_libraries(fastq_bgzf_file PUBLIC LIBDEFLATE::LIBDEFLATE)
+target_link_libraries(fastq_bgzf_file PUBLIC HTSLIB::HTSLIB LIBDEFLATE::LIBDEFLATE)
 
 add_library(bam_header OBJECT src/bam_header.cpp)
 
