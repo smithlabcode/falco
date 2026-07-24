@@ -1,29 +1,10 @@
-/* MIT License
- *
- * Copyright (c) 2026 Andrew D Smith
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #ifndef SRC_BAM_FILE_HPP_
 #define SRC_BAM_FILE_HPP_
 
+#include "bamrec.hpp"
+#include "falco_task.hpp"
 #include "thread_pool_wrapper.hpp"  // for falco_thread_pool
 
 #include <htslib/sam.h>
@@ -44,91 +25,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-
-static constexpr auto qual_missing_code = 0xff;  // from sam.c
-
-// clang-format off
-struct bam_seq_itr {
-  // ADS: this class exists to model a char * as is used for the read sequence
-  // in the case of FASTQ files. It doesn't have all the functions usually
-  // defined for iterators, but this is by design.
-  const std::uint8_t *p{};
-  std::uint64_t i{};
-  explicit bam_seq_itr(const auto p) : p{p} {}
-  [[nodiscard]] auto operator<=>(const bam_seq_itr &) const = default;
-  [[nodiscard]] auto operator*() const { return seq_nt16_str[bam_seqi(p, i)]; }
-  [[nodiscard]] auto operator[](const auto j) const { return seq_nt16_str[bam_seqi(p, i + j)]; }
-  auto operator+(const auto rhs) {
-    bam_seq_itr tmp(*this);
-    tmp.i += rhs;
-    return tmp;
-  }
-  auto operator++(int) {
-    bam_seq_itr tmp(*this);
-    ++i;
-    return tmp;
-  }
-  auto operator++() {
-    ++i;
-    return *this;
-  }
-};
-
-struct bamrec {
-  using pos_t = std::vector<bam1_t>::const_iterator;
-  std::int32_t l_qname{};
-  std::int32_t l_qseq{};
-  bool is_rev{};
-  const char *n{};
-  const std::uint8_t *r{};
-  const std::uint8_t *q{};
-  bamrec() = default;
-  explicit bamrec(const bam1_t &b) :
-    l_qname{b.core.l_qname},
-    l_qseq{b.core.l_qseq},
-    is_rev{bam_is_rev(&b)},
-    n{bam_get_qname(&b)},
-    r{bam_get_seq(&b)},
-    q{bam_get_qual(&b)}
-  {}
-  [[nodiscard]] operator bool() const { return n != nullptr; }
-};
-
-// NOLINTBEGIN (cppcoreguidelines-pro-bounds-pointer-arithmetic)
-[[nodiscard]] constexpr auto get_name(const bamrec &rec) { return rec.n; }
-[[nodiscard]] constexpr auto get_name_end(const bamrec &rec) { return rec.n + rec.l_qname; }
-
-[[nodiscard]] constexpr auto get_seq(const bamrec &rec) { return bam_seq_itr(rec.r); }
-[[nodiscard]] constexpr auto get_seq_end(const bamrec &rec) { return bam_seq_itr(rec.r) + rec.l_qseq; }
-[[nodiscard]] constexpr auto get_seq_size(const bamrec &rec) { return rec.l_qseq; }
-
-[[nodiscard]] constexpr auto get_qual(const bamrec &rec) { return rec.q; }
-[[nodiscard]] constexpr auto get_qual_end(const bamrec &rec) {
-  return *rec.q == qual_missing_code ? rec.q : rec.q + rec.l_qseq;
-}
-[[nodiscard]] constexpr auto get_qual_size(const bamrec &rec) { return rec.l_qseq; }
-// NOLINTEND (cppcoreguidelines-pro-bounds-pointer-arithmetic)
-// clang-format on
-
-[[nodiscard]] inline auto
-to_string(const bamrec &b) {
-  // converts the bam record to FASTQ format for visualization
-  static constexpr auto quality_score_offset = 33;
-  static constexpr auto other = "\n+\n";
-  auto name = std::format("@{}\n", std::string(b.n, b.l_qname));
-  std::string read;
-  auto seq_itr = get_seq(b);
-  while (seq_itr != get_seq_end(b))
-    read += *seq_itr++;
-  std::string qual;
-  auto qual_itr = get_qual(b);
-  if (*qual_itr == qual_missing_code)
-    qual = std::string(get_qual_size(b), 'B');
-  else
-    while (qual_itr != get_qual_end(b))
-      qual += static_cast<char>(quality_score_offset + *qual_itr++);
-  return name + read + other + qual + '\n';
-}
 
 struct bam_buffer {
   static constexpr std::int32_t bam1_t_size = sizeof(bam1_t);
@@ -155,16 +51,6 @@ struct bam_buffer {
     std::ranges::for_each(recs, [](auto &r) { bam_destroy1(&r); });
   }
 };
-
-[[nodiscard]] inline auto
-get_next(bamrec::pos_t &cursor,
-         [[maybe_unused]] const bamrec::pos_t end_itr) -> bamrec {
-  auto tmp = cursor;
-  ++cursor;
-  return bamrec(*tmp);
-}
-
-using bam_chunks_t = std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>>;
 
 struct bam_file {
   using rec_t = bamrec;
@@ -207,79 +93,34 @@ struct bam_file {
   [[nodiscard]] operator bool() const { return !hit_eof; }
 
   auto
-  load_next() -> const bam_file & {
-    // ADS: need to make sure the buffer starts at the proper alignment
-    const auto align = [](const auto l) {
-      // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
-      return static_cast<std::uint32_t>(l + 7) & ~7u;
-    };
-    auto &recs = buf.recs;
-    // release the final BAM record in the previous load_next, if any
-    const auto prev_n = buf.n_recs;
-    if (prev_n > 1 &&
-        (bam_get_mempolicy(&recs[prev_n - 1]) & BAM_USER_OWNS_DATA) == 0)
-      bam_destroy1(&recs[prev_n - 1]);
-
-    auto n_bytes = 0u;
-    auto n_recs = 0u;
-
-    // ADS: if data buffer capacity exceeded, BAM_USER_OWNS_DATA check fails and
-    // loop terminates; one record will allocate space for data from the heap
-    while (n_recs < std::size(recs)) {
-      auto &rec = recs[n_recs];
-      bam_set_mempolicy(&rec, BAM_USER_OWNS_STRUCT | BAM_USER_OWNS_DATA);
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      rec.data = std::data(buf.data) + n_bytes;
-      rec.m_data = std::size(buf.data) - n_bytes;
-      const auto r = sam_read1(f.get(), h.get(), &rec);
-      if (r < -1)
-        throw std::runtime_error("error reading bam file");
-      if (r == -1) {
-        hit_eof = true;
-        break;
-      }
-      ++n_recs;
-      // if there is no space for the record, stop
-      if ((bam_get_mempolicy(&rec) & BAM_USER_OWNS_DATA) == 0)
-        break;  // no more space
-      // round up to 8 bytes for memory alignment
-      rec.m_data = align(rec.l_data);
-      n_bytes += rec.m_data;
-    }
-    buf.n_recs = n_recs;
-    buf.n_bytes = n_bytes;
-    return *this;
-  }
+  load_next() -> const bam_file &;
 
   [[nodiscard]] auto
-  get_chunks(const std::int64_t n_chunks)
+  get_chunks(std::int64_t n_chunks)
     -> std::vector<std::pair<rec_t::pos_t, rec_t::pos_t>>;
 };
-
-[[nodiscard]] inline auto
-get_chunks(const bam_file &bf, std::int64_t n_chunks) -> bam_chunks_t {
-  if (bf.buf.n_recs == 0)
-    return bam_chunks_t(1, {std::cbegin(bf.buf), std::cbegin(bf.buf)});
-  n_chunks = std::min(n_chunks, bf.buf.n_recs);
-  const auto [chunk_size, remainder] = std::div(bf.buf.n_recs, n_chunks);
-  const auto buffer = std::cbegin(bf.buf);
-  std::int64_t start_pos{};
-  bam_chunks_t chunks(n_chunks);
-  for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
-    const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
-    chunks[chunk_idx] = {buffer + start_pos, buffer + stop_pos};
-    start_pos = stop_pos;
-  }
-  return chunks;
-}
-
-[[nodiscard]] inline auto
-bam_file::get_chunks(const std::int64_t n_chunks) -> bam_chunks_t {
-  return ::get_chunks(*this, n_chunks);
-}
 
 [[nodiscard]] auto
 estimate_n_reads_bam(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
+
+[[nodiscard]] inline constexpr auto
+is_active(const bam_file &reads_file) -> bool {
+  return static_cast<bool>(reads_file);
+}
+
+[[nodiscard]] inline constexpr auto
+inflate_only(bam_file &) -> bool {
+  return false;
+}
+
+[[nodiscard]] inline constexpr auto
+make_tasks_inflate(bam_file &) -> std::vector<task_t> {
+  return {};
+}
+
+[[nodiscard]] auto
+make_tasks(bam_file &reads_file,
+           const std::int64_t n_chunks) -> std::vector<task_t>;
 
 #endif  // SRC_BAM_FILE_HPP_

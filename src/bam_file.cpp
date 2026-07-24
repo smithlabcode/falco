@@ -1,25 +1,4 @@
-/* MIT License
- *
- * Copyright (c) 2026 Andrew D Smith
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "bam_file.hpp"
 #include "falco_utils.hpp"
@@ -52,7 +31,7 @@ estimate_n_reads_bam(const std::string &filename)
   if (!format)
     throw std::runtime_error("failed to identify file format: " + filename);
 
-  // NOLINTNEXTLINE (cppcoreguidelines-pro-type-union-access)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
   const auto &fp = format->format == bam ? f->fp.bgzf->fp : f->fp.hfile;
   const auto pos_after_header = htell(fp);
   std::unique_ptr<bam1_t, void (*)(bam1_t *)> rec(bam_init1(), &bam_destroy1);
@@ -71,4 +50,78 @@ estimate_n_reads_bam(const std::string &filename)
   const auto estimate = static_cast<std::uint64_t>(
     as_frac(n_reads * (filesize - pos_after_header), n_compressed_bytes));
   return {estimate, total_read_len / n_reads, filesize};
+}
+
+auto
+bam_file::load_next() -> const bam_file & {
+  // ADS: need to make sure the buffer starts at the proper alignment
+  const auto align = [](const auto l) {
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
+    return static_cast<std::uint32_t>(l + 7) & ~7u;
+  };
+  auto &recs = buf.recs;
+  // release the final BAM record in the previous load_next, if any
+  const auto prev_n = buf.n_recs;
+  if (prev_n > 1 &&
+      (bam_get_mempolicy(&recs[prev_n - 1]) & BAM_USER_OWNS_DATA) == 0)
+    bam_destroy1(&recs[prev_n - 1]);
+
+  auto n_bytes = 0u;
+  auto n_recs = 0u;
+
+  // ADS: if data buffer capacity exceeded, BAM_USER_OWNS_DATA check fails and
+  // loop terminates; one record will allocate space for data from the heap
+  while (n_recs < std::size(recs)) {
+    auto &rec = recs[n_recs];
+    bam_set_mempolicy(&rec, BAM_USER_OWNS_STRUCT | BAM_USER_OWNS_DATA);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    rec.data = std::data(buf.data) + n_bytes;
+    rec.m_data = std::size(buf.data) - n_bytes;
+    const auto r = sam_read1(f.get(), h.get(), &rec);
+    if (r < -1)
+      throw std::runtime_error("error reading bam file");
+    if (r == -1) {
+      hit_eof = true;
+      break;
+    }
+    ++n_recs;
+    // if there is no space for the record, stop
+    if ((bam_get_mempolicy(&rec) & BAM_USER_OWNS_DATA) == 0)
+      break;  // no more space
+    // round up to 8 bytes for memory alignment
+    rec.m_data = align(rec.l_data);
+    n_bytes += rec.m_data;
+  }
+  buf.n_recs = n_recs;
+  buf.n_bytes = n_bytes;
+  return *this;
+}
+
+[[nodiscard]] auto
+bam_file::get_chunks(std::int64_t n_chunks) -> bam_chunks_t {
+  if (buf.n_recs == 0)
+    return bam_chunks_t(1, {std::cbegin(buf), std::cbegin(buf)});
+  n_chunks = std::min(n_chunks, buf.n_recs);
+  const auto [chunk_size, remainder] = std::div(buf.n_recs, n_chunks);
+  const auto buffer = std::cbegin(buf);
+  std::int64_t start_pos{};
+  bam_chunks_t chunks(n_chunks);
+  for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
+    const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
+    chunks[chunk_idx] = {buffer + start_pos, buffer + stop_pos};
+    start_pos = stop_pos;
+  }
+  return chunks;
+}
+
+[[nodiscard]] auto
+make_tasks(bam_file &reads_file,
+           const std::int64_t n_chunks) -> std::vector<task_t> {
+  reads_file.load_next();
+  auto chunks = reads_file.get_chunks(n_chunks);
+  std::vector<task_t> tasks;
+  tasks.reserve(std::size(chunks));
+  for (const auto &chunk : chunks)
+    tasks.push_back(bam_task_t(chunk.first, chunk.second));
+  return tasks;
 }
