@@ -3,7 +3,7 @@
 #ifndef SRC_FALCO_ANALYZER_HPP_
 #define SRC_FALCO_ANALYZER_HPP_
 
-#include "bam_file.hpp"
+#include "bam_file2.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
 #include "file_info.hpp"
@@ -128,6 +128,7 @@ analyzer_t<results_t>::analyzer_t(const std::uint32_t n_threads,
               n_tasks[file_id] += std::ssize(tasks);
               push_each(file_id, std::move(tasks));
             }
+            read_data(reads_files[file_id]);
           }
         }
         if (n_tasks[file_id].fetch_sub(1) == 1)
