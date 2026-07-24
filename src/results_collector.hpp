@@ -4,7 +4,7 @@
 #define SRC_RESULTS_COLLECTOR_HPP_
 
 #include "adapter_matcher.hpp"
-#include "bam_file.hpp"
+#include "bamrec2.hpp"
 #include "duplication_results.hpp"
 #include "falco_file_format.hpp"
 #include "falco_grade.hpp"
@@ -80,10 +80,9 @@ struct alignas(assumed_page_size) results_collector {
 
   template <typename self_t>
   auto
-  process_reads_bam(this self_t &self, bamrec::pos_t cursor,
-                    const bamrec::pos_t lim) {
-    bamrec rec{};
-    while (cursor < lim && (rec = get_next(cursor, lim))) {
+  process_reads_bam(this self_t &self, auto cursor, const auto lim) {
+    bamrec2 rec{};
+    while (cursor < lim && get_next(cursor, lim, rec)) {
       self.process_one_read(rec);
       ++self.n_reads;
     }
@@ -100,37 +99,9 @@ struct alignas(assumed_page_size) results_collector {
     }
   }
 
-  // clang-format off
-  [[nodiscard]] auto get_seq_begin(const fqrec &rec) { return get_seq(rec); }
-  [[nodiscard]] auto make_seq_begin(const fqrec &rec) { return get_seq(rec); }
-  [[nodiscard]] auto get_seq_begin(const bamrec &) { return std::data(seq); }
-  // clang-format on
-
   [[nodiscard]] auto
-  make_seq_begin(const bamrec &rec) {
-    const auto complement = [](const auto a) {
-      return "TNGNNNCNNNNNNNNNNNNA"[a - 'A'];
-    };
-    auto rec_seq_itr = get_seq(rec);
-    const auto rec_seq_end = get_seq_end(rec);
-    if (rec.is_rev) {
-      auto itr = std::begin(seq) + get_seq_size(rec);
-      while (rec_seq_itr != rec_seq_end)
-        *(--itr) = complement(*rec_seq_itr++);
-    }
-    else {
-      auto itr = std::begin(seq);
-      while (rec_seq_itr != rec_seq_end)
-        *itr++ = *rec_seq_itr++;
-    }
-    return std::data(seq);
-  }
-
-  [[nodiscard]] auto
-  process_quality_scores(const bamrec &rec) {
-    return rec.is_rev
-             ? count_quals_rev(get_qual(rec), get_qual_end(rec), qual_by_pos)
-             : count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
+  process_quality_scores(const bamrec2 &rec) {
+    return count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
   }
 
   [[nodiscard]] auto
@@ -145,16 +116,13 @@ struct alignas(assumed_page_size) results_collector {
       return (100 * a) / b;  // NOLINT(cppcoreguidelines-avoid-magic-numbers)
     };
     const auto read_len = static_cast<std::uint32_t>(get_seq_size(rec));
-    if (read_len > max_read_len) [[unlikely]] {
+    if (read_len > max_read_len) [[unlikely]]
       resize(read_len);
-      if constexpr (std::is_same_v<std::decay_t<decltype(rec)>, bamrec>)
-        seq.resize(read_len);
-    }
     ++lengths[read_len];
     if (read_len == 0) [[unlikely]]
       return;
     max_read_len = read_len > max_read_len ? read_len : max_read_len;
-    const auto seq_itr = make_seq_begin(rec);
+    const auto seq_itr = get_seq(rec);
     const auto seq_end = seq_itr + read_len;
     count_nucs(seq_itr, seq_end, base_counts);
     const auto gc = count_gc(seq_itr, seq_end);
@@ -237,7 +205,7 @@ struct results_collector_kmer : public results_collector {
   auto
   process_one_read_impl(const auto &rec) {
     results_collector::process_one_read_impl(rec);
-    kc.count_kmers(get_seq_begin(rec), get_seq_size(rec));
+    kc.count_kmers(get_seq(rec), get_seq_size(rec));
   }
 
   auto
@@ -260,7 +228,7 @@ struct results_collector_tile_kmer : public results_collector_tile {
   auto
   process_one_read_impl(const auto &rec) {
     results_collector_tile::process_one_read_impl(rec);
-    kc.count_kmers(get_seq_begin(rec), get_seq_size(rec));
+    kc.count_kmers(get_seq(rec), get_seq_size(rec));
   }
 
   auto
