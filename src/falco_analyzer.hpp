@@ -3,7 +3,7 @@
 #ifndef SRC_FALCO_ANALYZER_HPP_
 #define SRC_FALCO_ANALYZER_HPP_
 
-#include "bam_file2.hpp"
+#include "bam_file.hpp"
 #include "falco_utils.hpp"
 #include "fastq_file.hpp"
 #include "file_info.hpp"
