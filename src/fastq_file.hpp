@@ -3,8 +3,7 @@
 #ifndef SRC_FASTQ_FILE_HPP_
 #define SRC_FASTQ_FILE_HPP_
 
-#include "bgzf_block.hpp"
-#include "bgzf_reader.hpp"
+#include "falco_task.hpp"
 #include "fqrec.hpp"
 
 #ifdef HAVE_ISAL
@@ -64,8 +63,6 @@ cleanup_mmap_fastq(fastq_buffer &buf) {
   buf.data = nullptr;
   buf.sz = 0;
 }
-
-using fq_chunks_t = std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>>;
 
 struct fastq_file {
   using rec_t = fqrec;
@@ -133,45 +130,6 @@ struct fastq_file {
       cleanup_mmap_fastq(buf);
     mmap_fastq(fd, start_pos_in_file, stop_pos_in_file, buf);
   }
-
-  [[nodiscard]] auto
-  get_chunks(const std::int64_t n_chunks) -> fq_chunks_t;
-};
-
-struct fastq_bgzf_file {
-  using rec_t = fqrec;
-  static constexpr auto min_buf_size = 64 * 1024;
-  std::int64_t buf_size{};  // size of allocated buffer
-  std::vector<char> input_buffer;
-  std::vector<char> output_buffer;
-  std::int64_t input_last{};
-  std::int64_t output_last{};
-  std::int64_t input_cursor{};
-  std::int64_t output_cursor{};
-  bgzf_reader br;
-  bool is_first_load{true};
-  bool had_last_chunks{false};
-  bool hit_eof{};
-  bgzf_block_t task;
-
-  fastq_bgzf_file(const std::string &filename, const std::int64_t buf_size) :
-    buf_size{buf_size / 2}, input_buffer(buf_size / 2),
-    output_buffer(buf_size / 2), br(filename, buf_size / 2) {}
-
-  // clang-format off
-  // delete copy and assignment
-  fastq_bgzf_file(const fastq_bgzf_file &) = delete;
-  auto operator=(const fastq_bgzf_file &) -> fastq_bgzf_file & = delete;
-  auto operator=(fastq_bgzf_file &&) noexcept -> fastq_bgzf_file & = delete;
-  // default move for emplace
-  fastq_bgzf_file(fastq_bgzf_file &&) noexcept = default;
-  ~fastq_bgzf_file() = default;
-  // clang-format on
-
-  [[nodiscard]] operator bool() const { return !had_last_chunks; }
-
-  auto
-  load_next() -> std::vector<bgzf_block_t>;
 
   [[nodiscard]] auto
   get_chunks(const std::int64_t n_chunks) -> fq_chunks_t;
@@ -428,15 +386,10 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   return chunks;
 }
 
-[[nodiscard]] auto
-get_chunks_fastq(fastq_bgzf_file &fq,
-                 const std::int64_t n_chunks) -> fq_chunks_t;
-
 // gather fastq-like files into one concept
 template <typename T>
-concept fastq_like =                   //
-  std::same_as<T, fastq_file> ||       //
-  std::same_as<T, fastq_bgzf_file> ||  //
+concept fastq_like =              //
+  std::same_as<T, fastq_file> ||  //
   std::same_as<T, fastq_gz_file>;
 
 template <fastq_like T>
@@ -465,11 +418,32 @@ estimate_n_reads_fastq(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
 [[nodiscard]] auto
-estimate_n_reads_fastq_bgzf(const std::string &filename)
-  -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
-
-[[nodiscard]] auto
 estimate_n_reads_fastq_gz(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
+
+[[nodiscard]] inline constexpr auto
+inflate_only(fastq_like auto &) -> bool {
+  return false;
+}
+
+[[nodiscard]] inline constexpr auto
+make_tasks_inflate(fastq_like auto &) -> std::vector<task_t> {
+  return {};
+}
+
+[[nodiscard]] auto
+make_tasks(fastq_like auto &reads_file,
+           const std::int64_t n_chunks) -> std::vector<task_t> {
+  reads_file.load_next();
+  auto chunks = reads_file.get_chunks(n_chunks);
+  std::vector<task_t> tasks;
+  tasks.reserve(std::size(chunks));
+  for (const auto &chunk : chunks)
+    tasks.push_back(fq_task_t(chunk.first, chunk.second));
+  return tasks;
+}
+
+auto
+read_data(fastq_like auto &) -> void { /*no-op*/ }
 
 #endif  // SRC_FASTQ_FILE_HPP_
