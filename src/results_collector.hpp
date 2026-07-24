@@ -4,7 +4,7 @@
 #define SRC_RESULTS_COLLECTOR_HPP_
 
 #include "adapter_matcher.hpp"
-#include "bamrec2.hpp"
+#include "bamrec.hpp"
 #include "duplication_results.hpp"
 #include "falco_file_format.hpp"
 #include "falco_grade.hpp"
@@ -81,7 +81,7 @@ struct alignas(assumed_page_size) results_collector {
   template <typename self_t>
   auto
   process_reads_bam(this self_t &self, auto cursor, const auto lim) {
-    bamrec2 rec{};
+    bamrec rec{};
     while (cursor < lim && get_next(cursor, lim, rec)) {
       self.process_one_read(rec);
       ++self.n_reads;
@@ -97,16 +97,6 @@ struct alignas(assumed_page_size) results_collector {
       self.process_one_read(rec);
       ++self.n_reads;
     }
-  }
-
-  [[nodiscard]] auto
-  process_quality_scores(const bamrec2 &rec) {
-    return count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
-  }
-
-  [[nodiscard]] auto
-  process_quality_scores(const fqrec &rec) {
-    return count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
   }
 
   auto
@@ -128,7 +118,7 @@ struct alignas(assumed_page_size) results_collector {
     const auto gc = count_gc(seq_itr, seq_end);
     ++gc_content[discrete_pct(gc, read_len)];
     count_ns(seq_itr, seq_end, n_counts);
-    const auto tot = process_quality_scores(rec);
+    const auto tot = count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
     ++qual_by_read[tot / read_len];
     dr.count_seqs(seq_itr, read_len);
     am.match_adapters(seq_itr, read_len);
