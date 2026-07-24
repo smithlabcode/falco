@@ -10,7 +10,7 @@ Default configuration files can be found in:
 // clang-format on
 
 #include "adapter_set.hpp"
-#include "bam_file2.hpp"
+#include "bam_file.hpp"
 #include "contaminants.hpp"
 #include "falco_analyzer.hpp"
 #include "falco_config.hpp"
@@ -23,7 +23,6 @@ Default configuration files can be found in:
 #include "quality_score.hpp"
 #include "results_collector.hpp"
 #include "results_summary.hpp"
-#include "thread_pool_wrapper.hpp"
 #include "tile_processor.hpp"
 
 #include "CLI11/CLI11.hpp"
@@ -142,7 +141,7 @@ get_file_info(const auto &infiles) {
     const bool has_tiles = (tile_id_position != 0);
     const auto [n_reads_est, read_len_est, filesize] = [&] {
       if (input_format == falco::file_format::bam)
-        return estimate_n_reads_bam2(infile);
+        return estimate_n_reads_bam(infile);
       if (input_format == falco::file_format::fastq_bgzf)
         return estimate_n_reads_fastq_bgzf(infile);
       if (input_format == falco::file_format::fastq_gz)
@@ -336,16 +335,17 @@ main(int argc, char *argv[]) {
     buffer_size = buffer_size < max_sz ? buffer_size : max_sz;
 
     if (verbose) {
-      std::print("threads requested: {}\n", n_threads);
-      std::println("input memory buffer size: {}\n"
+      std::println("threads requested: {}\n"
+                   "input memory buffer size: {}\n"
                    "tile analysis requested: {}\n"
                    "k-mer analysis requested: {}\n"
                    "dups analysis requested: {}\n"
                    "adapter analysis requested: {}\n"
                    "use base groups in output: {}\n"
                    "input files:",  //
-                   size_to_units(buffer_size), mode.do_tiles(), mode.do_kmers(),
-                   mode.do_dups(), mode.do_adap(), mode.do_groups());
+                   n_threads, size_to_units(buffer_size), mode.do_tiles(),
+                   mode.do_kmers(), mode.do_dups(), mode.do_adap(),
+                   mode.do_groups());
       std::ranges::for_each(infos, [](const auto &info) {
         std::println("{}\t{}\t{}", info.name, info.description,
                      size_to_units(info.size, std::string{}));
