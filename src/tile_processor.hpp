@@ -24,7 +24,6 @@
 #ifndef SRC_TILE_PROCESSOR_HPP_
 #define SRC_TILE_PROCESSOR_HPP_
 
-#include "bam_file.hpp"
 #include "base_groups.hpp"
 #include "falco_utils.hpp"
 
@@ -86,14 +85,7 @@ public:
       update_tile_id(get_name(rec), get_name_end(rec));
       if (curr_len > max_read_len)
         resize(curr_len);
-      if constexpr (std::is_same_v<std::decay_t<decltype(rec)>, bamrec>) {
-        if (rec.is_rev)
-          count_quals_itr_rev(get_qual(rec), get_qual_end(rec), qual);
-        else
-          count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
-      }
-      else
-        count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
+      count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
     }
   }
 
