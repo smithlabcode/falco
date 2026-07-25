@@ -87,29 +87,3 @@ estimate_n_reads_fastq(const std::string &filename)
 
   return {static_cast<std::uint64_t>(n_reads_est), read_len_est, filesize};
 }
-
-// ADS: currently this is identical to the function for BGZF
-[[nodiscard]] auto
-estimate_n_reads_fastq_gz(const std::string &filename)
-  -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t> {
-  static constexpr auto n_bytes = 1024 * 1024;
-  std::unique_ptr<BGZF, int (*)(BGZF *)> f(bgzf_open(std::data(filename), "r"),
-                                           &bgzf_close);
-  std::vector<std::uint8_t> buf(n_bytes);
-  const auto r = bgzf_read(f.get(), std::data(buf), n_bytes);
-  if (r < 0)
-    throw std::system_error(std::make_error_code(std::errc(errno)),
-                            "failed reading gz input file");
-  // ADS: 'htell' function works below because 'f' has no threadpool
-  const auto n_compressed_bytes = htell(f.get()->fp);
-  const auto total_newlines = std::ranges::count(buf, '\n');
-
-  const auto inflation_factor = as_frac(n_bytes, n_compressed_bytes);
-  const auto filesize = std::filesystem::file_size(filename);
-  const auto estimated_uncompressed_file_size =
-    inflation_factor * static_cast<double>(filesize);
-  const auto n_reads_est = as_frac(total_newlines, fastq_lines_per_read) *
-                           as_frac(estimated_uncompressed_file_size, n_bytes);
-  const auto read_len_est = estimate_read_length(buf, std::size(buf));
-  return {static_cast<std::uint64_t>(n_reads_est), read_len_est, filesize};
-}
