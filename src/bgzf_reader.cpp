@@ -14,16 +14,19 @@
 
 [[nodiscard]] static inline constexpr auto
 get_unaligned_le32(const std::uint8_t *p) -> std::uint32_t {
+  // NOLINTBEGIN(*-bounds-pointer-arithmetic,*-avoid-magic-numbers)
   return (static_cast<std::uint32_t>(p[3]) << 24) |
          (static_cast<std::uint32_t>(p[2]) << 16) |
          (static_cast<std::uint32_t>(p[1]) << 8) |
          (static_cast<std::uint32_t>(p[0]) << 0);
+  // NOLINTEND(*-bounds-pointer-arithmetic,*-avoid-magic-numbers))
 }
 
 [[nodiscard]] static inline constexpr auto
 get_isize(const auto *data, const auto data_size) {
   static constexpr decltype(data_size) isize_size = 4;
   assert(data_size > isize_size);
+  // NOLINTNEXTLINE(*-pro-bounds-pointer-arithmetic,*-type-reinterpret-cast)
   const auto u_data = reinterpret_cast<const std::uint8_t *>(data);
   return data_size < isize_size
            ? 0
@@ -32,6 +35,7 @@ get_isize(const auto *data, const auto data_size) {
 
 auto
 assign(gzip_header &hdr, auto *data) -> void {
+  // NOLINTNEXTLINE(*-type-reinterpret-cast)
   std::memcpy(reinterpret_cast<std::uint8_t *>(&hdr), data, gzip_header_size);
 }
 
