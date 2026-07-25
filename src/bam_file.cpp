@@ -60,55 +60,33 @@ estimate_n_reads_bam(const std::string &filename)
 }
 
 auto
-bam_file::shift_buffers() -> void {
-  assert(output_cursor > 0);
-  // make room in the output buffer
-  std::copy_n(std::cbegin(output_buffer) + output_cursor,
-              output_last - output_cursor, std::begin(input_buffer));
-  input_last = (output_last - output_cursor);
-}
-
-auto
-bam_file::load_next() -> std::vector<bgzf_block_t> {
-  if (output_cursor > 0)
-    shift_buffers();
+bam_file::load_next(const std::int32_t file_id, task_queue &tq,
+                    std::atomic_int32_t &n_tasks) -> void {
+  is_first_load = false;
+  if (output_cursor > 0) {
+    const auto n_to_keep = output_last - output_cursor;
+    std::copy_n(std::cbegin(output_buffer) + output_cursor, n_to_keep,
+                std::begin(input_buffer));
+    input_last = n_to_keep;
+  }
   br.reset();  // use like monotonic_buffer_resource
-  std::vector<bgzf_block_t> tasks;
   auto in_itr = std::data(input_buffer) + input_last;
   while (br.task_ready() && has_in()) {
     auto task = br.get_decomp_task(in_itr);
     in_itr += task.size;
-    tasks.emplace_back(std::move(task));
+    ++n_tasks;
+    tq.push(file_id, std::move(task));
   }
   input_last = std::distance(std::data(input_buffer), in_itr);
-  return tasks;
-}
-
-[[nodiscard]] auto
-bam_file::make_tasks_inflate() -> std::vector<task_t> {
-  is_first_load = false;
-  auto chunks = load_next();
-  std::vector<task_t> tasks;
-  tasks.reserve(std::size(chunks));
-  for (auto &chunk : chunks)
-    tasks.emplace_back(std::move(chunk));
-  return tasks;
-}
-
-[[nodiscard]] auto
-bam_file::make_tasks(const std::int64_t n_chunks) -> std::vector<task_t> {
-  const auto chunks = get_chunks(n_chunks);
-  had_last_chunks = !static_cast<bool>(br);  // wait until now to set this?
-  std::vector<task_t> tasks;
-  tasks.reserve(std::size(chunks));
-  for (const auto &chunk : chunks)
-    tasks.push_back(bam_task_t(chunk.first, chunk.second));
-  return tasks;
 }
 
 [[nodiscard]] inline auto
-partition(auto itr, const auto end,
-          const std::int64_t n_chunks) -> bam_chunks_t {
+partition(auto itr,                     //
+          const auto end,               //
+          const std::int64_t n_chunks,  //
+          const std::int32_t file_id,   //
+          task_queue &tq,               //
+          std::atomic_int32_t &n_tasks) {
   // ADS: this isn't working as desired: the end position of each part should be
   // the first record end past the 'end_itr' below unless end_itr == end
   const auto dist = std::distance(itr, end);
@@ -120,28 +98,32 @@ partition(auto itr, const auto end,
     auto next_itr = bamrec::find_end_pos(itr, end_itr);
     if (next_itr == itr)
       break;
-    positions.emplace_back(itr, next_itr);
+    ++n_tasks;
+    tq.push(file_id, bam_task_t(itr, next_itr));
     itr = next_itr;
   }
-  return positions;
+  return itr;
 }
 
-[[nodiscard]] auto
-bam_file::get_chunks(const std::int64_t n_chunks) -> bam_chunks_t {
+auto
+bam_file::get_chunks(const std::int64_t n_chunks,  //
+                     const std::int32_t file_id,   //
+                     task_queue &tq,               //
+                     std::atomic_int32_t &n_tasks) -> void {
   std::swap(input_buffer, output_buffer);
   std::swap(output_last, input_last);
-
   auto itr = std::data(output_buffer);
   const auto end = itr + output_last;
-
   if (bh)  // if we are still parsing the header
     itr = bh.update(itr, end);
-  const auto n_remaining = std::distance(itr, end);
-  bam_chunks_t parts;
-  if (n_remaining > 0) {
-    parts = partition(itr, end, n_chunks);
-    itr = parts.back().second;
-  }
+  if (std::distance(itr, end) > 0)
+    itr = partition(itr, end, n_chunks, file_id, tq, n_tasks);
   output_cursor = std::distance(std::data(output_buffer), itr);
-  return parts;
+}
+
+auto
+bam_file::make_tasks(const std::int64_t n_chunks, const std::int32_t file_id,
+                     task_queue &tq, std::atomic_int32_t &n_tasks) -> void {
+  get_chunks(n_chunks, file_id, tq, n_tasks);
+  had_last_chunks = !static_cast<bool>(br);  // wait until now to set this?
 }
