@@ -19,6 +19,7 @@ Default configuration files can be found in:
 #include "falco_utils.hpp"
 #include "fastq_bgzf_file.hpp"
 #include "fastq_file.hpp"
+#include "fastq_gz_file.hpp"
 #include "get_binary_dir.hpp"
 #include "quality_score.hpp"
 #include "results_collector.hpp"
@@ -114,7 +115,6 @@ start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
   const auto n_infiles = std::size(infiles);
   std::vector<reads_file_t> reads_files;
   reads_files.reserve(n_infiles);
-
   for (const auto [infile, info] : std::views::zip(infiles, infos)) {
     if (is_mapped_reads(info.format))
       reads_files.emplace_back(bam_file(infile, buf_size));
@@ -128,7 +128,6 @@ start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
       throw std::runtime_error(
         std::format("unsupported file format: {}", info.description));
   }
-
   run_mode_selector(mode, infos, reads_files, n_threads, outdirs);
 }
 
@@ -181,6 +180,11 @@ int
 main(int argc, char *argv[]) {
   try {
     static constexpr auto buffer_size_default = 256 * 1024 * 1024;
+    // input_record_multiplier: Assumed size of an input record as a function of
+    // the read length. For example, in FASTQ, this would mean the size of the
+    // sequence, the quality scores, plus the read name, which might be included
+    // twice.
+    static constexpr auto input_record_multiplier = 3;
     std::vector<std::string> infiles;
     std::string contam_file;
     std::string config_file;
@@ -195,6 +199,8 @@ main(int argc, char *argv[]) {
     int do_groups{};
 
     std::uint32_t n_threads{1};
+    std::uint32_t max_read_length{};
+
     int verbose{};
 
     using std::literals::string_literals::operator""s;
@@ -240,6 +246,15 @@ main(int argc, char *argv[]) {
     app.add_option("-o,--output", outdir, "Output directory")
       ->required()
       ->option_text("DIR");
+    app.add_option("-t,--threads", n_threads,
+                   std::format("Threads for analysis (this machine supports: {})",
+                               std::thread::hardware_concurrency()))
+      ->option_text(std::format("[{}]", n_threads));
+    app.add_option("-m,--mem", buffer_size,
+                   "Input memory buffer size (G/M/K units ok)")
+      ->option_text(std::format("[{}]", size_to_units(buffer_size_default)))
+      ->capture_default_str()
+      ->transform(size_from_units);
     app.add_option("--config", config_file,
                    "Configuration file (command line arguments have priority)")
       ->option_text("FILE")
@@ -252,13 +267,9 @@ main(int argc, char *argv[]) {
                    "File of non-default adapters sequences to use")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
-    app.add_option("-t,--threads", n_threads,
-                   std::format("Threads for analysis (this machine supports: {})",
-                               std::thread::hardware_concurrency()))
-      ->option_text(std::format("[{}]", n_threads));
-    app.add_option("-m,--mem", buffer_size,
-                   "Input memory buffer size (G/M/K units ok)")
-      ->option_text(std::format("[{}]", size_to_units(buffer_size_default)))
+    app.add_option("--max-length", max_read_length,
+                   "Use this for reads longer than 1M bp (G/M/K units ok)")
+      ->option_text(" ")
       ->capture_default_str()
       ->transform(size_from_units);
     app.add_flag("-v,--verbose", verbose, "Print more info while running")
@@ -334,6 +345,11 @@ main(int argc, char *argv[]) {
     const auto max_sz = std::ranges::max(std::views::transform(infos, get_sz));
     buffer_size = buffer_size < max_sz ? buffer_size : max_sz;
 
+    if (input_record_multiplier * max_read_length > buffer_size) {
+      buffer_size = input_record_multiplier * max_read_length;
+      if (verbose)
+        std::println("buffer size increased to accommodate max read length");
+    }
     if (verbose) {
       std::println("threads requested: {}\n"
                    "input memory buffer size: {}\n"
