@@ -3,40 +3,32 @@
 #ifndef SRC_FASTQ_FILE_HPP_
 #define SRC_FASTQ_FILE_HPP_
 
-#include "falco_task.hpp"
 #include "fqrec.hpp"
 #include "task_queue.hpp"
 
-#ifdef HAVE_ISAL
-#include <isa-l/igzip_lib.h>
-#endif  // HAVE_ISAL
-
-#include <htslib/bgzf.h>
-
-#include <fcntl.h>     // for open, O_RDONLY
-#include <sys/mman.h>  // for mmap, munmap, MAP_FAILED, MAP_PRIVATE
-#include <unistd.h>    // for close, sysconf, _SC_PAGESIZE
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cerrno>
-#include <concepts>
 #include <cstdint>
-#include <cstdio>  // IWYU pragma: keep
 #include <cstdlib>
-#include <cstring>  // IWYU pragma: keep
 #include <filesystem>
-#include <format>  // IWYU pragma: keep
 #include <iterator>
-#include <memory>
 #include <ranges>
-#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
+
+#ifdef HAVE_ISAL
+#include <isa-l/igzip_lib.h>
+#endif  // HAVE_ISAL
 
 struct fastq_buffer {
   char *data{};       // not necessarily owned
@@ -96,17 +88,17 @@ struct fastq_file {
   fastq_file(const fastq_file &) = delete;
   auto operator=(const fastq_file &) -> fastq_file & = delete;
   auto operator=(fastq_file &&) noexcept -> fastq_file & = delete;
-  // default move for emplace
-  fastq_file(fastq_file &&src) noexcept :
-    buf_size{src.buf_size},
-    filesize{src.filesize},
-    buf{std::move(src.buf)},
-    start_pos_in_file{src.start_pos_in_file},
-    stop_pos_in_file{src.stop_pos_in_file},
-    cursor{src.cursor},
-    fd{dup(src.fd)} // LOOK
-  {}
   // clang-format on
+
+  fastq_file(fastq_file &&src) noexcept :
+    buf_size{src.buf_size},                    //
+    filesize{src.filesize},                    //
+    buf{src.buf},                              //
+    start_pos_in_file{src.start_pos_in_file},  //
+    stop_pos_in_file{src.stop_pos_in_file},    //
+    cursor{src.cursor},                        //
+    fd{dup(src.fd)}                            // <- LOOK
+  {}
 
   ~fastq_file() {
     if (buf.sz > 0)
@@ -169,6 +161,7 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   }
   // make sure final chunk includes only full records
   const auto prev_start = rev_to_read_start(buf, chunks.back().second);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   if (std::count(buf.data + prev_start, buf.data + buf.sz, '\n') < rec_lines)
     chunks.back().second = prev_start;
   fq.set_cursor(chunks.back().second);
@@ -179,6 +172,7 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
 fastq_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
   assert(n_chunks > 0);
   const auto add_offset = [d = buf.data](const auto &x) {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return std::pair{d + x.first, d + x.second};
   };
   return get_chunks_fastq_impl(*this, n_chunks) |

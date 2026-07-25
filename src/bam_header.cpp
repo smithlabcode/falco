@@ -10,11 +10,12 @@ bam_header::update(bam_header::iterator itr,
                    const bam_header::iterator end) -> bam_header::iterator {
   static constexpr auto msg = "incorrect BAM magic identified: {} at {}";
   const auto update_u32 = [](auto &val, const auto inc, const auto the_byte) {
+    // NOLINTNEXTLINE(*-avoid-magic-numbers)
     val = val | ((inc & 0xFF) << (32 - 8 * the_byte));
   };
   while (itr != end && magic_bytes_remaining) {
     const auto magic_pos = magic_size - magic_bytes_remaining;
-    if (magic[magic_pos] != *itr)
+    if (magic[magic_pos] != *itr)  // NOLINT(*-pro-bounds-pointer-arithmetic)
       throw std::runtime_error(std::format(msg, *itr, magic_pos));
     --magic_bytes_remaining;
     ++itr;

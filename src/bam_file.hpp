@@ -7,16 +7,16 @@
 #include "bamrec.hpp"
 #include "bgzf_block.hpp"
 #include "bgzf_reader.hpp"
-#include "falco_task.hpp"
-#include "task_queue.hpp"
 
+#include <atomic>
 #include <cstdint>
-#include <format>
 #include <iterator>
 #include <string>
 #include <tuple>
 #include <variant>
 #include <vector>
+
+struct task_queue;
 
 class bam_file {
 public:

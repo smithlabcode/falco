@@ -12,25 +12,24 @@
 #include <string>
 #include <system_error>
 
+// NOLINTBEGIN(*-bounds-pointer-arithmetic,*-avoid-magic-numbers,*-type-reinterpret-cast)
 [[nodiscard]] static inline constexpr auto
 get_unaligned_le32(const std::uint8_t *p) -> std::uint32_t {
-  // NOLINTBEGIN(*-bounds-pointer-arithmetic,*-avoid-magic-numbers)
   return (static_cast<std::uint32_t>(p[3]) << 24) |
          (static_cast<std::uint32_t>(p[2]) << 16) |
          (static_cast<std::uint32_t>(p[1]) << 8) |
          (static_cast<std::uint32_t>(p[0]) << 0);
-  // NOLINTEND(*-bounds-pointer-arithmetic,*-avoid-magic-numbers))
 }
 
 [[nodiscard]] static inline constexpr auto
 get_isize(const auto *data, const auto data_size) {
   static constexpr decltype(data_size) isize_size = 4;
   assert(data_size > isize_size);
-  // NOLINTNEXTLINE(*-pro-bounds-pointer-arithmetic,*-type-reinterpret-cast)
   const auto u_data = reinterpret_cast<const std::uint8_t *>(data);
+  const auto u_data_isize = u_data + data_size - isize_size;
   return data_size < isize_size
            ? 0
-           : get_unaligned_le32(u_data + data_size - isize_size);
+           : static_cast<std::int32_t>(get_unaligned_le32(u_data_isize));
 }
 
 auto
@@ -41,10 +40,10 @@ assign(gzip_header &hdr, auto *data) -> void {
 
 bgzf_reader::bgzf_reader(const std::string &filename,
                          const std::int32_t buf_size) :
-  fp(std::fopen(std::data(filename), "r"), &std::fclose),
+  fp(std::fopen(std::data(filename), "r"), &std::fclose),     //
   filesize{std::filesystem::file_size(filename)},             //
-  inbuf(std::make_unique_for_overwrite<char[]>(inbuf_size)),  //
-  outbuf(std::make_unique_for_overwrite<char[]>(buf_size)),   //
+  inbuf(std::make_unique_for_overwrite<char[]>(inbuf_size)),  // NOLINT
+  outbuf(std::make_unique_for_overwrite<char[]>(buf_size)),   // NOLINT
   next_in{inbuf.get()},                                       //
   end_in{inbuf.get()},                                        //
   next_out{outbuf.get()},                                     //
@@ -92,3 +91,4 @@ bgzf_reader::get_decomp_task(char *out_itr) -> bgzf_block_t {
   next_out += max_bgzf_block_size;
   return task;
 }
+// NOLINTEND(*-bounds-pointer-arithmetic,*-avoid-magic-numbers,*-type-reinterpret-cast)

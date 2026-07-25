@@ -9,17 +9,19 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <utility>  // IWYU pragma: keep
 #include <variant>
 #include <vector>
 
 class reads_file_t {
 public:
   // clang-format off
-  template <typename T> reads_file_t(T x) : self_(new model<T>(std::move(x))) {}
+  template <typename T> explicit reads_file_t(T x) : self_(new model<T>(std::move(x))) {}
   reads_file_t(const reads_file_t &x) = delete;
   auto operator=(const reads_file_t &x) -> reads_file_t & = delete;
   auto operator=(reads_file_t &&) noexcept -> reads_file_t & = delete;
   reads_file_t(reads_file_t &&) noexcept = default;
+  ~reads_file_t() noexcept = default;
   // clang-format on
 
   [[nodiscard]] friend auto
@@ -35,6 +37,7 @@ public:
   }
 
 private:
+  // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
   struct concept_t {
     // clang-format off
     virtual ~concept_t() = default;
@@ -44,7 +47,7 @@ private:
     // clang-format on
   };
   template <typename T> struct model : concept_t {
-    model(T x) : data_(std::move(x)) {}
+    explicit model(T x) : data_(std::move(x)) {}
 
     auto
     make_tasks_(const std::int64_t n_chunks, const std::int32_t file_id,

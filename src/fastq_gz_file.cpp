@@ -3,17 +3,15 @@
 #include "fastq_gz_file.hpp"
 #include "falco_utils.hpp"
 
-#include <htslib/bgzf.h>  // for BGZF
+#include <htslib/bgzf.h>
 #include <htslib/hfile.h>
 
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
+#include <cassert>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <memory>
-#include <ranges>  // IWYU pragma: keep
+#include <ranges>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -101,13 +99,16 @@ fastq_gz_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
   }
   // make sure final chunk includes only full records
   const auto prev_start = rev_to_read_start(chunks.back().second);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   if (std::count(buf_data + prev_start, buf_data + buf_sz, '\n') < rec_lines)
     chunks.back().second = prev_start;
   set_cursor(chunks.back().second);
 
   fq_chunks_t tasks;
   tasks.reserve(std::size(chunks));
-  for (const auto &chunk : chunks)
+  std::ranges::for_each(chunks, [&](const auto &chunk) {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     tasks.emplace_back(buf_data + chunk.first, buf_data + chunk.second);
+  });
   return tasks;
 }

@@ -3,29 +3,22 @@
 #ifndef SRC_FASTQ_GZ_FILE_HPP_
 #define SRC_FASTQ_GZ_FILE_HPP_
 
-#include "falco_task.hpp"
 #include "fqrec.hpp"
 #include "task_queue.hpp"
 
 #ifdef HAVE_ISAL
 #include <isa-l/igzip_lib.h>
+#else
+#include <htslib/bgzf.h>
 #endif  // HAVE_ISAL
 
-#include <htslib/bgzf.h>
-
 #include <algorithm>
-#include <cassert>
+#include <atomic>
 #include <cerrno>
-#include <concepts>
 #include <cstdint>
-#include <cstdio>  // IWYU pragma: keep
-#include <cstdlib>
-#include <cstring>  // IWYU pragma: keep
-#include <filesystem>
-#include <format>  // IWYU pragma: keep
+#include <format>
 #include <iterator>
 #include <memory>
-#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <system_error>
@@ -171,7 +164,7 @@ private:
 
   auto
   shift_output_buffer() -> void {
-    const auto buf_data = std::data(outbuf);
+    // const auto buf_data = std::data(outbuf);
     const auto n_bytes_to_keep = buf_sz - cursor;
     assert(n_bytes_to_keep < cursor);  // ADS: memcpy breaks if overlap
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -186,15 +179,16 @@ private:
 struct fastq_gz_file {
   using rec_t = fqrec;
   static constexpr auto min_buf_size = 64 * 1024;
+  char *buf_data{};         // start of the outbuf
+  std::int64_t buf_sz{};    // amount of output buffer used
   std::int64_t buf_size{};  // size of allocated buffer
   std::int64_t buf_used{};
-  fastq_gz_buffer buf{};
-  std::vector<char> buffer;
+  std::vector<char> outbuf;
   std::int64_t cursor{};  // position in buffer
   std::unique_ptr<BGZF, int (*)(BGZF *)> f;
 
   fastq_gz_file(const std::string &filename, const std::int64_t buf_size) :
-    buf_size{buf_size}, buf_used{buf_size}, buffer(buf_size),
+    buf_size{buf_size}, buf_used{buf_size}, outbuf(buf_size),
     f(bgzf_open(std::data(filename), "r"), &bgzf_close) {
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
@@ -202,7 +196,7 @@ struct fastq_gz_file {
     if (buf_size < min_buf_size)
       throw std::runtime_error(std::format(
         "requested buffer too small {} (min is {})", buf_size, min_buf_size));
-    buf_data = std::data(buffer);
+    buf_data = std::data(outbuf);
   }
 
   // clang-format off
@@ -238,7 +232,7 @@ struct fastq_gz_file {
     }
     buf_sz = cursor + r;
     buf_used = buf_sz;
-    cursor = 0;  // cursor always moves to zero because buffer is not mmapped
+    cursor = 0;  // cursor always moves to zero
   }
 
   [[nodiscard]] auto

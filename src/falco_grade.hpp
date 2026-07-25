@@ -150,8 +150,6 @@ public:
 
 private:
   explicit grader_set(const map_t<std::string, grader> &g);
-  grader_set() = default;
-  ~grader_set() = default;
 
   map_t<std::string, grader> graders;
 };  // grader_set

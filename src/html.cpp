@@ -43,6 +43,7 @@
 #include <cassert>
 #include <chrono>
 #include <cmath>
+#include <format>
 #include <initializer_list>
 #include <iterator>
 #include <map>
@@ -130,7 +131,7 @@ name: "Sequence length distribution"
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
   return fmt::format(html_module_fmt, grade, label, title, grade,
-                     std::format(plot_fmt, lines_data));
+                     fmt::format(plot_fmt, lines_data));
 }
 
 [[nodiscard]] auto

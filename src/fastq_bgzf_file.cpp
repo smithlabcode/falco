@@ -2,6 +2,7 @@
 
 #include "fastq_bgzf_file.hpp"
 #include "falco_utils.hpp"
+#include "task_queue.hpp"
 
 #include <htslib/bgzf.h>
 #include <htslib/hfile.h>
@@ -84,10 +85,11 @@ fastq_bgzf_file::load_next(const std::int32_t file_id, task_queue &tq,
   if (output_cursor > 0)
     shift_buffers();
   br.reset();  // use like monotonic_buffer_resource
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   auto in_itr = std::data(input_buffer) + input_last;
   while (br.task_ready() && has_in()) {
     auto task = br.get_decomp_task(in_itr);
-    in_itr += task.size;
+    in_itr += task.size;  // NOLINT(*-pro-bounds-pointer-arithmetic)
     ++n_tasks;
     tq.push(file_id, std::move(task));
   }
@@ -137,11 +139,13 @@ fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,  //
       // make sure final chunk includes only full records
       const auto prev_start = rev_to_read_start(chunk_end);
       const auto trailing_lines =
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         std::count(data + prev_start, data + output_last, '\n');
       if (trailing_lines < rec_lines)
         chunk_end = prev_start;
     }
     ++n_tasks;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     tq.push(file_id, fq_task_t(data + chunk_beg, data + chunk_end));
     start_pos = stop_pos;
   }

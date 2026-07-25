@@ -3,18 +3,13 @@
 #include "fastq_file.hpp"
 #include "falco_utils.hpp"
 
-#include <htslib/bgzf.h>  // for BGZF
-#include <htslib/hfile.h>
-
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <cstdint>
-#include <filesystem>
-#include <memory>
-#include <ranges>  // IWYU pragma: keep
+#include <ranges>
 #include <string>
 #include <system_error>
 #include <vector>

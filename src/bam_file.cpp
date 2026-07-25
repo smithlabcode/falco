@@ -3,12 +3,12 @@
 #include "bam_file.hpp"
 #include "bamrec.hpp"
 #include "falco_utils.hpp"
+#include "task_queue.hpp"
 
 #include <htslib/hfile.h>
 #include <htslib/sam.h>
 
 #include <algorithm>
-#include <cassert>
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
@@ -70,10 +70,11 @@ bam_file::load_next(const std::int32_t file_id, task_queue &tq,
     input_last = n_to_keep;
   }
   br.reset();  // use like monotonic_buffer_resource
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   auto in_itr = std::data(input_buffer) + input_last;
   while (br.task_ready() && has_in()) {
     auto task = br.get_decomp_task(in_itr);
-    in_itr += task.size;
+    in_itr += task.size;  // NOLINT(*-pro-bounds-pointer-arithmetic)
     ++n_tasks;
     tq.push(file_id, std::move(task));
   }
@@ -113,8 +114,8 @@ bam_file::get_chunks(const std::int64_t n_chunks,  //
   std::swap(input_buffer, output_buffer);
   std::swap(output_last, input_last);
   auto itr = std::data(output_buffer);
-  const auto end = itr + output_last;
-  if (bh)  // if we are still parsing the header
+  const auto end = itr + output_last;  // NOLINT(*-pointer-arithmetic)
+  if (bh)                              // if we are still parsing the header
     itr = bh.update(itr, end);
   if (std::distance(itr, end) > 0)
     itr = partition(itr, end, n_chunks, file_id, tq, n_tasks);

@@ -45,8 +45,8 @@ private:
   std::unique_ptr<std::FILE, int (*)(std::FILE *)> fp;
   std::uint64_t filesize{};
   gzip_header gh;
-  std::unique_ptr<char[]> inbuf;
-  std::unique_ptr<char[]> outbuf;
+  std::unique_ptr<char[]> inbuf;   // NOLINT(cppcoreguidelines-avoid-c-arrays)
+  std::unique_ptr<char[]> outbuf;  // NOLINT(cppcoreguidelines-avoid-c-arrays)
   char *next_in{};
   char *end_in{};
   char *next_out{};

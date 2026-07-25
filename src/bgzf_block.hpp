@@ -23,6 +23,7 @@ struct bgzf_block_t {
   auto operator=(const bgzf_block_t &src) -> bgzf_block_t & = delete;
 
   bgzf_block_t() = default;
+  ~bgzf_block_t() = default;
   bgzf_block_t(bgzf_block_t &&src) noexcept = default;
   auto operator=(bgzf_block_t &&src) noexcept -> bgzf_block_t & = default;
 

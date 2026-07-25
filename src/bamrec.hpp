@@ -23,6 +23,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>  // IWYU print: keep
 #include <variant>
 #include <vector>
 
@@ -115,18 +116,18 @@ public:
   // clang-format off
   bamrec() = default;
   ~bamrec() = default;
-  // delete copy and assignment
   bamrec(const bamrec &) = delete;
   auto operator=(const bamrec &) -> bamrec & = delete;
   auto operator=(bamrec &&) noexcept -> bamrec & = delete;
-  // default move for emplace
-  bamrec(bamrec &&) noexcept = delete; // default;
+  bamrec(bamrec &&) noexcept = delete;
   // clang-format on
 
   [[nodiscard]] auto
   to_string() const {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     auto qual_itr = std::data(buffer) + name_len + seq_len;
     std::string qual_fixed(seq_len, '\0');
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     std::transform(qual_itr, qual_itr + seq_len, std::begin(qual_fixed),
                    [](const auto c) { return c + quality_score_offset; });
     return std::format("@{}\n{}\n+\n{}", "name", "seq", qual_fixed);
@@ -141,6 +142,7 @@ public:
   find_end_pos(pos_t itr, const pos_t end) -> bamrec::pos_t;
 };
 
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 [[nodiscard]] inline constexpr auto
 get_name(const bamrec &rec) {
   return std::data(rec.buffer);
@@ -180,6 +182,7 @@ get_qual_end(const bamrec &rec) {
 get_qual_size(const bamrec &rec) {
   return get_seq_size(rec);
 }
+// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 using bam_chunks_t = std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>>;
 
@@ -204,6 +207,7 @@ assign_sequence_revcomp(BidirIt first, auto last, OutputIt d_first) {
   };
   constexpr auto seq_nt16_str = "=ACMGRSVTWYHKDBN";
   constexpr auto bam_seqi = [](const auto s, const auto i) -> int {
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     return s[i >> 1] >> ((~i & 1) << 2) & 0xf;
   };
   for (auto j = last; j != 0; ++d_first)
