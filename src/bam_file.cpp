@@ -91,7 +91,8 @@ partition(auto itr,                     //
   // ADS: this isn't working as desired: the end position of each part should be
   // the first record end past the 'end_itr' below unless end_itr == end
   const auto dist = std::distance(itr, end);
-  const auto [chunk_size, remainder] = std::div(dist, n_chunks);
+  const auto [chunk_size, remainder] =
+    std::div(static_cast<std::int64_t>(dist), n_chunks);
   bam_chunks_t positions;
   while (itr != end) {
     const auto dist = std::distance(itr, end);
