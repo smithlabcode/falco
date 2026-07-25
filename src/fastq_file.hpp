@@ -26,10 +26,6 @@
 #include <variant>
 #include <vector>
 
-#ifdef HAVE_ISAL
-#include <isa-l/igzip_lib.h>
-#endif  // HAVE_ISAL
-
 struct fastq_buffer {
   char *data{};       // not necessarily owned
   std::int64_t sz{};  // slight redundancy with vars containing classes
