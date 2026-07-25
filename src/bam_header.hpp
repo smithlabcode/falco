@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
+#ifndef SRC_BAM_HEADER_HPP_
+#define SRC_BAM_HEADER_HPP_
+
 #include "nlohmann/json.hpp"
 
 #include <cstdint>
@@ -58,3 +61,5 @@ struct bam_header {
                                  l_name_bytes_remaining, name_bytes_remaining,
                                  l_ref_bytes_remaining);
 };
+
+#endif  // SRC_BAM_HEADER_HPP_
