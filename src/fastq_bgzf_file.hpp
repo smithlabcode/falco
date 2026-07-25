@@ -7,6 +7,7 @@
 #include "bgzf_reader.hpp"
 #include "falco_task.hpp"
 #include "fqrec.hpp"
+#include "task_queue.hpp"
 
 #include <cstdint>
 #include <format>
@@ -48,21 +49,25 @@ public:
   [[nodiscard]] operator bool() const { return !had_last_chunks; }
 
   auto
-  load_next() -> std::vector<bgzf_block_t>;
+  load_next(const std::int32_t file_id, task_queue &tq,
+            std::atomic_int32_t &n_tasks) -> void;
 
-  [[nodiscard]] auto
-  get_chunks(const std::int64_t n_chunks) -> fq_chunks_t;
+  auto
+  get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
+             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
 
   [[nodiscard]] auto
   inflate_only() const -> bool {
     return is_first_load;
   }
 
-  [[nodiscard]] auto
-  make_tasks_inflate() -> std::vector<task_t>;
+  auto
+  make_tasks_inflate(const std::int32_t file_id, task_queue &tq,
+                     std::atomic_int32_t &n_tasks) -> void;
 
-  [[nodiscard]] auto
-  make_tasks(const std::int64_t n_chunks) -> std::vector<task_t>;
+  auto
+  make_tasks(const std::int64_t n_chunks, const std::int32_t file_id,
+             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
 
   auto
   read_data() -> void {
@@ -79,29 +84,9 @@ private:
   }
 };
 
-[[nodiscard]] inline auto
-inflate_only(const fastq_bgzf_file &f) -> bool {
-  return f.inflate_only();
-}
-
-[[nodiscard]] auto
-get_chunks_fastq(fastq_bgzf_file &fq,
-                 const std::int64_t n_chunks) -> fq_chunks_t;
-
 [[nodiscard]] auto
 estimate_n_reads_fastq_bgzf(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
-
-[[nodiscard]] inline auto
-make_tasks(fastq_bgzf_file &reads_file,
-           const std::int64_t n_chunks) -> std::vector<task_t> {
-  return reads_file.make_tasks(n_chunks);
-}
-
-[[nodiscard]] inline auto
-make_tasks_inflate(fastq_bgzf_file &reads_file) -> std::vector<task_t> {
-  return reads_file.make_tasks_inflate();
-}
 
 [[nodiscard]] inline auto
 is_active(const fastq_bgzf_file &reads_file) -> bool {
@@ -109,7 +94,15 @@ is_active(const fastq_bgzf_file &reads_file) -> bool {
 }
 
 inline auto
-read_data(fastq_bgzf_file &reads_file) -> void {
+make_tasks(fastq_bgzf_file &reads_file,  //
+           const std::int64_t n_chunks,  //
+           const std::int32_t file_id,   //
+           task_queue &tq,               //
+           std::atomic_int32_t &n_tasks) -> void {
+  n_tasks = 1;  // +1 so not to decrementing to 0 too fast
+  if (!reads_file.inflate_only())
+    reads_file.make_tasks(n_chunks, file_id, tq, n_tasks);
+  reads_file.load_next(file_id, tq, n_tasks);
   reads_file.read_data();
 }
 

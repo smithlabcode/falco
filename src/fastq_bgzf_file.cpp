@@ -78,23 +78,28 @@ fastq_bgzf_file::shift_buffers() -> void {
 }
 
 auto
-fastq_bgzf_file::load_next() -> std::vector<bgzf_block_t> {
+fastq_bgzf_file::load_next(const std::int32_t file_id, task_queue &tq,
+                           std::atomic_int32_t &n_tasks) -> void {
+  is_first_load = false;
   if (output_cursor > 0)
     shift_buffers();
   br.reset();  // use like monotonic_buffer_resource
-  std::vector<bgzf_block_t> tasks;
   auto in_itr = std::data(input_buffer) + input_last;
   while (br.task_ready() && has_in()) {
     auto task = br.get_decomp_task(in_itr);
     in_itr += task.size;
-    tasks.emplace_back(std::move(task));
+    ++n_tasks;
+    tq.push(file_id, std::move(task));
   }
   input_last = std::distance(std::data(input_buffer), in_itr);
-  return tasks;
 }
 
-[[nodiscard]] auto
-fastq_bgzf_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
+auto
+fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,  //
+                            const std::int32_t file_id,   //
+                            task_queue &tq,               //
+                            std::atomic_int32_t &n_tasks  //
+                            ) -> void {
   static constexpr auto rec_lines = 4;  // FASTQ
   assert(n_chunks > 0);
 
@@ -122,48 +127,31 @@ fastq_bgzf_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
   };
   const auto n_bytes_available = output_last - output_cursor;
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
-  fq_chunks_t chunks(n_chunks);
   std::int64_t start_pos = output_cursor;
   std::int64_t chunk_end{};
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
     const auto chunk_beg = fwd_to_read_start(start_pos);
     const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
     chunk_end = fwd_to_read_start(stop_pos);
-    chunks[chunk_idx] = {data + chunk_beg, data + chunk_end};
+    if (chunk_idx == n_chunks - 1) {
+      // make sure final chunk includes only full records
+      const auto prev_start = rev_to_read_start(chunk_end);
+      const auto trailing_lines =
+        std::count(data + prev_start, data + output_last, '\n');
+      if (trailing_lines < rec_lines)
+        chunk_end = prev_start;
+    }
+    ++n_tasks;
+    tq.push(file_id, fq_task_t(data + chunk_beg, data + chunk_end));
     start_pos = stop_pos;
   }
-  // make sure final chunk includes only full records
-  const auto prev_start = rev_to_read_start(chunk_end);
-  const auto trailing_lines =
-    std::count(data + prev_start, data + output_last, '\n');
-  if (trailing_lines < rec_lines)
-    chunks.back().second = data + prev_start;
-  output_cursor = std::distance(data, chunks.back().second);
-
-  return chunks;
+  output_cursor = chunk_end;
 }
 
-[[nodiscard]] auto
-fastq_bgzf_file::make_tasks(const std::int64_t n_chunks)
-  -> std::vector<task_t> {
-  const auto chunks = get_chunks(n_chunks);
+auto
+fastq_bgzf_file::make_tasks(const std::int64_t n_chunks,
+                            const std::int32_t file_id, task_queue &tq,
+                            std::atomic_int32_t &n_tasks) -> void {
+  get_chunks(n_chunks, file_id, tq, n_tasks);
   had_last_chunks = !static_cast<bool>(br);  // wait until now to set this?
-  std::vector<task_t> tasks;
-  tasks.reserve(std::size(chunks));
-  for (const auto &chunk : chunks)
-    // cppcheck-suppress useStlAlgorithm
-    tasks.emplace_back(fq_task_t(chunk.first, chunk.second));
-  return tasks;
-}
-
-[[nodiscard]] auto
-fastq_bgzf_file::make_tasks_inflate() -> std::vector<task_t> {
-  is_first_load = false;
-  auto chunks = load_next();
-  std::vector<task_t> tasks;
-  tasks.reserve(std::size(chunks));
-  for (auto &chunk : chunks)
-    // cppcheck-suppress useStlAlgorithm
-    tasks.emplace_back(std::move(chunk));
-  return tasks;
 }
