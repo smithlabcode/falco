@@ -3,6 +3,9 @@
 #ifndef SRC_READS_FILE_HPP_
 #define SRC_READS_FILE_HPP_
 
+#include "task_queue.hpp"
+
+#include <atomic>
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
@@ -24,64 +27,34 @@ public:
     return x.self_->is_active_();
   }
 
-  [[nodiscard]] friend auto
-  make_tasks(auto &reads_file,
-             const std::int64_t n_chunks) -> std::vector<task_t> {
-    return reads_file.self_->make_tasks_(n_chunks);
-  }
-
-  [[nodiscard]] friend auto
-  make_tasks_inflate(auto &reads_file) -> std::vector<task_t> {
-    return reads_file.self_->make_tasks_inflate_();
-  }
-
-  [[nodiscard]] friend auto
-  inflate_only(reads_file_t &x) -> bool {
-    return x.self_->inflate_only_();
-  }
-
   friend auto
-  read_data(reads_file_t &x) -> void {
-    x.self_->read_data_();
+  make_tasks(auto &reads_file, const std::int64_t n_chunks,
+             const std::int32_t file_id, task_queue &tq,
+             std::atomic_int32_t &n_tasks) -> void {
+    reads_file.self_->make_tasks_(n_chunks, file_id, tq, n_tasks);
   }
 
 private:
   struct concept_t {
     // clang-format off
     virtual ~concept_t() = default;
-    virtual auto make_tasks_(const std::int64_t) -> std::vector<task_t> = 0;
-    virtual auto make_tasks_inflate_() -> std::vector<task_t> = 0;
-    virtual auto inflate_only_() -> bool = 0;
+    virtual auto make_tasks_(const std::int64_t, const std::int32_t,
+                             task_queue &, std::atomic_int32_t &) -> void = 0;
     virtual auto is_active_() const -> bool = 0;
-    virtual auto read_data_() -> void = 0;
     // clang-format on
   };
   template <typename T> struct model : concept_t {
     model(T x) : data_(std::move(x)) {}
 
-    [[nodiscard]] auto
-    make_tasks_(const std::int64_t n_chunks) -> std::vector<task_t> override {
-      return make_tasks(data_, n_chunks);
-    }
-
-    [[nodiscard]] auto
-    make_tasks_inflate_() -> std::vector<task_t> override {
-      return make_tasks_inflate(data_);
+    auto
+    make_tasks_(const std::int64_t n_chunks, const std::int32_t file_id,
+                task_queue &tq, std::atomic_int32_t &n_tasks) -> void override {
+      make_tasks(data_, n_chunks, file_id, tq, n_tasks);
     }
 
     [[nodiscard]] auto
     is_active_() const -> bool override {
       return static_cast<bool>(data_);
-    }
-
-    auto
-    inflate_only_() -> bool override {
-      return inflate_only(data_);
-    }
-
-    auto
-    read_data_() -> void override {
-      read_data(data_);
     }
 
     T data_;
