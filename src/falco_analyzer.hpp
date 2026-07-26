@@ -32,13 +32,10 @@
 
 template <typename results_t> struct analyzer_t {
   static constexpr auto n_chunks_per_thread = 8;  // ADS: not empirically tested
-
   task_queue tq;
-
   std::vector<std::atomic_int32_t> n_tasks;  // count of submitted tasks by file
-  std::uint32_t n_active_files{};
-  std::vector<std::vector<results_t>> results;
-
+  std::atomic_uint32_t n_active_files{};
+  std::vector<std::vector<results_t>> results;       // n_threads x n_tiles
   analyzer_t(const std::uint32_t n_threads,          //
              const std::uint32_t n_files,            //
              const run_mode &mode,                   //
@@ -84,17 +81,30 @@ analyzer_t<results_t>::analyzer_t(const std::uint32_t n_threads,
           decompress(std::get<bgzf_block_t>(task));
         else {  // monostate means read more data
           if (!is_active(reads_files[file_id])) {
-            if (--n_active_files == 0) {
+            assert(n_tasks[file_id] == 0);
+            if (n_active_files.fetch_sub(1) == 1) {
+              // ADS: it would not be wrong it two different threads arrived
+              // here, but using fetch_sub should prevent that anyway.
               tq.request_shutdown();
               return;
             }
+            // Must 'continue' here to avoid decrementing n_tasks[file_id]
+            // below, since within this branch we might exit before decrementing
+            // to remove the value that we would have added; the same is not
+            // true of the 'else' case below when make_tasks is called. So the
+            // ++n_tasks[file_id] is inside that function in each case of
+            // typeof(reads_files). Unfortunately changes to n_tasks need to
+            // happen in different places.
+            continue;
           }
           else
             make_tasks(reads_files[file_id], n_chunks, file_id, tq,
                        n_tasks[file_id]);
         }
-        if (n_tasks[file_id].fetch_sub(1) == 1)
+        if (n_tasks[file_id].fetch_sub(1) == 1) {
+          assert(n_tasks[file_id] == 0);
           tq.push(file_id, std::monostate{});
+        }
       }
     });
 }
