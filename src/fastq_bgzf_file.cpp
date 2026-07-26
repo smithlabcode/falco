@@ -129,6 +129,7 @@ fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,  //
   };
   const auto n_bytes_available = output_last - output_cursor;
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
+  assert(n_chunks > 0);
   std::int64_t start_pos = output_cursor;
   std::int64_t chunk_end{};
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
