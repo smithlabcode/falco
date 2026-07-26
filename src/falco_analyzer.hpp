@@ -33,6 +33,7 @@
 template <typename results_t> struct analyzer_t {
   static constexpr auto n_chunks_per_thread = 8;  // ADS: not empirically tested
   task_queue tq;
+  // ADS: likely false sharing between n_tasks members
   std::vector<std::atomic_int32_t> n_tasks;  // count of submitted tasks by file
   std::atomic_uint32_t n_active_files{};
   std::vector<std::vector<results_t>> results;       // n_threads x n_tiles
