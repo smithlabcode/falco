@@ -83,7 +83,7 @@ analyzer_t<results_t>::analyzer_t(const std::uint32_t n_threads,
         else {  // monostate means read more data
           if (!is_active(reads_files[file_id])) {
             assert(n_tasks[file_id] == 0);
-            if (n_active_files.fetch_sub(1) == 1) {
+            if (n_active_files.fetch_sub(1, std::memory_order_relaxed) == 1) {
               // ADS: it would not be wrong it two different threads arrived
               // here, but using fetch_sub should prevent that anyway.
               tq.request_shutdown();
@@ -102,7 +102,7 @@ analyzer_t<results_t>::analyzer_t(const std::uint32_t n_threads,
             make_tasks(reads_files[file_id], n_chunks, file_id, tq,
                        n_tasks[file_id]);
         }
-        if (n_tasks[file_id].fetch_sub(1) == 1) {
+        if (n_tasks[file_id].fetch_sub(1, std::memory_order_relaxed) == 1) {
           assert(n_tasks[file_id] == 0);
           tq.push(file_id, std::monostate{});
         }
