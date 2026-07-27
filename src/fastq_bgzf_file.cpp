@@ -22,27 +22,6 @@
 
 static constexpr auto fastq_lines_per_read = 4;
 
-[[nodiscard]] static auto
-estimate_read_length(const auto &data, const auto n) {
-  assert(n >= 1);
-  const auto valid = [](const auto c) {
-    return c == 'A' || c == 'C' || c == 'G' || c == 'T' || c == 'N';
-  };
-  std::vector<std::int64_t> lines;
-  for (auto i = 0u; i + 1 < n; ++i)
-    if (data[i] == '\n')
-      lines.push_back(i + 1);
-  if (std::size(lines) < fastq_lines_per_read)
-    return 1ul;
-  auto total = 0ul;
-  for (const auto l : lines | std::views::adjacent<fastq_lines_per_read - 1>)
-    if (data[std::get<0>(l)] == '@' && data[std::get<2>(l)] == '+' &&
-        valid(data[std::get<1>(l)]))
-      // cppcheck-suppress useStlAlgorithm
-      total += (std::get<2>(l) - std::get<1>(l)) - 1;
-  return total / (std::size(lines) / fastq_lines_per_read);
-}
-
 [[nodiscard]] auto
 estimate_n_reads_fastq_bgzf(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t> {
@@ -64,7 +43,8 @@ estimate_n_reads_fastq_bgzf(const std::string &filename)
     inflation_factor * static_cast<double>(filesize);
   const auto n_reads_est = as_frac(total_newlines, fastq_lines_per_read) *
                            as_frac(estimated_uncompressed_file_size, n_bytes);
-  const auto read_len_est = estimate_read_length(buf, std::size(buf));
+  const auto read_len_est =
+    estimate_read_length_fastq_chunk(buf, std::size(buf));
   return {static_cast<std::uint64_t>(n_reads_est), read_len_est, filesize};
 }
 
