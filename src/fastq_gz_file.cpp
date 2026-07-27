@@ -89,7 +89,7 @@ fastq_gz_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
   const auto n_bytes_available = buf_sz - cursor;
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   std::vector<std::pair<std::int64_t, std::int64_t>> chunks(n_chunks);
-  std::int64_t start_pos = get_cursor();
+  std::int64_t start_pos = cursor;
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
     const auto chunk_beg = fwd_to_read_start(start_pos);
     const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
@@ -102,7 +102,7 @@ fastq_gz_file::get_chunks(const std::int64_t n_chunks) -> fq_chunks_t {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   if (std::count(buf_data + prev_start, buf_data + buf_sz, '\n') < rec_lines)
     chunks.back().second = prev_start;
-  set_cursor(chunks.back().second);
+  cursor = chunks.back().second;
 
   fq_chunks_t tasks;
   tasks.reserve(std::size(chunks));
