@@ -24,6 +24,7 @@ Default configuration files can be found in:
 #include "quality_score.hpp"
 #include "results_collector.hpp"
 #include "results_summary.hpp"
+#include "sam_file.hpp"
 #include "tile_processor.hpp"
 
 #include "CLI11/CLI11.hpp"
@@ -116,8 +117,10 @@ start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
   std::vector<reads_file_t> reads_files;
   reads_files.reserve(n_infiles);
   for (const auto [infile, info] : std::views::zip(infiles, infos)) {
-    if (is_mapped_reads(info.format))
+    if (info.format == falco::file_format::bam)
       reads_files.emplace_back(bam_file(infile, buf_size));
+    else if (info.format == falco::file_format::sam)
+      reads_files.emplace_back(sam_file(infile, buf_size));
     else if (info.format == falco::file_format::fastq_bgzf)
       reads_files.emplace_back(fastq_bgzf_file(infile, buf_size));
     else if (info.format == falco::file_format::fastq_gz)
