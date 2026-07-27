@@ -285,11 +285,33 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
 size_to_units(const std::int64_t s,
               const std::string &suffix = "iB") -> std::string;
 
-[[nodiscard]] static inline auto
+[[nodiscard]] inline auto
 get_max_size(const auto &x) {
   assert(!x.empty());
   const auto sz = [](const auto &y) { return std::size(y); };
   return std::ranges::max(std::views::transform(x | std::views::values, sz));
+}
+
+[[nodiscard]] inline auto
+estimate_read_length_fastq_chunk(const auto &data, const auto n) {
+  static constexpr auto fastq_lines_per_read = 4;
+  assert(n >= 1);
+  const auto valid = [](const auto c) {
+    return c == 'A' || c == 'C' || c == 'G' || c == 'T' || c == 'N';
+  };
+  std::vector<std::int64_t> lines;
+  for (auto i = 0u; i + 1 < n; ++i)
+    if (data[i] == '\n')
+      lines.push_back(i + 1);
+  if (std::size(lines) < fastq_lines_per_read)
+    return 1ul;
+  auto total = 0ul;
+  for (const auto l : lines | std::views::adjacent<fastq_lines_per_read - 1>)
+    if (data[std::get<0>(l)] == '@' && data[std::get<2>(l)] == '+' &&
+        valid(data[std::get<1>(l)]))
+      // cppcheck-suppress useStlAlgorithm
+      total += (std::get<2>(l) - std::get<1>(l)) - 1;
+  return total / (std::size(lines) / fastq_lines_per_read);
 }
 
 #endif  // SRC_FALCO_UTILS_HPP_
