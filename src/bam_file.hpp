@@ -33,10 +33,10 @@ public:
   bool had_last_chunks{false};
 
   bam_file(const std::string &filename, const std::int64_t buf_size) :
-    // ADS: diving the buffer size here because there are multiple and the user
-    // presumably gives a total
-    input_buffer(buf_size / 4 + min_buf_size),
-    output_buffer(buf_size / 4 + min_buf_size), br(filename, buf_size / 4) {}
+    input_buffer(buf_size / 3 + min_buf_size),   //
+    output_buffer(buf_size / 3 + min_buf_size),  //
+    br(filename, buf_size / 3)                   //
+  {}
 
   // clang-format off
   // delete copy and assignment
