@@ -20,7 +20,6 @@ struct task_queue;
 class fastq_bgzf_file {
   using rec_t = fqrec;
   static constexpr auto min_buf_size = 64 * 1024;
-  std::int64_t buf_size{};  // size of allocated buffer
   std::vector<char> input_buffer;
   std::vector<char> output_buffer;
   std::int64_t input_last{};
@@ -33,8 +32,10 @@ class fastq_bgzf_file {
 
 public:
   fastq_bgzf_file(const std::string &filename, const std::int64_t buf_size) :
-    buf_size{buf_size / 2}, input_buffer(buf_size / 2),
-    output_buffer(buf_size / 2), br(filename, buf_size / 2) {}
+    input_buffer(buf_size / 3 + min_buf_size),   //
+    output_buffer(buf_size / 3 + min_buf_size),  //
+    br(filename, buf_size / 3)                   //
+  {}
 
   // clang-format off
   // delete copy and assignment
