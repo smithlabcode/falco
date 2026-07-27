@@ -107,6 +107,7 @@ add_library(bam_file OBJECT src/bam_file.cpp)
 target_link_libraries(bam_file PUBLIC HTSLIB::HTSLIB)
 
 add_library(sam_file OBJECT src/sam_file.cpp)
+target_link_libraries(sam_file PUBLIC HTSLIB::HTSLIB)
 
 add_library(falco_file_format OBJECT src/falco_file_format.cpp)
 target_link_libraries(falco_file_format PUBLIC HTSLIB::HTSLIB)
