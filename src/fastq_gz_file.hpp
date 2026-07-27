@@ -51,26 +51,13 @@ private:
   std::unique_ptr<std::FILE, int (*)(std::FILE *)> in;
 
 public:
-  // clang-format off
-  [[nodiscard]] auto get_cursor() const -> std::int64_t { return cursor; }
-  auto set_cursor(const auto c) { cursor = c; }
-  // clang-format on
-  [[nodiscard]] auto
-  get_buf_end() const {
-    // NOLINTNEXTLINE(*-reinterpret-cast,*-pointer-arithmetic)
-    return reinterpret_cast<std::uint8_t *>(buf_data + buf_sz);
-  }
-
   explicit fastq_gz_file(const std::string &filename,
-                         const std::int64_t buf_size) :
-    outbuf(buf_size / 2), inbuf(buf_size / 2),
+                         const std::int64_t buf_size_arg) :
+    outbuf(buf_size_arg / 2 + min_buf_size),  //
+    inbuf(buf_size_arg / 2 + min_buf_size),   //
     in(std::fopen(std::data(filename), "r"), &std::fclose) {
     if (in == nullptr)
       throw std::runtime_error("failed to open " + filename);
-    if (buf_size < min_buf_size)
-      throw std::runtime_error(std::format(
-        "requested buffer too small {} (min is {})", buf_size, min_buf_size));
-
     isal_gzip_header_init(&gz_hdr);         // header
     isal_inflate_init(&state);              // inflate
     state.crc_flag = ISAL_GZIP_NO_HDR_VER;  // CRC
@@ -111,8 +98,9 @@ public:
     }
   }
 
-  [[nodiscard]] auto
-  get_chunks(const std::int64_t n_chunks) -> fq_chunks_t;
+  auto
+  get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
+             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
 
 private:
   [[nodiscard]] auto
@@ -127,7 +115,7 @@ private:
   update_output_state() -> std::int64_t {
     const std::int64_t available = std::ssize(outbuf) - buf_sz;
     state.avail_out = available;
-    state.next_out = get_buf_end();
+    state.next_out = reinterpret_cast<std::uint8_t *>(buf_data + buf_sz);
     return available;
   }
 
@@ -187,29 +175,21 @@ struct fastq_gz_file {
   std::int64_t cursor{};  // position in buffer
   std::unique_ptr<BGZF, int (*)(BGZF *)> f;
 
-  fastq_gz_file(const std::string &filename, const std::int64_t buf_size) :
-    buf_size{buf_size}, buf_used{buf_size}, outbuf(buf_size),
+  fastq_gz_file(const std::string &filename, const std::int64_t buf_size_arg) :
+    buf_size{buf_size_arg + min_buf_size},  //
+    buf_used{buf_size_arg + min_buf_size},  //
+    outbuf(buf_size_arg + min_buf_size),    //
     f(bgzf_open(std::data(filename), "r"), &bgzf_close) {
     if (!f)
       throw std::system_error(std::make_error_code(std::errc(errno)),
                               "failed to open file: " + filename);
-    if (buf_size < min_buf_size)
-      throw std::runtime_error(std::format(
-        "requested buffer too small {} (min is {})", buf_size, min_buf_size));
     buf_data = std::data(outbuf);
   }
 
   // clang-format off
-  [[nodiscard]] auto get_cursor() const -> std::int64_t { return cursor; }
-  auto set_cursor(const auto c) { cursor = c; }
-  // clang-format on
-
-  // clang-format off
-  // delete copy and assignment
   fastq_gz_file(const fastq_gz_file &) = delete;
   auto operator=(const fastq_gz_file &) -> fastq_gz_file & = delete;
   auto operator=(fastq_gz_file &&) noexcept -> fastq_gz_file & = delete;
-  // default move for emplace
   fastq_gz_file(fastq_gz_file &&) noexcept = default;
   ~fastq_gz_file() = default;
   // clang-format on
@@ -218,13 +198,11 @@ struct fastq_gz_file {
 
   auto
   load_next() -> void {
-    if (cursor > 0) {
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      std::copy_n(buf_data + cursor, buf_sz - cursor, buf_data);
-      cursor = buf_sz - cursor;  // rewind to after previous data
-    }
+    if (cursor > 0)
+      shift_output_buffer();
     const auto n_bytes = buf_size - cursor;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
     const auto r = bgzf_read(f.get(), buf_data + cursor, n_bytes);
     if (r < 0) {
       buf_used = 0;
@@ -235,8 +213,18 @@ struct fastq_gz_file {
     cursor = 0;  // cursor always moves to zero
   }
 
-  [[nodiscard]] auto
-  get_chunks(const std::int64_t n_chunks) -> fq_chunks_t;
+  auto
+  get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
+             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
+
+private:
+  auto
+  shift_output_buffer() -> void {
+    const auto n_bytes_to_keep = buf_sz - cursor;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    std::copy_n(buf_data + cursor, n_bytes_to_keep, buf_data);
+    cursor = buf_sz - cursor;  // rewind to after previous data
+  }
 };
 
 #endif  // HAVE_ISAL
@@ -245,19 +233,11 @@ struct fastq_gz_file {
 estimate_n_reads_fastq_gz(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
-inline auto
+auto
 make_tasks(fastq_gz_file &reads_file,    //
            const std::int64_t n_chunks,  //
            const std::int32_t file_id,   //
            task_queue &tq,               //
-           std::atomic_int32_t &n_tasks) -> void {
-  n_tasks = 1;  // for current task, which makes tasks
-  reads_file.load_next();
-  auto chunks = reads_file.get_chunks(n_chunks);
-  for (const auto &chunk : chunks) {
-    ++n_tasks;
-    tq.push(file_id, fq_task_t(chunk.first, chunk.second));
-  }
-}
+           std::atomic_int32_t &n_tasks) -> void;
 
 #endif  // SRC_FASTQ_GZ_FILE_HPP_
