@@ -64,10 +64,10 @@ struct fastq_file {
   std::int64_t cursor{};
   int fd{};
 
-  fastq_file(const std::string &filename, const std::int64_t buf_size) :
-    buf_size{buf_size < min_buf_size ? min_buf_size : buf_size},
+  fastq_file(const std::string &filename, const std::int64_t buf_size_arg) :
+    buf_size{buf_size_arg + min_buf_size},
     filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
-    stop_pos_in_file{buf_size},  // init this way because used as sentinel
+    stop_pos_in_file{buf_size_arg + min_buf_size},  // init to use as sentinel
     fd{open(std::data(filename), O_RDONLY, 0)} {
     if (fd < 0)
       throw std::system_error(std::make_error_code(std::errc(errno)),
