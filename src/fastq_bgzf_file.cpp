@@ -20,11 +20,10 @@
 #include <utility>
 #include <vector>
 
-static constexpr auto fastq_lines_per_read = 4;
-
 [[nodiscard]] auto
 estimate_n_reads_fastq_bgzf(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t> {
+  static constexpr auto fastq_lines_per_read = 4;
   static constexpr auto n_bytes = 1024 * 1024;
   std::unique_ptr<BGZF, int (*)(BGZF *)> f(bgzf_open(std::data(filename), "r"),
                                            &bgzf_close);

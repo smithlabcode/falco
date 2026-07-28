@@ -40,11 +40,14 @@ samrec::get_next(samrec::pos_t &cursor, const samrec::pos_t end_itr,
   if (itr++ == end_itr)
     return false;
 
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
   // get the flag (for revcomp)
   int flag{};
-  const auto [flag_end, ec] = std::from_chars(itr, end_itr, flag);
+  auto [flag_end, ec] = std::from_chars(itr, end_itr, flag);
   if (ec != std::errc{})
     return false;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
   itr += std::distance(itr, const_cast<samrec::pos_t>(flag_end));
   if (itr++ == end_itr)
     return false;
@@ -93,13 +96,15 @@ samrec::get_next(samrec::pos_t &cursor, const samrec::pos_t end_itr,
               buf_beg + rec.name_len + rec.seq_len);
   }
   if (*qual_itr == qual_missing_symbol)  // could use to eliminate copy
-    buf_beg[rec.name_len + rec.seq_len] = qual_missing_code;
+    buf_beg[rec.name_len + rec.seq_len] = static_cast<char>(qual_missing_code);
 
   itr = std::find(itr, end_itr, '\n');
   if (*itr++ != '\n')
     return false;
 
   cursor = itr;
+
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   return true;
 }

@@ -28,11 +28,12 @@ sam_file::sam_file(const std::string &filename, const std::int64_t buf_size) :
 sam_file::skip_header() -> bool {
   static constexpr auto max_header_size = 256 * 1024 * 1024;
   std::int32_t n_bytes{};
-  char c{};
   while (n_bytes < max_header_size) {
-    c = std::fgetc(in.get());
+    const auto c = std::fgetc(in.get());
     if (c != '@') {  // confirm header line
-      std::ungetc(c, in.get());
+      const auto r = std::ungetc(c, in.get());
+      if (r != c)
+        throw std::runtime_error("failed to parse SAM header");
       break;
     }
     ++n_bytes;
@@ -45,6 +46,8 @@ sam_file::skip_header() -> bool {
 
 auto
 sam_file::shift_output_buffer() -> void {
+  if (cursor == 0)  // shifting at cursor == 0 would do nothing
+    return;
   const auto n_bytes = last - cursor;
   std::copy_n(std::cbegin(buffer) + cursor, n_bytes, std::begin(buffer));
   last = n_bytes;
@@ -58,6 +61,8 @@ sam_file::get_chunks(const std::int64_t n_chunks,  //
                      std::atomic_int32_t &n_tasks  //
                      ) -> void {
   assert(n_chunks > 0);
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
   const auto data = std::data(buffer);
   // clang-format off
   const auto fwd_to_read_start = [&](auto p) {
@@ -92,6 +97,7 @@ sam_file::get_chunks(const std::int64_t n_chunks,  //
     start_pos = stop_pos;
   }
   cursor = chunk_end;
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
 auto
@@ -100,14 +106,13 @@ sam_file::make_tasks(const std::int64_t n_chunks,  //
                      task_queue &tq,               //
                      std::atomic_int32_t &n_tasks) -> void {
   n_tasks = 1;  // for current task, which makes tasks
-
-  if (cursor > 0)
-    shift_output_buffer();
-  last +=
-    std::fread(std::data(buffer) + last, 1, std::size(buffer) - last, in.get());
+  shift_output_buffer();
+  auto data = std::data(buffer);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  const auto r = std::fread(data + last, 1, std::size(buffer) - last, in.get());
   if (std::ferror(in.get()))
     std::system_error(std::make_error_code(std::errc(errno)),
-                      "failed to read file");
-
+                      "error reading SAM file");
+  last += static_cast<std::int64_t>(r);
   get_chunks(n_chunks, file_id, tq, n_tasks);
 }
