@@ -13,7 +13,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y zlib1g-dev libdeflate-dev libhts-dev
+          sudo apt-get install -y zlib1g-dev libdeflate-dev libhts-dev samtools
       - name: Configure for system tests
         run: |
           cmake -B build \
