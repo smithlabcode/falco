@@ -106,6 +106,7 @@ add_library(bam_header OBJECT src/bam_header.cpp)
 add_library(bam_file OBJECT src/bam_file.cpp)
 target_link_libraries(bam_file PUBLIC HTSLIB::HTSLIB)
 
+add_library(samrec OBJECT src/samrec.cpp)
 add_library(sam_file OBJECT src/sam_file.cpp)
 target_link_libraries(sam_file PUBLIC HTSLIB::HTSLIB)
 
@@ -204,6 +205,7 @@ target_link_libraries(falco PUBLIC
   fastq_bgzf_file
   bam_file
   sam_file
+  samrec
   bam_header
   falco_file_format
   falco_utils
