@@ -78,6 +78,8 @@ analyzer_t<results_t>::analyzer_t(const std::uint32_t n_threads,
           process_reads_fq(res[file_id], std::get<fq_task_t>(task));
         else if (std::holds_alternative<bam_task_t>(task))
           process_reads_bam(res[file_id], std::get<bam_task_t>(task));
+        else if (std::holds_alternative<sam_task_t>(task))
+          process_reads_sam(res[file_id], std::get<sam_task_t>(task));
         else if (std::holds_alternative<bgzf_block_t>(task))
           decompress(std::get<bgzf_block_t>(task));
         else {  // monostate means read more data
