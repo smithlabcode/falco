@@ -144,13 +144,15 @@ get_file_info(const auto &infiles) {
     const auto [n_reads_est, read_len_est, filesize] = [&] {
       if (input_format == falco::file_format::bam)
         return estimate_n_reads_bam(infile);
+      if (input_format == falco::file_format::sam)
+        return estimate_n_reads_bam(infile);
       if (input_format == falco::file_format::fastq_bgzf)
         return estimate_n_reads_fastq_bgzf(infile);
       if (input_format == falco::file_format::fastq_gz)
         return estimate_n_reads_fastq_gz(infile);
       if (input_format == falco::file_format::fastq)
         return estimate_n_reads_fastq(infile);
-      std::unreachable();
+      throw std::runtime_error("invalid reads file format");
     }();
     infos.push_back({
       .name = std::filesystem::path{infile}.filename().string(),
