@@ -3,7 +3,7 @@
 #ifndef SRC_SAM_FILE_HPP_
 #define SRC_SAM_FILE_HPP_
 
-#include "bamrec.hpp"
+#include "samrec.hpp"
 
 #include <atomic>
 #include <cstdint>
@@ -17,58 +17,51 @@ struct task_queue;
 
 class sam_file {
 public:
-  using rec_t = bamrec;
+  using rec_t = samrec;
+
+private:
   static constexpr auto min_buf_size = 64 * 1024;
   std::vector<char> buffer;
   std::int64_t last{};
   std::int64_t cursor{};
+  std::unique_ptr<std::FILE, int (*)(std::FILE *)> in;
 
-  sam_file([[maybe_unused]] const std::string &filename,
-           const std::int64_t buf_size) : buffer(buf_size + min_buf_size) {
-    throw std::runtime_error("Not implemented. Workaround: make BAM files");
-  }
+public:
+  sam_file(const std::string &filename, const std::int64_t buf_size);
+  operator bool() const { return cursor < last || !std::feof(in.get()); }
 
   // clang-format off
-  // delete copy and assignment
   sam_file(const sam_file &) = delete;
   auto operator=(const sam_file &) -> sam_file & = delete;
   auto operator=(sam_file &&) noexcept -> sam_file & = delete;
-  // default move for emplace
   sam_file(sam_file &&) noexcept = default;
   ~sam_file() = default;
   // clang-format on
 
-  [[nodiscard]] operator bool() const { return false; }
-
   auto
-  load_next(const std::int32_t file_id, task_queue &tq,
-            std::atomic_int32_t &n_tasks) -> void;
+  make_tasks(const std::int64_t n_chunks, const std::int32_t file_id,
+             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
 
 private:
   auto
   get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
              task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
 
-public:
   auto
-  make_tasks(const std::int64_t n_chunks, const std::int32_t file_id,
-             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
+  shift_output_buffer() -> void;
+
+  [[nodiscard]] auto
+  skip_header() -> bool;
 };
 
-[[nodiscard]] inline constexpr auto
-is_active(const sam_file &reads_file) -> bool {
-  return static_cast<bool>(reads_file);
-}
-
 inline auto
-make_tasks([[maybe_unused]] sam_file &reads_file,         //
-           [[maybe_unused]] const std::int64_t n_chunks,  //
-           [[maybe_unused]] const std::int32_t file_id,   //
-           [[maybe_unused]] task_queue &tq,               //
-           [[maybe_unused]] std::atomic_int32_t &n_tasks  //
+make_tasks(sam_file &reads_file,         //
+           const std::int64_t n_chunks,  //
+           const std::int32_t file_id,   //
+           task_queue &tq,               //
+           std::atomic_int32_t &n_tasks  //
            ) -> void {
-  n_tasks = 1;  // for current task, which makes tasks
-  // work goes here
+  reads_file.make_tasks(n_chunks, file_id, tq, n_tasks);
 }
 
 #endif  // SRC_SAM_FILE_HPP_
