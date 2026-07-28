@@ -91,12 +91,12 @@ partition(auto itr,                     //
   // ADS: this isn't working as desired: the end position of each part should be
   // the first record end past the 'end_itr' below unless end_itr == end
   const auto dist = std::distance(itr, end);
-  const auto [chunk_size, remainder] =
-    std::div(static_cast<std::int64_t>(dist), n_chunks);
-  bam_chunks_t positions;
+  const auto chunk_size = (dist + n_chunks - 1) / n_chunks;
   while (itr != end) {
     const auto dist = std::distance(itr, end);
     auto end_itr = itr + (dist < chunk_size ? dist : chunk_size);
+    // ADS: find_end_pos doesn't find end pos of a record, but of a range, so
+    // includes multiple records
     auto next_itr = bamrec::find_end_pos(itr, end_itr);
     if (next_itr == itr)
       break;
