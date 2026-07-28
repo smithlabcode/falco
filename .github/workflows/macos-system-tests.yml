@@ -13,7 +13,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew update
-          brew install zlib libdeflate htslib
+          brew install zlib libdeflate htslib samtools
       - name: Configure for system tests
         run: |
           cmake -B build \
