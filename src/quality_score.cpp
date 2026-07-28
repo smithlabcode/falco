@@ -60,7 +60,7 @@ identify_encoding_impl(const auto &qual_counts,
 [[nodiscard]] auto
 identify_encoding(const std::vector<falco::qual_array> &qual_counts,
                   file_info &info) -> falco::encoding {
-  const auto shift = is_mapped_reads(info.format) ? falco::bam_qual_offset : 0;
+  const auto shift = is_bam(info.format) ? falco::bam_qual_offset : 0;
   return identify_encoding_impl(qual_counts, shift);
 }
 
