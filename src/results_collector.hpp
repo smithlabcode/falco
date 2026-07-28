@@ -12,6 +12,7 @@
 #include "file_info.hpp"
 #include "fqrec.hpp"
 #include "kmer_counter.hpp"
+#include "samrec.hpp"
 #include "tile_processor.hpp"
 
 #include <algorithm>
@@ -90,6 +91,16 @@ struct alignas(assumed_page_size) results_collector {
 
   template <typename self_t>
   auto
+  process_reads_sam(this self_t &self, auto cursor, const auto lim) {
+    samrec rec{};
+    while (cursor < lim && get_next(cursor, lim, rec)) {
+      self.process_one_read(rec);
+      ++self.n_reads;
+    }
+  }
+
+  template <typename self_t>
+  auto
   process_reads_fq(this self_t &self, fqrec::pos_t cursor,
                    const fqrec::pos_t lim) {
     fqrec rec{};
@@ -150,7 +161,7 @@ struct alignas(assumed_page_size) results_collector {
   finalize_impl(file_info &info) {
     adjust_base_counts_for_ns();
     info.set_encoding(identify_encoding(qual_by_pos, info));
-    if (!is_mapped_reads(info.format))
+    if (!is_bam(info.format))
       adjust_fastq_qual_encoding(qual_by_pos, qual_by_read, info.encoding);
   }
 };
@@ -260,6 +271,11 @@ process_reads_fq(auto &results, auto &&task) {
 auto
 process_reads_bam(auto &results, auto &&task) {
   results.process_reads_bam(task.beg, task.end);
+}
+
+auto
+process_reads_sam(auto &results, auto &&task) {
+  results.process_reads_sam(task.beg, task.end);
 }
 
 #endif  // SRC_RESULTS_COLLECTOR_HPP_
