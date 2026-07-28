@@ -101,7 +101,7 @@ tile_processor::get_centered() -> tile_processor::tiles_centered_t {
 
 auto
 tile_processor::adjust_fastq_qual_encoding(const file_info &info) -> void {
-  if (is_mapped_reads(info.format))  // BAM/SAM needs no adjusting
+  if (is_bam(info.format))  // BAM needs no adjusting
     return;
   const falco::encoding enc = info.encoding;
   const auto qual_offset = get_quality_score_offset(enc);
