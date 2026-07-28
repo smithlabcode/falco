@@ -10,3 +10,4 @@ e505037e667f763dedbfade2dfd7c444  bam_mult_out/bam_1/fastqc_data.txt
 faf6c07a65557a5f42da29dda59d88aa  bam_mult_out/bam_2/fastqc_data.txt
 e6e871a46a629ccef360a00410c9bde9  bam_kmers_out/bam_1/fastqc_data.txt
 6b89e9ef47eff86735c9e766b58df97e  groups_out/bam_1/fastqc_data.txt
+d0b6a8261ec4995506934259231c63d6  sam_out/sam_1/fastqc_data.txt
