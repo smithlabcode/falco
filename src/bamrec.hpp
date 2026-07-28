@@ -130,7 +130,12 @@ public:
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     std::transform(qual_itr, qual_itr + seq_len, std::begin(qual_fixed),
                    [](const auto c) { return c + quality_score_offset; });
-    return std::format("@{}\n{}\n+\n{}", "name", "seq", qual_fixed);
+    return std::format(
+      "@{}\n{}\n+\n{}",
+      std::string(std::data(buffer), std::data(buffer) + name_len),
+      std::string(std::data(buffer) + name_len,
+                  std::data(buffer) + name_len + seq_len),
+      qual_fixed);
   }
 
   operator bool() const { return name_len != 0; }
