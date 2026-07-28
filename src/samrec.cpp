@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <charconv>
 #include <iterator>
+#include <system_error>
 
 #ifdef BAM_FREVERSE
 #undef BAM_FREVERSE

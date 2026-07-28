@@ -90,7 +90,7 @@ private:
   };
 
   static constexpr auto quality_score_offset = 33;
-  static constexpr auto qual_missing_code = 0xff;  // from sam.c
+  static constexpr std::uint8_t qual_missing_code = 0xff;  // from sam.c
   static constexpr auto l_read_name_offset = 8;
   static constexpr auto n_cigar_op_offset = 12;
   static constexpr auto flag_offset = 14;

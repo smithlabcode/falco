@@ -7,10 +7,9 @@
 
 #include <atomic>
 #include <cstdint>
-#include <iterator>
+#include <cstdio>
+#include <memory>
 #include <string>
-#include <tuple>
-#include <variant>
 #include <vector>
 
 struct task_queue;

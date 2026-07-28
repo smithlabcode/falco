@@ -4,7 +4,6 @@
 #define SRC_FASTQ_GZ_FILE_HPP_
 
 #include "fqrec.hpp"
-#include "task_queue.hpp"
 
 #ifdef HAVE_ISAL
 #include <isa-l/igzip_lib.h>
@@ -16,16 +15,15 @@
 #include <atomic>
 #include <cerrno>
 #include <cstdint>
-#include <format>
 #include <iterator>
 #include <memory>
-#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <tuple>
-#include <utility>
 #include <variant>
 #include <vector>
+
+struct task_queue;
 
 #ifdef HAVE_ISAL
 

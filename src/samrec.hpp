@@ -3,24 +3,11 @@
 #ifndef SRC_SAMREC_HPP_
 #define SRC_SAMREC_HPP_
 
-#include <algorithm>
-#include <array>
-#include <cassert>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <filesystem>
+#include <cstdint>
 #include <format>
-#include <fstream>
-#include <iostream>
 #include <iterator>
-#include <memory>
-#include <ranges>
-#include <stdexcept>
 #include <string>
-#include <string_view>
-#include <utility>  // IWYU pragma: keep
-#include <variant>
+#include <utility>
 #include <vector>
 
 #ifdef bam_is_rev
@@ -35,8 +22,9 @@ class samrec {
 public:
   using pos_t = char *;
 
-  static constexpr auto qual_missing_symbol = '*';  // from SAMv1.pdf
-  static constexpr auto qual_missing_code = 0xff;   // from sam.c
+private:
+  static constexpr auto qual_missing_symbol = '*';         // from SAMv1.pdf
+  static constexpr std::uint8_t qual_missing_code = 0xff;  // from sam.c
 
   std::vector<char> buffer;
   std::uint32_t name_len{};

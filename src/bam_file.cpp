@@ -11,7 +11,6 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstdint>
-#include <cstdlib>
 #include <filesystem>
 #include <memory>
 #include <stdexcept>

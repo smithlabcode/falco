@@ -9,10 +9,8 @@
 #include <unistd.h>
 
 #include <cstdint>
-#include <ranges>
 #include <string>
 #include <system_error>
-#include <vector>
 
 [[nodiscard]] auto
 estimate_n_reads_fastq(const std::string &filename)

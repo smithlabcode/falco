@@ -2,6 +2,7 @@
 
 #include "fastq_gz_file.hpp"
 #include "falco_utils.hpp"
+#include "task_queue.hpp"
 
 #include <htslib/bgzf.h>
 #include <htslib/hfile.h>

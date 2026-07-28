@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "sam_file.hpp"
-#include "samrec.hpp"      // IWYU pragma: keep
-#include "task_queue.hpp"  // IWYU pragma: keep
+#include "samrec.hpp"
+#include "task_queue.hpp"
 
 #include <algorithm>
 #include <atomic>
+#include <cassert>
+#include <cerrno>
 #include <cstdint>
 #include <iterator>
+#include <ranges>
+#include <stdexcept>
+#include <system_error>
 
 sam_file::sam_file(const std::string &filename, const std::int64_t buf_size) :
   buffer(buf_size + min_buf_size),
