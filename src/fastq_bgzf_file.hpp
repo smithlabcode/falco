@@ -89,11 +89,6 @@ private:
 estimate_n_reads_fastq_bgzf(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
-[[nodiscard]] inline auto
-is_active(const fastq_bgzf_file &reads_file) -> bool {
-  return static_cast<bool>(reads_file);
-}
-
 inline auto
 make_tasks(fastq_bgzf_file &reads_file,  //
            const std::int64_t n_chunks,  //

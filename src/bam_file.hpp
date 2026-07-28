@@ -89,11 +89,6 @@ private:
 estimate_n_reads_bam(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
-[[nodiscard]] inline constexpr auto
-is_active(const bam_file &reads_file) -> bool {
-  return static_cast<bool>(reads_file);
-}
-
 inline auto
 make_tasks(bam_file &reads_file,         //
            const std::int64_t n_chunks,  //
