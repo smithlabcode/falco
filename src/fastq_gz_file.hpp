@@ -152,7 +152,6 @@ private:
 
   auto
   shift_output_buffer() -> void {
-    // const auto buf_data = std::data(outbuf);
     const auto n_bytes_to_keep = buf_sz - cursor;
     assert(n_bytes_to_keep < cursor);  // ADS: memcpy breaks if overlap
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
