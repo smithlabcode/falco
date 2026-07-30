@@ -36,6 +36,7 @@ load_adapters(const std::string &filename) {
     const auto to_keep_suffix = line.find_last_not_of(" \t");
     if (to_keep_suffix == std::string_view::npos)
       continue;
+    // ADS: need to make sure this can't fail
     line.remove_suffix(std::size(line) - to_keep_suffix - 1);
     std::string cleaned_line;
     for (auto itr = std::cbegin(line); itr != std::cend(line); ++itr)
