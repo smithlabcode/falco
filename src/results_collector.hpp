@@ -244,22 +244,13 @@ struct results_collector_tile_kmer : public results_collector_tile {
 template <typename results_t>
 static inline auto
 accumulate_results(std::vector<results_t> &r, const auto file_id) {
-  // pointer jumping strategy but only for the specified file
-  auto id = std::views::iota(0, std::ssize(r)) | std::ranges::to<std::vector>();
-  while (std::size(id) > 1) {
-    {
-      std::vector<std::jthread> workers;
-      for (auto i = 0u; i + 1 < std::size(id); i += 2)
-        // NOLINTNEXTLINE(performance-inefficient-vector-operation)
-        workers.emplace_back(
-          [&, i] { r[id[i]][file_id] += r[id[i + 1]][file_id]; });
-    }
-    auto j = 0;
-    for (auto i = 0; i + 1 < std::ssize(id); i += 2)
-      id[j++] = id[i];
-    if (std::ssize(id) % 2 == 1)
-      id[j++] = id.back();
-    id.resize(j);
+  auto j = 1u;
+  while (j < std::size(r)) {
+    std::vector<std::jthread> workers;
+    workers.reserve(std::size(r) / (2 * j));
+    for (auto i = 0u; i + j < std::size(r); i += 2 * j)
+      workers.emplace_back([&, i, j] { r[i][file_id] += r[i + j][file_id]; });
+    j *= 2;
   }
 }
 

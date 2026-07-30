@@ -1,25 +1,4 @@
-/* MIT License
- *
- * Copyright (c) 2026 Andrew D Smith
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "duplication_results.hpp"
 
@@ -129,8 +108,8 @@ duplication_results::get_overrepresented(const std::uint64_t n_reads) const
 }
 
 auto
-duplication_results::initialize(const run_mode &mode, const file_info &info)
-  -> void {
+duplication_results::initialize(const run_mode &mode,
+                                const file_info &info) -> void {
   read_skip =
     info.n_reads_est < max_n_reads_total
       ? 0
@@ -278,8 +257,8 @@ get_grade_duplication(const dup_summary_t &summary) -> std::string {
 }
 
 [[nodiscard]] auto
-duplication_report(const dup_summary_t &summary, const file_grades &grades)
-  -> std::string {
+duplication_report(const dup_summary_t &summary,
+                   const file_grades &grades) -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
                                     "#Total Deduplicated Percentage\t{:.6f}\n";
@@ -341,8 +320,8 @@ overrepresented_html(const std::vector<overrep_t> &overrep,
 }
 
 [[nodiscard]] auto
-duplication_html(const dup_summary_t &summary, const file_grades &grades)
-  -> std::string {
+duplication_html(const dup_summary_t &summary,
+                 const file_grades &grades) -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto plot_format = R"(<div id="duplication_plot"></div>
 <script>Plotly.newPlot("duplication_plot",
