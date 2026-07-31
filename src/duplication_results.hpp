@@ -50,6 +50,12 @@ struct duplication_results {
   auto
   get_n_reads() const -> std::uint64_t;
 
+  auto
+  release() -> void {
+    dups.clear();
+    boost::unordered_flat_map<falco_word, std::uint64_t>().swap(dups);
+  }
+
 #ifdef ORIGINAL_DUPS
   [[nodiscard]] auto
   get_dups_summary(const std::uint64_t n_reads) const -> dup_summary_t;
@@ -64,6 +70,9 @@ struct duplication_results {
 
   auto
   operator+=(const duplication_results &rhs) -> const duplication_results &;
+
+  auto
+  add_and_consume(duplication_results &&rhs) -> void;
 
 #ifdef ORIGINAL_DUPS
   auto

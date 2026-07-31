@@ -135,6 +135,19 @@ duplication_results::operator+=(const duplication_results &rhs)
   return *this;
 }
 
+auto
+duplication_results::add_and_consume(duplication_results &&rhs) -> void {
+#ifndef ORIGINAL_DUPS
+  for (const auto &[k, v] : rhs.dups)
+    dups[k] += v;
+#else   // ORIGINAL_DUPS
+  for (const auto &[k, v] : rhs.dups)
+    if (std::size(dups) < max_reads_to_hash || dups.contains(k))
+      dups[k] += v;
+#endif  // ORIGINAL_DUPS
+  rhs.release();
+}
+
 [[nodiscard]] auto
 get_grade_overrepresented(const std::uint64_t n_reads,
                           const duplication_results &dr) -> std::string {
