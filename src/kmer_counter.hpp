@@ -54,6 +54,12 @@ struct kmer_counter {
     kmer_counts.resize(updated_length);
   }
 
+  auto
+  release() -> void {
+    kmer_counts.clear();
+    kmer_counts.shrink_to_fit();
+  }
+
   static constexpr auto
   shift_kmer(auto &k, auto c) {
     k = (k << 2) | encode(c);
@@ -84,6 +90,9 @@ struct kmer_counter {
 
   auto
   operator+=(const kmer_counter &rhs) -> const kmer_counter &;
+
+  auto
+  add_and_consume(kmer_counter &&rhs) -> void;
 
   [[nodiscard]] auto
   get_kmer_results() const -> std::vector<kmer_result>;

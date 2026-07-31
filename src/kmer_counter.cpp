@@ -50,6 +50,13 @@ kmer_counter::operator+=(const kmer_counter &rhs) -> const kmer_counter & {
   return *this;
 }
 
+auto
+kmer_counter::add_and_consume(kmer_counter &&rhs) -> void {
+  two_dim_add(kmer_counts, rhs.kmer_counts);
+  rhs.kmer_counts.clear();
+  rhs.kmer_counts.shrink_to_fit();
+}
+
 // ADS: series representation for the lower incomplete gamma P(a,x)
 [[nodiscard]] static inline auto
 gamma_p_series(const double a, const double x) -> double {
