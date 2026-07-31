@@ -38,8 +38,8 @@ struct bgzf_block_t {
 
 using bgzf_chunks_t = std::vector<bgzf_block_t>;
 
-auto
-decompress(auto &&x) -> void {  // free function
+inline auto
+decompress(bgzf_block_t &&x) -> void {  // free function
   x.decompress();
 }
 
