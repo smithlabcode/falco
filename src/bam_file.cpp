@@ -59,7 +59,8 @@ estimate_n_reads_bam(const std::string &filename)
 }
 
 auto
-bam_file::load_next(const std::int32_t file_id, task_queue &tq,
+bam_file::load_next(const std::int32_t file_id,  //
+                    task_queue &tq,              //
                     std::atomic_int32_t &n_tasks) -> void {
   is_first_load = false;
   if (output_cursor > 0) {
@@ -111,6 +112,8 @@ bam_file::get_chunks(const std::int64_t n_chunks,  //
                      const std::int32_t file_id,   //
                      task_queue &tq,               //
                      std::atomic_int32_t &n_tasks) -> void {
+  // Swap so the input buffer can be used to inflate more data and the former
+  // input buffer has been inflated and will provide data for analysis
   std::swap(input_buffer, output_buffer);
   std::swap(output_last, input_last);
   auto itr = std::data(output_buffer);
@@ -123,8 +126,10 @@ bam_file::get_chunks(const std::int64_t n_chunks,  //
 }
 
 auto
-bam_file::make_tasks(const std::int64_t n_chunks, const std::int32_t file_id,
-                     task_queue &tq, std::atomic_int32_t &n_tasks) -> void {
+bam_file::make_tasks(const std::int64_t n_chunks,  //
+                     const std::int32_t file_id,   //
+                     task_queue &tq,               //
+                     std::atomic_int32_t &n_tasks) -> void {
   get_chunks(n_chunks, file_id, tq, n_tasks);
   had_last_chunks = !static_cast<bool>(br);  // wait until now to set this?
 }
