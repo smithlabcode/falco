@@ -64,7 +64,8 @@ public:
   read_data() -> bool;
 
   auto
-  reset() {
+  release() {
+    // ADS: intended analogous to monotonic_buffer_resource release
     next_out = outbuf.get();
   }
 
@@ -73,9 +74,17 @@ public:
     return can_produce_data() && has_out();
   }
 
+  auto
+  reset() {
+    inbuf.reset(nullptr);
+    outbuf.reset(nullptr);
+  }
+
 private:
   [[nodiscard]] auto
   at_eof() const -> bool {
+    // ADS: directly checking eof is weird because the block structure of the
+    // file means we should read the final byte of the file without hitting eof.
     const auto ft = std::ftell(fp.get());
     return static_cast<std::uint64_t>(ft) == filesize || ft < 0;
   }
