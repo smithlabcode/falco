@@ -48,21 +48,15 @@ estimate_n_reads_fastq_bgzf(const std::string &filename)
 }
 
 auto
-fastq_bgzf_file::shift_buffers() -> void {
-  assert(output_cursor > 0);
-  // make room in the output buffer
-  std::copy_n(std::cbegin(output_buffer) + output_cursor,
-              output_last - output_cursor, std::begin(input_buffer));
-  input_last = (output_last - output_cursor);
-  input_cursor = 0;  // because it's output
-}
-
-auto
 fastq_bgzf_file::load_next(const std::int32_t file_id, task_queue &tq,
                            std::atomic_int32_t &n_tasks) -> void {
   is_first_load = false;
-  if (output_cursor > 0)
-    shift_buffers();
+  if (output_cursor > 0) {
+    const auto n_to_keep = output_last - output_cursor;
+    std::copy_n(std::cbegin(output_buffer) + output_cursor, n_to_keep,
+                std::begin(input_buffer));
+    input_last = n_to_keep;
+  }
   br.release();  // use like monotonic_buffer_resource
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   auto in_itr = std::data(input_buffer) + input_last;
@@ -83,10 +77,8 @@ fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,  //
                             ) -> void {
   static constexpr auto rec_lines = 4;  // FASTQ
   assert(n_chunks > 0);
-
   std::swap(input_buffer, output_buffer);
-  output_last = input_last;
-  output_cursor = input_cursor;
+  std::swap(input_last, output_last);
 
   const auto data = std::data(output_buffer);
   const auto not_read_start = [](const auto s, const auto p) {
@@ -106,10 +98,10 @@ fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,  //
       --pos;
     return pos;
   };
-  const auto n_bytes_available = output_last - output_cursor;
+  const auto n_bytes_available = output_last;
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   assert(n_chunks > 0);
-  std::int64_t start_pos = output_cursor;
+  std::int64_t start_pos{};
   std::int64_t chunk_end{};
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
     const auto chunk_beg = fwd_to_read_start(start_pos);
