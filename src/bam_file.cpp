@@ -68,7 +68,7 @@ bam_file::load_next(const std::int32_t file_id, task_queue &tq,
                 std::begin(input_buffer));
     input_last = n_to_keep;
   }
-  br.reset();  // use like monotonic_buffer_resource
+  br.release();  // use like monotonic_buffer_resource
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   auto in_itr = std::data(input_buffer) + input_last;
   while (br.task_ready() && has_in()) {
