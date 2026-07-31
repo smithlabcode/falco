@@ -56,7 +56,16 @@ struct adapter_matcher {
   }
 
   auto
+  release() {
+    adap_counts.clear();
+    adap_counts.shrink_to_fit();
+  }
+
+  auto
   operator+=(const adapter_matcher &rhs) -> const adapter_matcher &;
+
+  auto
+  add_and_consume(adapter_matcher &&rhs) -> void;
 
   [[nodiscard]] auto
   get_grade(const std::uint64_t n_reads) const -> std::string;
