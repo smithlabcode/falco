@@ -49,8 +49,8 @@ private:
   std::unique_ptr<std::FILE, int (*)(std::FILE *)> in;
 
 public:
-  explicit fastq_gz_file(const std::string &filename,
-                         const std::int64_t buf_size_arg) :
+  fastq_gz_file(const std::string &filename,
+                const std::int64_t buf_size_arg) :
     outbuf(buf_size_arg / 2 + min_buf_size),  //
     inbuf(buf_size_arg / 2 + min_buf_size),   //
     in(std::fopen(std::data(filename), "r"), &std::fclose) {
