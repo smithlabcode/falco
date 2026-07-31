@@ -30,6 +30,11 @@ public:
   }
 
   friend auto
+  reset(reads_file_t &x) -> void {
+    return x.self_->reset_();
+  }
+
+  friend auto
   make_tasks(auto &reads_file, const std::int64_t n_chunks,
              const std::int32_t file_id, task_queue &tq,
              std::atomic_int32_t &n_tasks) -> void {
@@ -44,6 +49,7 @@ private:
     virtual auto make_tasks_(const std::int64_t, const std::int32_t,
                              task_queue &, std::atomic_int32_t &) -> void = 0;
     virtual auto is_active_() const -> bool = 0;
+    virtual auto reset_() -> void = 0;
     // clang-format on
   };
   template <typename T> struct model : concept_t {
@@ -58,6 +64,11 @@ private:
     [[nodiscard]] auto
     is_active_() const -> bool override {
       return static_cast<bool>(data_);
+    }
+
+    auto
+    reset_() -> void override {
+      return reset(data_);
     }
 
     T data_;
