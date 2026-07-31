@@ -156,6 +156,27 @@ tile_processor::operator+=(const tile_processor &rhs)
 }
 
 auto
+tile_processor::add_and_consume(tile_processor &&rhs) -> void {
+  const auto pair_plus = [](const auto &a, const auto &b) {
+    return std::pair{a.first + b.first, a.second + b.second};
+  };
+  for (auto &[tile_id, rhs_qual] : rhs.quals) {
+    const auto quals_itr = quals.find(tile_id);
+    if (quals_itr != std::end(quals)) {
+      auto &qual = quals_itr->second;
+      if (std::size(rhs_qual) > std::size(qual))
+        std::swap(rhs_qual, qual);
+      std::ranges::transform(qual, rhs_qual, std::begin(qual), pair_plus);
+      rhs_qual.clear();
+      rhs_qual.shrink_to_fit();
+    }
+    else
+      quals.emplace(tile_id, std::move(rhs_qual));
+  }
+  rhs.release();
+}
+
+auto
 get_tile_info(const std::string &filename) -> std::uint32_t {
   // colon cutoffs taken from FastQC
   static constexpr auto colon_cutoff_1 = 6;

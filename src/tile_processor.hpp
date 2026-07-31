@@ -69,6 +69,9 @@ public:
   auto
   operator+=(const tile_processor &rhs) -> const tile_processor &;
 
+  auto
+  add_and_consume(tile_processor &&rhs) -> void;
+
 private:
   auto
   trim() -> void;
@@ -84,6 +87,12 @@ private:
     const auto tile_id_itr = quals.find(tile_id);
     if (tile_id_itr != std::cend(quals))
       qual = std::begin(quals[tile_id]);  // resize invalidates iterators
+  }
+
+  auto
+  release() -> void {
+    quals.clear();
+    boost::unordered_flat_map<std::uint32_t, qual_vec>().swap(quals);
   }
 
   auto
