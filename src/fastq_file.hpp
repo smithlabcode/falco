@@ -96,9 +96,14 @@ struct fastq_file {
     fd{dup(src.fd)}                            // <- LOOK
   {}
 
-  ~fastq_file() {
+  auto
+  reset() -> void {
     if (buf.sz > 0)
       cleanup_mmap_fastq(buf);
+  }
+
+  ~fastq_file() {
+    reset();
     close(fd);  // will always have been opened using a filename
   }
 
@@ -192,6 +197,11 @@ make_tasks(fastq_file &reads_file,       //
     ++n_tasks;
     tq.push(file_id, fq_task_t(chunk.first, chunk.second));
   }
+}
+
+inline auto
+reset(fastq_file &reads_file) -> void {
+  reads_file.reset();
 }
 
 #endif  // SRC_FASTQ_FILE_HPP_

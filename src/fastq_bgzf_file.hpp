@@ -57,6 +57,15 @@ public:
   get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
              task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
 
+  auto
+  reset() {
+    input_buffer.clear();
+    input_buffer.shrink_to_fit();
+    output_buffer.clear();
+    output_buffer.shrink_to_fit();
+    br.release();
+  }
+
   [[nodiscard]] auto
   inflate_only() const -> bool {
     return is_first_load;
@@ -100,6 +109,11 @@ make_tasks(fastq_bgzf_file &reads_file,  //
     reads_file.make_tasks(n_chunks, file_id, tq, n_tasks);
   reads_file.load_next(file_id, tq, n_tasks);
   reads_file.read_data();
+}
+
+inline auto
+reset(fastq_bgzf_file &reads_file) -> void {
+  reads_file.reset();
 }
 
 #endif  // SRC_FASTQ_BGZF_FILE_HPP_

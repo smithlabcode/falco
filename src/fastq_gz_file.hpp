@@ -100,6 +100,14 @@ public:
   get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
              task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
 
+  auto
+  reset() -> void {
+    inbuf.clear();
+    inbuf.shrink_to_fit();
+    outbuf.clear();
+    outbuf.shrink_to_fit();
+  }
+
 private:
   [[nodiscard]] auto
   check_gzip_magic() const -> bool {
@@ -214,6 +222,12 @@ struct fastq_gz_file {
   get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
              task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
 
+  auto
+  reset() -> void {
+    outbuf.clear();
+    outbuf.shrink_to_fit();
+  }
+
 private:
   auto
   shift_output_buffer() -> void {
@@ -236,5 +250,10 @@ make_tasks(fastq_gz_file &reads_file,    //
            const std::int32_t file_id,   //
            task_queue &tq,               //
            std::atomic_int32_t &n_tasks) -> void;
+
+inline auto
+reset(fastq_gz_file &reads_file) -> void {
+  reads_file.reset();
+}
 
 #endif  // SRC_FASTQ_GZ_FILE_HPP_
