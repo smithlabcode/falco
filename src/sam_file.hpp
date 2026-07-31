@@ -15,10 +15,6 @@
 struct task_queue;
 
 class sam_file {
-public:
-  using rec_t = samrec;
-
-private:
   static constexpr auto min_buf_size = 64 * 1024;
   std::vector<char> buffer;
   std::int64_t last{};
