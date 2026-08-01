@@ -56,12 +56,14 @@ private:
 };
 
 inline auto
-make_tasks(sam_file &reads_file,         //
-           const std::int64_t n_chunks,  //
-           const std::int32_t file_id,   //
-           task_queue &tq,               //
-           std::atomic_int32_t &n_tasks  //
+make_tasks(sam_file &reads_file,          //
+           const std::int64_t n_threads,  //
+           const std::int32_t file_id,    //
+           task_queue &tq,                //
+           std::atomic_int32_t &n_tasks   //
            ) -> void {
+  static constexpr auto n_chunks_per_thread = 8;
+  const auto n_chunks = n_chunks_per_thread * n_threads;
   reads_file.make_tasks(n_chunks, file_id, tq, n_tasks);
 }
 
