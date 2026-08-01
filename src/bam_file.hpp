@@ -32,7 +32,7 @@ class bam_file {
 
   [[nodiscard]] static auto
   get_reader_buffer_size(const std::int64_t buf_size) -> std::int64_t {
-    return buf_size / 4;  // Give 1/4 to the reader because of compression ratio
+    return buf_size / 3;  // 1/3 here seems to work well...
   }
 
   [[nodiscard]] static auto
@@ -49,7 +49,6 @@ class bam_file {
 
 public:
   bam_file(const std::string &filename, const std::int64_t buf_size) :
-    // Three different buffers, 1/4 goes to the bgzf_reader
     input_buffer(get_input_buffer_size(buf_size) + min_buf_size),    //
     output_buffer(get_output_buffer_size(buf_size) + min_buf_size),  //
     br(filename, get_reader_buffer_size(buf_size))                   //
@@ -69,10 +68,10 @@ public:
   reset(bam_file &reads_file) -> void;
 
   friend auto
-  make_tasks(bam_file &reads_file,         //
-             const std::int64_t n_chunks,  //
-             const std::int32_t file_id,   //
-             task_queue &tq,               //
+  make_tasks(bam_file &reads_file,          //
+             const std::int64_t n_threads,  //
+             const std::int32_t file_id,    //
+             task_queue &tq,                //
              std::atomic_int32_t &n_tasks) -> void;
 
 private:
@@ -122,14 +121,14 @@ estimate_n_reads_bam(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
 inline auto
-make_tasks(bam_file &reads_file,         //
-           const std::int64_t n_chunks,  //
-           const std::int32_t file_id,   //
-           task_queue &tq,               //
+make_tasks(bam_file &reads_file,          //
+           const std::int64_t n_threads,  //
+           const std::int32_t file_id,    //
+           task_queue &tq,                //
            std::atomic_int32_t &n_tasks) -> void {
   n_tasks = 1;  // for current task, which makes tasks
   if (!reads_file.inflate_only())
-    reads_file.make_tasks(n_chunks, file_id, tq, n_tasks);
+    reads_file.make_tasks(n_threads, file_id, tq, n_tasks);
   reads_file.load_next(file_id, tq, n_tasks);
   reads_file.read_data();
 }
