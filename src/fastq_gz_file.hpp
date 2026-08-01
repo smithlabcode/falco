@@ -29,15 +29,10 @@ struct task_queue;
 
 class fastq_gz_file {
   static constexpr auto min_buf_size = 64 * 1024;
-  static constexpr auto inflate_err_msg =  //
+  static constexpr auto inflate_err_msg =
     R"(Failure during decompression by ISAL. Error code is {}.  Please check that the
 input file is not corrupted by decompressing with gunzip. If the input file is
 not corrupted please file a bug report at the Falco repo on GitHub.)";
-
-public:
-  using rec_t = fqrec;
-
-private:
   char *buf_data{};       // start of the outbuf
   std::int64_t buf_sz{};  // amount of output buffer used
   std::int64_t cursor{};
@@ -169,8 +164,7 @@ private:
 
 #else  // use bgzf for ordinary gz files
 
-struct fastq_gz_file {
-  using rec_t = fqrec;
+class fastq_gz_file {
   static constexpr auto min_buf_size = 64 * 1024;
   char *buf_data{};         // start of the outbuf
   std::int64_t buf_sz{};    // amount of output buffer used
@@ -180,6 +174,7 @@ struct fastq_gz_file {
   std::int64_t cursor{};  // position in buffer
   std::unique_ptr<BGZF, int (*)(BGZF *)> f;
 
+public:
   fastq_gz_file(const std::string &filename, const std::int64_t buf_size_arg) :
     buf_size{buf_size_arg + min_buf_size},  //
     buf_used{buf_size_arg + min_buf_size},  //
@@ -207,7 +202,6 @@ struct fastq_gz_file {
       shift_output_buffer();
     const auto n_bytes = buf_size - cursor;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
     const auto r = bgzf_read(f.get(), buf_data + cursor, n_bytes);
     if (r < 0) {
       buf_used = 0;
