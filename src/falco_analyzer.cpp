@@ -35,7 +35,6 @@ analyzer_t::analyzer_t(const std::uint32_t n_threads, const run_mode &mode,
 
   const std::uint32_t n_files = std::size(infos);
 
-  const auto n_chunks = n_threads * n_chunks_per_thread;
   // set per-file information used to do the analysis
   for (auto &res : results)
     for (const auto [file_id, info] : std::views::enumerate(infos))
@@ -48,7 +47,7 @@ analyzer_t::analyzer_t(const std::uint32_t n_threads, const run_mode &mode,
   std::vector<std::jthread> workers;
   workers.reserve(n_threads);
   for (const auto th_id : std::views::iota(0u, n_threads))
-    workers.emplace_back([this, n_chunks, th_id, &reads_files] {
+    workers.emplace_back([this, n_threads, th_id, &reads_files] {
       auto &res = results[th_id];
       while (true) {
         auto tq_lock = tq.wait_and_acquire_lock();
@@ -83,7 +82,7 @@ analyzer_t::analyzer_t(const std::uint32_t n_threads, const run_mode &mode,
             continue;
           }
           else
-            make_tasks(reads_files[file_id], n_chunks, file_id, tq,
+            make_tasks(reads_files[file_id], n_threads, file_id, tq,
                        n_tasks[file_id]);
         }
         if (n_tasks[file_id].fetch_sub(1, std::memory_order_relaxed) == 1) {
