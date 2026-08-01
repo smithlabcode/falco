@@ -74,11 +74,6 @@ struct fastq_file {
   }
 
   // clang-format off
-  [[nodiscard]] auto get_cursor() const -> std::int64_t { return cursor; }
-  auto set_cursor(const auto c) { cursor = c; }
-  // clang-format on
-
-  // clang-format off
   // delete copy and assignment
   fastq_file(const fastq_file &) = delete;
   auto operator=(const fastq_file &) -> fastq_file & = delete;
@@ -151,7 +146,7 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   const auto n_bytes_available = buf.sz - fq.cursor;
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   std::vector<std::pair<std::int64_t, std::int64_t>> chunks(n_chunks);
-  std::int64_t start_pos = fq.get_cursor();
+  std::int64_t start_pos = fq.cursor;
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
     const auto chunk_beg = fwd_to_read_start(buf, start_pos);
     const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
@@ -164,7 +159,7 @@ get_chunks_fastq_impl(auto &fq, const std::int64_t n_chunks) {
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   if (std::count(buf.data + prev_start, buf.data + buf.sz, '\n') < rec_lines)
     chunks.back().second = prev_start;
-  fq.set_cursor(chunks.back().second);
+  fq.cursor = chunks.back().second;
   return chunks;
 }
 
@@ -193,7 +188,7 @@ make_tasks(fastq_file &reads_file,       //
   reads_file.load_next();
   auto chunks = reads_file.get_chunks(n_chunks);
   for (const auto &chunk : chunks) {
-    ++n_tasks;
+    ++n_tasks;  // ADS: increment before submitting
     tq.push(file_id, fq_task_t(chunk.first, chunk.second));
   }
 }
