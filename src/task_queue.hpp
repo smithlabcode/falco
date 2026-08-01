@@ -21,7 +21,7 @@ struct task_queue {
   bool stop{};
 
   auto
-  push(const auto file_id, task_t task) {
+  push(const auto file_id, task_t &&task) {
     std::unique_lock tq_lock(mtx);
     q.emplace_back(file_id, std::move(task));
     tq_lock.unlock();
