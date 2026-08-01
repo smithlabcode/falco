@@ -60,66 +60,12 @@ struct results_summary {
     qual_by_read{rc.qual_by_read},
     dr{std::move(rc.dr)},
     am{std::move(rc.am)},
-    mode{mode},
-    info{info} {
-    initialize();
-  }
-
-  results_summary(results_collector_tile &rc, const run_mode &mode,
-                  const file_info &info) :
-    n_reads{rc.n_reads},
-    max_read_len{rc.max_read_len},
-    base_counts{std::move(rc.base_counts)},
-    gc_content{rc.gc_content},
-    n_counts{std::move(rc.n_counts)},
-    lengths{std::move(rc.lengths)},
-    qual_by_pos{std::move(rc.qual_by_pos)},
-    qual_by_read{rc.qual_by_read},
-    dr{std::move(rc.dr)},
-    am{std::move(rc.am)},
-    tp{std::move(rc.tp)},
-    mode{mode},
-    info{info} {
-    initialize();
-  }
-
-  results_summary(results_collector_kmer &rc, const run_mode &mode,
-                  const file_info &info) :
-    n_reads{rc.n_reads},
-    max_read_len{rc.max_read_len},
-    base_counts{std::move(rc.base_counts)},
-    gc_content{rc.gc_content},
-    n_counts{std::move(rc.n_counts)},
-    lengths{std::move(rc.lengths)},
-    qual_by_pos{std::move(rc.qual_by_pos)},
-    qual_by_read{rc.qual_by_read},
-    dr{std::move(rc.dr)},
-    am{std::move(rc.am)},
-    kc{std::move(rc.kc)},
-    mode{mode},
-    info{info} {
-    initialize();
-  }
-
-  results_summary(results_collector_tile_kmer &rc, const run_mode &mode,
-                  const file_info &info) :
-    n_reads{rc.n_reads},
-    max_read_len{rc.max_read_len},
-    base_counts{std::move(rc.base_counts)},
-    gc_content{rc.gc_content},
-    n_counts{std::move(rc.n_counts)},
-    lengths{std::move(rc.lengths)},
-    qual_by_pos{std::move(rc.qual_by_pos)},
-    qual_by_read{rc.qual_by_read},
-    dr{std::move(rc.dr)},
-    am{std::move(rc.am)},
     tp{std::move(rc.tp)},
     kc{std::move(rc.kc)},
     mode{mode},
     info{info} {
     initialize();
   }
-  // clang-format on
 
   auto
   apply_groups() -> void;
