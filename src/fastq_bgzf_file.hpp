@@ -31,7 +31,7 @@ class fastq_bgzf_file {
 
   [[nodiscard]] static auto
   get_reader_buffer_size(const std::int64_t buf_size) -> std::int64_t {
-    return buf_size / 4;  // Give 1/4 to the reader because of compression ratio
+    return buf_size / 3;  // 1/3 here seems to work well...
   }
 
   [[nodiscard]] static auto
@@ -70,10 +70,10 @@ public:
   reset(fastq_bgzf_file &reads_file) -> void;
 
   friend auto
-  make_tasks(fastq_bgzf_file &reads_file,  //
-             const std::int64_t n_chunks,  //
-             const std::int32_t file_id,   //
-             task_queue &tq,               //
+  make_tasks(fastq_bgzf_file &reads_file,   //
+             const std::int64_t n_threads,  //
+             const std::int32_t file_id,    //
+             task_queue &tq,                //
              std::atomic_int32_t &n_tasks) -> void;
 
 private:
@@ -99,7 +99,7 @@ private:
                      std::atomic_int32_t &n_tasks) -> void;
 
   auto
-  make_tasks(const std::int64_t n_chunks, const std::int32_t file_id,
+  make_tasks(const std::int64_t n_threads, const std::int32_t file_id,
              task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
 
   [[nodiscard]] auto
@@ -123,14 +123,14 @@ estimate_n_reads_fastq_bgzf(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
 inline auto
-make_tasks(fastq_bgzf_file &reads_file,  //
-           const std::int64_t n_chunks,  //
-           const std::int32_t file_id,   //
-           task_queue &tq,               //
+make_tasks(fastq_bgzf_file &reads_file,   //
+           const std::int64_t n_threads,  //
+           const std::int32_t file_id,    //
+           task_queue &tq,                //
            std::atomic_int32_t &n_tasks) -> void {
   n_tasks = 1;  // +1 so not to decrement to zero until current thread done
   if (!reads_file.inflate_only())
-    reads_file.make_tasks(n_chunks, file_id, tq, n_tasks);
+    reads_file.make_tasks(n_threads, file_id, tq, n_tasks);
   reads_file.load_next(file_id, tq, n_tasks);
   reads_file.read_data();
 }
