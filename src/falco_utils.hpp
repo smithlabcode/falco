@@ -125,6 +125,33 @@ two_dim_vec_add(auto &v1, const auto &v2) {
     vec_add(a1, a2);
 };
 
+inline constexpr auto
+add_and_consume(std::ranges::forward_range auto &a1,
+                std::ranges::forward_range auto a2_sink) {
+  std::ranges::transform(a1, a2_sink, std::begin(a1), std::plus{});
+};
+
+inline constexpr auto
+add_and_consume(std::ranges::forward_range auto &a1,
+                std::ranges::forward_range auto a2_sink, const auto adder) {
+  std::ranges::transform(a1, a2_sink, std::begin(a1), adder);
+};
+
+inline constexpr auto
+vec_add_and_consume(auto &v1, auto v2_sink) {
+  if (std::size(v1) < std::size(v2_sink))
+    std::swap(v1, v2_sink);
+  add_and_consume(v1, std::move(v2_sink));
+};
+
+inline constexpr auto
+two_dim_add_and_consume(auto &v1, auto v2_sink) {
+  if (std::size(v1) < std::size(v2_sink))
+    std::swap(v1, v2_sink);
+  for (auto [a1, a2_sink] : std::views::zip(v1, v2_sink))
+    add_and_consume(a1, std::move(a2_sink));
+};
+
 [[nodiscard]] inline constexpr auto
 as_frac(const auto a, const auto b) {
   return static_cast<double>(a) / static_cast<double>(b);
