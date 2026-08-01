@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 // clang-format off
-static constexpr auto about = R"(Falco v{}: an in-progress redesign of Falco)";
+static constexpr auto about = R"(Falco v{})";
 static constexpr auto description = R"(Examples to be added
 
 Default configuration files can be found in:
@@ -61,52 +61,35 @@ write_file(const auto &filename, const auto &data) {
   std::print(out, "{}", data);
 }
 
-template <typename results_t>
 static auto
-run(const run_mode &mode, std::vector<file_info> &infos, auto &reads_files,
-    const auto n_threads, const auto &outdirs) {
+run(const run_mode &mode, std::vector<file_info> &infos,
+    std::vector<reads_file_t> &reads_files, const auto n_threads,
+    const auto &outdirs) {
   static constexpr auto report_filename = "fastqc_data.txt";
   static constexpr auto html_filename = "fastqc_report.html";
   static constexpr auto summary_filename = "summary.txt";
 
-  auto final_results = [&] {
-    const auto n_files = std::size(reads_files);
-    analyzer_t<results_t> analyzer(n_threads, n_files, mode, infos,
-                                   reads_files);
+  auto results = [&, reads_files = std::move(reads_files)] mutable {
+    analyzer_t analyzer(n_threads, mode, infos, reads_files);
+    std::vector<reads_file_t>().swap(reads_files);
     // ADS: combine results for same input file collected by different threads
-    for (const auto file_id : std::views::iota(0u, n_files))
+    for (const auto file_id : std::views::iota(0u, std::size(infos)))
       accumulate_results(analyzer.results, file_id);
     return std::move(analyzer.results.front());
   }();
 
   // ADS: finalize() makes sure the variables mean what is intended
-  for (const auto &[results, info] : std::views::zip(final_results, infos))
-    results.finalize(info);
+  for (const auto &[result, info] : std::views::zip(results, infos))
+    result.finalize(info);
 
-  for (const auto [results, info, outdir] :
-       std::views::zip(final_results, infos, outdirs)) {
+  for (const auto [result, info, outdir] :
+       std::views::zip(results, infos, outdirs)) {
     const auto outdir_path = std::filesystem::path{outdir};
-    const auto summary = results_summary(results, mode, info);
+    const auto summary = results_summary(result, mode, info);
     write_file(outdir_path / report_filename, summary.get_report());
     write_file(outdir_path / html_filename, summary.get_html());
     write_file(outdir_path / summary_filename, summary.get_summary());
   }
-}
-
-static auto
-run_mode_selector(const run_mode &mode, std::vector<file_info> &infos,
-                  auto &reads_files, const auto n_threads,
-                  const auto &outdirs) {
-  if (mode.do_tiles() && mode.do_kmers())
-    run<results_collector_tile_kmer>(mode, infos, reads_files, n_threads,
-                                     outdirs);
-  else if (mode.do_tiles())
-    run<results_collector_tile>(mode, infos, reads_files, n_threads, outdirs);
-  else if (mode.do_kmers())
-    return run<results_collector_kmer>(mode, infos, reads_files, n_threads,
-                                       outdirs);
-  else
-    run<results_collector>(mode, infos, reads_files, n_threads, outdirs);
 }
 
 static auto
@@ -131,7 +114,7 @@ start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
       throw std::runtime_error(
         std::format("unsupported file format: {}", info.description));
   }
-  run_mode_selector(mode, infos, reads_files, n_threads, outdirs);
+  run(mode, infos, reads_files, n_threads, outdirs);
 }
 
 [[nodiscard]] static auto
@@ -181,15 +164,41 @@ make_outdirs(const auto &ins, const auto &outdir) -> std::vector<std::string> {
   return dnames | std::ranges::to<std::vector>();
 }
 
+// ADS: in functions below, the input_record_multiplier is the relative space
+// for a record: ideally for FASTQ it would be 2x the (max) size of the read
+// name, and 2x the (max) sequence length. For BAM it would be 0.5x the sequence
+// length, the name length and the length of the quality score sequence, plus
+// all other BAM fields. The buffer_multiplier is how much total buffer space is
+// needed for a given record, which is 3 for BAM and BGZF because one for
+// decompression, and then two inflated buffers that are swapped so once can be
+// analyzed while the other is the target of other inflation work.
+
+[[nodiscard]] static auto
+get_max_read_length(const auto buffer_size) {
+  static constexpr auto input_record_multiplier = 2;
+  static constexpr auto buffer_multiplier = 3;  // buffer capacity split
+  static constexpr auto max_read_name_len = 64 * 1024;
+  const auto max_read_len = (buffer_size - max_read_name_len) /
+                            (buffer_multiplier * input_record_multiplier);
+  return max_read_len;
+}
+
+[[nodiscard]] static auto
+get_min_buffer_size(const auto max_read_length) {
+  static constexpr auto input_record_multiplier = 2;
+  static constexpr auto buffer_multiplier = 3;
+  static constexpr auto max_read_name_len = 64 * 1024;
+  const auto min_buffer_size =
+    max_read_length * input_record_multiplier * buffer_multiplier +
+    max_read_name_len;
+  return min_buffer_size;
+}
+
 int
 main(int argc, char *argv[]) {
   try {
     static constexpr auto buffer_size_default = 256 * 1024 * 1024;
-    // input_record_multiplier: Assumed size of an input record as a function of
-    // the read length. For example, in FASTQ, this would mean the size of the
-    // sequence, the quality scores, plus the read name, which might be included
-    // twice.
-    static constexpr auto input_record_multiplier = 3;
+    static constexpr std::int64_t min_buf_size = 1024 * 1024;
     std::vector<std::string> infiles;
     std::string contam_file;
     std::string config_file;
@@ -257,6 +266,7 @@ main(int argc, char *argv[]) {
       ->option_text(std::format("[{}]", n_threads));
     app.add_option("-m,--mem", buffer_size,
                    "Input memory buffer size (G/M/K units ok)")
+      ->check(CLI::Range(min_buf_size, std::numeric_limits<std::int64_t>::max()))
       ->option_text(std::format("[{}]", size_to_units(buffer_size_default)))
       ->capture_default_str()
       ->transform(size_from_units);
@@ -350,21 +360,26 @@ main(int argc, char *argv[]) {
     const auto max_sz = std::ranges::max(std::views::transform(infos, get_sz));
     buffer_size = buffer_size < max_sz ? buffer_size : max_sz;
 
-    if (input_record_multiplier * max_read_length > buffer_size) {
-      buffer_size = input_record_multiplier * max_read_length;
+    const auto min_buffer_size = get_min_buffer_size(max_read_length);
+    if (min_buffer_size > buffer_size) {
+      buffer_size = min_buffer_size;
       if (verbose)
         std::println("buffer size increased to accommodate max read length");
     }
+    if (max_read_length == 0)
+      max_read_length = get_max_read_length(buffer_size);
     if (verbose) {
       std::println("threads requested: {}\n"
                    "input memory buffer size: {}\n"
+                   "max analyzable read length: {}\n"
                    "tile analysis requested: {}\n"
                    "k-mer analysis requested: {}\n"
                    "dups analysis requested: {}\n"
                    "adapter analysis requested: {}\n"
                    "use base groups in output: {}\n"
-                   "input files:",  //
-                   n_threads, size_to_units(buffer_size), mode.do_tiles(),
+                   "input files:",
+                   n_threads, size_to_units(buffer_size),
+                   size_to_units(max_read_length, "bp"), mode.do_tiles(),
                    mode.do_kmers(), mode.do_dups(), mode.do_adap(),
                    mode.do_groups());
       std::ranges::for_each(infos, [](const auto &info) {
