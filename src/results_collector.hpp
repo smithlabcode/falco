@@ -12,6 +12,7 @@
 #include "file_info.hpp"
 #include "fqrec.hpp"
 #include "kmer_counter.hpp"
+#include "run_mode.hpp"
 #include "samrec.hpp"
 #include "tile_processor.hpp"
 
@@ -27,7 +28,7 @@
 [[nodiscard]] static inline auto
 array_contains(const auto &a, const auto &b) {
   return std::ranges::find(a, b) != std::cend(a);
-};
+}
 
 static constexpr auto assumed_page_size = 4096;
 struct alignas(assumed_page_size) results_collector {
@@ -42,7 +43,10 @@ struct alignas(assumed_page_size) results_collector {
   falco::qual_array qual_by_read{};
   duplication_results dr;
   adapter_matcher am;
-  std::string seq;
+  tile_processor tp;
+  kmer_counter kc;
+  bool do_tiles{};
+  bool do_kmers{};
 
   results_collector() : lengths(1, 0) {}  // in case all reads have length 0
 
@@ -55,16 +59,14 @@ struct alignas(assumed_page_size) results_collector {
     am.resize(updated_length);
   }
 
-  template <typename self_t>
   auto
-  init(this self_t &self, const run_mode &mode, const auto &info) {
-    self.init_impl(mode, info);
-  }
-
-  auto
-  init_impl(const run_mode &mode, const file_info &info) {
+  init(const run_mode &mode, const auto &info) {
     dr.initialize(mode, info);
-  };
+    do_tiles = mode.do_tiles() && info.has_tiles;
+    do_kmers = mode.do_kmers();
+    if (do_tiles)
+      tp.init(info);
+  }
 
   auto
   adjust_base_counts_for_ns() -> void {
@@ -73,45 +75,35 @@ struct alignas(assumed_page_size) results_collector {
       base_counts[i][cytosine_index] -= n_counts[i];
   }
 
-  template <typename self_t>
   auto
-  process_one_read(this self_t &self, const auto &rec) -> void {
-    self.process_one_read_impl(rec);
-  }
-
-  template <typename self_t>
-  auto
-  process_reads_bam(this self_t &self, auto cursor, const auto lim) {
+  process_reads_bam(bamrec::pos_t cursor, const bamrec::pos_t lim) -> void {
     bamrec rec{};
     while (cursor < lim && get_next(cursor, lim, rec)) {
-      self.process_one_read(rec);
-      ++self.n_reads;
+      process_one_read(rec);
+      ++n_reads;
     }
   }
 
-  template <typename self_t>
   auto
-  process_reads_sam(this self_t &self, auto cursor, const auto lim) {
+  process_reads_sam(samrec::pos_t cursor, const samrec::pos_t lim) -> void {
     samrec rec{};
     while (cursor < lim && get_next(cursor, lim, rec)) {
-      self.process_one_read(rec);
-      ++self.n_reads;
+      process_one_read(rec);
+      ++n_reads;
     }
   }
 
-  template <typename self_t>
   auto
-  process_reads_fq(this self_t &self, fqrec::pos_t cursor,
-                   const fqrec::pos_t lim) {
+  process_reads_fq(fqrec::pos_t cursor, const fqrec::pos_t lim) -> void {
     fqrec rec{};
     while (cursor < lim && (rec = get_next(cursor, lim))) {
-      self.process_one_read(rec);
-      ++self.n_reads;
+      process_one_read(rec);
+      ++n_reads;
     }
   }
 
   auto
-  process_one_read_impl(const auto &rec) {
+  process_one_read(const auto &rec) -> void {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
     static constexpr auto discrete_pct = [](const auto a, const auto b) {
       return (100 * a) / b;  // NOLINT(cppcoreguidelines-avoid-magic-numbers)
@@ -133,139 +125,69 @@ struct alignas(assumed_page_size) results_collector {
     ++qual_by_read[tot / read_len];
     dr.count_seqs(seq_itr, read_len);
     am.match_adapters(seq_itr, read_len);
+    if (do_tiles)
+      tp(rec);
+    if (do_kmers)
+      kc.count_kmers(seq_itr, read_len);
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
   }
 
   auto
-  operator+=(const results_collector &rhs) -> const results_collector & {
+  add_and_consume(results_collector &&rhs) -> void {
     n_reads += rhs.n_reads;
     max_read_len = std::max(max_read_len, rhs.max_read_len);
-    two_dim_add(base_counts, rhs.base_counts);
+    two_dim_add_and_consume(base_counts, rhs.base_counts);
     add(gc_content, rhs.gc_content);
-    vec_add(lengths, rhs.lengths);
-    vec_add(n_counts, rhs.n_counts);
+    vec_add_and_consume(lengths, std::move(rhs.lengths));
+    vec_add_and_consume(n_counts, std::move(rhs.n_counts));
     two_dim_add(qual_by_pos, rhs.qual_by_pos);
     add(qual_by_read, rhs.qual_by_read);
-    dr += rhs.dr;
-    am += rhs.am;
-    return *this;
-  }
-
-  template <typename self_t>
-  auto
-  finalize(this self_t &self, file_info &info) {
-    self.finalize_impl(info);
+    dr.add_and_consume(std::move(rhs.dr));
+    am.add_and_consume(std::move(rhs.am));
+    if (do_tiles)
+      tp.add_and_consume(std::move(rhs.tp));
+    if (do_kmers)
+      kc.add_and_consume(std::move(rhs.kc));
   }
 
   auto
-  finalize_impl(file_info &info) {
+  finalize(file_info &info) {
     adjust_base_counts_for_ns();
     info.set_encoding(identify_encoding(qual_by_pos, info));
     if (!is_bam(info.format))
       adjust_fastq_qual_encoding(qual_by_pos, qual_by_read, info.encoding);
+    if (do_tiles)
+      tp.finalize(info);
   }
 };
 
-struct results_collector_tile : public results_collector {
-  tile_processor tp;
-  bool has_tiles{};
-
-  auto
-  init_impl(const run_mode &mode, const file_info &info) {
-    results_collector::init_impl(mode, info);
-    has_tiles = info.has_tiles;
-    if (has_tiles)
-      tp.init(info);
-  }
-
-  auto
-  finalize_impl(file_info &info) {
-    results_collector::finalize_impl(info);
-    tp.finalize(info);
-  }
-
-  auto
-  process_one_read_impl(const auto &rec) {
-    results_collector::process_one_read_impl(rec);
-    if (has_tiles) [[likely]]
-      tp(rec);
-  }
-
-  auto
-  operator+=(const results_collector_tile &rhs)
-    -> const results_collector_tile & {
-    results_collector::operator+=(rhs);
-    tp += rhs.tp;
-    return *this;
-  }
-};
-
-struct results_collector_kmer : public results_collector {
-  kmer_counter kc;
-
-  auto
-  process_one_read_impl(const auto &rec) {
-    results_collector::process_one_read_impl(rec);
-    kc.count_kmers(get_seq(rec), get_seq_size(rec));
-  }
-
-  auto
-  operator+=(const results_collector_kmer &rhs)
-    -> const results_collector_kmer & {
-    results_collector::operator+=(rhs);
-    kc += rhs.kc;
-    return *this;
-  }
-};
-
-struct results_collector_tile_kmer : public results_collector_tile {
-  kmer_counter kc;
-
-  auto
-  finalize_impl(file_info &info) {
-    results_collector_tile::finalize_impl(info);
-  }
-
-  auto
-  process_one_read_impl(const auto &rec) {
-    results_collector_tile::process_one_read_impl(rec);
-    kc.count_kmers(get_seq(rec), get_seq_size(rec));
-  }
-
-  auto
-  operator+=(const results_collector_tile_kmer &rhs)
-    -> const results_collector_tile_kmer & {
-    results_collector_tile::operator+=(rhs);
-    kc += rhs.kc;
-    return *this;
-  }
-};
-
-template <typename results_t>
-static inline auto
-accumulate_results(std::vector<results_t> &r, const auto file_id) {
+inline auto
+accumulate_results(std::vector<std::vector<results_collector>> &r,
+                   const std::int32_t file_id) {
   auto j = 1u;
   while (j < std::size(r)) {
     std::vector<std::jthread> workers;
     workers.reserve(std::size(r) / (2 * j));
     for (auto i = 0u; i + j < std::size(r); i += 2 * j)
-      workers.emplace_back([&, i, j] { r[i][file_id] += r[i + j][file_id]; });
+      workers.emplace_back([&, i, j] {
+        r[i][file_id].add_and_consume(std::move(r[i + j][file_id]));
+      });
     j *= 2;
   }
 }
 
-auto
-process_reads_fq(auto &results, auto &&task) {
+inline auto
+process_reads(results_collector &results, fq_task_t &&task) {
   results.process_reads_fq(task.beg, task.end);
 }
 
-auto
-process_reads_bam(auto &results, auto &&task) {
+inline auto
+process_reads(results_collector &results, bam_task_t &&task) {
   results.process_reads_bam(task.beg, task.end);
 }
 
-auto
-process_reads_sam(auto &results, auto &&task) {
+inline auto
+process_reads(results_collector &results, sam_task_t &&task) {
   results.process_reads_sam(task.beg, task.end);
 }
 
