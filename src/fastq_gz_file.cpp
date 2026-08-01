@@ -70,10 +70,11 @@ fastq_gz_file::get_chunks(const std::int64_t n_chunks,  //
       --p;
     return p;
   };
-  const auto n_bytes_available = buf_sz - cursor;
+  const auto n_bytes_available =
+    buf_sz - cursor;  // ADS: I think cursor must always be 0 here
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   assert(n_chunks > 0);
-  std::int64_t start_pos = cursor;
+  std::int64_t start_pos = cursor;  // ADS: I think cursor must always be 0 here
   std::int64_t chunk_end{};
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
     const auto chunk_beg = fwd_to_read_start(buf_data, start_pos);
@@ -96,11 +97,13 @@ fastq_gz_file::get_chunks(const std::int64_t n_chunks,  //
 }
 
 auto
-make_tasks(fastq_gz_file &reads_file,    //
-           const std::int64_t n_chunks,  //
-           const std::int32_t file_id,   //
-           task_queue &tq,               //
+make_tasks(fastq_gz_file &reads_file,     //
+           const std::int64_t n_threads,  //
+           const std::int32_t file_id,    //
+           task_queue &tq,                //
            std::atomic_int32_t &n_tasks) -> void {
+  static constexpr auto n_chunks_per_thread = 4;
+  const auto n_chunks = n_chunks_per_thread * n_threads;
   n_tasks = 1;  // for current task, which makes tasks
   reads_file.load_next();
   reads_file.get_chunks(n_chunks, file_id, tq, n_tasks);
