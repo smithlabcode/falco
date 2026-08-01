@@ -30,20 +30,35 @@ class bam_file {
   bool is_first_load{true};
   bool had_last_chunks{false};
 
+  [[nodiscard]] static auto
+  get_reader_buffer_size(const std::int64_t buf_size) -> std::int64_t {
+    return buf_size / 4;  // Give 1/4 to the reader because of compression ratio
+  }
+
+  [[nodiscard]] static auto
+  get_input_buffer_size(const std::int64_t buf_size) {
+    // split buffer capacity between input and output buffers
+    return (buf_size - get_reader_buffer_size(buf_size)) / 2;
+  }
+
+  [[nodiscard]] static auto
+  get_output_buffer_size(const std::int64_t buf_size) {
+    // split buffer capacity between input and output buffers
+    return (buf_size - get_reader_buffer_size(buf_size)) / 2;
+  }
+
 public:
   bam_file(const std::string &filename, const std::int64_t buf_size) :
-    // Three different buffers, each gets 1/3 of the user specified capacity
-    input_buffer(buf_size / 3 + min_buf_size),   //
-    output_buffer(buf_size / 3 + min_buf_size),  //
-    br(filename, buf_size / 3)                   //
+    // Three different buffers, 1/4 goes to the bgzf_reader
+    input_buffer(get_input_buffer_size(buf_size) + min_buf_size),    //
+    output_buffer(get_output_buffer_size(buf_size) + min_buf_size),  //
+    br(filename, get_reader_buffer_size(buf_size))                   //
   {}
 
   // clang-format off
-  // delete copy and assignment
   bam_file(const bam_file &) = delete;
   auto operator=(const bam_file &) -> bam_file & = delete;
   auto operator=(bam_file &&) noexcept -> bam_file & = delete;
-  // default move for emplace
   bam_file(bam_file &&) noexcept = default;
   ~bam_file() = default;
   // clang-format on
@@ -67,6 +82,7 @@ private:
     input_buffer.shrink_to_fit();
     output_buffer.clear();
     output_buffer.shrink_to_fit();
+    br.reset();
   }
 
   auto
