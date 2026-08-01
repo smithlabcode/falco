@@ -3,8 +3,6 @@
 #ifndef SRC_FASTQ_GZ_FILE_HPP_
 #define SRC_FASTQ_GZ_FILE_HPP_
 
-#include "fqrec.hpp"
-
 #ifdef HAVE_ISAL
 #include <isa-l/igzip_lib.h>
 #else

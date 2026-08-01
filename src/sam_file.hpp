@@ -3,8 +3,6 @@
 #ifndef SRC_SAM_FILE_HPP_
 #define SRC_SAM_FILE_HPP_
 
-#include "samrec.hpp"
-
 #include <atomic>
 #include <cstdint>
 #include <cstdio>

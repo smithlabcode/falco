@@ -2,6 +2,7 @@
 
 #include "fastq_bgzf_file.hpp"
 #include "falco_utils.hpp"
+#include "fqrec.hpp"
 #include "task_queue.hpp"
 
 #include <htslib/bgzf.h>
@@ -128,6 +129,7 @@ auto
 fastq_bgzf_file::make_tasks(const std::int64_t n_threads,
                             const std::int32_t file_id, task_queue &tq,
                             std::atomic_int32_t &n_tasks) -> void {
+  // ADS: 1 below seems to work best, but not sure why
   static constexpr auto n_chunks_per_thread = 1;
   const auto n_chunks = n_chunks_per_thread * n_threads;
   get_chunks(n_chunks, file_id, tq, n_tasks);

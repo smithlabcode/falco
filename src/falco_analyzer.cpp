@@ -2,28 +2,27 @@
 
 #include "falco_analyzer.hpp"
 
-#include "bam_file.hpp"
-#include "falco_task.hpp"
-#include "falco_utils.hpp"
-#include "fastq_file.hpp"
+#include "bamrec.hpp"
+#include "bgzf_block.hpp"
 #include "file_info.hpp"
+#include "fqrec.hpp"
 #include "reads_file.hpp"
 #include "results_collector.hpp"
-#include "run_mode.hpp"
+#include "samrec.hpp"
 #include "task_queue.hpp"
 
-#include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <cstdint>
 #include <iterator>
 #include <mutex>
 #include <ranges>
-#include <string>
 #include <thread>
 #include <utility>
 #include <variant>
 #include <vector>
+
+class run_mode;
 
 analyzer_t::analyzer_t(const std::uint32_t n_threads, const run_mode &mode,
                        const std::vector<file_info> &infos,

@@ -3,15 +3,17 @@
 #ifndef SRC_FALCO_ANALYZER_HPP_
 #define SRC_FALCO_ANALYZER_HPP_
 
-#include "file_info.hpp"
-#include "reads_file.hpp"
 #include "results_collector.hpp"
-#include "run_mode.hpp"
 #include "task_queue.hpp"
 
 #include <atomic>
 #include <cstdint>
+#include <format>
 #include <vector>
+
+class reads_file_t;
+class run_mode;
+struct file_info;
 
 struct analyzer_t {
   task_queue tq;

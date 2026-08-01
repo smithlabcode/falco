@@ -5,7 +5,6 @@
 
 #include "bgzf_block.hpp"
 #include "bgzf_reader.hpp"
-#include "fqrec.hpp"
 
 #include <atomic>
 #include <cstdint>

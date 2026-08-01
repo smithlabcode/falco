@@ -4,7 +4,6 @@
 #define SRC_BAM_FILE_HPP_
 
 #include "bam_header.hpp"
-#include "bamrec.hpp"
 #include "bgzf_block.hpp"
 #include "bgzf_reader.hpp"
 
