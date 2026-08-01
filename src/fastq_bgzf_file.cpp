@@ -128,7 +128,7 @@ auto
 fastq_bgzf_file::make_tasks(const std::int64_t n_threads,
                             const std::int32_t file_id, task_queue &tq,
                             std::atomic_int32_t &n_tasks) -> void {
-  static constexpr auto n_chunks_per_thread = 8;
+  static constexpr auto n_chunks_per_thread = 1;
   const auto n_chunks = n_chunks_per_thread * n_threads;
   get_chunks(n_chunks, file_id, tq, n_tasks);
   had_last_chunks = !static_cast<bool>(br);  // wait until now to set this?
