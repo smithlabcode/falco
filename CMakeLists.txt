@@ -185,6 +185,11 @@ target_link_libraries(results_summary PUBLIC
   results_collector
 )
 
+add_library(falco_analyzer OBJECT src/falco_analyzer.cpp)
+# ADS: not sure why the line below is needed on some systems, but dependencies
+# in this file are a mess
+target_link_libraries(falco_analyzer PUBLIC HTSLIB::HTSLIB)
+
 add_library(get_binary_dir OBJECT src/get_binary_dir.cpp)
 add_library(run_mode OBJECT src/run_mode.cpp)
 add_library(falco_config OBJECT src/falco_config.cpp)
@@ -210,6 +215,7 @@ target_link_libraries(falco PUBLIC
   falco_file_format
   falco_utils
   falco_grade
+  falco_analyzer
   results_summary
   quality_score
   falco_config
