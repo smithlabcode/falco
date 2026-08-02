@@ -152,6 +152,14 @@ two_dim_add_and_consume(auto &v1, auto v2_sink) {
     add_and_consume(a1, std::move(a2_sink));
 };
 
+inline constexpr auto
+two_dim_vec_add_and_consume(auto &v1, auto v2) {
+  if (std::size(v1) < std::size(v2))
+    std::swap(v1, v2);
+  for (auto [a1, a2] : std::views::zip(v1, v2))
+    vec_add_and_consume(a1, a2);
+};
+
 [[nodiscard]] inline constexpr auto
 as_frac(const auto a, const auto b) {
   return static_cast<double>(a) / static_cast<double>(b);
