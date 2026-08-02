@@ -22,6 +22,7 @@
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <utility>  // IWYU pragma: keep
 #include <vector>
 
 [[nodiscard]] auto
@@ -52,9 +53,7 @@ kmer_counter::operator+=(const kmer_counter &rhs) -> const kmer_counter & {
 
 auto
 kmer_counter::add_and_consume(kmer_counter &&rhs) -> void {
-  two_dim_add(kmer_counts, rhs.kmer_counts);
-  rhs.kmer_counts.clear();
-  rhs.kmer_counts.shrink_to_fit();
+  two_dim_add_and_consume(kmer_counts, std::move(rhs.kmer_counts));
 }
 
 // ADS: series representation for the lower incomplete gamma P(a,x)
