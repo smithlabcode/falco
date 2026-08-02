@@ -49,8 +49,7 @@ adapter_matcher::operator+=(const adapter_matcher &rhs)
 
 auto
 adapter_matcher::add_and_consume(adapter_matcher &&rhs) -> void {
-  two_dim_vec_add(adap_counts, rhs.adap_counts);
-  rhs.release();
+  two_dim_vec_add_and_consume(adap_counts, std::move(rhs.adap_counts));
 }
 
 [[nodiscard]] auto
