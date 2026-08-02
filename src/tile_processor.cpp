@@ -156,7 +156,10 @@ tile_processor::operator+=(const tile_processor &rhs)
 }
 
 auto
-tile_processor::add_and_consume(tile_processor &&rhs) -> void {
+tile_processor::add_and_consume(
+  tile_processor &&rhs  // NOLINT(*-rvalue-reference-param-not-moved)
+  ) -> void {
+  // ADS: partial move from rhs actually happens via rhs_qual
   const auto pair_plus = [](const auto &a, const auto &b) {
     return std::pair{a.first + b.first, a.second + b.second};
   };
