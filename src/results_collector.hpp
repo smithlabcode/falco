@@ -142,7 +142,7 @@ struct alignas(assumed_page_size) results_collector {
     vec_add_and_consume(n_counts, std::move(rhs.n_counts));
     two_dim_add(qual_by_pos, rhs.qual_by_pos);
     add(qual_by_read, rhs.qual_by_read);
-    dr.add_and_consume(std::move(rhs.dr));
+    dr.add_and_consume(rhs.dr);
     am.add_and_consume(std::move(rhs.am));
     if (do_tiles)
       tp.add_and_consume(std::move(rhs.tp));
@@ -177,17 +177,17 @@ accumulate_results(std::vector<std::vector<results_collector>> &r,
 }
 
 inline auto
-process_reads(results_collector &results, fq_task_t &&task) {
+process_reads(results_collector &results, fq_task_t &task) {
   results.process_reads_fq(task.beg, task.end);
 }
 
 inline auto
-process_reads(results_collector &results, bam_task_t &&task) {
+process_reads(results_collector &results, bam_task_t &task) {
   results.process_reads_bam(task.beg, task.end);
 }
 
 inline auto
-process_reads(results_collector &results, sam_task_t &&task) {
+process_reads(results_collector &results, sam_task_t &task) {
   results.process_reads_sam(task.beg, task.end);
 }
 
