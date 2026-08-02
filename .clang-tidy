@@ -21,6 +21,7 @@ CheckOptions:
   cert-oop54-cpp.WarnOnlyIfThisHasSuspiciousField: 'false'
   cert-str34-c.DiagnoseSignedUnsignedCharComparisons: 'false'
   cppcoreguidelines-non-private-member-variables-in-classes.IgnorePublicMemberVariables: 'true'
+  cppcoreguidelines-rvalue-reference-param-not-moved.AllowPartialMove: 'true'
   google-readability-braces-around-statements.ShortStatementLines: '1'
   google-readability-function-size.StatementThreshold: '800'
   google-readability-namespace-comments.ShortNamespaceLines: '10'
