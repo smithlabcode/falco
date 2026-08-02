@@ -11,8 +11,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cassert>  // IWYU pragma: keep
 #include <cerrno>
 #include <cstdint>
+#include <cstring>  // IWYU pragma: keep
 #include <iterator>
 #include <memory>
 #include <string>

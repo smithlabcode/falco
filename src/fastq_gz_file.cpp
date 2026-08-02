@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "fastq_gz_file.hpp"
+
 #include "falco_utils.hpp"
+#include "fqrec.hpp"
 #include "task_queue.hpp"
 
 #include <htslib/bgzf.h>
