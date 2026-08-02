@@ -74,7 +74,6 @@ struct fastq_file {
   }
 
   // clang-format off
-  // delete copy and assignment
   fastq_file(const fastq_file &) = delete;
   auto operator=(const fastq_file &) -> fastq_file & = delete;
   auto operator=(fastq_file &&) noexcept -> fastq_file & = delete;
@@ -116,7 +115,8 @@ struct fastq_file {
     stop_pos_in_file = std::min(filesize, start_pos_in_file + buf_size);
     if (buf.sz > 0)
       cleanup_mmap_fastq(buf);
-    mmap_fastq(fd, start_pos_in_file, stop_pos_in_file, buf);
+    if (start_pos_in_file < stop_pos_in_file)  // this exist for empty files
+      mmap_fastq(fd, start_pos_in_file, stop_pos_in_file, buf);
   }
 
   [[nodiscard]] auto
