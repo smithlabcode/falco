@@ -212,7 +212,8 @@ get_grade_tile(const tile_processor::tiles_centered_t &centered)
   -> std::string {
   static constexpr auto label = "tile";
   assert(!centered.empty());
-  const auto neg_min_cent_qual =
-    -std::ranges::min(centered | std::views::values | std::views::join);
-  return grader_set::get_grade(label, neg_min_cent_qual);
+  const auto max_deviation = std::ranges::max(
+    centered | std::views::values | std::views::join |
+    std::views::transform([](const auto &x) { return std::abs(x); }));
+  return grader_set::get_grade(label, max_deviation);
 }
