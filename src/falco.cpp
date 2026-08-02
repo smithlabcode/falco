@@ -22,6 +22,7 @@ Default configuration files can be found in:
 #include "fastq_gz_file.hpp"
 #include "get_binary_dir.hpp"
 #include "quality_score.hpp"
+#include "reads_file.hpp"  // IWYU pragma: keep
 #include "results_collector.hpp"
 #include "results_summary.hpp"
 #include "sam_file.hpp"
@@ -62,26 +63,12 @@ write_file(const auto &filename, const auto &data) {
 }
 
 static auto
-run(const run_mode &mode, std::vector<file_info> &infos,
-    std::vector<reads_file_t> &reads_files, const auto n_threads,
-    const auto &outdirs) {
+write_output(const run_mode &mode, std::vector<file_info> &infos,
+             const std::vector<std::string> &outdirs,
+             std::vector<results_collector> &results) {
   static constexpr auto report_filename = "fastqc_data.txt";
   static constexpr auto html_filename = "fastqc_report.html";
   static constexpr auto summary_filename = "summary.txt";
-
-  auto results = [&, reads_files = std::move(reads_files)] mutable {
-    analyzer_t analyzer(n_threads, mode, infos, reads_files);
-    std::vector<reads_file_t>().swap(reads_files);
-    // ADS: combine results for same input file collected by different threads
-    for (const auto file_id : std::views::iota(0u, std::size(infos)))
-      accumulate_results(analyzer.results, file_id);
-    return std::move(analyzer.results.front());
-  }();
-
-  // ADS: finalize() makes sure the variables mean what is intended
-  for (const auto &[result, info] : std::views::zip(results, infos))
-    result.finalize(info);
-
   for (const auto [result, info, outdir] :
        std::views::zip(results, infos, outdirs)) {
     const auto outdir_path = std::filesystem::path{outdir};
@@ -92,10 +79,10 @@ run(const run_mode &mode, std::vector<file_info> &infos,
   }
 }
 
-static auto
-start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
-               std::vector<file_info> &infos, const auto &infiles,
-               const auto &outdirs) {
+[[nodiscard]] static auto
+make_reads_files(const std::vector<file_info> &infos,
+                 const std::vector<std::string> &infiles,
+                 const std::int64_t buf_size) -> std::vector<reads_file_t> {
   const auto n_infiles = std::size(infiles);
   std::vector<reads_file_t> reads_files;
   reads_files.reserve(n_infiles);
@@ -111,10 +98,9 @@ start_analysis(const run_mode &mode, const auto buf_size, const auto n_threads,
     else if (info.format == falco::file_format::fastq)
       reads_files.emplace_back(fastq_file(infile, buf_size));
     else
-      throw std::runtime_error(
-        std::format("unsupported file format: {}", info.description));
+      throw std::runtime_error("unsupported file format: " + info.description);
   }
-  run(mode, infos, reads_files, n_threads, outdirs);
+  return reads_files;
 }
 
 [[nodiscard]] static auto
@@ -366,8 +352,10 @@ main(int argc, char *argv[]) {
       if (verbose)
         std::println("buffer size increased to accommodate max read length");
     }
+
     if (max_read_length == 0)
       max_read_length = get_max_read_length(buffer_size);
+
     if (verbose) {
       std::println("threads requested: {}\n"
                    "input memory buffer size: {}\n"
@@ -388,7 +376,9 @@ main(int argc, char *argv[]) {
       });
     }
 
-    start_analysis(mode, buffer_size, n_threads, infos, infiles, outdirs);
+    auto reads_files = make_reads_files(infos, infiles, buffer_size);
+    auto results = analyze(n_threads, mode, infos, std::move(reads_files));
+    write_output(mode, infos, outdirs, results);
 
     if (verbose)
       std::println(
