@@ -72,7 +72,7 @@ struct duplication_results {
   operator+=(const duplication_results &rhs) -> const duplication_results &;
 
   auto
-  add_and_consume(duplication_results &&rhs) -> void;
+  add_and_consume(duplication_results &rhs) -> void;
 
 #ifdef ORIGINAL_DUPS
   auto

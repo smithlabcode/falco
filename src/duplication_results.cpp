@@ -136,7 +136,7 @@ duplication_results::operator+=(const duplication_results &rhs)
 }
 
 auto
-duplication_results::add_and_consume(duplication_results &&rhs) -> void {
+duplication_results::add_and_consume(duplication_results &rhs) -> void {
 #ifndef ORIGINAL_DUPS
   for (const auto &[k, v] : rhs.dups)
     dups[k] += v;
