@@ -4,21 +4,30 @@
 #define SRC_FASTQ_GZ_FILE_HPP_
 
 #ifdef HAVE_ISAL
+
 #include <isa-l/igzip_lib.h>
+
+#include <cstdio>
+#include <format>
+#include <stdexcept>
+
 #else
+
 #include <htslib/bgzf.h>
-#endif  // HAVE_ISAL
 
 #include <algorithm>
-#include <atomic>
-#include <cassert>  // IWYU pragma: keep
 #include <cerrno>
+#include <system_error>
+
+#endif  // HAVE_ISAL
+
+#include <atomic>
+#include <cassert>
 #include <cstdint>
-#include <cstring>  // IWYU pragma: keep
+#include <cstring>
 #include <iterator>
 #include <memory>
 #include <string>
-#include <system_error>
 #include <tuple>
 #include <variant>
 #include <vector>
