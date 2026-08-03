@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <cstdlib>
 #include <iterator>
 #include <map>
 #include <memory>
