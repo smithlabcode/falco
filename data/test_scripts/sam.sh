@@ -22,6 +22,7 @@ if [[ -e "${infile1}" ]]; then
     if [[ "${x}" != "1" ]]; then
         exit 1;
     fi
+    rm ${infile2}
     rm -r ${outdir}
 else
     echo "${infile1} not found; skipping remaining tests";
