@@ -92,8 +92,6 @@ target_link_libraries(bgzf_reader PUBLIC bgzf_block)
 add_library(fastq_file OBJECT src/fastq_file.cpp)
 target_link_libraries(fastq_file PUBLIC HTSLIB::HTSLIB)
 
-add_library(fastq_stdin OBJECT src/fastq_stdin.cpp)
-
 add_library(fastq_gz_file OBJECT src/fastq_gz_file.cpp)
 target_link_libraries(fastq_gz_file PUBLIC HTSLIB::HTSLIB)
 if(USE_ISAL)
@@ -207,7 +205,6 @@ target_link_libraries(falco PUBLIC
   duplication_results
   kmer_counter
   fastq_file
-  fastq_stdin
   fastq_gz_file
   fastq_bgzf_file
   bam_file
