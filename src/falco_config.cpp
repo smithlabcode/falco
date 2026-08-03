@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <fstream>
 #include <iterator>
 #include <map>
@@ -38,8 +39,8 @@ split(const std::string &s) {
 }
 
 auto
-load_config_and_set_graders(const std::string &filename,
-                            run_mode &mode) -> void {
+load_config_and_set_graders(const std::string &filename, run_mode &mode)
+  -> void {
   // ADS: (todo) handle carriage returns and other control chars
   std::ifstream in(filename);
   if (!in)
