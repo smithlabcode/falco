@@ -9,7 +9,9 @@
 #include <htslib/bgzf.h>
 #include <htslib/hfile.h>
 
+#include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>

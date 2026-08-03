@@ -30,7 +30,7 @@ analyze(const std::uint32_t n_threads, const run_mode &mode,
   -> std::vector<results_collector> {
   assert(std::size(reads_files) == std::size(infos));
 
-  const std::int32_t n_files = std::ssize(infos);
+  const std::int32_t n_files = static_cast<std::int32_t>(std::size(infos));
   std::vector<std::atomic_int32_t> n_tasks(n_files);
   std::atomic_uint32_t n_active_files{static_cast<std::uint32_t>(n_files)};
   auto results =
