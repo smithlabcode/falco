@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT; (c) 2026 Andrew D Smith
+# SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 # to find the version of cmake do
 # $ cmake --version
@@ -92,6 +92,8 @@ target_link_libraries(bgzf_reader PUBLIC bgzf_block)
 add_library(fastq_file OBJECT src/fastq_file.cpp)
 target_link_libraries(fastq_file PUBLIC HTSLIB::HTSLIB)
 
+add_library(fastq_stdin OBJECT src/fastq_stdin.cpp)
+
 add_library(fastq_gz_file OBJECT src/fastq_gz_file.cpp)
 target_link_libraries(fastq_gz_file PUBLIC HTSLIB::HTSLIB)
 if(USE_ISAL)
@@ -99,7 +101,10 @@ if(USE_ISAL)
 endif()
 
 add_library(fastq_bgzf_file OBJECT src/fastq_bgzf_file.cpp)
-target_link_libraries(fastq_bgzf_file PUBLIC HTSLIB::HTSLIB LIBDEFLATE::LIBDEFLATE)
+target_link_libraries(fastq_bgzf_file PUBLIC
+  HTSLIB::HTSLIB
+  LIBDEFLATE::LIBDEFLATE
+)
 
 add_library(bam_header OBJECT src/bam_header.cpp)
 
@@ -167,9 +172,7 @@ target_link_libraries(html PUBLIC
 )
 
 add_library(results_collector INTERFACE)
-target_link_libraries(results_collector INTERFACE
-  fastq_file
-)
+target_link_libraries(results_collector INTERFACE fastq_file)
 
 add_library(results_summary OBJECT src/results_summary.cpp)
 target_link_libraries(results_summary PUBLIC
@@ -193,9 +196,7 @@ target_link_libraries(falco_analyzer PUBLIC HTSLIB::HTSLIB)
 add_library(get_binary_dir OBJECT src/get_binary_dir.cpp)
 add_library(run_mode OBJECT src/run_mode.cpp)
 add_library(falco_config OBJECT src/falco_config.cpp)
-target_link_libraries(falco_config PUBLIC
-  run_mode
-)
+target_link_libraries(falco_config PUBLIC run_mode)
 
 add_executable(falco src/falco.cpp)
 target_link_libraries(falco PUBLIC
@@ -206,6 +207,7 @@ target_link_libraries(falco PUBLIC
   duplication_results
   kmer_counter
   fastq_file
+  fastq_stdin
   fastq_gz_file
   fastq_bgzf_file
   bam_file

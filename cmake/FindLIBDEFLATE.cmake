@@ -1,9 +1,9 @@
-# SPDX-License-Identifier: GPL-3.0-or-later; (c) 2025 Andrew D Smith (author)
+# SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 #[=======================================================================[.rst:
 FindLIBDEFLATE
 --------------
 
-Find the native libdeflate includes and library.
+Find the libdeflate includes and library.
 
 #]=======================================================================]
 
@@ -11,7 +11,7 @@ Find the native libdeflate includes and library.
 # Custom CMake module to find libdeflate
 
 # Support preference of static libs by adjusting CMAKE_FIND_LIBRARY_SUFFIXES
-# ADS: this is taken from the FindBoost.cmake file
+# ADS: some of this is based on FindBoost.cmake
 if(LIBDEFLATE_USE_STATIC_LIBS)
   set(_libdeflate_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES
     ${CMAKE_FIND_LIBRARY_SUFFIXES}
@@ -34,8 +34,11 @@ find_package_handle_standard_args(LIBDEFLATE
 
 if(LIBDEFLATE_FOUND AND NOT TARGET LIBDEFLATE::LIBDEFLATE)
   add_library(LIBDEFLATE::LIBDEFLATE UNKNOWN IMPORTED)
+  cmake_path(
+    ABSOLUTE_PATH LIBDEFLATE_INCLUDE_DIR
+    OUTPUT_VARIABLE LIBDEFLATE_INCLUDE_ABS_DIR)
   set_target_properties(LIBDEFLATE::LIBDEFLATE PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${LIBDEFLATE_INCLUDE_DIR}"
+    INTERFACE_INCLUDE_DIRECTORIES "${LIBDEFLATE_INCLUDE_ABS_DIR}"
     IMPORTED_LOCATION "${LIBDEFLATE_LIBRARY}"
   )
 endif()

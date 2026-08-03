@@ -1,11 +1,13 @@
-# SPDX-License-Identifier: MIT; (c) 2025 Andrew D Smith (author)
+# SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 #[=======================================================================[.rst:
 FindHTSLIB
 --------
 
-Find the native HTSLib includes and library. Based on the ZLIB module.
+Find the HTSLib includes and library.
 
 #]=======================================================================]
+
+#  Based on the ZLIB module.
 
 cmake_policy(PUSH)
 cmake_policy(SET CMP0159 NEW) # file(STRINGS) with REGEX updates CMAKE_MATCH_<n>
@@ -102,7 +104,9 @@ mark_as_advanced(HTSLIB_INCLUDE_DIR)
 
 if(HTSLIB_INCLUDE_DIR AND EXISTS "${HTSLIB_INCLUDE_DIR}/htslib/hts.h")
   # Example: #define HTS_VERSION 101300
-  file(STRINGS "${HTSLIB_INCLUDE_DIR}/htslib/hts.h" HTSLIB_H_LIST REGEX "^#define HTS_VERSION")
+  file(STRINGS "${HTSLIB_INCLUDE_DIR}/htslib/hts.h"
+    HTSLIB_H_LIST REGEX "^#define HTS_VERSION"
+  )
   list(GET HTSLIB_H_LIST 0 HTSLIB_H)  # Take the first matching line
   if (HTSLIB_H MATCHES "#define[ \t]+HTS_VERSION[ \t]+\([0-9]+\)")
     set(NUMERIC_VERSION "${CMAKE_MATCH_1}")
