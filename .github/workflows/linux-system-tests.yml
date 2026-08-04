@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - falco2
+  workflow_dispatch:
 
 jobs:
   ubuntu-tests:
