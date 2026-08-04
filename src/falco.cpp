@@ -2,10 +2,30 @@
 
 // clang-format off
 static constexpr auto about = R"(Falco v{})";
-static constexpr auto description = R"(Examples to be added
+static constexpr auto description =
+  R"(Note: Always use bgzip when compressing files to gz format. It comes with samtools.
 
-Default configuration files can be found in:
+EXAMPLES:
+
+Use all defaults making output files in 'results/SRX081761_1':
+$ falco -o results SRX081761_1.fastq
+
+Use 8 cores and analyze all files in 'project' with the fq suffix, and results
+for each input file in their own subdirectory of 'results':
+$ falco -t 8 -o results project/*.fq
+
+Use 64 cores on multiple BAM files in the current directory:
+$ falco -t 64 -o results sample*.bam
+
+Skip adapter content and tile-specific analysis:
+$ falco --no-adap --no-tiles -o results SRX081761.bam
+
+Use configuration settings from 'my_limits.txt':
+$ falco --config my_limits.txt -o results project_sample2.fq.gz
+
+Default configuration files can be found here:
 {}
+Use these as templates. Copy and modify them to customize your analysis.
 )";
 // clang-format on
 
@@ -239,9 +259,9 @@ main(int argc, char *argv[]) {
     app.add_flag("--license", license_callback, "Print full license")
       ->callback_priority(CLI::CallbackPriority::PreRequirementsCheck);
     app.add_option("INFILES", infiles,
-                   "Input file: FASTQ (plain, GZIP or BGZF) or BAM/SAM")
+                   "FASTQ (plain, GZIP or BGZF) or BAM/SAM")
       ->required()
-      ->option_text("FILES")
+      ->option_text(" ")
       ->check(CLI::ExistingFile);
     app.add_option("-o,--output", outdir, "Output directory")
       ->required()
@@ -256,8 +276,10 @@ main(int argc, char *argv[]) {
       ->option_text(std::format("[{}]", size_to_units(buffer_size_default)))
       ->capture_default_str()
       ->transform(size_from_units);
+    app.add_flag("-v,--verbose", verbose, "Print more info about the run")
+      ->option_text(" ");
     app.add_option("--config", config_file,
-                   "Configuration file (command line arguments have priority)")
+                   "Config file (priority to command line options)")
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
     app.add_option("--contaminants", contam_file,
@@ -269,19 +291,17 @@ main(int argc, char *argv[]) {
       ->option_text("FILE")
       ->check(CLI::ExistingFile);
     app.add_option("--max-length", max_read_length,
-                   "Use this for reads longer than 1M bp (G/M/K units ok)")
+                   "Use for reads longer than 1M bp (G/M/K units ok)")
       ->option_text(" ")
       ->capture_default_str()
       ->transform(size_from_units);
-    app.add_flag("-v,--verbose", verbose, "Print more info while running")
-      ->option_text(" ");
     app.add_flag("--groups", do_groups, "Group base positions in output")
       ->option_text(" ");
     app.add_flag("--tiles,!--no-tiles", do_tiles,
                  "Toggle per-tile quality analysis (default: on)")
       ->option_text(" ");
     app.add_flag("--dups,!--no-dups", do_dup_analysis,
-                 "Toggle duplication/overrepresentation analysis (default: on)")
+                 "Toggle duplication/overrep analysis (default: on)")
       ->option_text(" ");
     app.add_flag("--adap,!--no-adap", do_adap,
                  "Toggle adapter analysis (default: on)")
