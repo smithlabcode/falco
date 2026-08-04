@@ -1,4 +1,4 @@
-name: Release (Linux)
+name: Package (Linux)
 
 on:
   workflow_dispatch:
