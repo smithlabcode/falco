@@ -10,7 +10,7 @@ set(
   limits.txt
   adapter_list.txt
   contaminant_list.txt
-  LICENSE
+  FastQC_DATA_LICENSE
   README.md
 )
 
