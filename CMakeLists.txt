@@ -3,10 +3,12 @@
 # to find the version of cmake do
 # $ cmake --version
 cmake_minimum_required(VERSION 3.30)
-project(
-  falco
+project(falco
   VERSION 2.0.0
-  LANGUAGES CXX)
+  DESCRIPTION "A tool to assess the quality of sequence read data"
+  HOMEPAGE_URL https://github.com/smithlabcode/falco
+  LANGUAGES CXX
+)
 
 # Set language version used
 set(CMAKE_CXX_STANDARD 23)
