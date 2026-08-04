@@ -1,4 +1,4 @@
-name: Release (Linux)
+name: Make binary (Linux)
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ env:
   CONTAINER: andrewdavidsmith/transferase-build
 
 jobs:
-  linux-releases:
+  make-binary-linux:
     runs-on: ubuntu-latest
     steps:
       - name: Start docker container
