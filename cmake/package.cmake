@@ -95,8 +95,19 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   endif()
 endif()
 
-# For Source (only package source from a clean clone)
-set(CPACK_SOURCE_IGNORE_FILES /build/ /.git/ /.github/ /.gitignore)
+# For Source (only package source from a clean clone).
+# Excluding subdirs for dependencies that have a higher chance of being built
+# inside the repo
+set(CPACK_SOURCE_IGNORE_FILES
+  /build/
+  /.git/
+  /.github/
+  /.gitignore
+  /htslib/
+  /libdeflate/
+  /isa-l/
+  /zlib/
+)
 set(CPACK_SOURCE_GENERATOR "TGZ")
 
 include(CPack)
