@@ -1,10 +1,10 @@
-name: Release (macOS)
+name: Make binary (macOS)
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-macos-binaries:
+  make-binary-macos:
     strategy:
       matrix:
         os: [macos-26-intel, macos-26]
@@ -80,7 +80,7 @@ jobs:
           path: |
             falco_${{ steps.vars.outputs.arch }}
   make-lipo:
-    needs: build-macos-binaries
+    needs: make-binary-macos
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v6
