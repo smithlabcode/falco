@@ -4,8 +4,122 @@ on:
   workflow_dispatch:
 
 jobs:
-  message:
+  make-binary-macos:
+    strategy:
+      matrix:
+        os: [macos-26-intel, macos-26]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Make falco dependency directories
+        run: sudo mkdir -p /opt/falco/lib /opt/falco/include
+      - name: Update Homebrew
+        run: brew untap aws/tap && brew update
+      - name: Install dependency headers and static libs
+        run: |
+          brew install zlib automake isa-l
+          sudo cp $(brew --prefix zlib)/lib/*.a /opt/falco/lib
+          sudo cp -r $(brew --prefix zlib)/include/* /opt/falco/include
+          sudo cp $(brew --prefix isa-l)/lib/*.a /opt/falco/lib
+          sudo cp -r $(brew --prefix isa-l)/include/* /opt/falco/include
+      - name: Build and install libdeflate
+        run: |
+          git clone https://github.com/ebiggers/libdeflate.git && \
+          cd libdeflate && \
+          cmake -B build \
+              -DLIBDEFLATE_BUILD_GZIP=off \
+              -DLIBDEFLATE_BUILD_TESTS=off \
+              -DLIBDEFLATE_BUILD_SHARED_LIB=off \
+              -DCMAKE_VERBOSE_MAKEFILE=on \
+              -DCMAKE_BUILD_TYPE=Release && \
+          cmake --build build -j4 && \
+          sudo cmake --install build --prefix=/opt/falco
+      - name: Build and install HTSlib
+        run: |
+          git clone --recursive https://github.com/samtools/htslib.git
+          cd htslib
+          sudo cp -r htslib /opt/falco/include
+          autoreconf -i
+          mkdir build && cd build
+          ../configure \
+            --disable-bz2 \
+            --disable-libcurl \
+            --disable-lzma \
+            --disable-ref-cache \
+            --with-libdeflate \
+            LDFLAGS="-L/opt/falco/lib" CPPFLAGS="-I/opt/falco/include"
+          make -j4 CFLAGS="-Wall -O2 -fvisibility=hidden" libhts.a
+          sudo cp libhts.a /opt/falco/lib
+      - name: Build falco
+        run: |
+          cmake -B build -DPACKAGE=on \
+          -DCMAKE_VERBOSE_MAKEFILE=on \
+          -DCMAKE_CXX_COMPILER=g++-15 \
+          -DUSE_ISAL=on \
+          -DHTSLIB_ROOT=/opt/falco \
+          -DISAL_ROOT=/opt/falco \
+          -DLIBDEFLATE_ROOT=/opt/falco \
+          -DZLIB_ROOT=/opt/falco \
+          -DCMAKE_BUILD_TYPE=Release && \
+          cmake --build build -j4
+      - name: Rename the binary
+        run: mv build/falco falco_$(uname -m)
+      - name: Get version number
+        id: vars
+        run: |
+          awk '/^  VERSION [0-9.]+$/ {print "vn="$NF}' CMakeLists.txt >> "$GITHUB_OUTPUT"
+          uname -m | awk '{print "arch="$0}' >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Upload the binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: falco-${{ steps.vars.outputs.arch }}
+          path: |
+            falco_${{ steps.vars.outputs.arch }}
+  package:
+    needs: make-binary-macos
     runs-on: macos-26
     steps:
-      - name: Message to user
-        run: echo "Not set up in current branch"
+      - uses: actions/checkout@v7
+      - name: Update Homebrew
+        run: brew update && brew untap aws/tap
+      - name: Install dependencies
+        run: |
+          brew install zlib libdeflate
+      - name: Configure for CPack
+        run: |
+          # We will not build from this config, so it's ok to link these libs
+          cmake -B build \
+          -DPACKAGE=on \
+          -DZLIB_ROOT=$(brew --prefix zlib) \
+          -DCMAKE_CXX_FLAGS="-I$(brew --prefix)/include -lcurl -llzma -lbz2" \
+          -DCMAKE_CXX_COMPILER=g++-15 \
+          -DCMAKE_BUILD_TYPE=Build
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: binaries
+          pattern: falco-*
+          merge-multiple: false
+      - name: Create universal binaries
+        run: |
+          lipo -create \
+          binaries/falco-* \
+          -output build/falco
+      - name: Package
+        run: |
+          cpack -B build --config build/CPackConfig.cmake
+      - name: Get version number
+        id: get-vn
+        run: |
+          awk '/^  VERSION [0-9.]+$/ {print "vn="$NF}' CMakeLists.txt >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Upload the package files
+        uses: actions/upload-artifact@v7
+        with:
+          name: falco-${{ steps.get-vn.outputs.vn }}-macOS
+          path: build/falco-${{ steps.get-vn.outputs.vn }}*
