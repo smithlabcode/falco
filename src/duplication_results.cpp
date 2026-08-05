@@ -84,7 +84,7 @@ static_assert(std::size(bin_labels) == std::size(bin_breaks) &&
               n_bins + 1 == std::size(bin_labels));
 
 auto
-duplication_results::get_n_reads() const -> std::uint64_t {
+duplication_results::get_n_counted_reads() const -> std::uint64_t {
   const auto dups_v = std::views::values(dups);
   return std::reduce(std::cbegin(dups_v), std::cend(dups_v));
 }
@@ -122,28 +122,23 @@ duplication_results::initialize(const run_mode &mode,
 }
 
 auto
-duplication_results::operator+=(const duplication_results &rhs)
-  -> const duplication_results & {
-#ifndef ORIGINAL_DUPS
-  for (const auto &[k, v] : rhs.dups)
-    dups[k] += v;
-#else   // ORIGINAL_DUPS
-  for (const auto &[k, v] : rhs.dups)
-    if (std::size(dups) < max_reads_to_hash || dups.contains(k))
-      dups[k] += v;
-#endif  // ORIGINAL_DUPS
-  return *this;
-}
-
-auto
 duplication_results::add_and_consume(duplication_results &rhs) -> void {
 #ifndef ORIGINAL_DUPS
   for (const auto &[k, v] : rhs.dups)
     dups[k] += v;
-#else   // ORIGINAL_DUPS
+#else  // ORIGINAL_DUPS
+#ifdef ORIGINAL_DUPS_THREADS
+  // ADS: these should be done earlier in a 'finalize' method before adding
+  // together
+  if (count_at_limit == 0)
+    count_at_limit = read_idx;
+  if (rhs.count_at_limit == 0)
+    rhs.count_at_limit = rhs.read_idx;
+  count_at_limit += rhs.count_at_limit;
+  read_idx += rhs.read_idx;
   for (const auto &[k, v] : rhs.dups)
-    if (std::size(dups) < max_reads_to_hash || dups.contains(k))
-      dups[k] += v;
+    dups[k] += v;
+#endif  // ORIGINAL_DUPS_THREADS
 #endif  // ORIGINAL_DUPS
   rhs.release();
 }
@@ -223,43 +218,59 @@ get_corrected_count(const std::uint64_t count_at_limit,
                                  1.0 - prob_not_observed));
 }
 
-#endif  // ORIGINAL_DUPS
-
-#ifdef ORIGINAL_DUPS
-[[nodiscard]] auto
-duplication_results::get_dups_summary(const std::uint64_t n_reads) const
-  -> dup_summary_t {
-#else  // ORIGINAL_DUPS
 [[nodiscard]] auto
 duplication_results::get_dups_summary() const -> dup_summary_t {
-#endif
   if (dups.empty())
     return {};
   const auto max_dup = std::ranges::max(std::views::values(dups));
   std::vector<std::uint64_t> hist_dedup(max_dup + 1);
   for (const auto n_copies : std::views::values(dups))
     ++hist_dedup[n_copies];
-#ifdef ORIGINAL_DUPS
   for (auto [idx, val] : std::views::enumerate(hist_dedup))
     val = static_cast<std::uint64_t>(
-      get_corrected_count(count_at_limit, n_reads, idx, val));
-#endif  // ORIGINAL_DUPS
+      get_corrected_count(count_at_limit, read_idx, idx, val));
   auto hist_mass =
     std::views::transform(
       std::views::enumerate(hist_dedup),
       [](const auto x) { return std::get<0>(x) * std::get<1>(x); }) |
     std::ranges::to<std::vector>();
-  // ADS: move needed to avoid copying during creation of the tuple
   return dup_summary_t{
     max_dup,
-    get_n_reads(),
-    std::move(hist_mass),
-    std::move(hist_dedup),
+    get_n_counted_reads(),  // number of counted reads
+    std::move(hist_mass),   // move to avoid copying when making tuple
+    std::move(hist_dedup),  // move to avoid copying when making tuple
   };
 }
 
+#else  // NOT ORIGINAL_DUPS
+
+[[nodiscard]] auto
+duplication_results::get_dups_summary() const -> dup_summary_t {
+  if (dups.empty())
+    return {};
+  const auto max_dup = std::ranges::max(std::views::values(dups));
+  std::vector<std::uint64_t> hist_dedup(max_dup + 1);
+  for (const auto n_copies : std::views::values(dups))
+    ++hist_dedup[n_copies];
+  auto hist_mass =
+    std::views::transform(
+      std::views::enumerate(hist_dedup),
+      [](const auto x) { return std::get<0>(x) * std::get<1>(x); }) |
+    std::ranges::to<std::vector>();
+  return dup_summary_t{
+    max_dup,
+    get_n_counted_reads(),  // total counted reads
+    std::move(hist_mass),   // move to avoid copying when making tuple
+    std::move(hist_dedup),  // move to avoid copying when making tuple
+  };
+}
+
+#endif
+
 [[nodiscard]] auto
 get_grade_duplication(const dup_summary_t &summary) -> std::string {
+  // ADS: duplication grade is based on summary stat of estimated number of
+  // unique reads divided by total reads
   static constexpr auto label = "duplication";
   const auto reduce = [](const auto &v) {
     return std::reduce(std::cbegin(v), std::cend(v));
