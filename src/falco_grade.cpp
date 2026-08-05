@@ -159,8 +159,10 @@ get_grade_sequence(const std::vector<falco::nuc_array> &nucs) -> std::string {
     const auto delta = [tot](const auto a, const auto b) {
       return pct(as_frac(a, tot)) - pct(as_frac(b, tot));
     };
+    // max(|a - t|, |c - g|)
     return std::max(std::fabs(delta(by_pos[0], by_pos[2])),
                     std::fabs(delta(by_pos[1], by_pos[3])));
+    // bisulfite: |a - g| (wgbs) or |t - c| (pbat)
   };
   const auto max_diff =
     std::ranges::max(nucs | std::views::transform(compl_diff));
