@@ -69,9 +69,6 @@ struct duplication_results {
     -> std::vector<overrep_t>;
 
   auto
-  operator+=(const duplication_results &rhs) -> const duplication_results &;
-
-  auto
   add_and_consume(duplication_results &rhs) -> void;
 
 #ifdef ORIGINAL_DUPS
