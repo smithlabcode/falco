@@ -56,10 +56,10 @@ results_summary::initialize() -> void {
   // get summary structures
 #ifdef ORIGINAL_DUPS
   n_reads_for_dups = n_reads;
-  dup_summary = dr.get_dups_summary(n_reads_for_dups);
+  dup_summary = dr.get_dups_summary();
   dup_summary.n_reads = n_reads_for_dups;
 #else   //  ORIGINAL_DUPS
-  n_reads_for_dups = dr.get_n_reads();
+  n_reads_for_dups = dr.get_n_counted_reads();
   dup_summary = dr.get_dups_summary();
 #endif  //  ORIGINAL_DUPS
   overrep = dr.get_overrepresented(n_reads_for_dups);
