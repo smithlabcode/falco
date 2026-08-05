@@ -32,7 +32,12 @@ struct dup_summary_t {
 struct duplication_results {
   static constexpr auto max_n_reads_total{1'000'000};
 #ifdef ORIGINAL_DUPS
+#ifdef ORIGINAL_DUPS_THREADS
+  static constexpr auto max_reads_to_hash{
+    std::numeric_limits<std::int64_t>::max()};
+#else
   static constexpr auto max_reads_to_hash{100'000};
+#endif  // ORIGINAL_DUPS_THREADS
 #endif  // ORIGINAL_DUPS
   static constexpr auto default_read_skip{10};
   static constexpr auto overrep_cutoff = 0.001;
@@ -48,7 +53,7 @@ struct duplication_results {
   initialize(const run_mode &mode, const file_info &info) -> void;
 
   auto
-  get_n_reads() const -> std::uint64_t;
+  get_n_counted_reads() const -> std::uint64_t;
 
   auto
   release() -> void {
@@ -56,13 +61,8 @@ struct duplication_results {
     boost::unordered_flat_map<falco_word, std::uint64_t>().swap(dups);
   }
 
-#ifdef ORIGINAL_DUPS
-  [[nodiscard]] auto
-  get_dups_summary(const std::uint64_t n_reads) const -> dup_summary_t;
-#else   // ORIGINAL_DUPS
   [[nodiscard]] auto
   get_dups_summary() const -> dup_summary_t;
-#endif  // ORIGINAL_DUPS
 
   [[nodiscard]] auto
   get_overrepresented(const std::uint64_t n_reads) const
