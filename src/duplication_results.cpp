@@ -195,16 +195,18 @@ get_corrected_count(const std::uint64_t count_at_limit,
                     const std::uint64_t n_obs) -> double {
   static constexpr auto epsilon = 0.01;
   if (count_at_limit == n_reads)  // we saw everything
-    return n_obs;
+    return static_cast<double>(n_obs);
 
   // not enough uncounted reads to hide one with this number of obs
   if (n_reads - n_obs < count_at_limit)
-    return n_obs;
+    return static_cast<double>(n_obs);
 
   // ADS: an approach to estimate the number of reads that should be counted
   // towards this number of observations
   double prob_not_observed{1.0};
-  const double ignore_below_this = 1.0 - as_frac(n_obs, n_obs + epsilon);
+  const double ignore_below_this =
+    1.0 -
+    as_frac(static_cast<double>(n_obs), static_cast<double>(n_obs) + epsilon);
   for (auto i = 0LU; i < count_at_limit; ++i) {
     prob_not_observed *= as_frac(n_reads - i - dup_level, n_reads - i);
     if (prob_not_observed < ignore_below_this) {
