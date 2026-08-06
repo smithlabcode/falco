@@ -13,8 +13,10 @@
 
 #ifdef ORIGINAL_DUPS
 #include <iterator>
+#ifdef ORIGINAL_DUPS_THREADS
 #include <limits>
-#endif
+#endif  // ORIGINAL_DUPS_THREADS
+#endif  // ORIGINAL_DUPS
 
 class run_mode;
 struct file_grades;
