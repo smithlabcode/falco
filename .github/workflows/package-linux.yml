@@ -71,23 +71,23 @@ jobs:
                 --with-libdeflate && \
             make -j4 CFLAGS="-Wall -O2 -fvisibility=hidden" libhts.a && \
             cp libhts.a /usr/local/lib/ && \
-            cp -r /workspace/htslib/htslib /usr/local/include/ && \
-            cd /workspace && \
-            export OUTPUT=falco-${{ steps.get-vn.outputs.vn }}-Linux && \
-            mkdir ${OUTPUT} && \
+            cp -r /workspace/htslib/htslib /usr/local/include/
+            cd /workspace
+            export OUTPUT=falco-${{ steps.get-vn.outputs.vn }}-Linux
+            mkdir ${OUTPUT}
             cmake -B build \
                 -DPACKAGE=on \
                 -DUSE_ISAL=on \
-                -DCMAKE_BUILD_TYPE=Release && \
-            cmake --build build -j4 && \
-            cpack -B build --config build/CPackConfig.cmake && \
+                -DCMAKE_BUILD_TYPE=Release
+            cmake --build build -j4
+            cpack -B build --config build/CPackSourceConfig.cmake
+            mv build/falco-${{ steps.get-vn.outputs.vn }}-Source.tar.gz /workspace
+            cpack -B build --config build/CPackConfig.cmake
             mv build/falco-${{ steps.get-vn.outputs.vn }}-Linux.tar.gz ${OUTPUT}
             mv build/falco-${{ steps.get-vn.outputs.vn }}-Linux.deb ${OUTPUT}
             mv build/falco-${{ steps.get-vn.outputs.vn }}-Linux.rpm ${OUTPUT}
             mv build/falco-${{ steps.get-vn.outputs.vn }}-Linux.sh ${OUTPUT}
             tar -C /workspace -zcf /workspace/${OUTPUT}.tgz ${OUTPUT}
-            cpack -B build --config build/CPackSourceConfig.cmake
-            mv build/falco-${{ steps.get-vn.outputs.vn }}-Source.tar.gz /workspace
         run: |
           docker exec build-container bash -c "$SCRIPT"
       - name: Upload the source archive
