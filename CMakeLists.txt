@@ -59,6 +59,17 @@ if(PACKAGE)
 endif()
 
 if(ORIGINAL_DUPS)
+  string(TOUPPER ${ORIGINAL_DUPS} ORIGINAL_DUPS)
+  message(STATUS "Building with original duplication analysis method")
+  if(NOT ORIGINAL_DUPS STREQUAL ON AND
+      NOT ORIGINAL_DUPS STREQUAL OFF AND
+      NOT ORIGINAL_DUPS STREQUAL THREADS)
+    message(FATAL_ERROR "ORIGINAL_DUPS must on/off/threads")
+  endif()
+  if(ORIGINAL_DUPS STREQUAL THREADS)
+    message(STATUS "Building original duplication for threads")
+    add_compile_options(-DORIGINAL_DUPS_THREADS)
+  endif()
   add_compile_options(-DORIGINAL_DUPS)
 endif()
 
