@@ -73,8 +73,6 @@ jobs:
             cp libhts.a /usr/local/lib/ && \
             cp -r /workspace/htslib/htslib /usr/local/include/
             cd /workspace
-            export OUTPUT=falco-${{ steps.get-vn.outputs.vn }}-Linux
-            mkdir ${OUTPUT}
             cmake -B build \
                 -DPACKAGE=on \
                 -DUSE_ISAL=on \
@@ -83,6 +81,8 @@ jobs:
             cpack -B build --config build/CPackSourceConfig.cmake
             mv build/falco-${{ steps.get-vn.outputs.vn }}-Source.tar.gz /workspace
             cpack -B build --config build/CPackConfig.cmake
+            export OUTPUT=falco-${{ steps.get-vn.outputs.vn }}-Linux
+            mkdir ${OUTPUT}
             mv build/falco-${{ steps.get-vn.outputs.vn }}-Linux.tar.gz ${OUTPUT}
             mv build/falco-${{ steps.get-vn.outputs.vn }}-Linux.deb ${OUTPUT}
             mv build/falco-${{ steps.get-vn.outputs.vn }}-Linux.rpm ${OUTPUT}
