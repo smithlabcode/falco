@@ -11,6 +11,11 @@
 #include <string>
 #include <vector>
 
+#ifdef ORIGINAL_DUPS
+#include <iterator>
+#include <limits>
+#endif
+
 class run_mode;
 struct file_grades;
 struct file_info;
