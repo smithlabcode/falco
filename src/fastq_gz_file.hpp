@@ -7,7 +7,9 @@
 
 #include <isa-l/igzip_lib.h>
 
+#include <cassert>
 #include <cstdio>
+#include <cstring>
 #include <format>
 #include <stdexcept>
 
@@ -22,9 +24,7 @@
 #endif  // HAVE_ISAL
 
 #include <atomic>
-#include <cassert>
 #include <cstdint>
-#include <cstring>
 #include <iterator>
 #include <memory>
 #include <string>
