@@ -18,9 +18,6 @@
 #include <type_traits>
 #include <vector>
 
-static constexpr auto cytosine_index = 3;
-static constexpr auto guanine_index = 1;
-
 namespace falco {
 static constexpr auto alphabet_size = 4;
 static constexpr auto gc_content_arra_size = 101;
@@ -58,6 +55,12 @@ inline constexpr auto end_module_tag = ">>END_MODULE\n";
 // C (67)10 = (1000011)2
 // G (71)10 = (1000111)2
 // T (84)10 = (1010100)2
+
+static constexpr auto adenine_index = 0;
+static constexpr auto cytosine_index = 1;
+static constexpr auto thymine_index = 2;
+static constexpr auto guanine_index = 3;
+static constexpr auto unknown_base_index = 3;
 
 [[nodiscard]] inline constexpr auto
 encode(const char c) {
