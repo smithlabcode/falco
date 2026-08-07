@@ -217,6 +217,7 @@ main(int argc, char *argv[]) {
     int do_dup_analysis{};
     int do_adap{};
     int do_groups{};
+    int do_bisulfite{};
 
     std::uint32_t n_threads{1};
     std::uint32_t max_read_length{};
@@ -295,6 +296,8 @@ main(int argc, char *argv[]) {
       ->option_text(" ")
       ->capture_default_str()
       ->transform(size_from_units);
+    app.add_flag("--bisulfite", do_bisulfite, "Assume bisulfite sequencing data")
+      ->option_text(" ");
     app.add_flag("--groups", do_groups, "Group base positions in output")
       ->option_text(" ");
     app.add_flag("--tiles,!--no-tiles", do_tiles,
@@ -335,6 +338,7 @@ main(int argc, char *argv[]) {
     mode.set_do_kmers(do_kmers);
     mode.set_do_tiles(do_tiles);
     mode.set_do_groups(do_groups);
+    mode.set_do_bisulfite(do_bisulfite);
     mode.set_unassigned();
 
     const auto outdirs = make_outdirs(infiles, outdir);
