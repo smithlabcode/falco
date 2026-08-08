@@ -148,15 +148,6 @@ get_grade_gc_sequence(const falco::gc_content_array &gc_content)
   return grader_set::get_grade(label, sum_deviation_from_normal(gc_content));
 }
 
-[[nodiscard]] auto
-get_grade_gc_sequence_bisulfite(const falco::gc_content_array &gc_content)
-  -> std::string {
-  static constexpr auto label = "gc_sequence";
-  if (gc_content.empty())
-    return grader_set::get_grade(label, 0.0);
-  return grader_set::get_grade(label, sum_deviation_from_normal(gc_content));
-}
-
 [[nodiscard]] inline constexpr auto
 single_delta(const auto a, const auto b, const auto tot) {
   return pct(as_frac(a, tot)) - pct(as_frac(b, tot));
