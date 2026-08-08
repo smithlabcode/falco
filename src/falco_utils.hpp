@@ -62,6 +62,13 @@ static constexpr auto thymine_index = 2;
 static constexpr auto guanine_index = 3;
 static constexpr auto unknown_base_index = 3;
 
+static constexpr auto base_permutation_for_report = {
+  guanine_index,
+  adenine_index,
+  thymine_index,
+  cytosine_index,
+};
+
 [[nodiscard]] inline constexpr auto
 encode(const char c) {
   return (c >> 1) & 3;  // Ns are counted as G so must be subtracted
