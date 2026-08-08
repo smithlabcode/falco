@@ -53,8 +53,7 @@ gc_sequence_report(const falco::gc_content_array &gc_content,
                    const file_grades &grades) -> std::string {
   static constexpr auto label = "gc_sequence";
   static constexpr auto start_tag = ">>Per sequence GC content\t{}\n";
-  static constexpr auto header = "#GC Content\t"
-                                 "Count\n";
+  static constexpr auto header = "#GC Content\tCount\n";
   auto r = std::format(start_tag, grades.grade(label));
   r += header;
   for (const auto [idx, gc] : std::views::enumerate(gc_content))
@@ -69,18 +68,15 @@ sequence_report(const std::vector<falco::nuc_array> &nucs,
                 const file_grades &grades) -> std::string {
   static constexpr auto label = "sequence";
   static constexpr auto start_tag = ">>Per base sequence content\t{}\n";
-  static constexpr auto header = "#Base\t"
-                                 "G\tA\tT\tC\n";
-  static constexpr auto base_permutation = {3, 0, 2, 1};
-  auto r = std::format(start_tag, grades.grade(label));
-  r += header;
-  for (auto i = 0u; i < std::size(nucs); ++i) {
-    r += make_group_tag(groups[i]);
-    const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
-    for (const auto j : base_permutation)
-      // cppcheck-suppress useStlAlgorithm
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-      r += std::format("\t{:2.4f}", pct(as_frac(nucs[i][j], tot)));
+  static constexpr auto header = "#Base\tG\tA\tT\tC\n";
+  auto r = std::format(start_tag, grades.grade(label)) + header;
+  for (const auto [group, pos] : std::views::zip(groups, nucs)) {
+    r += make_group_tag(group);
+    const auto tot = std::reduce(std::cbegin(pos), std::cend(pos));
+    std::ranges::for_each(base_permutation_for_report, [&](const auto j) {
+      const auto base_pct = pct(as_frac(pos[j], tot));  // NOLINT(*-array-index)
+      r += std::format("\t{:2.4f}", base_pct);
+    });
     r += '\n';
   }
   r += end_module_tag;
