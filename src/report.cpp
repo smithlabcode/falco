@@ -49,7 +49,7 @@ sequence_length_report(const std::vector<std::uint64_t> &lengths,
 }
 
 [[nodiscard]] auto
-gc_sequence_report(const falco::gc_content_array &gc_content,
+gc_sequence_report(const std::vector<double> &gc_content,
                    const file_grades &grades) -> std::string {
   static constexpr auto label = "gc_sequence";
   static constexpr auto start_tag = ">>Per sequence GC content\t{}\n";
@@ -58,7 +58,7 @@ gc_sequence_report(const falco::gc_content_array &gc_content,
   auto r = std::format(start_tag, grades.grade(label));
   r += header;
   for (const auto [idx, gc] : std::views::enumerate(gc_content))
-    r += std::format("{}\t{}\n", idx, gc);
+    r += std::format("{}\t{}\n", idx, std::round(gc));
   r += end_module_tag;
   return r;
 }
