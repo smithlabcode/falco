@@ -50,6 +50,8 @@ results_summary::initialize() -> void {
   median_read_len =
     min_read_len_itr == std::cend(lengths) ? 0LU : median_tabular(lengths);
 
+  gc_content = combine_gc_content_for_lengths(gc_content_for_lengths);
+
   // apply groups before making summary stats like in FastQC
   apply_groups();
 

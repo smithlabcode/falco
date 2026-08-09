@@ -28,7 +28,8 @@ struct results_summary {
   std::uint64_t total_bases{};
   std::uint64_t total_gc{};
   std::vector<falco::nuc_array> base_counts;
-  falco::gc_content_array gc_content{};
+  std::vector<falco::gc_content_array> gc_content_for_lengths;
+  std::vector<double> gc_content;
   std::vector<std::uint64_t> n_counts;
   std::vector<std::uint64_t> lengths;
   std::vector<falco::qual_array> qual_by_pos;
@@ -53,7 +54,7 @@ struct results_summary {
     n_reads{rc.n_reads},
     max_read_len{rc.max_read_len},
     base_counts{std::move(rc.base_counts)},
-    gc_content{rc.gc_content},
+    gc_content_for_lengths{rc.gc_content},
     n_counts{std::move(rc.n_counts)},
     lengths{std::move(rc.lengths)},
     qual_by_pos{std::move(rc.qual_by_pos)},
