@@ -72,9 +72,9 @@ struct alignas(assumed_page_size) results_collector {
 
   auto
   adjust_base_counts_for_ns() -> void {
-    // Ns were counted among the C in base_counts
+    // subtract N counts from the position where they were counted
     for (auto i = 0u; i < std::size(base_counts); ++i)
-      base_counts[i][guanine_index] -= n_counts[i];
+      base_counts[i][unknown_base_index] -= n_counts[i];
   }
 
   auto
