@@ -21,7 +21,7 @@ sequence_length_report(const std::vector<std::uint64_t> &lengths,
                        const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-gc_sequence_report(const falco::gc_content_array &gc_content,
+gc_sequence_report(const std::vector<double> &gc_content,
                    const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
