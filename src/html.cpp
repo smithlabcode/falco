@@ -114,7 +114,7 @@ name: "Sequence length distribution"
 }
 
 [[nodiscard]] auto
-gc_sequence_html(const falco::gc_content_array &gc_content,
+gc_sequence_html(const std::vector<double> &gc_content,
                  const file_grades &grades) -> std::string {
   static constexpr auto label = "gc_sequence";
   static constexpr auto smoothing_window = 5;
