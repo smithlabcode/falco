@@ -4,10 +4,10 @@ b9c56f4b0d4529a4f11aca0a7c6ba27e  fastq_bgzf_mult_out/fastq_bgzip_2/fastqc_data.
 bf153ad5a8906bb13a7c8b65e4d53a4a  fastq_gz_out/fastq_gz_1/fastqc_data.txt
 6de00a67cdd54102c0deb98ba6ba458d  fastq_bgzf_threads_out/fastq_bgzip_1/fastqc_data.txt
 bd714a4d24c6fbd8441522fb1ad48402  fastq_plain_out/fastq_1/fastqc_data.txt
-09afdd91fb417a884d8f19915969772d  bam_kmers_out/bam_1/fastqc_data.txt
-875badb0a910d4663591521cc69d55d8  bam_out/bam_1/fastqc_data.txt
-875badb0a910d4663591521cc69d55d8  bam_mult_out/bam_1/fastqc_data.txt
-ede7ff169ab8e01a62406f3fa7934a6e  bam_mult_out/bam_2/fastqc_data.txt
-875badb0a910d4663591521cc69d55d8  bam_tiles_out/bam_1/fastqc_data.txt
-9e854f8cb145dda9b104594eedb5473a  groups_out/bam_1/fastqc_data.txt
-f3fa8b3f08d7cb2fc5b99e435ceb90d6  sam_out/sam_1/fastqc_data.txt
+3c7a19cd59484ae1021a29e3fa9aa062  bam_kmers_out/bam_1/fastqc_data.txt
+4cf6ba5d87aa553a64ce5427c18ee85c  bam_out/bam_1/fastqc_data.txt
+4cf6ba5d87aa553a64ce5427c18ee85c  bam_mult_out/bam_1/fastqc_data.txt
+ad21a5d9eb4cac3018c61fd7afdcbaf4  bam_mult_out/bam_2/fastqc_data.txt
+4cf6ba5d87aa553a64ce5427c18ee85c  bam_tiles_out/bam_1/fastqc_data.txt
+ec81607e6c63f03e04c4c49588be816e  groups_out/bam_1/fastqc_data.txt
+a3a0045355760f0f1ec5b8ca4fc1753e  sam_out/sam_1/fastqc_data.txt
