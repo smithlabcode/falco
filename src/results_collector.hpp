@@ -53,7 +53,7 @@ struct alignas(assumed_page_size) results_collector {
   auto
   resize(const std::uint32_t updated_length) {
     base_counts.resize(updated_length);
-    if (std::size(gc_content) < falco::gc_content_array_size)
+    if (std::size(gc_content) < falco::gc_content_array_max_size)
       resize_gc_content(updated_length, gc_content);
     n_counts.resize(updated_length);
     lengths.resize(updated_length + 1);  // need one extra here
@@ -108,12 +108,12 @@ struct alignas(assumed_page_size) results_collector {
   process_one_read(const auto &rec) -> void {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
     static constexpr auto get_arr_idx = [&](const std::integral auto l) {
-      constexpr auto x = static_cast<decltype(l)>(falco::gc_content_array_lim);
+      constexpr auto x = static_cast<decltype(l)>(falco::gc_content_array_max_lim);
       return l < x ? l : x;
     };
     static constexpr auto get_gc_idx = [&](const std::integral auto a,
                                            const std::integral auto b) {
-      constexpr auto x = static_cast<decltype(b)>(falco::gc_content_array_lim);
+      constexpr auto x = static_cast<decltype(b)>(falco::gc_content_array_max_lim);
       return b < x ? a : (x * a) / b;
     };
     const auto read_len = static_cast<std::uint32_t>(get_seq_size(rec));

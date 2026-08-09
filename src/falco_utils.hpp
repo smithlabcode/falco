@@ -23,8 +23,14 @@ static constexpr auto guanine_index = 1;
 
 namespace falco {
 static constexpr auto alphabet_size = 4;
-static constexpr auto gc_content_array_size = 201;
-static constexpr auto gc_content_array_lim = 200;
+// ADS: gc_content_array_max_lim: the max read length for which there will be a
+// vector of the exact size to count the number of GC in reads of that length
+// without any kind of rounding. I think this was originally 500 in Falco v1,
+// but I'm not sure it makes any difference. The algorithm for combining the
+// different lengths is different, and in theory more accurate (principled), but
+// the implementation led me to much confusion.
+static constexpr auto gc_content_array_max_lim = 250;
+static constexpr auto gc_content_array_max_size = gc_content_array_max_lim + 1;
 using nuc_array = std::array<std::uint64_t, alphabet_size>;
 using gc_content_array = std::vector<std::uint64_t>;
 }  // namespace falco
@@ -38,7 +44,7 @@ resize_gc_content(const std::uint32_t updated_length,
                   std::vector<falco::gc_content_array> &gc_content) {
   const auto prev_size = std::size(gc_content);
   gc_content.resize(std::min(static_cast<std::int32_t>(updated_length + 1),
-                             falco::gc_content_array_size));
+                             falco::gc_content_array_max_size));
   for (auto i = prev_size; i < std::size(gc_content); ++i)
     gc_content[i].resize(i + 1);
 }
