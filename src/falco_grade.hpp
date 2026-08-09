@@ -138,7 +138,7 @@ get_grade_sequence_length(const std::vector<std::uint64_t> &lengths)
   -> std::string;
 
 [[nodiscard]] auto
-get_grade_gc_sequence(const falco::gc_content_array &gc_content) -> std::string;
+get_grade_gc_sequence(const std::vector<double> &gc_content) -> std::string;
 
 [[nodiscard]] auto
 get_grade_sequence(const std::vector<falco::nuc_array> &nucs) -> std::string;
