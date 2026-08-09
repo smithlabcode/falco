@@ -117,10 +117,12 @@ combine_gc_content_for_lengths(std::vector<falco::gc_content_array> &gcs)
     for (auto gc_idx = 0U; gc_idx < std::size(gcs[i]); ++gc_idx) {
       const auto curr_percent = gc_idx * increm;
       const auto next_percent = (gc_idx + 1) * increm;
-      const auto start_in_hist = std::floor(curr_percent);
+      const auto start_in_hist =
+        static_cast<std::uint64_t>(std::floor(curr_percent));
       // ADS: below, not sure best way to do this for all edge cases
       const auto stop_in_hist =
-        std::min(static_cast<double>(histogram_size), std::ceil(next_percent)) -
+        static_cast<std::uint64_t>(std::min(static_cast<double>(histogram_size),
+                                            std::ceil(next_percent))) -
         1;
       assert(stop_in_hist < histogram_size);
       const auto splits = start_in_hist != stop_in_hist;
