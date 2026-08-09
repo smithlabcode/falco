@@ -74,7 +74,7 @@ struct alignas(assumed_page_size) results_collector {
   adjust_base_counts_for_ns() -> void {
     // Ns were counted among the C in base_counts
     for (auto i = 0u; i < std::size(base_counts); ++i)
-      base_counts[i][cytosine_index] -= n_counts[i];
+      base_counts[i][guanine_index] -= n_counts[i];
   }
 
   auto
@@ -108,12 +108,14 @@ struct alignas(assumed_page_size) results_collector {
   process_one_read(const auto &rec) -> void {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
     static constexpr auto get_arr_idx = [&](const std::integral auto l) {
-      constexpr auto x = static_cast<decltype(l)>(falco::gc_content_array_max_lim);
+      constexpr auto x =
+        static_cast<decltype(l)>(falco::gc_content_array_max_lim);
       return l < x ? l : x;
     };
     static constexpr auto get_gc_idx = [&](const std::integral auto a,
                                            const std::integral auto b) {
-      constexpr auto x = static_cast<decltype(b)>(falco::gc_content_array_max_lim);
+      constexpr auto x =
+        static_cast<decltype(b)>(falco::gc_content_array_max_lim);
       return b < x ? a : (x * a) / b;
     };
     const auto read_len = static_cast<std::uint32_t>(get_seq_size(rec));
