@@ -67,20 +67,19 @@ gc_sequence_report(const std::vector<double> &gc_content,
 sequence_report(const std::vector<falco::nuc_array> &nucs,
                 const std::vector<base_group_t> &groups,
                 const file_grades &grades) -> std::string {
+  // ADS: order in 'header' below must match base_permutation_for_report
   static constexpr auto label = "sequence";
   static constexpr auto start_tag = ">>Per base sequence content\t{}\n";
   static constexpr auto header = "#Base\t"
                                  "G\tA\tT\tC\n";
-  static constexpr auto base_permutation = {3, 0, 2, 1};
-  auto r = std::format(start_tag, grades.grade(label));
-  r += header;
-  for (auto i = 0u; i < std::size(nucs); ++i) {
-    r += make_group_tag(groups[i]);
-    const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
-    for (const auto j : base_permutation)
-      // cppcheck-suppress useStlAlgorithm
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-      r += std::format("\t{:2.4f}", pct(as_frac(nucs[i][j], tot)));
+  auto r = std::format(start_tag, grades.grade(label)) + header;
+  for (const auto [group, row] : std::views::zip(groups, nucs)) {
+    r += make_group_tag(group);
+    const auto tot = std::reduce(std::cbegin(row), std::cend(row));
+    std::ranges::for_each(base_permutation_for_report, [&](const auto base_id) {
+      // NOLINTNEXTLINE(*-array-index)
+      r += std::format("\t{:2.4f}", pct(as_frac(row[base_id], tot)));
+    });
     r += '\n';
   }
   r += end_module_tag;
