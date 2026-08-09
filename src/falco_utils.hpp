@@ -18,8 +18,33 @@
 #include <type_traits>
 #include <vector>
 
-static constexpr auto cytosine_index = 3;
-static constexpr auto guanine_index = 1;
+// N (78)10 = (1001110)2 => 11 => 3 (same as G)
+// A (65)10 = (1000001)2 => 00 => 0
+// C (67)10 = (1000011)2 => 01 => 1
+// G (71)10 = (1000111)2 => 11 => 3
+// T (84)10 = (1010100)2 => 10 => 2
+
+static constexpr auto adenine_index = 0;
+static constexpr auto cytosine_index = 1;
+static constexpr auto thymine_index = 2;
+static constexpr auto guanine_index = 3;
+static constexpr auto unknown_base_index = 3;
+
+static constexpr auto bases = "ACTG";  // ADS: index this with vars above
+
+static constexpr auto base_permutation_for_report = {
+  guanine_index,
+  adenine_index,
+  thymine_index,
+  cytosine_index,
+};
+
+static constexpr auto base_colors_for_html = std::array{
+  "green",  // adenine
+  "blue",   // cytosine
+  "red",    // thymine
+  "black",  // guanine
+};
 
 namespace falco {
 static constexpr auto alphabet_size = 4;
@@ -73,12 +98,6 @@ duration(const auto start, const auto stop) {
 };
 
 inline constexpr auto end_module_tag = ">>END_MODULE\n";
-
-// N (78)10 = (1001110)2
-// A (65)10 = (1000001)2
-// C (67)10 = (1000011)2
-// G (71)10 = (1000111)2
-// T (84)10 = (1010100)2
 
 [[nodiscard]] inline constexpr auto
 encode(const char c) {
