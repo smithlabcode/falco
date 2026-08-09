@@ -23,26 +23,41 @@ static constexpr auto guanine_index = 1;
 
 namespace falco {
 static constexpr auto alphabet_size = 4;
-static constexpr auto gc_content_arra_size = 101;
+static constexpr auto gc_content_array_size = 201;
+static constexpr auto gc_content_array_lim = 200;
 using nuc_array = std::array<std::uint64_t, alphabet_size>;
-using gc_content_array = std::array<std::uint64_t, gc_content_arra_size>;
+using gc_content_array = std::vector<std::uint64_t>;
 }  // namespace falco
 
 static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
 static constexpr std::int64_t megabytes = 1024 * 1024;
 static constexpr std::int64_t kilobytes = 1024;
 
+[[nodiscard]] inline auto
+resize_gc_content(const std::uint32_t updated_length,
+                  std::vector<falco::gc_content_array> &gc_content) {
+  const auto prev_size = std::size(gc_content);
+  gc_content.resize(std::min(static_cast<std::int32_t>(updated_length + 1),
+                             falco::gc_content_array_size));
+  for (auto i = prev_size; i < std::size(gc_content); ++i)
+    gc_content[i].resize(i + 1);
+}
+
 [[nodiscard]] auto
-smooth_gc_content(const falco::gc_content_array &data,
+combine_gc_content_for_lengths(std::vector<falco::gc_content_array> &gc_content)
+  -> std::vector<double>;
+
+[[nodiscard]] auto
+smooth_gc_content(const std::vector<double> &data,
                   const std::int64_t window_size) -> std::vector<double>;
 
 [[nodiscard]] auto
-get_theoretical_distribution(const falco::gc_content_array &gc,
+get_theoretical_distribution(const std::vector<double> &gc,
                              const std::uint64_t total_count)
   -> std::vector<double>;
 
 [[nodiscard]] auto
-sum_deviation_from_normal(const falco::gc_content_array &gc) -> double;
+sum_deviation_from_normal(const std::vector<double> &gc) -> double;
 
 [[nodiscard]] inline constexpr auto
 duration(const auto start, const auto stop) {
