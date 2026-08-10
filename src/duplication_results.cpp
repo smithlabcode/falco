@@ -126,20 +126,8 @@ duplication_results::add_and_consume(duplication_results &rhs) -> void {
 #ifndef ORIGINAL_DUPS
   for (const auto &[k, v] : rhs.dups)
     dups[k] += v;
-#else  // ORIGINAL_DUPS
-#ifdef ORIGINAL_DUPS_THREADS
-  // ADS: these should be done earlier in a 'finalize' method before adding
-  // together
-  if (count_at_limit == 0)
-    count_at_limit = read_idx;
-  if (rhs.count_at_limit == 0)
-    rhs.count_at_limit = rhs.read_idx;
-  count_at_limit += rhs.count_at_limit;
-  read_idx += rhs.read_idx;
-  for (const auto &[k, v] : rhs.dups)
-    dups[k] += v;
-#endif  // ORIGINAL_DUPS_THREADS
 #endif  // ORIGINAL_DUPS
+  // ADS: ORIGINAL_DUPS mode just uses dups from one of two duplication_results
   rhs.release();
 }
 

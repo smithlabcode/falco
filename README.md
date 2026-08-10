@@ -188,10 +188,10 @@ produce more useful output, and to soon build
 [preseq](https://github.com/smithlabcode/preseq) into falco.
 
 The original duplication analysis method is still implemented in falco v2.0, but
-it must be turned on at build time by supplying `-DORIGINAL_DUPS=[on|threads]`
-to `cmake` (the difference is explained below). It's still there because I used
-a trivial implementation and helps me debug. Here's how the old and new analyses
-differ, to the best of my understanding. I'm happy to be corrected.
+it must be turned on at build time by supplying `-DORIGINAL_DUPS=on` to
+`cmake`. It's still there because I used a trivial implementation and helps me
+debug. Here's how the old and new analyses differ, to the best of my
+understanding. I'm happy to be corrected.
 
 #### Original method
 - 100,000 unique reads are hashed and counted (first 50nt of each read).
@@ -207,12 +207,10 @@ differ, to the best of my understanding. I'm happy to be corrected.
   speed changing which 1M reads are hashed.
 
 Building with `-DORIGINAL_DUPS=on` enables the original duplication analysis,
-but it only gives the same results when run using one thread. Building with
-`-DORIGINAL_DUPS=threads` enables the original duplication analysis, giving the
-same results when using multiple threads, but is slower when run using one
-thread. The underlying issues with this duplication analysis were part of the
-motivation for preseq, so I'm reluctant to put effort towards improving how the
-original duplication analysis is implemented.
+but it only gives the same results when run using one thread. The underlying
+issues with this duplication analysis were part of the motivation for preseq, so
+I'm reluctant to put effort towards improving how the original duplication
+analysis is implemented.
 
 ## Citing falco
 
