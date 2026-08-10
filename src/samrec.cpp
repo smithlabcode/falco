@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "samrec.hpp"
+#include "quality_score.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -36,9 +37,10 @@ samrec::get_next(samrec::pos_t &cursor, const samrec::pos_t end_itr,
   // get the read name
   const auto name_itr = itr;
   next_delim(itr);
-  rec.name_len = std::distance(name_itr, itr);
+  const auto name_len = std::distance(name_itr, itr);
   if (itr++ == end_itr)
     return false;
+  rec.name_len = name_len;
 
   // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
@@ -62,9 +64,10 @@ samrec::get_next(samrec::pos_t &cursor, const samrec::pos_t end_itr,
   // get the sequence
   const auto seq_itr = itr;
   next_delim(itr);
-  rec.seq_len = std::distance(seq_itr, itr);
+  const auto seq_len = std::distance(seq_itr, itr);
   if (itr++ == end_itr)
     return false;
+  rec.seq_len = seq_len;
 
   // get the quality scores
   const auto qual_itr = itr;
@@ -73,33 +76,31 @@ samrec::get_next(samrec::pos_t &cursor, const samrec::pos_t end_itr,
   if (itr++ == end_itr)
     return false;
 
-  if (*qual_itr != qual_missing_symbol && qual_len != rec.seq_len)
-    return false;
+  if (qual_len != rec.seq_len)
+    throw std::runtime_error("quality scores invalid for record: " +
+                             std::string(name_itr, name_len));
 
   const auto rec_size = rec.name_len + 2 * rec.seq_len;
-  if (std::size(rec.buffer) < rec_size)
+  if (std::ssize(rec.buffer) < rec_size)
     rec.buffer.resize(rec_size);
 
-  auto buf_beg = std::begin(rec.buffer);
-  std::copy_n(name_itr, rec.name_len, buf_beg);
+  auto out_name_itr = std::data(rec.buffer);
+  auto out_seq_itr = out_name_itr + name_len;
+  auto out_qual_itr = out_seq_itr + seq_len;
+  std::copy_n(name_itr, name_len, out_name_itr);
+
   if (bam_is_rev(flag)) {
-    std::reverse_copy(seq_itr, seq_itr + rec.seq_len, buf_beg + rec.name_len);
-    auto buf_seq_itr = buf_beg + rec.name_len;
-    std::transform(buf_seq_itr, buf_seq_itr + rec.seq_len, buf_seq_itr,
-                   complem);
-    std::reverse_copy(qual_itr, qual_itr + rec.seq_len,
-                      buf_beg + rec.name_len + rec.seq_len);
+    std::reverse_copy(seq_itr, seq_itr + seq_len, out_seq_itr);
+    std::transform(out_seq_itr, out_seq_itr + seq_len, out_seq_itr, complem);
+    std::reverse_copy(qual_itr, qual_itr + seq_len, out_qual_itr);
   }
   else {
-    std::copy(seq_itr, seq_itr + rec.seq_len, buf_beg + rec.name_len);
-    std::copy(qual_itr, qual_itr + rec.seq_len,
-              buf_beg + rec.name_len + rec.seq_len);
+    std::copy(seq_itr, seq_itr + seq_len, out_seq_itr);
+    std::copy(qual_itr, qual_itr + seq_len, out_qual_itr);
   }
-  /// ADS: removing the code below fixes a bug, and it should be sufficient, but
-  /// it's not the most robust way. This needs to be revisited.
-  // if (*qual_itr == qual_missing_symbol)  // could use to eliminate copy
-  //   buf_beg[rec.name_len + rec.seq_len] =
-  //   static_cast<char>(qual_missing_code);
+  assert(std::all_of(out_qual_itr, out_qual_itr + seq_len, [](const auto q) {
+    return q >= 0 && q <= falco::max_qual_val;
+  }));
 
   itr = std::find(itr, end_itr, '\n');
   if (*itr++ != '\n')
