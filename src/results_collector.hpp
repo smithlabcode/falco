@@ -12,6 +12,7 @@
 #include "file_info.hpp"
 #include "fqrec.hpp"
 #include "kmer_counter.hpp"
+#include "quality_score.hpp"
 #include "run_mode.hpp"
 #include "samrec.hpp"
 #include "tile_processor.hpp"
