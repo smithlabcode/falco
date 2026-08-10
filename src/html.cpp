@@ -28,6 +28,7 @@
 #include <map>
 #include <numeric>
 #include <ranges>
+#include <sstream>  // to format time with timezone
 #include <string>
 #include <vector>  // IWYU pragma: keep
 
@@ -66,9 +67,12 @@ get_html_module(const std::string &label, const std::string &text,
 [[nodiscard]] auto
 falco_get_html(const file_info &info, const file_grades &grades,
                const std::string &analysis_modules) -> std::string {
-  return fmt::format(falco_html_body,
-                     fmt::arg("date", std::chrono::floor<std::chrono::seconds>(
-                                        std::chrono::system_clock::now())),
+  const auto now = std::chrono::system_clock::now();
+  const auto now_c = std::chrono::system_clock::to_time_t(now);
+  std::ostringstream oss;
+  oss << std::put_time(std::localtime(&now_c), "%F %T %Z");
+  return fmt::format(falco_html_body,                           //
+                     fmt::arg("date", oss.str()),               //
                      fmt::arg("filename", info.name),           //
                      fmt::arg("style", style),                  //
                      fmt::arg("summary", get_summary(grades)),  //
@@ -114,7 +118,7 @@ name: "Sequence length distribution"
 }
 
 [[nodiscard]] auto
-gc_sequence_html(const falco::gc_content_array &gc_content,
+gc_sequence_html(const std::vector<double> &gc_content,
                  const file_grades &grades) -> std::string {
   static constexpr auto label = "gc_sequence";
   static constexpr auto smoothing_window = 5;
@@ -168,7 +172,7 @@ Plotly.newPlot("sequence_plot",
 [{}],
 {{
 xaxis: {{title: "Base position"}},
-yaxis: {{title: "Per base sequence content"}},
+yaxis: {{title: "Per base sequence content", range: [0, 100]}},
 }});
 </script>
 )";
@@ -179,15 +183,6 @@ mode: "lines",
 name: "{}",
 line: {{color: "{}"}}
 }})";
-  static constexpr auto base_permutation = {0, 1, 3, 2};
-  // ADS: the permutation is likely wrong...
-  static constexpr auto bases = "ACTG";  // ACTG?
-  static constexpr auto base_to_color = std::array{
-    "green",
-    "blue",
-    "red",
-    "black",
-  };
   const auto sum = [&](const auto &nucs_by_pos) {
     return std::reduce(std::cbegin(nucs_by_pos), std::cend(nucs_by_pos));
   };
@@ -198,14 +193,14 @@ line: {{color: "{}"}}
   const auto total_by_pos = nucs | std::views::transform(sum);
   std::vector<std::string> r;
   // NOLINTBEGIN(*-constant-array-index,*-pointer-arithmetic)
-  for (const auto idx : base_permutation) {
+  for (const auto idx : std::views::iota(0, falco::alphabet_size)) {
     const auto pct_for_pos = [idx](const auto &nucs_for_pos, const auto tot) {
       return pct(as_frac(nucs_for_pos[idx], tot));
     };
     const auto y = std::views::zip_transform(pct_for_pos, nucs, total_by_pos);
     r.emplace_back(fmt::format(per_base_fmt, fmt::join(x, ","),
                                fmt::join(y, ","), bases[idx],
-                               base_to_color[idx]));
+                               base_colors_for_html[idx]));
   }
   // NOLINTEND(*-constant-array-index,*-pointer-arithmetic)
   const auto grade = grades.grade(label);
@@ -233,7 +228,7 @@ name: "Fraction of N reads per base"
 }}],
 {{
 xaxis: {{title: "Base position"}},
-yaxis: {{title: "% N"}},
+yaxis: {{title: "% N", range: [0, 100]}},
 }}
 );</script>
 )";
@@ -255,6 +250,7 @@ yaxis: {{title: "% N"}},
 [[nodiscard]] auto
 quality_sequence_html(const falco::qual_array &qual_by_read,
                       const file_grades &grades) -> std::string {
+  // ADS: using x-axis range of [0, 40] so single point won't always center
   static constexpr auto label = "quality_sequence";
   static constexpr auto plot_fmt =
     R"(<div id="quality_sequence_plot"></div>
@@ -268,8 +264,8 @@ line: {{color: "red"}},
 name: "Sequence quality distribution"
 }}],
 {{
-xaxis: {{title: "Phread quality"}},
-yaxis: {{title: "Density"}},
+xaxis: {{title: "Phred quality", range: [0, 40]}},
+yaxis: {{title: "Density", rangemode: "tozero"}},
 }});
 </script>
 )";
@@ -308,7 +304,7 @@ Plotly.newPlot("quality_base_plot",
 {{
 showlegend: false,
 xaxis: {{title: "Base position"}},
-yaxis: {{title: "Phread quality"}},
+yaxis: {{title: "Phred quality", rangemode: "tozero"}},
 }});
 </script>
 )";

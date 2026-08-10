@@ -18,28 +18,77 @@
 #include <type_traits>
 #include <vector>
 
+// N (78)10 = (1001110)2 => 11 => 3 (same as G)
+// A (65)10 = (1000001)2 => 00 => 0
+// C (67)10 = (1000011)2 => 01 => 1
+// G (71)10 = (1000111)2 => 11 => 3
+// T (84)10 = (1010100)2 => 10 => 2
+
+static constexpr auto adenine_index = 0;
+static constexpr auto cytosine_index = 1;
+static constexpr auto thymine_index = 2;
+static constexpr auto guanine_index = 3;
+static constexpr auto unknown_base_index = 3;
+
+static constexpr auto bases = "ACTG";  // ADS: index this with vars above
+
+static constexpr auto base_permutation_for_report = {
+  guanine_index,
+  adenine_index,
+  thymine_index,
+  cytosine_index,
+};
+
+static constexpr auto base_colors_for_html = std::array{
+  "green",  // adenine
+  "blue",   // cytosine
+  "red",    // thymine
+  "black",  // guanine
+};
+
 namespace falco {
 static constexpr auto alphabet_size = 4;
-static constexpr auto gc_content_arra_size = 101;
+// ADS: gc_content_array_max_lim: the max read length for which there will be a
+// vector of the exact size to count the number of GC in reads of that length
+// without any kind of rounding. I think this was originally 500 in Falco v1,
+// but I'm not sure it makes any difference. The algorithm for combining the
+// different lengths is different, and in theory more accurate (principled), but
+// the implementation led me to much confusion.
+static constexpr auto gc_content_array_max_lim = 250;
+static constexpr auto gc_content_array_max_size = gc_content_array_max_lim + 1;
 using nuc_array = std::array<std::uint64_t, alphabet_size>;
-using gc_content_array = std::array<std::uint64_t, gc_content_arra_size>;
+using gc_content_array = std::vector<std::uint64_t>;
 }  // namespace falco
 
 static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
 static constexpr std::int64_t megabytes = 1024 * 1024;
 static constexpr std::int64_t kilobytes = 1024;
 
+[[nodiscard]] inline auto
+resize_gc_content(const std::uint32_t updated_length,
+                  std::vector<falco::gc_content_array> &gc_content) {
+  const auto prev_size = std::size(gc_content);
+  gc_content.resize(std::min(static_cast<std::int32_t>(updated_length + 1),
+                             falco::gc_content_array_max_size));
+  for (auto i = prev_size; i < std::size(gc_content); ++i)
+    gc_content[i].resize(i + 1);
+}
+
 [[nodiscard]] auto
-smooth_gc_content(const falco::gc_content_array &data,
+combine_gc_content_for_lengths(std::vector<falco::gc_content_array> &gc_content)
+  -> std::vector<double>;
+
+[[nodiscard]] auto
+smooth_gc_content(const std::vector<double> &data,
                   const std::int64_t window_size) -> std::vector<double>;
 
 [[nodiscard]] auto
-get_theoretical_distribution(const falco::gc_content_array &gc,
+get_theoretical_distribution(const std::vector<double> &gc,
                              const std::uint64_t total_count)
   -> std::vector<double>;
 
 [[nodiscard]] auto
-sum_deviation_from_normal(const falco::gc_content_array &gc) -> double;
+sum_deviation_from_normal(const std::vector<double> &gc) -> double;
 
 [[nodiscard]] inline constexpr auto
 duration(const auto start, const auto stop) {
@@ -49,25 +98,6 @@ duration(const auto start, const auto stop) {
 };
 
 inline constexpr auto end_module_tag = ">>END_MODULE\n";
-
-// N (78)10 = (1001110)2
-// A (65)10 = (1000001)2
-// C (67)10 = (1000011)2
-// G (71)10 = (1000111)2
-// T (84)10 = (1010100)2
-
-static constexpr auto adenine_index = 0;
-static constexpr auto cytosine_index = 1;
-static constexpr auto thymine_index = 2;
-static constexpr auto guanine_index = 3;
-static constexpr auto unknown_base_index = 3;
-
-static constexpr auto base_permutation_for_report = {
-  guanine_index,
-  adenine_index,
-  thymine_index,
-  cytosine_index,
-};
 
 [[nodiscard]] inline constexpr auto
 encode(const char c) {

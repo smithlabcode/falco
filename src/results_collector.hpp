@@ -36,7 +36,7 @@ struct alignas(assumed_page_size) results_collector {
   std::uint64_t n_reads{};
   std::uint64_t max_read_len{};
   std::vector<falco::nuc_array> base_counts;
-  falco::gc_content_array gc_content{};
+  std::vector<falco::gc_content_array> gc_content;
   std::vector<std::uint64_t> n_counts;
   std::vector<std::uint64_t> lengths;
   std::vector<falco::qual_array> qual_by_pos;
@@ -53,6 +53,8 @@ struct alignas(assumed_page_size) results_collector {
   auto
   resize(const std::uint32_t updated_length) {
     base_counts.resize(updated_length);
+    if (std::size(gc_content) < falco::gc_content_array_max_size)
+      resize_gc_content(updated_length, gc_content);
     n_counts.resize(updated_length);
     lengths.resize(updated_length + 1);  // need one extra here
     qual_by_pos.resize(updated_length);
@@ -70,9 +72,9 @@ struct alignas(assumed_page_size) results_collector {
 
   auto
   adjust_base_counts_for_ns() -> void {
-    // Ns were counted among the G in base_counts
+    // subtract N counts from the position where they were counted
     for (auto i = 0u; i < std::size(base_counts); ++i)
-      base_counts[i][guanine_index] -= n_counts[i];
+      base_counts[i][unknown_base_index] -= n_counts[i];
   }
 
   auto
@@ -105,8 +107,16 @@ struct alignas(assumed_page_size) results_collector {
   auto
   process_one_read(const auto &rec) -> void {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-    static constexpr auto discrete_pct = [](const auto a, const auto b) {
-      return (100 * a) / b;  // NOLINT(cppcoreguidelines-avoid-magic-numbers)
+    static constexpr auto get_arr_idx = [&](const std::integral auto l) {
+      constexpr auto x =
+        static_cast<decltype(l)>(falco::gc_content_array_max_lim);
+      return l < x ? l : x;
+    };
+    static constexpr auto get_gc_idx = [&](const std::integral auto a,
+                                           const std::integral auto b) {
+      constexpr auto x =
+        static_cast<decltype(b)>(falco::gc_content_array_max_lim);
+      return b < x ? a : (x * a) / b;
     };
     const auto read_len = static_cast<std::uint32_t>(get_seq_size(rec));
     if (read_len > max_read_len) [[unlikely]]
@@ -119,7 +129,8 @@ struct alignas(assumed_page_size) results_collector {
     const auto seq_end = seq_itr + read_len;
     count_nucs(seq_itr, seq_end, base_counts);
     const auto gc = count_gc(seq_itr, seq_end);
-    ++gc_content[discrete_pct(gc, read_len)];
+    assert(get_arr_idx(read_len) < std::ssize(gc_content));
+    ++gc_content[get_arr_idx(read_len)][get_gc_idx(gc, read_len)];
     count_ns(seq_itr, seq_end, n_counts);
     const auto tot = count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
     ++qual_by_read[tot / read_len];
@@ -137,7 +148,7 @@ struct alignas(assumed_page_size) results_collector {
     n_reads += rhs.n_reads;
     max_read_len = std::max(max_read_len, rhs.max_read_len);
     two_dim_add_and_consume(base_counts, rhs.base_counts);
-    add(gc_content, rhs.gc_content);
+    two_dim_add_and_consume(gc_content, std::move(rhs.gc_content));
     vec_add_and_consume(lengths, std::move(rhs.lengths));
     vec_add_and_consume(n_counts, std::move(rhs.n_counts));
     two_dim_add(qual_by_pos, rhs.qual_by_pos);
