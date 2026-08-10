@@ -296,7 +296,8 @@ main(int argc, char *argv[]) {
       ->option_text(" ")
       ->capture_default_str()
       ->transform(size_from_units);
-    app.add_flag("--bisulfite", do_bisulfite, "Assume bisulfite sequencing data")
+    app.add_flag("--bisulfite", do_bisulfite,
+                 "Assume bisulfite when grading sequence content")
       ->option_text(" ");
     app.add_flag("--groups", do_groups, "Group base positions in output")
       ->option_text(" ");
