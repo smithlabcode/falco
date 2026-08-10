@@ -13,9 +13,6 @@
 
 #ifdef ORIGINAL_DUPS
 #include <iterator>
-#ifdef ORIGINAL_DUPS_THREADS
-#include <limits>
-#endif  // ORIGINAL_DUPS_THREADS
 #endif  // ORIGINAL_DUPS
 
 class run_mode;
@@ -39,12 +36,7 @@ struct dup_summary_t {
 struct duplication_results {
   static constexpr auto max_n_reads_total{1'000'000};
 #ifdef ORIGINAL_DUPS
-#ifdef ORIGINAL_DUPS_THREADS
-  static constexpr auto max_reads_to_hash{
-    std::numeric_limits<std::int64_t>::max()};
-#else
   static constexpr auto max_reads_to_hash{100'000};
-#endif  // ORIGINAL_DUPS_THREADS
 #endif  // ORIGINAL_DUPS
   static constexpr auto default_read_skip{10};
   static constexpr auto overrep_cutoff = 0.001;
