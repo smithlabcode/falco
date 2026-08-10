@@ -4,7 +4,6 @@
 #define SRC_TILE_PROCESSOR_HPP_
 
 #include "base_groups.hpp"
-#include "falco_utils.hpp"
 #include "quality_score.hpp"
 
 #include "boost/boost_unordered.hpp"
