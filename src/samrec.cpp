@@ -4,8 +4,10 @@
 #include "quality_score.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <charconv>
 #include <iterator>
+#include <stdexcept>
 #include <system_error>
 
 #ifdef BAM_FREVERSE

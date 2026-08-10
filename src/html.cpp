@@ -30,6 +30,7 @@
 #include <numeric>
 #include <ranges>
 #include <sstream>  // to format time with timezone
+#include <stdexcept>
 #include <string>
 #include <vector>  // IWYU pragma: keep
 
