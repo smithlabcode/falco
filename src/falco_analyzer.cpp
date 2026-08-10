@@ -63,7 +63,7 @@ analyze(const std::uint32_t n_threads, const run_mode &mode,
           else if (std::holds_alternative<sam_task_t>(task))
             process_reads(res[file_id], std::get<sam_task_t>(task));
           else if (std::holds_alternative<bgzf_block_t>(task))
-            decompress(std::move(std::get<bgzf_block_t>(task)));
+            decompress(std::get<bgzf_block_t>(task));
           else {  // monostate means read more data
             if (!is_active(reads_files[file_id])) {
               assert(n_tasks[file_id] == 0);
