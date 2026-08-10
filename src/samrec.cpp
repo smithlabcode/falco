@@ -95,8 +95,11 @@ samrec::get_next(samrec::pos_t &cursor, const samrec::pos_t end_itr,
     std::copy(qual_itr, qual_itr + rec.seq_len,
               buf_beg + rec.name_len + rec.seq_len);
   }
-  if (*qual_itr == qual_missing_symbol)  // could use to eliminate copy
-    buf_beg[rec.name_len + rec.seq_len] = static_cast<char>(qual_missing_code);
+  /// ADS: removing the code below fixes a bug, and it should be sufficient, but
+  /// it's not the most robust way. This needs to be revisited.
+  // if (*qual_itr == qual_missing_symbol)  // could use to eliminate copy
+  //   buf_beg[rec.name_len + rec.seq_len] =
+  //   static_cast<char>(qual_missing_code);
 
   itr = std::find(itr, end_itr, '\n');
   if (*itr++ != '\n')
