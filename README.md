@@ -1,7 +1,7 @@
 [![GitHub Downloads](https://img.shields.io/github/downloads/smithlabcode/falco/total.svg?style=social&logo=github&label=Download)](https://github.com/smithlabcode/falco/releases/latest)
 [![DOI](https://img.shields.io/badge/DOI-10.5281/zenodo.214499063-blue)](https://zenodo.org/badge/latestdoi/214499063)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Install on conda](https://anaconda.org/bioconda/falco/badges/platforms.svg)](https://anaconda.org/bioconda/falco)
-[![Install on conda](https://anaconda.org/bioconda/falco/badges/license.svg)](https://anaconda.org/bioconda/falco)
 [![Install on conda](https://img.shields.io/conda/dn/bioconda/falco?color=red&label=conda%20downloads&style=flat-square)](https://anaconda.org/bioconda/falco)
 
 # Falco
