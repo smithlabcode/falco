@@ -22,8 +22,9 @@
 #include <cassert>
 #include <chrono>
 #include <cmath>
+#include <ctime>  // for std::localtime
 #include <format>
-#include <initializer_list>
+#include <iomanip>
 #include <iterator>
 #include <map>
 #include <numeric>
@@ -150,7 +151,8 @@ name: "Theoretical distribution"
   const auto x = std::views::iota(1, std::ssize(gc_content) + 1);
   const auto total_count =
     std::reduce(std::cbegin(gc_content), std::cend(gc_content));
-  const auto theor = get_theoretical_distribution(gc_content, total_count);
+  const auto theor = get_theoretical_distribution(
+    gc_content, static_cast<std::uint64_t>(total_count));
   const auto gc_smoothed = smooth_gc_content(gc_content, smoothing_window);
   const auto lines_data = fmt::format(gc_fmt, x, gc_smoothed, x, theor);
 
