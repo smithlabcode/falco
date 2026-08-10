@@ -226,7 +226,7 @@ count_ns(auto seq_itr, const auto seq_end,
     *out_itr++ += (*seq_itr++ == 'N');
 }
 
-[[nodiscard]] static inline auto
+[[nodiscard]] inline auto
 count_gc(auto seq_itr, const auto seq_end) {
   auto gc = 0;
   while (seq_itr != seq_end) {
@@ -234,51 +234,6 @@ count_gc(auto seq_itr, const auto seq_end) {
     ++seq_itr;
   }
   return gc;
-}
-
-[[nodiscard]] static inline auto
-count_quals(auto qual_itr, const auto qual_end,
-            auto &tab) {  // cppcheck-suppress constParameterReference
-  auto out_itr = std::begin(tab);
-  auto qual_tot = 0;
-  while (qual_itr != qual_end) {
-    const auto q = *qual_itr++;
-    ++(*out_itr++)[q];
-    qual_tot += q;
-  }
-  return qual_tot;
-}
-
-[[nodiscard]] static inline auto
-count_quals_rev(auto qual_itr, const auto qual_end,
-                auto &tab) {  // cppcheck-suppress constParameterReference
-  auto out_itr = std::begin(tab) + std::distance(qual_itr, qual_end);
-  auto qual_tot = 0;
-  while (qual_itr != qual_end) {
-    const auto q = *qual_itr++;
-    ++(*(--out_itr))[q];
-    qual_tot += q;
-  }
-  return qual_tot;
-}
-
-static inline auto
-count_quals_itr(auto qual_itr, const auto qual_end, auto tab_itr) {
-  while (qual_itr != qual_end) {
-    tab_itr->first += *qual_itr++;
-    ++tab_itr->second;
-    ++tab_itr;
-  }
-}
-
-static inline auto
-count_quals_itr_rev(auto qual_itr, const auto qual_end, auto tab_itr) {
-  tab_itr += std::distance(qual_itr, qual_end);
-  while (qual_itr != qual_end) {
-    --tab_itr;
-    tab_itr->first += *qual_itr++;
-    ++tab_itr->second;
-  }
 }
 
 [[nodiscard]] inline auto
