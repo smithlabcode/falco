@@ -25,9 +25,11 @@
 #include <ctime>  // for std::localtime
 #include <format>
 #include <iomanip>
+#include <iostream>
 #include <iterator>
 #include <map>
 #include <numeric>
+#include <print>
 #include <ranges>
 #include <sstream>  // to format time with timezone
 #include <string>
@@ -271,23 +273,23 @@ yaxis: {{title: "Density", rangemode: "tozero"}},
 }});
 </script>
 )";
-  // output quality values between first non-zero and last zero
-  const auto gt0 = [&](const auto x) { return x > 0; };
-  const auto first_obs_itr = std::ranges::find_if(qual_by_read, gt0);
-  const auto q_beg = std::cbegin(qual_by_read);
-  const std::int64_t first_obs = std::distance(q_beg, first_obs_itr);
-  const auto last_obs_subrange = std::ranges::find_last_if(qual_by_read, gt0);
-  const std::int64_t last_obs =
-    first_obs == falco::max_qual_val
-      ? falco::max_qual_val
-      : std::ssize(qual_by_read) - std::ssize(last_obs_subrange) + 1;
-  assert(first_obs >= 0 && last_obs <= falco::max_qual_val);
-  const auto x = std::views::iota(first_obs, last_obs);
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  const auto y = std::ranges::subrange{q_beg + first_obs, q_beg + last_obs};
-
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
+  // output quality values between first non-zero and last zero
+  const auto gt0 = [&](const auto x) { return x > 0; };
+  const auto begin_obs_itr = std::ranges::find_if(qual_by_read, gt0);
+  if (begin_obs_itr == std::cend(qual_by_read))
+    throw std::runtime_error("error finding quality scores generating html");
+  const std::int64_t begin_obs =
+    std::distance(std::cbegin(qual_by_read), begin_obs_itr);
+  const auto end_obs_subrange = std::ranges::find_last_if(qual_by_read, gt0);
+  const std::int64_t end_obs =
+    std::ssize(qual_by_read) - std::ssize(end_obs_subrange) + 1;
+  assert(begin_obs >= 0 && end_obs <= falco::max_qual_val);
+  const auto x = std::views::iota(begin_obs, end_obs);
+  const auto q_beg = std::cbegin(qual_by_read);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  const auto y = std::ranges::subrange{q_beg + begin_obs, q_beg + end_obs};
   return fmt::format(
     html_module_fmt, grade, label, title, grade,
     fmt::format(plot_fmt, fmt::join(x, ","), fmt::join(y, ",")));
