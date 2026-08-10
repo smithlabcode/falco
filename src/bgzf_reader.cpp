@@ -39,7 +39,7 @@ assign(gzip_header &hdr, auto *data) -> void {
 }
 
 bgzf_reader::bgzf_reader(const std::string &filename,
-                         const std::int32_t buf_size) :
+                         const std::int64_t buf_size) :
   fp(std::fopen(std::data(filename), "r"), &std::fclose),     //
   filesize{std::filesystem::file_size(filename)},             //
   inbuf(std::make_unique_for_overwrite<char[]>(inbuf_size)),  // NOLINT
