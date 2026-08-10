@@ -53,6 +53,7 @@ public:
 
   [[nodiscard]] auto
   to_string() const {
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     return std::format(
       "@{}\n{}\n+\n{}",
       std::string(std::data(buffer), std::data(buffer) + name_len),
@@ -60,6 +61,7 @@ public:
                   std::data(buffer) + name_len + seq_len),
       std::string(std::data(buffer) + name_len + seq_len,
                   std::data(buffer) + name_len + seq_len + seq_len));
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   }
 
   operator bool() const { return name_len != 0; }
