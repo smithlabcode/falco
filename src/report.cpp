@@ -19,8 +19,8 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <format>
-#include <initializer_list>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -53,8 +53,7 @@ gc_sequence_report(const std::vector<double> &gc_content,
                    const file_grades &grades) -> std::string {
   static constexpr auto label = "gc_sequence";
   static constexpr auto start_tag = ">>Per sequence GC content\t{}\n";
-  static constexpr auto header = "#GC Content\t"
-                                 "Count\n";
+  static constexpr auto header = "#GC Content\tCount\n";
   auto r = std::format(start_tag, grades.grade(label));
   r += header;
   for (const auto [idx, gc] : std::views::enumerate(gc_content))
@@ -73,12 +72,24 @@ sequence_report(const std::vector<falco::nuc_array> &nucs,
   static constexpr auto header = "#Base\t"
                                  "G\tA\tT\tC\n";
   auto r = std::format(start_tag, grades.grade(label)) + header;
-  for (const auto [group, row] : std::views::zip(groups, nucs)) {
-    r += make_group_tag(group);
-    const auto tot = std::reduce(std::cbegin(row), std::cend(row));
+  // ADS: clang-tidy doesn't like the capture of 'row' by reference...
+
+  // for (const auto [group, row] : std::views::zip(groups, nucs)) {
+  //   r += make_group_tag(group);
+  //   const auto tot = std::reduce(std::cbegin(row), std::cend(row));
+  //   std::ranges::for_each(base_permutation_for_report, [&](const auto
+  //   base_id) {
+  //     // NOLINTNEXTLINE(*-array-index)
+  //     r += std::format("\t{:2.4f}", pct(as_frac(row[base_id], tot)));
+  //   });
+  //   r += '\n';
+  // }
+  for (auto i = 0U; i < std::size(nucs); ++i) {
+    r += make_group_tag(groups[i]);
+    const auto tot = std::reduce(std::cbegin(nucs[i]), std::cend(nucs[i]));
     std::ranges::for_each(base_permutation_for_report, [&](const auto base_id) {
       // NOLINTNEXTLINE(*-array-index)
-      r += std::format("\t{:2.4f}", pct(as_frac(row[base_id], tot)));
+      r += std::format("\t{:2.4f}", pct(as_frac(nucs[i][base_id], tot)));
     });
     r += '\n';
   }

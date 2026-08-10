@@ -124,10 +124,9 @@ public:
 
   [[nodiscard]] auto
   to_string() const {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     auto qual_itr = std::data(buffer) + name_len + seq_len;
     std::string qual_fixed(seq_len, '\0');
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     std::transform(qual_itr, qual_itr + seq_len, std::begin(qual_fixed),
                    [](const auto c) { return c + quality_score_offset; });
     return std::format(
@@ -136,6 +135,7 @@ public:
       std::string(std::data(buffer) + name_len,
                   std::data(buffer) + name_len + seq_len),
       qual_fixed);
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   }
 
   operator bool() const { return name_len != 0; }
@@ -212,8 +212,9 @@ assign_sequence_revcomp(BidirIt first, auto last, OutputIt d_first) {
   };
   constexpr auto seq_nt16_str = "=ACMGRSVTWYHKDBN";
   constexpr auto bam_seqi = [](const auto s, const auto i) -> int {
+    constexpr auto low_nibble_on = 0xf;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
-    return s[i >> 1] >> ((~i & 1) << 2) & 0xf;
+    return s[i >> 1] >> ((~i & 1) << 2) & low_nibble_on;
   };
   for (auto j = last; j != 0; ++d_first)
     *d_first = complem(seq_nt16_str[bam_seqi(first, --j)]);
@@ -225,7 +226,8 @@ static inline constexpr OutputIt
 assign_sequence(BidirIt first, auto last, OutputIt d_first) {
   constexpr auto seq_nt16_str = "=ACMGRSVTWYHKDBN";
   constexpr auto bam_seqi = [](const auto s, const auto i) -> int {
-    return s[i >> 1] >> ((~i & 1) << 2) & 0xf;
+    constexpr auto low_nibble_on = 0xf;
+    return s[i >> 1] >> ((~i & 1) << 2) & low_nibble_on;
   };
   for (auto j = 0U; j != last; ++j)
     *d_first++ = seq_nt16_str[bam_seqi(first, j)];
@@ -247,12 +249,14 @@ bamrec::get_next(auto &itr, const auto end, bamrec &rec) -> bool {
     rec.buffer.resize(rec_size);
   auto data_itr = std::data(rec.buffer);
   std::memcpy(data_itr, itr + bamrec_core_t::read_name_offset, rec.name_len);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   data_itr += rec.name_len;  // increment data cursor to sequence
   auto seq_in = itr + core.seq_offset();
   if (core.bam_is_rev())
     assign_sequence_revcomp(seq_in, core.l_seq, data_itr);
   else
     assign_sequence(seq_in, core.l_seq, data_itr);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   data_itr += rec.seq_len;  // increment data cursor to qual
   const auto has_qual = (itr[core.qual_offset()] != qual_missing_code);
   if (has_qual) {
@@ -264,6 +268,7 @@ bamrec::get_next(auto &itr, const auto end, bamrec &rec) -> bool {
       std::copy(qual_itr, qual_itr + rec.seq_len, data_itr);
   }
   else
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     data_itr[0] = static_cast<char>(qual_missing_code);
   itr += core.real_block_size();
   return true;

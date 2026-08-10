@@ -126,7 +126,7 @@ struct alignas(assumed_page_size) results_collector {
       return;
     max_read_len = read_len > max_read_len ? read_len : max_read_len;
     const auto seq_itr = get_seq(rec);
-    const auto seq_end = seq_itr + read_len;
+    const auto seq_end = get_seq_end(rec);
     count_nucs(seq_itr, seq_end, base_counts);
     const auto gc = count_gc(seq_itr, seq_end);
     assert(get_arr_idx(read_len) < std::ssize(gc_content));

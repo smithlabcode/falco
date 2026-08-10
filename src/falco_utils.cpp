@@ -78,7 +78,8 @@ sum_deviation_from_normal(const std::vector<double> &gc) -> double {
   const auto total_count = std::reduce(gc_beg, gc_end);
   if (total_count <= 1)  // we will be dividing by (total_count - 1)
     return 0.0;
-  const auto theor = get_theoretical_distribution(gc, total_count);
+  const auto theor =
+    get_theoretical_distribution(gc, static_cast<std::uint64_t>(total_count));
   const auto diff = [](const auto a, const auto b) { return std::fabs(a - b); };
   const auto r = std::transform_reduce(gc_beg, gc_end, std::cbegin(theor), 0.0,
                                        std::plus{}, diff);
@@ -106,7 +107,7 @@ smooth_gc_content(const std::vector<double> &data,
 }
 
 [[nodiscard]] auto
-combine_gc_content_for_lengths(std::vector<falco::gc_content_array> &gcs)
+combine_gc_content_for_lengths(const std::vector<falco::gc_content_array> &gcs)
   -> std::vector<double> {
   static constexpr auto histogram_size = 101;
   std::vector<double> hist(histogram_size);
@@ -126,13 +127,16 @@ combine_gc_content_for_lengths(std::vector<falco::gc_content_array> &gcs)
         1;
       assert(stop_in_hist < histogram_size);
       const auto splits = start_in_hist != stop_in_hist;
-      const auto frac_left = splits ? start_in_hist + 1 - curr_percent : increm;
-      const auto frac_right = splits ? next_percent - stop_in_hist : increm;
+      const auto frac_left =
+        splits ? static_cast<double>(start_in_hist) + 1.0 - curr_percent
+               : increm;
+      const auto frac_right =
+        splits ? next_percent - static_cast<double>(stop_in_hist) : increm;
       for (auto h_idx = start_in_hist; h_idx <= stop_in_hist; ++h_idx) {
         const auto contrib = (h_idx == start_in_hist)  ? frac_left
                              : (h_idx == stop_in_hist) ? frac_right
                                                        : 1.0;
-        hist[h_idx] += contrib * gcs[i][gc_idx] / increm;
+        hist[h_idx] += contrib * as_frac(gcs[i][gc_idx], increm);
       }
     }
   }

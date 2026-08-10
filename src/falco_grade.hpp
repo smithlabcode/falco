@@ -144,6 +144,10 @@ get_grade_gc_sequence(const std::vector<double> &gc_content) -> std::string;
 get_grade_sequence(const std::vector<falco::nuc_array> &nucs) -> std::string;
 
 [[nodiscard]] auto
+get_grade_sequence_bisulfite(const std::vector<falco::nuc_array> &nucs)
+  -> std::string;
+
+[[nodiscard]] auto
 get_grade_n_content(const std::vector<std::uint64_t> &n_counts,
                     const std::vector<falco::nuc_array> &nucs) -> std::string;
 

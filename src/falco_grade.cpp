@@ -147,25 +147,39 @@ get_grade_gc_sequence(const std::vector<double> &gc_content) -> std::string {
   return grader_set::get_grade(label, sum_deviation_from_normal(gc_content));
 }
 
-[[nodiscard]] auto
-get_grade_sequence(const std::vector<falco::nuc_array> &nucs) -> std::string {
+[[nodiscard]] inline constexpr auto
+single_delta(const auto a, const auto b, const auto tot) {
+  return pct(as_frac(a, tot)) - pct(as_frac(b, tot));
+}
+
+[[nodiscard]] static auto
+get_grade_sequence_impl(const std::vector<falco::nuc_array> &nucs,
+                        auto &&delta) -> std::string {
   static constexpr auto label = "sequence";
   if (nucs.empty())
     return grader_set::get_grade(label, 0.0);
-  const auto compl_diff = [](const auto &by_pos) {
-    // (A,C,G,T)=(0,1,3,2)
-    const auto tot = std::reduce(std::cbegin(by_pos), std::cend(by_pos));
-    const auto delta = [tot](const auto a, const auto b) {
-      return pct(as_frac(a, tot)) - pct(as_frac(b, tot));
-    };
-    // max(|a - t|, |c - g|)
-    return std::max(std::fabs(delta(by_pos[0], by_pos[2])),
-                    std::fabs(delta(by_pos[1], by_pos[3])));
-    // bisulfite: |a - g| (wgbs) or |t - c| (pbat)
-  };
-  const auto max_diff =
-    std::ranges::max(nucs | std::views::transform(compl_diff));
+  const auto max_diff = std::ranges::max(nucs | std::views::transform(delta));
   return grader_set::get_grade(label, max_diff);
+}
+
+[[nodiscard]] auto
+get_grade_sequence(const std::vector<falco::nuc_array> &nucs) -> std::string {
+  return get_grade_sequence_impl(nucs, [&](const auto &x) {
+    const auto t = std::reduce(std::cbegin(x), std::cend(x));
+    return std::max(
+      std::fabs(single_delta(x[adenine_index], x[thymine_index], t)),
+      std::fabs(single_delta(x[cytosine_index], x[guanine_index], t)));
+  });
+}
+
+[[nodiscard]] auto
+get_grade_sequence_bisulfite(const std::vector<falco::nuc_array> &nucs)
+  -> std::string {
+  return get_grade_sequence_impl(nucs, [&](const auto &x) {
+    const auto t = std::reduce(std::cbegin(x), std::cend(x));
+    return std::fabs(single_delta(x[adenine_index] + x[guanine_index],
+                                  x[thymine_index] + x[cytosine_index], t));
+  });
 }
 
 [[nodiscard]] auto

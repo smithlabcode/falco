@@ -53,7 +53,7 @@ private:
   char *end_out{};
 
 public:
-  bgzf_reader(const std::string &filename, const std::int32_t buf_size);
+  bgzf_reader(const std::string &filename, const std::int64_t buf_size);
 
   operator bool() const { return can_produce_data(); }
 

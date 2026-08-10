@@ -105,8 +105,12 @@ results_summary::assign_grades() -> void {
     grades.emplace("quality_sequence",
                    get_grade_quality_sequence(qual_by_read));
 
-  if (mode.do_sequence())
-    grades.emplace("sequence", get_grade_sequence(base_counts));
+  if (mode.do_sequence()) {
+    if (mode.do_bisulfite())
+      grades.emplace("sequence", get_grade_sequence_bisulfite(base_counts));
+    else
+      grades.emplace("sequence", get_grade_sequence(base_counts));
+  }
 
   if (mode.do_tiles() && info.has_tiles)
     grades.emplace("tile", get_grade_tile(centered));
