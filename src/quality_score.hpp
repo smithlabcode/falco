@@ -44,7 +44,7 @@ static constexpr auto format_labels = std::array{
   "Sanger / Illumina 1.9",
   "Solexa / Illumina <= 1.8",
 };
-using qual_array = std::array<std::uint64_t, max_qual_val>;
+using qual_array = std::array<std::uint64_t, max_qual_val + 1>;
 // clang-format on
 }  // namespace falco
 
@@ -65,5 +65,54 @@ auto
 adjust_fastq_qual_encoding(std::vector<falco::qual_array> &qual_by_pos,
                            falco::qual_array &qual_by_read,
                            const falco::encoding enc) -> void;
+
+[[nodiscard]] static inline auto
+count_quals(auto qual_itr, const auto qual_end,
+            auto &tab) {  // cppcheck-suppress constParameterReference
+  auto out_itr = std::begin(tab);
+  auto qual_tot = 0;
+  while (qual_itr != qual_end) {
+    const auto q = *qual_itr++;
+    assert(q >= 0 && q <= falco::max_qual_val);
+    ++(*out_itr++)[q];
+    qual_tot += q;
+  }
+  return qual_tot;
+}
+
+[[nodiscard]] static inline auto
+count_quals_rev(auto qual_itr, const auto qual_end,
+                auto &tab) {  // cppcheck-suppress constParameterReference
+  auto out_itr = std::begin(tab) + std::distance(qual_itr, qual_end);
+  auto qual_tot = 0;
+  while (qual_itr != qual_end) {
+    const auto q = *qual_itr++;
+    assert(q >= 0 && q <= falco::max_qual_val);
+    ++(*(--out_itr))[q];
+    qual_tot += q;
+  }
+  return qual_tot;
+}
+
+static inline auto
+count_quals_itr(auto qual_itr, const auto qual_end, auto tab_itr) {
+  while (qual_itr != qual_end) {
+    assert(*qual_itr >= 0 && *qual_itr <= falco::max_qual_val);
+    tab_itr->first += *qual_itr++;
+    ++tab_itr->second;
+    ++tab_itr;
+  }
+}
+
+static inline auto
+count_quals_itr_rev(auto qual_itr, const auto qual_end, auto tab_itr) {
+  tab_itr += std::distance(qual_itr, qual_end);
+  while (qual_itr != qual_end) {
+    assert(*qual_itr >= 0 && *qual_itr <= falco::max_qual_val);
+    --tab_itr;
+    tab_itr->first += *qual_itr++;
+    ++tab_itr->second;
+  }
+}
 
 #endif  // SRC_QUALITY_SCORE_HPP_
