@@ -18,7 +18,7 @@
 struct task_queue;
 
 class bam_file {
-  static constexpr auto min_buf_size = 64 * 1024;
+  static constexpr std::int64_t min_buf_size = 64 * 1024;
   std::vector<char> input_buffer;
   std::vector<char> output_buffer;
   std::int64_t input_last{};
@@ -35,13 +35,13 @@ class bam_file {
   }
 
   [[nodiscard]] static auto
-  get_input_buffer_size(const std::int64_t buf_size) {
+  get_input_buffer_size(const std::int64_t buf_size) -> std::int64_t {
     // split buffer capacity between input and output buffers
     return (buf_size - get_reader_buffer_size(buf_size)) / 2;
   }
 
   [[nodiscard]] static auto
-  get_output_buffer_size(const std::int64_t buf_size) {
+  get_output_buffer_size(const std::int64_t buf_size) -> std::int64_t {
     // split buffer capacity between input and output buffers
     return (buf_size - get_reader_buffer_size(buf_size)) / 2;
   }
