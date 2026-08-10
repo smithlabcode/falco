@@ -75,7 +75,7 @@ resize_gc_content(const std::uint32_t updated_length,
 }
 
 [[nodiscard]] auto
-combine_gc_content_for_lengths(std::vector<falco::gc_content_array> &gc_content)
+combine_gc_content_for_lengths(const std::vector<falco::gc_content_array> &gcs)
   -> std::vector<double>;
 
 [[nodiscard]] auto
