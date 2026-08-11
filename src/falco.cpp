@@ -41,6 +41,7 @@ Use these as templates. Copy and modify them to customize your analysis.
 #include "fastq_file.hpp"
 #include "fastq_gz_file.hpp"
 #include "get_binary_dir.hpp"
+#include "original_duplicates.hpp"
 #include "quality_score.hpp"
 #include "reads_file.hpp"  // IWYU pragma: keep
 #include "results_collector.hpp"
@@ -85,14 +86,14 @@ write_file(const auto &filename, const auto &data) {
 static auto
 write_output(const run_mode &mode, std::vector<file_info> &infos,
              const std::vector<std::string> &outdirs,
-             std::vector<results_collector> &results) {
+             std::vector<results_collector> &&results) {
   static constexpr auto report_filename = "fastqc_data.txt";
   static constexpr auto html_filename = "fastqc_report.html";
   static constexpr auto summary_filename = "summary.txt";
   for (const auto [result, info, outdir] :
        std::views::zip(results, infos, outdirs)) {
     const auto outdir_path = std::filesystem::path{outdir};
-    const auto summary = results_summary(result, mode, info);
+    const auto summary = results_summary(std::move(result), mode, info);
     write_file(outdir_path / report_filename, summary.get_report());
     write_file(outdir_path / html_filename, summary.get_html());
     write_file(outdir_path / summary_filename, summary.get_summary());
@@ -216,8 +217,10 @@ main(int argc, char *argv[]) {
     int do_kmers{};
     int do_dup_analysis{};
     int do_adap{};
+
     int do_groups{};
     int do_bisulfite{};
+    int do_original_dups{};
 
     std::uint32_t n_threads{1};
     std::uint32_t max_read_length{};
@@ -299,6 +302,12 @@ main(int argc, char *argv[]) {
     app.add_flag("--bisulfite", do_bisulfite,
                  "Assume bisulfite when grading sequence content")
       ->option_text(" ");
+    const auto orig_dups_opt =
+      app.add_flag("--orig-dups", [&](const auto x) {
+        do_original_dups = x;
+        do_dup_analysis = 1;
+      }, "Use original duplication mode (turns dups on)")
+      ->option_text(" ");
     app.add_flag("--groups", do_groups, "Group base positions in output")
       ->option_text(" ");
     app.add_flag("--tiles,!--no-tiles", do_tiles,
@@ -306,6 +315,7 @@ main(int argc, char *argv[]) {
       ->option_text(" ");
     app.add_flag("--dups,!--no-dups", do_dup_analysis,
                  "Toggle duplication/overrep analysis (default: on)")
+      ->excludes(orig_dups_opt)
       ->option_text(" ");
     app.add_flag("--adap,!--no-adap", do_adap,
                  "Toggle adapter analysis (default: on)")
@@ -340,6 +350,7 @@ main(int argc, char *argv[]) {
     mode.set_do_tiles(do_tiles);
     mode.set_do_groups(do_groups);
     mode.set_do_bisulfite(do_bisulfite);
+    mode.set_do_original_dups(do_original_dups);
     mode.set_unassigned();
 
     const auto outdirs = make_outdirs(infiles, outdir);
@@ -401,9 +412,14 @@ main(int argc, char *argv[]) {
       });
     }
 
-    auto reads_files = make_reads_files(infos, infiles, buffer_size);
-    auto results = analyze(n_threads, mode, infos, std::move(reads_files));
-    write_output(mode, infos, outdirs, results);
+    std::vector<dups_init_t> dups =
+      do_original_dups
+        ? initialize_original_duplicates(infiles, infos, n_threads)
+        : std::vector<dups_init_t>{};
+    auto results =
+      analyze(n_threads, mode, infos,
+              make_reads_files(infos, infiles, buffer_size), std::move(dups));
+    write_output(mode, infos, outdirs, std::move(results));
 
     if (verbose)
       std::println(
