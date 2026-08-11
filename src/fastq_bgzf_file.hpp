@@ -5,6 +5,8 @@
 
 #include "bgzf_block.hpp"
 #include "bgzf_reader.hpp"
+#include "duplication_results.hpp"
+#include "falco_word.hpp"
 
 #include <atomic>
 #include <cstdint>
@@ -120,6 +122,10 @@ private:
 [[nodiscard]] auto
 estimate_n_reads_fastq_bgzf(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
+
+[[nodiscard]] auto
+init_dups_fq(const std::string &filename,
+             const std::uint64_t n_unique) -> dups_map_t;
 
 inline auto
 make_tasks(fastq_bgzf_file &reads_file,   //
