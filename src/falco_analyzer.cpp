@@ -4,12 +4,15 @@
 
 #include "bamrec.hpp"
 #include "bgzf_block.hpp"
+#include "duplication_results.hpp"
 #include "file_info.hpp"
 #include "fqrec.hpp"
 #include "reads_file.hpp"
 #include "results_collector.hpp"
 #include "samrec.hpp"
 #include "task_queue.hpp"
+
+#include "boost/boost_unordered.hpp"
 
 #include <atomic>
 #include <cassert>
@@ -26,20 +29,16 @@ class run_mode;
 
 [[nodiscard]] auto
 analyze(const std::uint32_t n_threads, const run_mode &mode,
-        std::vector<file_info> &infos, std::vector<reads_file_t> reads_files)
-  -> std::vector<results_collector> {
+        std::vector<file_info> &infos, std::vector<reads_file_t> reads_files,
+        std::vector<dups_init_t> dups_init) -> std::vector<results_collector> {
   assert(std::size(reads_files) == std::size(infos));
-
   const std::int32_t n_files = static_cast<std::int32_t>(std::size(infos));
+  if (dups_init.empty())
+    dups_init.resize(n_files);
   std::vector<std::atomic_int32_t> n_tasks(n_files);
   std::atomic_uint32_t n_active_files{static_cast<std::uint32_t>(n_files)};
   auto results =
     std::vector(n_threads, std::vector<results_collector>(n_files));
-
-  // set per-file information used to do the analysis
-  for (auto &res : results)
-    for (const auto [file_id, info] : std::views::enumerate(infos))
-      res[file_id].init(mode, info);
 
   // add initial jobs so workers can work immediately
   task_queue tq;
@@ -51,6 +50,8 @@ analyze(const std::uint32_t n_threads, const run_mode &mode,
     for (const auto th_id : std::views::iota(0u, n_threads))
       workers.emplace_back([&, n_threads, th_id] {
         auto &res = results[th_id];
+        for (const auto [file_id, info] : std::views::enumerate(infos))
+          res[file_id].init(mode, info, dups_init[file_id]);
         while (true) {
           auto tq_lock = tq.wait_and_acquire_lock();
           if (tq.is_finished())
