@@ -86,14 +86,13 @@ struct duplication_results {
   auto
   add_and_consume(duplication_results &rhs) -> void;
 
-#ifdef ORIGINAL_DUPS
   auto
-  count_seqs(const auto seq_itr, const auto sz) {
+  count_seqs_orig(const auto seq_itr, const auto sz) {
     auto itr = dups.find(falco_word(seq_itr, sz));
     if (itr != std::cend(dups))
       ++itr->second;
   }
-#else   // NOT ORIGINAL_DUPS
+
   auto
   count_seqs(const auto seq_itr, const auto sz) {
     if (read_idx-- == 0) [[unlikely]] {
@@ -101,7 +100,6 @@ struct duplication_results {
       ++dups[falco_word(seq_itr, sz)];
     }
   }
-#endif  // ORIGINAL_DUPS
 };
 
 [[nodiscard]] auto

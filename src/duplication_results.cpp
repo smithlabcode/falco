@@ -133,7 +133,6 @@ duplication_results::initialize(const run_mode &mode,
   if (!mode.do_dup_analysis()) {
     // ADS: disabling dups analysis
     read_idx = std::numeric_limits<std::int64_t>::max();
-    // ADS: for ORIGINAL_DUPS this still does lots of work
   }
 }
 
