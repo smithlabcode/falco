@@ -62,25 +62,17 @@ struct alignas(assumed_page_size) results_collector {
     am.resize(updated_length);
   }
 
-#ifdef ORIGINAL_DUPS
   auto
-  init(const run_mode &mode, const auto &info, const auto &dups_init) {
-    dr.initialize(mode, info, dups_init);
+  init(const run_mode &mode, const auto &info, const auto &dups_init = {}) {
+    if (mode.do_original_dups())
+      dr.initialize(mode, info, dups_init);
+    else
+      dr.initialize(mode, info);
     do_tiles = mode.do_tiles() && info.has_tiles;
     do_kmers = mode.do_kmers();
     if (do_tiles)
       tp.init(info);
   }
-#else   // NOT ORIGINAL_DUPS
-  auto
-  init(const run_mode &mode, const auto &info) {
-    dr.initialize(mode, info);
-    do_tiles = mode.do_tiles() && info.has_tiles;
-    do_kmers = mode.do_kmers();
-    if (do_tiles)
-      tp.init(info);
-  }
-#endif  // ORIGINAL_DUPS
 
   auto
   adjust_base_counts_for_ns() -> void {
