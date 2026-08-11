@@ -123,13 +123,6 @@ GitHub's macOS look
 
 ## Intended changes in Falco v2.0
 
-Whether or not changes are "correct," they can be bad for users. If you have
-many years of experience interpreting the output of FastQC or falco, that alone
-is enough to give value to those results. Issues of correctness or accuracy
-might not matter to many users. Below are intended changes. Anything else is
-likely a bug and I'm happy to fix it. I'm also happy to reconsider these
-intended changes.
-
 ### Tiles results
 
 I found that the method for tile analysis is a bit unstable, and the tile grade
@@ -163,11 +156,8 @@ the same, the numbers differ dramatically. The motivation for the change is to
 produce more useful output, and to soon build
 [preseq](https://github.com/smithlabcode/preseq) into falco.
 
-The original duplication analysis method is still implemented in falco v2.0, but
-it must be turned on at build time by supplying `-DORIGINAL_DUPS=on` to
-`cmake`. It's still there because I used a trivial implementation and helps me
-debug. Here's how the old and new analyses differ, to the best of my
-understanding. I'm happy to be corrected.
+The original duplication analysis method is still implemented in falco v2.0, and
+can be turned on with `--orig-dups`. Here's how the old and new analyses differ.
 
 #### Original method
 - 100,000 unique reads are hashed and counted (first 50nt of each read).
@@ -181,12 +171,6 @@ understanding. I'm happy to be corrected.
 - Although there is no randomization, if multiple threads are used the results
   will appear as though they are randomly sampled due to fluctaions in thread
   speed changing which 1M reads are hashed.
-
-Building with `-DORIGINAL_DUPS=on` enables the original duplication analysis,
-but it only gives the same results when run using one thread. The underlying
-issues with this duplication analysis were part of the motivation for preseq, so
-I'm reluctant to put effort towards improving how the original duplication
-analysis is implemented.
 
 ## Citing falco
 
