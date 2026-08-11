@@ -19,9 +19,10 @@ public:
   }
 
   // clang-format off
-  // ADS: do_groups is not set in config file
+  // ADS: these first params are not set in config file
   [[nodiscard]] auto do_groups() const -> bool { return do_groups_ == 1; }
   [[nodiscard]] auto do_bisulfite() const -> bool { return do_bisulfite_ == 1; }
+  [[nodiscard]] auto do_original_dups() const -> bool { return do_original_dups_ == 1; }
   //
   [[nodiscard]] auto do_adap() const -> bool { return do_adap_ == 1; }
   [[nodiscard]] auto do_dups() const -> bool { return do_dups_ == 1; }
@@ -43,6 +44,7 @@ public:
   // clang-format off
   auto set_do_groups(const int x) { if (x) do_groups_ = x; }
   auto set_do_bisulfite(const int x) { if (x) do_bisulfite_ = x; }
+  auto set_do_original_dups(const int x) { if (x) do_original_dups_ = x; }
   //
   auto set_do_adap(const int x) { if (x) do_adap_ = x; }
   auto set_do_dups(const int x) { if (x) do_dups_ = x; }
@@ -65,8 +67,10 @@ public:
 
 private:
   // ADS: 1 is yes; -1 is no; 0 is not assigned
-  static constexpr auto do_groups_default = -1;     // OFF
-  static constexpr auto do_bisulfite_default = -1;  // OFF
+  // first settings are not in config file
+  static constexpr auto do_groups_default = -1;         // OFF
+  static constexpr auto do_bisulfite_default = -1;      // OFF
+  static constexpr auto do_original_dups_default = -1;  // OFF
 
   static constexpr auto do_adap_default = 1;  // affects processing
   static constexpr auto do_dups_default = 1;  // affects processing
@@ -80,8 +84,10 @@ private:
   static constexpr auto do_sequence_default = 1;
   static constexpr auto do_tiles_default = 1;  // affects processing
 
+  // not in config file
   int do_groups_{};
   int do_bisulfite_{};
+  int do_original_dups_{};
 
   int do_adap_{};
   int do_dups_{};

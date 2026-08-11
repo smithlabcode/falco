@@ -83,7 +83,9 @@ run_mode::set_unassigned() -> void {
   if (do_sequence_ == 0) do_sequence_ = do_sequence_default;
   if (do_length_ == 0) do_length_ = do_length_default;
   if (do_tiles_ == 0) do_tiles_ = do_tiles_default;
-  // 'groups' not set in config file
+  // settings below are not in config file
   if (do_groups_ == 0) do_groups_ = do_groups_default;
+  if (do_bisulfite_ == 0) do_bisulfite_ = do_bisulfite_default;
+  if (do_original_dups_ == 0) do_original_dups_ = do_original_dups_default;
   // clang-format on
 }
