@@ -7,7 +7,7 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
+#include <cassert>  // IWYU pragma: keep
 #include <format>
 #include <iterator>
 #include <ranges>

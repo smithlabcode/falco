@@ -6,8 +6,11 @@
 #include "nlohmann/json.hpp"
 
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <format>
+#include <initializer_list>  // IWYU pragma: keep
+#include <iterator>          // IWYU pragma: keep
 #include <string>
 #include <vector>  // IWYU pragma: keep
 
