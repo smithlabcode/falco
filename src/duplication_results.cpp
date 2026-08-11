@@ -8,6 +8,7 @@
 #include "falco_word.hpp"
 #include "file_info.hpp"
 #include "html.hpp"
+#include "original_duplicates.hpp"
 #include "run_mode.hpp"
 
 #include "boost/boost_unordered.hpp"
@@ -108,6 +109,21 @@ duplication_results::get_overrepresented(const std::uint64_t n_reads) const
 }
 
 auto
+duplication_results::initialize(const run_mode &mode, const file_info &info,
+                                const dups_init_t &dups_init) -> void {
+  read_skip =
+    info.n_reads_est < max_n_reads_total
+      ? 0
+      : static_cast<std::int32_t>(info.n_reads_est / max_n_reads_total);
+  dups = dups_init.dups_zero;
+  count_at_limit = dups_init.count_at_limit;
+  if (!mode.do_dup_analysis()) {
+    // ADS: disabling dups analysis; does nothing for original dups
+    read_idx = std::numeric_limits<std::int64_t>::max();
+  }
+}
+
+auto
 duplication_results::initialize(const run_mode &mode,
                                 const file_info &info) -> void {
   read_skip =
@@ -123,11 +139,8 @@ duplication_results::initialize(const run_mode &mode,
 
 auto
 duplication_results::add_and_consume(duplication_results &rhs) -> void {
-#ifndef ORIGINAL_DUPS
   for (const auto &[k, v] : rhs.dups)
     dups[k] += v;
-#endif  // ORIGINAL_DUPS
-  // ADS: ORIGINAL_DUPS mode just uses dups from one of two duplication_results
   rhs.release();
 }
 
@@ -137,9 +150,8 @@ get_grade_overrepresented(const std::uint64_t n_reads,
   static constexpr auto label = "overrepresented";
   const auto max_n_obs =
     dr.dups.empty() ? 0LU : std::ranges::max(std::views::values(dr.dups));
-  return grader_set::get_grade(
-    label,
-    as_frac(max_n_obs, std::max(static_cast<std::uint64_t>(1), n_reads)));
+  return grader_set::get_grade(label,
+                               as_frac(max_n_obs, std::max(1LU, n_reads)));
 }
 
 [[nodiscard]] auto
@@ -174,8 +186,6 @@ make_bins(const auto &breaks, const auto &hist) {
   return binned;
 }
 
-#ifdef ORIGINAL_DUPS
-
 // ADS: for original dups, from FastQC extrapolation of dup counts.
 [[nodiscard]] auto
 get_corrected_count(const std::uint64_t count_at_limit,
@@ -209,7 +219,8 @@ get_corrected_count(const std::uint64_t count_at_limit,
 }
 
 [[nodiscard]] auto
-duplication_results::get_dups_summary() const -> dup_summary_t {
+duplication_results::get_dups_summary(const std::uint64_t n_reads) const
+  -> dup_summary_t {
   if (dups.empty())
     return {};
   const auto max_dup = std::ranges::max(std::views::values(dups));
@@ -218,7 +229,7 @@ duplication_results::get_dups_summary() const -> dup_summary_t {
     ++hist_dedup[n_copies];
   for (auto [idx, val] : std::views::enumerate(hist_dedup))
     val = static_cast<std::uint64_t>(
-      get_corrected_count(count_at_limit, read_idx, idx, val));
+      get_corrected_count(count_at_limit, n_reads, idx, val));
   auto hist_mass =
     std::views::transform(
       std::views::enumerate(hist_dedup),
@@ -226,13 +237,11 @@ duplication_results::get_dups_summary() const -> dup_summary_t {
     std::ranges::to<std::vector>();
   return dup_summary_t{
     max_dup,
-    get_n_counted_reads(),  // number of counted reads
+    n_reads,                // number of counted reads
     std::move(hist_mass),   // move to avoid copying when making tuple
     std::move(hist_dedup),  // move to avoid copying when making tuple
   };
 }
-
-#else  // NOT ORIGINAL_DUPS
 
 [[nodiscard]] auto
 duplication_results::get_dups_summary() const -> dup_summary_t {
@@ -249,13 +258,11 @@ duplication_results::get_dups_summary() const -> dup_summary_t {
     std::ranges::to<std::vector>();
   return dup_summary_t{
     max_dup,
-    get_n_counted_reads(),  // total counted reads
+    get_n_counted_reads(),  // number of counted reads
     std::move(hist_mass),   // move to avoid copying when making tuple
     std::move(hist_dedup),  // move to avoid copying when making tuple
   };
 }
-
-#endif
 
 [[nodiscard]] auto
 get_grade_duplication(const dup_summary_t &summary) -> std::string {
