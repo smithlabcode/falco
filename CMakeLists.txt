@@ -200,6 +200,7 @@ add_library(falco_config OBJECT src/falco_config.cpp)
 target_link_libraries(falco_config PUBLIC run_mode)
 
 add_library(original_duplicates OBJECT src/original_duplicates.cpp)
+target_link_libraries(original_duplicates PUBLIC HTSLIB::HTSLIB)
 
 add_executable(falco src/falco.cpp)
 target_link_libraries(falco PUBLIC
