@@ -199,6 +199,8 @@ add_library(run_mode OBJECT src/run_mode.cpp)
 add_library(falco_config OBJECT src/falco_config.cpp)
 target_link_libraries(falco_config PUBLIC run_mode)
 
+add_library(original_duplicates OBJECT src/original_duplicates.cpp)
+
 add_executable(falco src/falco.cpp)
 target_link_libraries(falco PUBLIC
   tile_processor
@@ -206,6 +208,7 @@ target_link_libraries(falco PUBLIC
   adapter_matcher
   adapter_set
   duplication_results
+  original_duplicates
   kmer_counter
   fastq_file
   fastq_gz_file
