@@ -48,6 +48,7 @@ struct alignas(assumed_page_size) results_collector {
   kmer_counter kc;
   bool do_tiles{};
   bool do_kmers{};
+  bool do_original_dups{};
 
   results_collector() : lengths(1, 0) {}  // in case all reads have length 0
 
@@ -64,8 +65,10 @@ struct alignas(assumed_page_size) results_collector {
 
   auto
   init(const run_mode &mode, const auto &info, const auto &dups_init = {}) {
-    if (mode.do_original_dups())
+    if (mode.do_original_dups()) {
       dr.initialize(mode, info, dups_init);
+      do_original_dups = true;
+    }
     else
       dr.initialize(mode, info);
     do_tiles = mode.do_tiles() && info.has_tiles;
@@ -138,7 +141,10 @@ struct alignas(assumed_page_size) results_collector {
     count_ns(seq_itr, seq_end, n_counts);
     const auto tot = count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
     ++qual_by_read[tot / read_len];
-    dr.count_seqs(seq_itr, read_len);
+    if (do_original_dups)
+      dr.count_seqs_orig(seq_itr, read_len);
+    else
+      dr.count_seqs(seq_itr, read_len);
     am.match_adapters(seq_itr, read_len);
     if (do_tiles)
       tp(rec);
