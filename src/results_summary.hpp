@@ -35,7 +35,6 @@ struct results_summary {
   std::vector<falco::qual_array> qual_by_pos;
   falco::qual_array qual_by_read{};
   duplication_results dr;
-  std::uint64_t n_reads_for_dups{};
   std::vector<overrep_t> overrep;
   dup_summary_t dup_summary;
   adapter_matcher am;
@@ -49,7 +48,7 @@ struct results_summary {
   base_group_vec groups;
 
   // clang-format off
-  results_summary(results_collector &rc, const run_mode &mode,
+  results_summary(results_collector &&rc, const run_mode &mode,
                   const file_info &info) :
     n_reads{rc.n_reads},
     max_read_len{rc.max_read_len},
