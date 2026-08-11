@@ -56,15 +56,10 @@ results_summary::initialize() -> void {
   apply_groups();
 
   // get summary structures
-#ifdef ORIGINAL_DUPS
-  n_reads_for_dups = n_reads;
-  dup_summary = dr.get_dups_summary();
-  dup_summary.n_reads = n_reads_for_dups;
-#else   //  ORIGINAL_DUPS
-  n_reads_for_dups = dr.get_n_counted_reads();
-  dup_summary = dr.get_dups_summary();
-#endif  //  ORIGINAL_DUPS
-  overrep = dr.get_overrepresented(n_reads_for_dups);
+  dup_summary = mode.do_original_dups() ? dr.get_dups_summary(n_reads)
+                                        : dr.get_dups_summary();
+
+  overrep = dr.get_overrepresented(dup_summary.n_reads);
   centered = tp.get_centered();
   kmer_results = kc.get_kmer_results();
 
@@ -96,7 +91,7 @@ results_summary::assign_grades() -> void {
 
   if (mode.do_overrep())
     grades.emplace("overrepresented",
-                   get_grade_overrepresented(n_reads_for_dups, dr));
+                   get_grade_overrepresented(dup_summary.n_reads, dr));
 
   if (mode.do_qual_base())
     grades.emplace("quality_base", get_grade_quality_base(qual_by_pos));
