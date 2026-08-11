@@ -2,7 +2,9 @@
 
 #include "bam_file.hpp"
 #include "bamrec.hpp"
+#include "duplication_results.hpp"
 #include "falco_utils.hpp"
+#include "falco_word.hpp"
 #include "task_queue.hpp"
 
 #include <htslib/hfile.h>
@@ -56,6 +58,44 @@ estimate_n_reads_bam(const std::string &filename)
   const auto estimate = static_cast<std::uint64_t>(
     as_frac(n_reads * (filesize - pos_after_header), n_compressed_bytes));
   return {estimate, total_read_len / n_reads, filesize};
+}
+
+[[nodiscard]] auto
+init_dups(const std::string &filename,
+          const std::uint64_t n_unique) -> dups_map_t {
+  static constexpr auto n_unique_multiplier = 4;
+  std::unique_ptr<htsFile, int (*)(htsFile *)> f(
+    hts_open(std::data(filename), "r"), &hts_close);
+  if (!f)
+    throw std::system_error(std::make_error_code(std::errc(errno)),
+                            "failed to open file: " + filename);
+  std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h(sam_hdr_read(f.get()),
+                                                      &sam_hdr_destroy);
+  if (!h)
+    throw std::system_error(std::make_error_code(std::errc(errno)),
+                            "failed to read header: " + filename);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
+  std::unique_ptr<bam1_t, void (*)(bam1_t *)> rec(bam_init1(), &bam_destroy1);
+
+  dups_map_t dups;
+  std::vector<char> buffer;
+  int r{};
+  std::uint64_t n_reads{};
+  const auto max_n_reads = n_unique_multiplier * n_unique;
+  while (n_reads++ < max_n_reads && std::size(dups) < n_unique &&
+         (r = sam_read1(f.get(), h.get(), rec.get())) >= 0) {
+    const auto l_qseq = rec->core.l_qseq;
+    const auto seq = bam_get_seq(rec.get());
+    if (std::ssize(buffer) < l_qseq)
+      buffer.resize(l_qseq);
+    for (auto i = 0; i < l_qseq; ++i)
+      buffer[i] = seq_nt16_str[bam_seqi(seq, i)];
+    ++dups[falco_word(std::data(buffer), l_qseq)];
+  }
+  if (r < -1)  // error
+    throw std::system_error(std::make_error_code(std::errc(errno)),
+                            "error reading bam record from: " + filename);
+  return dups;
 }
 
 auto
