@@ -54,7 +54,7 @@ estimate_n_reads_fastq_bgzf(const std::string &filename)
 [[nodiscard]] auto
 init_dups_fq(const std::string &filename,
              const std::uint64_t n_unique) -> dups_map_t {
-  static constexpr auto n_unique_multiplier = 4;
+  static constexpr auto n_unique_multiplier = 10;
   std::unique_ptr<BGZF, int (*)(BGZF *)> f(bgzf_open(std::data(filename), "r"),
                                            &bgzf_close);
   if (!f)
