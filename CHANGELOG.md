@@ -1,5 +1,14 @@
 # falco changelog
 
+## falco 2.0.1 (2026-08-03)
+
+Changes:
+* GC content distribution across reads now smoothing more similarly to falco v1
+* Minor improvements to HTML, including fixing axis ranges
+* Adding `--bisulfite` more from falco v1
+* Original duplicates mode now enabled with command line flag `--orig-dups`
+* Bugfix: rare issue with parsing SAM quality scores now fixed (BAM was ok)
+
 ## falco 2.0.0 (2026-08-03)
 
 Changes:
