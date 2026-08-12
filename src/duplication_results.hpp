@@ -35,12 +35,13 @@ struct dup_summary_t {
 };
 
 struct dups_init_t {
-  std::uint64_t count_at_limit{};
+  std::int64_t count_at_limit{};
   dups_map_t dups_zero;
   dups_init_t() = default;
   dups_init_t(const dups_map_t &dups) {
     const auto vals = dups | std::views::values;
-    count_at_limit = std::reduce(std::cbegin(vals), std::cend(vals));
+    count_at_limit = static_cast<std::int64_t>(
+      std::reduce(std::cbegin(vals), std::cend(vals)));
     for (const auto &fw : dups | std::views::keys)
       dups_zero.emplace(fw, 0);
   }
