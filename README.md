@@ -15,14 +15,9 @@ check large sequencing reads for common problems. Falco was rewritten for
 version 2.0 in order to facilitate incoroprating new functionality moving
 forward.
 
-Output files and formats are the same: `summary.txt`, `fastqc_report.txt` and
-`fastqc_report.html`
-
 ## Quick start
 
-You will be able to find binaries for Linux and macOS with the releases.  As of
-2026-08-03, the falco v2.0 source has been merged into the main (master) branch
-but the "release" might lag by a day or so.
+You will be able to find binaries for Linux and macOS with the releases.
 
 Example:
 ```
