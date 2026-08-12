@@ -66,7 +66,7 @@ falco will become slow. You can use a different compiler for the
 `-DCMAKE_CXX_COMPILER` option, but I've found a compiler often needs to be
 specified directly.
 
-### Linux full instructions
+### Linux detailed instructions
 
 I'm explaining this via a clean Ubuntu instance in docker:
 ```
@@ -98,7 +98,7 @@ ctest --test-dir build
 If you want instructions that also include building the dependencies from source,
 you can find them here: `.github/workflows/linux-release.yml`
 
-### macOS full instructions
+### macOS detailed instructions
 
 I don't have the same ability to test with clean OS images for macOS
 (suggestions welcome). The best I can do is use the GitHub macOS runners, which
@@ -116,7 +116,7 @@ and samtools installs both as dependency. To see what's already installed on
 GitHub's macOS look
 [here](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-Readme.md).
 
-## Intended changes in Falco v2.0
+## Changes in Falco v2.0
 
 ### Tiles results
 
