@@ -41,9 +41,11 @@ conda install -c bioconda falco
 
 ## Building
 
-- Falco has moved to using c++23 (GCC >= 14.2.0 or LLVM-Clang >= 20.0.0; on
-  macOS GCC >= 15).
-- We moved from autotools to cmake.
+- Falco uses features of C++23. To compile on Linux: GCC >= 14.2.0 or LLVM-Clang >= 20.0.0.
+  On macOS, GCC >= 15. Unfortunately GCC 16.1 has bugs that impact
+  falco, and 16.1 is the most recent on macOS through Homebrew. These seem to be
+  fixed in GCC 16.2, and GCC 15 can also be obtained through Homebrew.
+- Falco uses the cmake build system.
 - Dependencies:
   * [HTSLib](https://github.com/samtools/htslib): used for identifying file formats.
   * [Zlib](https://github.com/madler/zlib): used by HTSLib for regular gzip files.
