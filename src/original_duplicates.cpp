@@ -25,7 +25,7 @@ initialize_original_duplicates(
   [[maybe_unused]] const std::vector<file_info> &infos,
   [[maybe_unused]] const std::uint32_t n_threads) -> std::vector<dups_init_t> {
   assert(std::size(infiles) == std::size(infos));
-  const auto n_files = std::size(infiles);
+  const std::uint64_t n_files = std::size(infiles);
   std::vector<dups_map_t> dups(n_files);
   auto n_active_files = n_files;
   std::vector<std::jthread> workers;
