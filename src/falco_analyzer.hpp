@@ -3,17 +3,14 @@
 #ifndef SRC_FALCO_ANALYZER_HPP_
 #define SRC_FALCO_ANALYZER_HPP_
 
-#include "duplication_results.hpp"
-#include "falco_word.hpp"
-#include "reads_file.hpp"  // IWYU pragma: keep
 #include "results_collector.hpp"
-
-#include "boost/boost_unordered.hpp"
 
 #include <cstdint>
 #include <vector>
 
+class reads_file_t;
 class run_mode;
+struct dups_init_t;
 struct file_info;
 
 [[nodiscard]] auto
