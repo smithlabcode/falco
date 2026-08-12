@@ -33,6 +33,7 @@ initialize_original_duplicates(
     std::min(n_files, static_cast<std::uint64_t>(n_threads));
   workers.reserve(n_workers);
   std::mutex mtx;
+  // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
   for (const auto _ : std::views::iota(0u, n_workers))
     workers.emplace_back([&] {
       std::uint64_t file_id{};
