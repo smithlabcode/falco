@@ -11,3 +11,4 @@ ad21a5d9eb4cac3018c61fd7afdcbaf4  bam_mult_out/bam_2/fastqc_data.txt
 4cf6ba5d87aa553a64ce5427c18ee85c  bam_tiles_out/bam_1/fastqc_data.txt
 ec81607e6c63f03e04c4c49588be816e  groups_out/bam_1/fastqc_data.txt
 a3a0045355760f0f1ec5b8ca4fc1753e  sam_out/sam_1/fastqc_data.txt
+4cf6ba5d87aa553a64ce5427c18ee85c  bam_orig_dups_out/bam_1/fastqc_data.txt
