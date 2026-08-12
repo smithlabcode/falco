@@ -7,11 +7,9 @@
 #include "fqrec.hpp"
 #include "task_queue.hpp"
 
-#include "boost/boost_unordered.hpp"
-
 #include <htslib/bgzf.h>
 #include <htslib/hfile.h>
-#include <htslib/kstring.h>
+#include <htslib/sam.h>
 
 #include <algorithm>
 #include <cassert>

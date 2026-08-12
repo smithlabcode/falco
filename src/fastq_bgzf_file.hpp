@@ -6,7 +6,6 @@
 #include "bgzf_block.hpp"
 #include "bgzf_reader.hpp"
 #include "duplication_results.hpp"
-#include "falco_word.hpp"
 
 #include <atomic>
 #include <cstdint>
