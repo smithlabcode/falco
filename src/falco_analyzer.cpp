@@ -12,8 +12,6 @@
 #include "samrec.hpp"
 #include "task_queue.hpp"
 
-#include "boost/boost_unordered.hpp"
-
 #include <atomic>
 #include <cassert>
 #include <cstdint>
