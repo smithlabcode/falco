@@ -84,9 +84,11 @@ write_file(const auto &filename, const auto &data) {
 }
 
 static auto
-write_output(const run_mode &mode, std::vector<file_info> &infos,
-             const std::vector<std::string> &outdirs,
-             std::vector<results_collector> &&results) {
+write_output(
+  const run_mode &mode, std::vector<file_info> &infos,
+  const std::vector<std::string> &outdirs,
+  // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
+  std::vector<results_collector> &&results) {
   static constexpr auto report_filename = "fastqc_data.txt";
   static constexpr auto html_filename = "fastqc_report.html";
   static constexpr auto summary_filename = "summary.txt";
