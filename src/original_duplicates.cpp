@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "original_duplicates.hpp"
+
 #include "bam_file.hpp"
 #include "duplication_results.hpp"
-#include "falco_word.hpp"
+#include "falco_file_format.hpp"
 #include "fastq_bgzf_file.hpp"
+#include "file_info.hpp"
 
 #include "boost/boost_unordered.hpp"
 
-#include <cstdlib>
+#include <algorithm>
+#include <cassert>
+#include <iterator>
 #include <mutex>
 #include <ranges>
 #include <string>
+#include <thread>
 #include <vector>
 
 [[nodiscard]] auto
