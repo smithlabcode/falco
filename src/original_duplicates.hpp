@@ -4,11 +4,12 @@
 #define SRC_ORIGINAL_DUPLICATES_HPP_
 
 #include "duplication_results.hpp"
-#include "falco_word.hpp"
-#include "file_info.hpp"
 
+#include <cstdint>
 #include <string>
 #include <vector>
+
+struct file_info;
 
 [[nodiscard]] auto
 initialize_original_duplicates(
