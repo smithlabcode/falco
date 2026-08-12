@@ -123,8 +123,8 @@ duplication_results::initialize(const run_mode &mode, const file_info &info,
 }
 
 auto
-duplication_results::initialize(const run_mode &mode,
-                                const file_info &info) -> void {
+duplication_results::initialize(const run_mode &mode, const file_info &info)
+  -> void {
   read_skip =
     info.n_reads_est < max_n_reads_total
       ? 0
@@ -148,8 +148,9 @@ get_grade_overrepresented(const std::uint64_t n_reads,
   static constexpr auto label = "overrepresented";
   const auto max_n_obs =
     dr.dups.empty() ? 0LU : std::ranges::max(std::views::values(dr.dups));
-  return grader_set::get_grade(label,
-                               as_frac(max_n_obs, std::max(1LU, n_reads)));
+  return grader_set::get_grade(
+    label,
+    as_frac(max_n_obs, std::max(static_cast<std::uint64_t>(1), n_reads)));
 }
 
 [[nodiscard]] auto
@@ -276,8 +277,8 @@ get_grade_duplication(const dup_summary_t &summary) -> std::string {
 }
 
 [[nodiscard]] auto
-duplication_report(const dup_summary_t &summary,
-                   const file_grades &grades) -> std::string {
+duplication_report(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
                                     "#Total Deduplicated Percentage\t{:.6f}\n";
@@ -339,8 +340,8 @@ overrepresented_html(const std::vector<overrep_t> &overrep,
 }
 
 [[nodiscard]] auto
-duplication_html(const dup_summary_t &summary,
-                 const file_grades &grades) -> std::string {
+duplication_html(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto plot_format = R"(<div id="duplication_plot"></div>
 <script>Plotly.newPlot("duplication_plot",
