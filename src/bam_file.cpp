@@ -63,7 +63,10 @@ estimate_n_reads_bam(const std::string &filename)
 [[nodiscard]] auto
 init_dups(const std::string &filename,
           const std::uint64_t n_unique) -> dups_map_t {
-  static constexpr auto n_unique_multiplier = 4;
+  static constexpr auto complem = [](const auto x) {
+    return "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
+  };
+  static constexpr auto n_unique_multiplier = 10;
   std::unique_ptr<htsFile, int (*)(htsFile *)> f(
     hts_open(std::data(filename), "r"), &hts_close);
   if (!f)
@@ -90,6 +93,11 @@ init_dups(const std::string &filename,
       buffer.resize(l_qseq);
     for (auto i = 0; i < l_qseq; ++i)
       buffer[i] = seq_nt16_str[bam_seqi(seq, i)];
+    if (bam_is_rev(rec.get())) {
+      std::reverse(std::begin(buffer), std::begin(buffer) + l_qseq);
+      std::transform(std::cbegin(buffer), std::cbegin(buffer) + l_qseq,
+                     std::begin(buffer), complem);
+    }
     ++dups[falco_word(std::data(buffer), l_qseq)];
   }
   if (r < -1)  // error
