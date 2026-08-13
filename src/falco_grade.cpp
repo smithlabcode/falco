@@ -111,11 +111,11 @@ grader_set::get_grade(const std::string &label,
   return get_grader(label).identify_grade(value);
 }
 
-grader_set::grader_set(const map_t<std::string, grader> &g) {
+grader_set::grader_set(const grader_set_map_t<std::string, grader> &g) {
   if (g.empty()) {
     const auto make_elem = [](const auto &x) { return std::pair{x.name, x}; };
     graders = default_graders | std::views::transform(make_elem) |
-              std::ranges::to<map_t<std::string, grader>>();
+              std::ranges::to<grader_set_map_t<std::string, grader>>();
   }
   else
     graders = g;
