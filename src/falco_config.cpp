@@ -5,7 +5,6 @@
 #include "falco_grade.hpp"
 #include "run_mode.hpp"
 
-#include "boost/boost_unordered.hpp"
 #include "nlohmann/json.hpp"
 
 #include <algorithm>
@@ -17,6 +16,7 @@
 #include <ranges>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -39,8 +39,8 @@ split(const std::string &s) {
 }
 
 auto
-load_config_and_set_graders(const std::string &filename, run_mode &mode)
-  -> void {
+load_config_and_set_graders(const std::string &filename,
+                            run_mode &mode) -> void {
   // ADS: (todo) handle carriage returns and other control chars
   std::ifstream in(filename);
   if (!in)
@@ -63,7 +63,7 @@ load_config_and_set_graders(const std::string &filename, run_mode &mode)
     if (json_in.contains(label) && !json_in[label].contains("ignore"))
       throw std::runtime_error("invalid config: " + to_string(json_in[label]));
 
-  boost::unordered_flat_map<std::string, bool> modes_in;
+  std::unordered_map<std::string, bool> modes_in;
   try {
     static constexpr auto ignore = "ignore";
     for (const auto &label : run_mode::get_labels())
@@ -86,7 +86,7 @@ load_config_and_set_graders(const std::string &filename, run_mode &mode)
         !(json_in[label].contains("error") && json_in[label].contains("warn")))
       throw std::runtime_error("missing config value for: " +
                                std::string(label));
-  boost::unordered_flat_map<std::string, grader> graders;
+  std::unordered_map<std::string, grader> graders;
   try {
     for (const auto &label : grade_labels) {
       if (!json_in.contains(label))
