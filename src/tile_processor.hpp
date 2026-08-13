@@ -30,6 +30,7 @@ public:
   using tiles_centered_t = std::map<std::uint32_t, std::vector<double>>;
   // ADS: needs to count roughly ~1M reads each contributing up to 128
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
+  using tile_qual_map_t = boost::unordered_flat_map<std::uint32_t, qual_vec>;
   static constexpr auto read_skip = 10 - 1;
 
   std::uint32_t tile_id_position{};
@@ -37,7 +38,7 @@ public:
   std::uint32_t max_read_len{};
   std::uint32_t tile_id{};
   qual_vec::iterator qual{};  // because we often don't change tile id
-  boost::unordered_flat_map<std::uint32_t, qual_vec> quals;
+  tile_qual_map_t quals;
 
   auto
   init(const file_info &info) -> void;
@@ -58,8 +59,8 @@ public:
   operator()(const auto &rec) {
     if (read_idx-- == 0) [[unlikely]] {
       read_idx = read_skip;
-      const auto curr_len = static_cast<std::uint32_t>(get_seq_size(rec));
       update_tile_id(get_name(rec), get_name_end(rec));
+      const auto curr_len = static_cast<std::uint32_t>(get_seq_size(rec));
       if (curr_len > max_read_len)
         resize(curr_len);
       count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
@@ -92,7 +93,7 @@ private:
   auto
   release() -> void {
     quals.clear();
-    boost::unordered_flat_map<std::uint32_t, qual_vec>().swap(quals);
+    tile_qual_map_t().swap(quals);
   }
 
   auto
