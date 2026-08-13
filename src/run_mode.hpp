@@ -3,9 +3,8 @@
 #ifndef SRC_RUN_MODE_HPP_
 #define SRC_RUN_MODE_HPP_
 
-#include "boost/boost_unordered.hpp"
-
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class run_mode {
@@ -63,7 +62,7 @@ public:
   // clang-format on
 
   auto
-  assign(const boost::unordered_flat_map<std::string, bool> &modes) -> void;
+  assign(const std::unordered_map<std::string, bool> &modes) -> void;
 
 private:
   // ADS: 1 is yes; -1 is no; 0 is not assigned

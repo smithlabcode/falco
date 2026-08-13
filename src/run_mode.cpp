@@ -2,10 +2,9 @@
 
 #include "run_mode.hpp"
 
-#include "boost/boost_unordered.hpp"
-
 #include <iterator>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 // ADS: mapping between labels and function/var names
@@ -49,8 +48,7 @@ std::vector<std::string> run_mode::labels{  // NOLINT(cert-err58-cpp)
 // clang-format on
 
 auto
-run_mode::assign(const boost::unordered_flat_map<std::string, bool> &modes)
-  -> void {
+run_mode::assign(const std::unordered_map<std::string, bool> &modes) -> void {
   static const auto set_mode = [&](const std::string &label, auto &the_mode) {
     const auto itr = modes.find(label);
     if (itr != std::cend(modes))
