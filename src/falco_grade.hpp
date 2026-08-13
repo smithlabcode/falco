@@ -6,7 +6,6 @@
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
-#include "boost/boost_unordered.hpp"
 #include "nlohmann/json.hpp"
 
 #include <array>
@@ -14,6 +13,7 @@
 #include <format>
 #include <iterator>
 #include <string>
+#include <unordered_map>
 #include <vector>  // IWYU pragma: keep
 
 // clang-format off
@@ -68,7 +68,7 @@ static_assert(std::size(section_names) == std::size(section_titles));
 // clang-format on
 
 struct file_grades {
-  boost::unordered_flat_map<std::string, std::string> g;
+  std::unordered_map<std::string, std::string> g;
 
   [[nodiscard]] auto
   is_configured(const std::string &name) const -> bool {
@@ -112,11 +112,12 @@ template <> struct std::formatter<grader> : std::formatter<std::string> {
 
 class grader_set {
   template <typename T, typename U>
-  using map_t = boost::unordered_flat_map<T, U>;
+  using grader_set_map_t = std::unordered_map<T, U>;
 
 public:
   static auto
-  instance(const map_t<std::string, grader> &g = {}) -> const grader_set & {
+  instance(const grader_set_map_t<std::string, grader> &g = {})
+    -> const grader_set & {
     static const grader_set s(g);
     return s;
   }
@@ -128,9 +129,9 @@ public:
   get_grade(const std::string &label, const double value) -> std::string;
 
 private:
-  explicit grader_set(const map_t<std::string, grader> &g);
+  explicit grader_set(const grader_set_map_t<std::string, grader> &g);
 
-  map_t<std::string, grader> graders;
+  grader_set_map_t<std::string, grader> graders;
 };  // grader_set
 
 [[nodiscard]] auto
