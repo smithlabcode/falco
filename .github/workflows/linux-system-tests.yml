@@ -3,7 +3,10 @@ name: System tests on Linux
 on:
   push:
     branches:
-      - falco2
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
