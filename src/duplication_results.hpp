@@ -57,7 +57,7 @@ struct duplication_results {
   std::int64_t count_at_limit{};
   std::int64_t read_skip{default_read_skip};
   std::int64_t read_idx{};
-  boost::unordered_flat_map<falco_word, std::uint64_t> dups;
+  dups_map_t dups;
 
   auto
   initialize(const run_mode &mode, const file_info &info,
@@ -72,7 +72,7 @@ struct duplication_results {
   auto
   release() -> void {
     dups.clear();
-    boost::unordered_flat_map<falco_word, std::uint64_t>().swap(dups);
+    dups_map_t().swap(dups);
   }
 
   [[nodiscard]] auto
