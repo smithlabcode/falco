@@ -90,12 +90,24 @@ duplication_results::get_n_counted_reads() const -> std::uint64_t {
 }
 
 [[nodiscard]] auto
+duplication_results::get_preseq_hist() const
+  -> std::vector<std::pair<std::uint32_t, std::uint32_t>> {
+  std::unordered_map<std::uint32_t, std::uint32_t> counter;
+  std::ranges::for_each(std::views::values(dups),
+                        [&](const auto v) { ++counter[v]; });
+  std::vector<std::pair<std::uint32_t, std::uint32_t>> counts;
+  std::ranges::copy(counter, std::back_inserter(counts));
+  std::ranges::sort(counts);
+  return counts;
+}
+
+[[nodiscard]] auto
 duplication_results::get_overrepresented(const std::uint64_t n_reads) const
   -> std::vector<overrep_t> {
   const auto cutoff = static_cast<double>(n_reads) * overrep_cutoff;
-  const auto gt_cutoff = [&](const auto p) { return p.second >= cutoff; };
+  const auto gte_cutoff = [&](const auto p) { return p.second >= cutoff; };
   const auto rev_p = [&](const auto p) { return std::pair{p.second, p.first}; };
-  auto overrep = dups | std::views::filter(gt_cutoff) |
+  auto overrep = dups | std::views::filter(gte_cutoff) |
                  std::views::transform(rev_p) | std::ranges::to<std::vector>();
   std::ranges::sort(overrep, std::greater{});
   std::vector<overrep_t> ret;

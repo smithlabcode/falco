@@ -76,6 +76,10 @@ struct duplication_results {
   }
 
   [[nodiscard]] auto
+  get_preseq_hist() const
+    -> std::vector<std::pair<std::uint32_t, std::uint32_t>>;
+
+  [[nodiscard]] auto
   get_dups_summary(const std::uint64_t n_reads) const -> dup_summary_t;
 
   [[nodiscard]] auto
