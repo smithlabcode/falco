@@ -12,3 +12,4 @@ c2d51938c568b3c224efe9134baddb03  fastq_bgzf_threads_out/fastq_bgzip_1/fastqc_da
 be637ed4a4ebf2f1a64edf30ef1f8bb8  fastq_plain_out/fastq_1/fastqc_data.txt
 bc8fd6e40a0ca55cb00634bc306a896c  groups_out/bam_1/fastqc_data.txt
 a1952ae366bd7c7207f40db833b1d16b  sam_out/sam_1/fastqc_data.txt
+3fe18e2ee85e3912ede8c57559bf9f88  preseq_out/bam_1/preseq_hist.txt
