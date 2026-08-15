@@ -235,3 +235,12 @@ results_summary::get_html() const -> std::string {
 results_summary::get_summary() const -> std::string {
   return grades.to_string(info.name);
 }
+
+[[nodiscard]] auto
+results_summary::get_preseq_hist() const -> std::string {
+  const auto hist = dr.get_preseq_hist();
+  std::string r;
+  for (const auto &[n_times_seen, n_reads] : hist)
+    r += std::format("{}\t{}\n", n_times_seen, n_reads);
+  return r;
+}

@@ -84,6 +84,9 @@ struct results_summary {
 
   [[nodiscard]] auto
   get_summary() const -> std::string;
+
+  [[nodiscard]] auto
+  get_preseq_hist() const -> std::string;
 };
 
 #endif  // SRC_RESULTS_SUMMARY_HPP_
