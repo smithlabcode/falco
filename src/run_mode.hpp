@@ -13,9 +13,7 @@ public:
   set_unassigned() -> void;
 
   [[nodiscard]] auto
-  string() const -> std::string {
-    return {};
-  }
+  string_verbose() const -> std::string;
 
   // clang-format off
   // ADS: these first params are not set in config file
