@@ -92,6 +92,7 @@ write_output(
   static constexpr auto report_filename = "fastqc_data.txt";
   static constexpr auto html_filename = "fastqc_report.html";
   static constexpr auto summary_filename = "summary.txt";
+  static constexpr auto preseq_filename = "preseq_hist.txt";
   for (const auto [result, info, outdir] :
        std::views::zip(results, infos, outdirs)) {
     const auto outdir_path = std::filesystem::path{outdir};
@@ -99,6 +100,8 @@ write_output(
     write_file(outdir_path / report_filename, summary.get_report());
     write_file(outdir_path / html_filename, summary.get_html());
     write_file(outdir_path / summary_filename, summary.get_summary());
+    if (mode.do_preseq())
+      write_file(outdir_path / preseq_filename, summary.get_preseq_hist());
   }
 }
 
@@ -222,6 +225,7 @@ main(int argc, char *argv[]) {
 
     int do_groups{};
     int do_bisulfite{};
+    int do_preseq{};
     int do_original_dups{};
 
     std::uint32_t n_threads{1};
@@ -304,6 +308,9 @@ main(int argc, char *argv[]) {
     app.add_flag("--bisulfite", do_bisulfite,
                  "Assume bisulfite when grading sequence content")
       ->option_text(" ");
+    app.add_flag("--preseq", do_preseq,
+                 "Write duplication info file for analysis by preseq")
+      ->option_text(" ");
     const auto orig_dups_opt =
       app.add_flag("--orig-dups", [&](const auto x) {
         do_original_dups = x;
@@ -352,6 +359,7 @@ main(int argc, char *argv[]) {
     mode.set_do_tiles(do_tiles);
     mode.set_do_groups(do_groups);
     mode.set_do_bisulfite(do_bisulfite);
+    mode.set_do_preseq(do_preseq);
     mode.set_do_original_dups(do_original_dups);
     mode.set_unassigned();
 
