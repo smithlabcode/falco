@@ -84,6 +84,7 @@ run_mode::set_unassigned() -> void {
   // settings below are not in config file
   if (do_groups_ == 0) do_groups_ = do_groups_default;
   if (do_bisulfite_ == 0) do_bisulfite_ = do_bisulfite_default;
+  if (do_preseq_ == 0) do_preseq_ = do_preseq_default;
   if (do_original_dups_ == 0) do_original_dups_ = do_original_dups_default;
   // clang-format on
 }
