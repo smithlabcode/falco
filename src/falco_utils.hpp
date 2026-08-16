@@ -331,8 +331,9 @@ estimate_read_length_fastq_chunk(const auto &data, const auto n) {
 }
 
 [[nodiscard]] auto
-get_program_start_time() -> std::chrono::time_point<std::chrono::system_clock,
-                                                    std::chrono::nanoseconds>;
+get_program_start_time()
+  -> std::chrono::time_point<std::chrono::high_resolution_clock,
+                             std::chrono::nanoseconds>;
 
 [[nodiscard]] auto
 format_program_start_date_and_time() -> std::string;
