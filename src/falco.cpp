@@ -7,8 +7,12 @@ static constexpr auto description =
 
 EXAMPLES:
 
-Use all defaults making output files in 'results/SRX081761_1':
+Use all defaults making output files in a dir named 'results/SRX081761_1':
 $ falco -o results SRX081761_1.fastq
+Output files will be:
+results/SRX081761_1/summary.txt
+results/SRX081761_1/fastqc_data.txt
+results/SRX081761_1/fastqc_results.html
 
 Use 8 cores and analyze all files in 'project' with the fq suffix, and results
 for each input file in their own subdirectory of 'results':
@@ -22,6 +26,11 @@ $ falco --no-adap --no-tiles -o results SRX081761.bam
 
 Use configuration settings from 'my_limits.txt':
 $ falco --config my_limits.txt -o results project_sample2.fq.gz
+
+Generate a file with duplication info for preseq analysis:
+$ falco --preseq -o results SRX081761_1.fq.gz
+Output files include:
+results/SRX081761_1/preseq_hist.txt
 
 Default configuration files can be found here:
 {}
@@ -209,6 +218,9 @@ get_min_buffer_size(const auto max_read_length) {
 int
 main(int argc, char *argv[]) {
   try {
+    const auto start_time =
+      get_program_start_time();  // ADS: do it now or it's wrong forever
+
     static constexpr auto buffer_size_default = 256 * 1024 * 1024;
     static constexpr std::int64_t min_buf_size = 1024 * 1024;
     std::vector<std::string> infiles;
@@ -273,7 +285,7 @@ main(int argc, char *argv[]) {
       ->required()
       ->option_text(" ")
       ->check(CLI::ExistingFile);
-    app.add_option("-o,--output", outdir, "Output directory")
+    app.add_option("-o,--output", outdir, "Output directory (required)")
       ->required()
       ->option_text("DIR");
     app.add_option("-t,--threads", n_threads,
@@ -308,14 +320,16 @@ main(int argc, char *argv[]) {
     app.add_flag("--bisulfite", do_bisulfite,
                  "Assume bisulfite when grading sequence content")
       ->option_text(" ");
-    app.add_flag("--preseq", do_preseq,
-                 "Write duplication info file for analysis by preseq")
+    const auto preseq_opt =
+      app.add_flag("--preseq", do_preseq,
+                   "Make file for preseq input (excludes --orig-dups)")
       ->option_text(" ");
     const auto orig_dups_opt =
-      app.add_flag("--orig-dups", [&](const auto x) {
-        do_original_dups = x;
+      app.add_flag("--orig-dups", [&](const auto should_be_one) {
+        do_original_dups = should_be_one;
         do_dup_analysis = 1;
-      }, "Use original duplication mode (turns dups on)")
+      }, "Use original duplication mode (enables --dups)")
+      ->excludes(preseq_opt)
       ->option_text(" ");
     app.add_flag("--groups", do_groups, "Group base positions in output")
       ->option_text(" ");
@@ -323,7 +337,7 @@ main(int argc, char *argv[]) {
                  "Toggle per-tile quality analysis (default: on)")
       ->option_text(" ");
     app.add_flag("--dups,!--no-dups", do_dup_analysis,
-                 "Toggle duplication/overrep analysis (default: on)")
+                 "Toggle sequence duplication analysis (default: on)")
       ->excludes(orig_dups_opt)
       ->option_text(" ");
     app.add_flag("--adap,!--no-adap", do_adap,
@@ -333,8 +347,6 @@ main(int argc, char *argv[]) {
                  "Toggle k-mer analysis (default: off)")
       ->option_text(" ");
     // clang-format on
-
-    const auto start_time{std::chrono::high_resolution_clock::now()};
 
     if (argc < 2) {
       std::println("{}", app.help());
@@ -403,38 +415,34 @@ main(int argc, char *argv[]) {
       max_read_length = get_max_read_length(buffer_size);
 
     if (verbose) {
-      std::println("threads requested: {}\n"
+      std::println("Falco v{}\n"
+                   "Run started: {}\n",
+                   VERSION, format_program_start_date_and_time());
+      std::println("Resources\n"
+                   "threads requested: {}\n"
                    "input memory buffer size: {}\n"
-                   "max analyzable read length: {}\n"
-                   "tile analysis requested: {}\n"
-                   "k-mer analysis requested: {}\n"
-                   "dups analysis requested: {}\n"
-                   "adapter analysis requested: {}\n"
-                   "use base groups in output: {}\n"
-                   "input files:",
+                   "max analyzable read length: {}\n",
                    n_threads, size_to_units(buffer_size),
-                   size_to_units(max_read_length, "bp"), mode.do_tiles(),
-                   mode.do_kmers(), mode.do_dups(), mode.do_adap(),
-                   mode.do_groups());
+                   size_to_units(max_read_length, "bp"));
+      std::println("Analyses\n{}", mode.string_verbose());
+      std::println("Input files");
       std::ranges::for_each(infos, [](const auto &info) {
         std::println("{}\t{}\t{}", info.name, info.description,
                      size_to_units(info.size, std::string{}));
       });
+      std::println();
     }
 
-    std::vector<dups_init_t> dups =
-      do_original_dups
-        ? initialize_original_duplicates(infiles, infos, n_threads)
-        : std::vector<dups_init_t>{};
+    auto dups = do_original_dups
+                  ? initialize_original_duplicates(infiles, infos, n_threads)
+                  : std::vector<dups_init_t>{};
     auto results =
       analyze(n_threads, mode, infos,
               make_reads_files(infos, infiles, buffer_size), std::move(dups));
     write_output(mode, infos, outdirs, std::move(results));
 
     if (verbose)
-      std::println(
-        "total run time: {:.6g}s",
-        duration(start_time, std::chrono::high_resolution_clock::now()));
+      std::println("Run duration: {}", get_run_duration(start_time));
   }
   catch (const std::exception &e) {
     std::println("{}", e.what());
