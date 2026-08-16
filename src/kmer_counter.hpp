@@ -22,8 +22,6 @@ struct kmer_result {
   double obs_exp{};
   std::uint64_t pos{};
   [[nodiscard]] auto
-  operator<=>(const kmer_result &rhs) const;
-  [[nodiscard]] auto
   string() const -> std::string;
   [[nodiscard]] auto
   decode() const -> std::string;
