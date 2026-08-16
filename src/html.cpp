@@ -69,16 +69,12 @@ get_html_module(const std::string &label, const std::string &text,
 [[nodiscard]] auto
 falco_get_html(const file_info &info, const file_grades &grades,
                const std::string &analysis_modules) -> std::string {
-  const auto now = std::chrono::system_clock::now();
-  const auto now_c = std::chrono::system_clock::to_time_t(now);
-  std::ostringstream oss;
-  oss << std::put_time(std::localtime(&now_c), "%F %T %Z");
-  return fmt::format(falco_html_body,                           //
-                     fmt::arg("date", oss.str()),               //
-                     fmt::arg("filename", info.name),           //
-                     fmt::arg("style", style),                  //
-                     fmt::arg("summary", get_summary(grades)),  //
-                     fmt::arg("modules", analysis_modules),     //
+  return fmt::format(falco_html_body,                                         //
+                     fmt::arg("date", format_program_start_date_and_time()),  //
+                     fmt::arg("filename", info.name),                         //
+                     fmt::arg("style", style),                                //
+                     fmt::arg("summary", get_summary(grades)),                //
+                     fmt::arg("modules", analysis_modules),                   //
                      fmt::arg("version", VERSION));
 }
 
