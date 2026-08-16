@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <ctime>  // for std::localtime
 #include <format>
 #include <span>
 #include <string>
@@ -141,4 +142,21 @@ combine_gc_content_for_lengths(const std::vector<falco::gc_content_array> &gcs)
     }
   }
   return hist;
+}
+
+[[nodiscard]] auto
+get_program_start_time()
+  -> std::chrono::time_point<std::chrono::high_resolution_clock,
+                             std::chrono::nanoseconds> {
+  static const auto start_time = std::chrono::high_resolution_clock::now();
+  return start_time;
+}
+
+[[nodiscard]] auto
+format_program_start_date_and_time() -> std::string {
+  const auto t = get_program_start_time();
+  const auto t_c = std::chrono::system_clock::to_time_t(t);
+  std::ostringstream oss;
+  oss << std::put_time(std::localtime(&t_c), "%F %T %Z");
+  return oss.str();
 }

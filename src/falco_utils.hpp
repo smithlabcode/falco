@@ -90,12 +90,18 @@ get_theoretical_distribution(const std::vector<double> &gc,
 [[nodiscard]] auto
 sum_deviation_from_normal(const std::vector<double> &gc) -> double;
 
-[[nodiscard]] inline constexpr auto
-duration(const auto start, const auto stop) {
-  const auto d = stop - start;
-  // ADS: 'count()' because macos has locale issues formatting times
-  return std::chrono::duration_cast<std::chrono::duration<double>>(d).count();
-};
+[[nodiscard]] auto
+get_run_duration(const auto start_time) {
+  using namespace std::literals::chrono_literals;
+  const auto d = std::chrono::high_resolution_clock::now() - start_time;
+  const auto d_ms = std::chrono::floor<std::chrono::milliseconds>(d);
+  if (d < 1min) {
+    const auto ds =
+      std::chrono::duration_cast<std::chrono::duration<double>>(d).count();
+    return std::format("0:{:05.2f}", ds);
+  }
+  return std::format("{}", std::chrono::hh_mm_ss{d_ms});
+}
 
 inline constexpr auto end_module_tag = ">>END_MODULE\n";
 
@@ -323,5 +329,12 @@ estimate_read_length_fastq_chunk(const auto &data, const auto n) {
       total += (std::get<2>(l) - std::get<1>(l)) - 1;
   return total / (std::size(lines) / fastq_lines_per_read);
 }
+
+[[nodiscard]] auto
+get_program_start_time() -> std::chrono::time_point<std::chrono::system_clock,
+                                                    std::chrono::nanoseconds>;
+
+[[nodiscard]] auto
+format_program_start_date_and_time() -> std::string;
 
 #endif  // SRC_FALCO_UTILS_HPP_
