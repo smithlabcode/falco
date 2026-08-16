@@ -26,13 +26,6 @@
 #include <vector>
 
 [[nodiscard]] auto
-kmer_result::operator<=>(const kmer_result &rhs) const {
-  return obs_exp < rhs.obs_exp   ? std::strong_ordering::less
-         : obs_exp > rhs.obs_exp ? std::strong_ordering::greater
-                                 : std::strong_ordering::equal;
-}
-
-[[nodiscard]] auto
 kmer_result::decode() const -> std::string {
   return kmer_counter::decode_kmer(kmer, kmer_counter::kmer_size);
 }
@@ -162,7 +155,9 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
     return x.obs_exp < min_obs_exp_to_report || x.pval > max_pval_to_report;
   });
   results.erase(std::cbegin(to_erase), std::cend(to_erase));
-  std::ranges::sort(results, std::greater{});
+  std::ranges::sort(results, [](const auto &a, const auto &b) {
+    return a.obs_exp > b.obs_exp || (a.obs_exp == b.obs_exp && a.kmer < b.kmer);
+  });
   if (std::size(results) > n_kmers_to_report)
     results.resize(n_kmers_to_report);
   return results;
