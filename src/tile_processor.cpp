@@ -74,7 +74,7 @@ tile_processor::get_centered() -> tile_processor::tiles_centered_t {
   std::vector<double> means(current_max_len);
   std::vector<double> n_tiles_for_size(current_max_len);
   for (const auto &tile_quals : quals | std::views::values) {
-    for (const auto [i, q] : std::views::enumerate(tile_quals))
+    for (const auto [i, q] : falco::views::enumerate(tile_quals))
       means[i] += as_frac(q.first, q.second);
     if (!tile_quals.empty())
       ++n_tiles_for_size[std::size(tile_quals) - 1ul];
@@ -94,7 +94,13 @@ tile_processor::get_centered() -> tile_processor::tiles_centered_t {
 
   tile_processor::tiles_centered_t centered;
   for (const auto &[id, vals] : quals) {
+#if __cpp_lib_ranges_zip
     const auto cent_vals = std::views::zip_transform(get_cent, vals, means);
+#else
+    std::vector<double> cent_vals;
+    for (const auto [val, mean] : std::views::zip(vals, means))
+      cent_vals.push_back(get_cent(val, mean));
+#endif
     centered.emplace(id, cent_vals | std::ranges::to<std::vector>());
   }
   return centered;
@@ -117,7 +123,7 @@ tile_processor::trim() -> void {
   // analysis, so we trim each tile to its own max read length post-analysis
   for (auto &tile_quals : quals | std::views::values) {
     auto first_trailing_zero = 0L;
-    for (const auto [i, q] : std::views::enumerate(tile_quals))
+    for (const auto [i, q] : falco::views::enumerate(tile_quals))
       first_trailing_zero = q.second > 0 ? i + 1 : first_trailing_zero;
     tile_quals.resize(first_trailing_zero);
   }

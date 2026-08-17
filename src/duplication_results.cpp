@@ -179,7 +179,7 @@ overrepresented_report(const std::vector<overrep_t> &overrep,
 make_bins(const auto &breaks, const auto &hist) {
   std::vector<std::uint64_t> binned(std::size(breaks), 0);
   auto b_itr = std::cbegin(breaks);
-  for (const auto [i, h] : std::views::enumerate(hist)) {
+  for (const auto [i, h] : falco::views::enumerate(hist)) {
     // ADS: clang-tidy false positive?
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     b_itr += (b_itr < std::cend(breaks) && i >= *b_itr);
@@ -229,12 +229,12 @@ duplication_results::get_dups_summary(const std::uint64_t n_reads) const
   std::vector<std::uint64_t> hist_dedup(max_dup + 1);
   for (const auto n_copies : std::views::values(dups))
     ++hist_dedup[n_copies];
-  for (auto [idx, val] : std::views::enumerate(hist_dedup))
+  for (auto [idx, val] : falco::views::enumerate(hist_dedup))
     val = static_cast<std::uint64_t>(
       get_corrected_count(count_at_limit, n_reads, idx, val));
   auto hist_mass =
     std::views::transform(
-      std::views::enumerate(hist_dedup),
+      falco::views::enumerate(hist_dedup),
       [](const auto x) { return std::get<0>(x) * std::get<1>(x); }) |
     std::ranges::to<std::vector>();
   return dup_summary_t{
@@ -255,7 +255,7 @@ duplication_results::get_dups_summary() const -> dup_summary_t {
     ++hist_dedup[n_copies];
   auto hist_mass =
     std::views::transform(
-      std::views::enumerate(hist_dedup),
+      falco::views::enumerate(hist_dedup),
       [](const auto x) { return std::get<0>(x) * std::get<1>(x); }) |
     std::ranges::to<std::vector>();
   return dup_summary_t{

@@ -135,7 +135,7 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
   auto results = counts_by_kmer | std::views::transform(kr_maker) |
                  std::ranges::to<std::vector>();
 
-  for (const auto [pos, pos_counts] : std::views::enumerate(kmer_counts)) {
+  for (const auto [pos, pos_counts] : falco::views::enumerate(kmer_counts)) {
     const auto count_for_pos = static_cast<double>(counts_by_pos[pos]);
     const auto pos_prob = pos_probs[pos];
     const auto per_kmer = std::views::zip(pos_counts, kmer_probs, results);

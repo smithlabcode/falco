@@ -48,7 +48,7 @@ analyze(const std::uint32_t n_threads, const run_mode &mode,
     for (const auto th_id : std::views::iota(0u, n_threads))
       workers.emplace_back([&, n_threads, th_id] {
         auto &res = results[th_id];
-        for (const auto [file_id, info] : std::views::enumerate(infos))
+        for (const auto [file_id, info] : falco::views::enumerate(infos))
           res[file_id].init(mode, info, dups_init[file_id]);
         while (true) {
           auto tq_lock = tq.wait_and_acquire_lock();
