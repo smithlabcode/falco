@@ -9,6 +9,7 @@
 #include <format>
 #include <iomanip>  // for std::put_time
 #include <span>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <vector>
