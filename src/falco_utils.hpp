@@ -122,6 +122,12 @@ get_run_duration(const auto start_time) {
       std::chrono::duration_cast<std::chrono::duration<double>>(d).count();
     return std::format("0:{:05.2f}", ds);
   }
+  if (d < 1h) {
+    const auto dm = std::chrono::floor<std::chrono::minutes>(d);
+    const auto ds =
+      std::chrono::duration_cast<std::chrono::duration<double>>(d - dm);
+    return std::format("{}:{:05.2f}", dm.count(), ds.count());
+  }
   return std::format("{}", std::chrono::hh_mm_ss{d_ms});
 }
 
