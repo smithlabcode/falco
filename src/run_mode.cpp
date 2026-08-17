@@ -6,8 +6,10 @@
 #include <format>
 #include <iterator>
 #include <ranges>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 // ADS: mapping between labels and function/var names

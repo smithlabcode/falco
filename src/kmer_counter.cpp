@@ -11,18 +11,16 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <compare>
 #include <cstdint>
 #include <cstdlib>
-#include <format>  // IWYU pragma: keep
-#include <functional>
+#include <format>
 #include <limits>
 #include <numeric>
 #include <ranges>
 #include <string>
 #include <tuple>
 #include <type_traits>
-#include <utility>  // IWYU pragma: keep
+#include <utility>
 #include <vector>
 
 [[nodiscard]] auto
