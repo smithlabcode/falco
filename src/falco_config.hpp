@@ -5,7 +5,7 @@
 
 #include <string>
 
-struct run_mode;
+class run_mode;
 
 // ADS: run mode is an out-param because it might be partially set already
 auto
