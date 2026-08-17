@@ -58,6 +58,27 @@ static constexpr auto gc_content_array_max_lim = 250;
 static constexpr auto gc_content_array_max_size = gc_content_array_max_lim + 1;
 using nuc_array = std::array<std::uint64_t, alphabet_size>;
 using gc_content_array = std::vector<std::uint64_t>;
+
+// ADS: this is because I wrote falco v2 using std::views::enumerate in many
+// places, but macOS apple-clang still doesn't have this c++20 feature. Not
+// using full 'std::views::enumerate'. Assuming std::ranges::sized_range
+namespace views {
+#if __cpp_lib_ranges_enumerate
+using std::views::enumerate;
+#else
+// ADS: from https://brevzin.github.io/c++/2022/12/05/enumerate
+struct enumerate_t : std::ranges::range_adaptor_closure<enumerate_t> {
+  template <std::ranges::viewable_range R>
+    requires std::ranges::sized_range<R>
+  [[nodiscard]] constexpr auto
+  operator()(R &&r) const {
+    const auto d = std::ranges::distance(r);
+    return std::views::zip(std::views::iota(0, d), static_cast<R &&>(r));
+  }
+};
+inline constexpr enumerate_t enumerate;
+#endif
+}  // namespace views
 }  // namespace falco
 
 static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
@@ -93,7 +114,7 @@ sum_deviation_from_normal(const std::vector<double> &gc) -> double;
 [[nodiscard]] auto
 get_run_duration(const auto start_time) {
   using namespace std::literals::chrono_literals;
-  const auto d = std::chrono::high_resolution_clock::now() - start_time;
+  const auto d = std::chrono::system_clock::now() - start_time;
   const auto d_ms = std::chrono::floor<std::chrono::milliseconds>(d);
   if (d < 1min) {
     const auto ds =
@@ -245,7 +266,7 @@ count_gc(auto seq_itr, const auto seq_end) {
 [[nodiscard]] inline auto
 tabular_dot(const auto &a) {
   auto total = static_cast<std::remove_cvref_t<decltype(a)>::value_type>(0);
-  for (const auto [i, x] : std::views::enumerate(a))
+  for (const auto [i, x] : falco::views::enumerate(a))
     total += i * x;
   return total;
 }
@@ -298,8 +319,8 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 
 [[nodiscard]] auto
-size_to_units(const std::int64_t s,
-              const std::string &suffix = "iB") -> std::string;
+size_to_units(const std::int64_t s, const std::string &suffix = "iB")
+  -> std::string;
 
 [[nodiscard]] inline auto
 get_max_size(const auto &x) {
@@ -322,18 +343,22 @@ estimate_read_length_fastq_chunk(const auto &data, const auto n) {
   if (std::size(lines) < fastq_lines_per_read)
     return 1ul;
   auto total = 0ul;
-  for (const auto l : lines | std::views::adjacent<fastq_lines_per_read - 1>)
+#if __cpp_lib_ranges_zip
+  for (const auto l : lines | std::views::adjacent<fastq_lines_per_read - 1>) {
+#else
+  for (auto i = 0U; i + fastq_lines_per_read < std::size(lines) + 1; ++i) {
+    std::tuple<std::int64_t, std::int64_t, std::int64_t> l{i, i + 1, i + 2};
+#endif
     if (data[std::get<0>(l)] == '@' && data[std::get<2>(l)] == '+' &&
         valid(data[std::get<1>(l)]))
       // cppcheck-suppress useStlAlgorithm
       total += (std::get<2>(l) - std::get<1>(l)) - 1;
+  }
   return total / (std::size(lines) / fastq_lines_per_read);
 }
 
 [[nodiscard]] auto
-get_program_start_time()
-  -> std::chrono::time_point<std::chrono::high_resolution_clock,
-                             std::chrono::nanoseconds>;
+get_program_start_time() -> std::chrono::time_point<std::chrono::system_clock>;
 
 [[nodiscard]] auto
 format_program_start_date_and_time() -> std::string;
