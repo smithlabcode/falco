@@ -44,8 +44,17 @@ make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
   static constexpr auto make_groups = [](const auto n, const auto offset,
                                          const auto scale) {
     const auto f = [scale, offset](const auto x) { return offset + x * scale; };
+#if __cpp_lib_ranges_zip
     return std::views::transform(std::views::iota(0LU, n + 1), f) |
            std::views::adjacent_transform<2>(make_one_group);
+#else
+    const auto x = std::views::transform(std::views::iota(0LU, n + 1), f) |
+                   std::ranges::to<std::vector>();
+    std::vector<base_group_t> r(n);
+    for (auto i = 0U; i < n; ++i)
+      r[i] = make_one_group(x[i], x[i + 1]);
+    return r;
+#endif
   };
   if (n_bases <= n_initial + n_groups_target)
     return make_groups(n_bases, 0, 1) | std::ranges::to<std::vector>();
@@ -63,8 +72,8 @@ make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
 }
 
 [[nodiscard]] auto
-get_default_base_groups(const std::uint64_t n_bases,
-                        const bool make_groups) -> base_group_vec {
+get_default_base_groups(const std::uint64_t n_bases, const bool make_groups)
+  -> base_group_vec {
   static constexpr auto default_n_initial = 9UL;
   static constexpr auto default_n_groups_target = 75UL - default_n_initial;
   return make_groups ? make_base_groups(n_bases, default_n_initial,

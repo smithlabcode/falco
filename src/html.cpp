@@ -196,7 +196,13 @@ line: {{color: "{}"}}
     const auto pct_for_pos = [idx](const auto &nucs_for_pos, const auto tot) {
       return pct(as_frac(nucs_for_pos[idx], tot));
     };
+#if __cpp_lib_ranges_zip
     const auto y = std::views::zip_transform(pct_for_pos, nucs, total_by_pos);
+#else
+    std::vector<double> y;
+    for (const auto [nuc, tot] : std::views::zip(nucs, total_by_pos))
+      y.push_back(pct_for_pos(nuc, tot));
+#endif
     r.emplace_back(fmt::format(per_base_fmt, fmt::join(x, ","),
                                fmt::join(y, ","), bases[idx],
                                base_colors_for_html[idx]));
@@ -239,11 +245,18 @@ yaxis: {{title: "% N", range: [0, 100]}},
   assert(std::size(nucs) == std::size(groups));
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
+#if __cpp_lib_ranges_zip
+  const auto y = std::views::zip_transform(pct_for_pos, nucs, n_counts);
+#else
+  std::vector<double> y;
+  for (const auto [nuc, n_count] : std::views::zip(nucs, n_counts))
+    y.push_back(pct_for_pos(nuc, n_count));
+#endif
   return fmt::format(
     html_module_fmt, grade, label, title, grade,
-    fmt::format(
-      plot_fmt, fmt::join(groups | std::views::transform(make_tag), ","),
-      fmt::join(std::views::zip_transform(pct_for_pos, nucs, n_counts), ",")));
+    fmt::format(plot_fmt,
+                fmt::join(groups | std::views::transform(make_tag), ","),
+                fmt::join(y, ",")));
 }
 
 [[nodiscard]] auto
@@ -321,7 +334,7 @@ yaxis: {{title: "Phred quality", rangemode: "tozero"}},
     return "green";
   };
   std::vector<std::string> lines;
-  for (const auto [idx, q] : std::views::enumerate(qual)) {
+  for (const auto [idx, q] : falco::views::enumerate(qual)) {
     const auto fq = five_quants(q);
     lines.emplace_back(fmt::format(row_fmt, fmt::join(fq, ", "),
                                    // ADS: unquoted on purpose
@@ -373,8 +386,8 @@ basic_stats_html(const file_info &info, const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 tile_html(const tile_processor::tiles_centered_t &centered,
-          const std::vector<base_group_t> &groups,
-          const file_grades &grades) -> std::string {
+          const std::vector<base_group_t> &groups, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto n_quants = 20.0;
   // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
@@ -433,8 +446,8 @@ yaxis: {{title: "tile", type: "category"}},
 }
 
 [[nodiscard]] auto
-kmer_html(const std::vector<kmer_result> &results,
-          const file_grades &grades) -> std::string {
+kmer_html(const std::vector<kmer_result> &results, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "kmer";
   static constexpr auto plot_format = R"(<div id="kmer_plot"></div>
 <script>Plotly.newPlot("kmer_plot",

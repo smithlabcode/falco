@@ -42,7 +42,7 @@ sequence_length_report(const std::vector<std::uint64_t> &lengths,
   const auto eq0 = [](const auto &x) { return std::get<1>(x) == 0; };
   auto r = std::format(start_tag, grades.grade(label));
   r += header;
-  auto to_report = std::views::enumerate(lengths) | std::views::drop_while(eq0);
+  auto to_report = falco::views::enumerate(lengths) | std::views::drop_while(eq0);
   for (const auto [idx, len] : to_report)
     r += std::format("{}\t{}\n", idx, len);
   r += end_module_tag;
@@ -57,7 +57,7 @@ gc_sequence_report(const std::vector<double> &gc_content,
   static constexpr auto header = "#GC Content\tCount\n";
   auto r = std::format(start_tag, grades.grade(label));
   r += header;
-  for (const auto [idx, gc] : std::views::enumerate(gc_content))
+  for (const auto [idx, gc] : falco::views::enumerate(gc_content))
     r += std::format("{}\t{}\n", idx, std::round(gc));
   r += end_module_tag;
   return r;
@@ -168,7 +168,7 @@ quality_base_report(const std::vector<falco::qual_array> &qual,
   };
   auto r = std::format(start_tag, grades.grade(label));
   r += header;
-  for (const auto [idx, q] : std::views::enumerate(qual))
+  for (const auto [idx, q] : falco::views::enumerate(qual))
     r += std::format("{}\t{:.{}g}{}\n", make_group_tag(groups[idx]),
                      mean_tabular(q), digits, tab_sep(five_quants(q)));
   r += end_module_tag;

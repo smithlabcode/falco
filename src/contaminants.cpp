@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "contaminants.hpp"
+#include "falco_utils.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -244,7 +245,7 @@ match_contaminant(const std::string &query) -> std::int64_t {
   auto best_match = 0L;
   auto best_match_len = 0L;
   for (const auto &[idx, seq] :
-       std::views::enumerate(std::views::elements<1>(contaminants))) {
+       falco::views::enumerate(std::views::elements<1>(contaminants))) {
     const auto n_match =
       std::max(get_overlap(query, seq), get_overlap(seq, query));
     if (n_match > best_match) {

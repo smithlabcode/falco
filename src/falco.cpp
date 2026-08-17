@@ -141,7 +141,7 @@ make_reads_files(const std::vector<file_info> &infos,
 [[nodiscard]] static auto
 get_file_info(const auto &infiles) {
   std::vector<file_info> infos;
-  for (const auto [file_id, infile] : std::views::enumerate(infiles)) {
+  for (const auto [file_id, infile] : falco::views::enumerate(infiles)) {
     const auto [input_format, format_description] = get_file_format(infile);
     const auto tile_id_position = get_tile_info(infile);
     const bool has_tiles = (tile_id_position != 0);

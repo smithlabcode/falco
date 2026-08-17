@@ -84,8 +84,15 @@ adapter_matcher::report(const std::uint64_t n_reads,
   r += '\n';
 
   auto cumulative = adap_counts;
+#if __cpp_lib_ranges_zip
   for (auto [prev, curr] : cumulative | std::views::pairwise)
     std::ranges::transform(curr, prev, std::begin(curr), std::plus{});
+#else
+  for (auto prev = 0LU, curr = 1LU; curr < std::size(cumulative);
+       ++prev, ++curr)
+    std::ranges::transform(cumulative[curr], cumulative[prev],
+                           std::begin(cumulative[curr]), std::plus{});
+#endif
 
   const auto n_pos = max_read_len + 1 >= adapter_size
                        ? max_read_len - adapter_size + 1
@@ -96,7 +103,7 @@ adapter_matcher::report(const std::uint64_t n_reads,
   const auto fmt_pct_of_reads = [n_reads](const auto c) {
     return std::format("\t{:.6g}", pct(as_frac(c, n_reads)));
   };
-  for (const auto [idx, cumul] : std::views::enumerate(cumulative))
+  for (const auto [idx, cumul] : falco::views::enumerate(cumulative))
     r += std::format("{}{}\n", make_group_tag(groups[idx]),
                      to_flat(cumul, fmt_pct_of_reads));
   return r + end_module_tag;
@@ -130,9 +137,15 @@ name: "{}",
                    return make_group_tag(g);  // ADS: purposely unquoted
                  });
   auto cumulative = adap_counts;
+#if __cpp_lib_ranges_zip
   for (auto [prev, curr] : cumulative | std::views::pairwise)
     std::ranges::transform(curr, prev, std::begin(curr), std::plus{});
-
+#else
+  for (auto prev = 0LU, curr = 1LU; curr < std::size(cumulative);
+       ++prev, ++curr)
+    std::ranges::transform(cumulative[curr], cumulative[prev],
+                           std::begin(cumulative[curr]), std::plus{});
+#endif
   const auto n_pos = max_read_len + 1 >= adapter_size
                        ? max_read_len - adapter_size + 1
                        : max_read_len;
@@ -145,7 +158,8 @@ name: "{}",
   };
   std::vector<std::string> html_by_adapter;
   const auto adapter_names = adapter_set::instance().adapter_names;
-  for (const auto [adap_id, adap_name] : std::views::enumerate(adapter_names)) {
+  for (const auto [adap_id, adap_name] :
+       falco::views::enumerate(adapter_names)) {
     const auto make_y = [&](const auto &cumul) {
       return pct_of_reads(cumul[adap_id]);
     };

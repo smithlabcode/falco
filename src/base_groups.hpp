@@ -38,7 +38,7 @@ apply_base_groups(const base_group_vec &groups, auto &rows) {
   auto group_itr = std::cbegin(groups);
   auto current_row = 0U;
   for (const auto [idx, row] :
-       std::views::enumerate(rows) | std::views::drop(1)) {
+       falco::views::enumerate(rows) | std::views::drop(1)) {
     if (static_cast<std::uint64_t>(idx) < group_itr->second)
       add(rows[current_row], row);
     else {
@@ -56,7 +56,7 @@ apply_base_groups(const base_group_vec &groups, auto &rows, const auto &adder) {
   auto group_itr = std::cbegin(groups);
   auto current_row = 0U;
   for (const auto [idx, row] :
-       std::views::enumerate(rows) | std::views::drop(1)) {
+       falco::views::enumerate(rows) | std::views::drop(1)) {
     if (static_cast<std::uint64_t>(idx) < group_itr->second)
       adder(rows[current_row], row);
     else {
