@@ -5,6 +5,7 @@
 #include "bamrec.hpp"
 #include "bgzf_block.hpp"
 #include "duplication_results.hpp"
+#include "falco_utils.hpp"
 #include "file_info.hpp"
 #include "fqrec.hpp"
 #include "reads_file.hpp"
