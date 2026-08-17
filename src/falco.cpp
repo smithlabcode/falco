@@ -41,6 +41,7 @@ Use these as templates. Copy and modify them to customize your analysis.
 #include "adapter_set.hpp"
 #include "bam_file.hpp"
 #include "contaminants.hpp"
+#include "duplication_results.hpp"
 #include "falco_analyzer.hpp"
 #include "falco_config.hpp"
 #include "falco_file_format.hpp"
@@ -49,12 +50,12 @@ Use these as templates. Copy and modify them to customize your analysis.
 #include "fastq_bgzf_file.hpp"
 #include "fastq_file.hpp"
 #include "fastq_gz_file.hpp"
+#include "file_info.hpp"
 #include "get_binary_dir.hpp"
 #include "original_duplicates.hpp"
-#include "quality_score.hpp"
 #include "reads_file.hpp"  // IWYU pragma: keep
-#include "results_collector.hpp"
 #include "results_summary.hpp"
+#include "run_mode.hpp"
 #include "sam_file.hpp"
 #include "tile_processor.hpp"
 
@@ -73,6 +74,7 @@ Use these as templates. Copy and modify them to customize your analysis.
 #include <fstream>
 #include <functional>
 #include <iterator>
+#include <limits>
 #include <map>
 #include <memory>
 #include <print>
@@ -80,9 +82,11 @@ Use these as templates. Copy and modify them to customize your analysis.
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <type_traits>
+#include <tuple>
 #include <utility>
 #include <vector>
+
+struct results_collector;
 
 static auto
 write_file(const auto &filename, const auto &data) {
