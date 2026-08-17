@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <ctime>  // for std::localtime
 #include <format>
+#include <iomanip>  // for std::put_time
 #include <span>
 #include <string>
 #include <tuple>
@@ -56,7 +57,8 @@ get_theoretical_distribution(const std::vector<double> &gc,
   const auto sd_term = [&](const auto &x) {
     return cntr_sq(std::get<0>(x)) * std::get<1>(x);
   };
-  const auto id_gc = std::views::enumerate(gc) | std::views::transform(sd_term);
+  const auto id_gc =
+    falco::views::enumerate(gc) | std::views::transform(sd_term);
   const auto sd = std::sqrt(as_frac(
     std::reduce(std::cbegin(id_gc), std::cend(id_gc)), total_count - 1));
   const auto to_normal = [&](const auto val) {
@@ -98,9 +100,16 @@ smooth_gc_content(const std::vector<double> &data,
   for (auto w = 1; w < (window_size + 1) / 2; ++w)
     smoothed.push_back(get_mean(
       std::ranges::subrange(std::cbegin(data), std::cbegin(data) + w)));
+#if __cpp_lib_ranges_slide
   for (const auto &window : data | std::views::slide(window_size))
     // cppcheck-suppress useStlAlgorithm
     smoothed.push_back(get_mean(window));
+#else
+  for (auto i = 0LU; i < std::size(data); ++i)
+    // cppcheck-suppress useStlAlgorithm
+    smoothed.push_back(get_mean(std::ranges::subrange(
+      std::cbegin(data) + i, std::cbegin(data) + i + window_size)));
+#endif
   for (auto w = (window_size + 1) / 2; w > 1; --w)
     smoothed.push_back(get_mean(
       std::ranges::subrange(std::cend(data) - w + 1, std::cend(data))));
@@ -145,10 +154,8 @@ combine_gc_content_for_lengths(const std::vector<falco::gc_content_array> &gcs)
 }
 
 [[nodiscard]] auto
-get_program_start_time()
-  -> std::chrono::time_point<std::chrono::high_resolution_clock,
-                             std::chrono::nanoseconds> {
-  static const auto start_time = std::chrono::high_resolution_clock::now();
+get_program_start_time() -> std::chrono::time_point<std::chrono::system_clock> {
+  static const auto start_time = std::chrono::system_clock::now();
   return start_time;
 }
 
