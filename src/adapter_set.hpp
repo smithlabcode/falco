@@ -12,6 +12,8 @@
 #include <variant>
 #include <vector>
 
+// ADS: all this code assumes all adapters for a given run of falco have the
+// same length
 struct adapter_set {
   static constexpr auto min_adapter_size = 6;
   static constexpr auto max_adapter_size = 16;
