@@ -128,7 +128,17 @@ get_run_duration(const auto start_time) {
       std::chrono::duration_cast<std::chrono::duration<double>>(d - dm);
     return std::format("{}:{:05.2f}", dm.count(), ds.count());
   }
+#if defined(__APPLE__)
+  using std::chrono::floor;
+  const auto hrs = floor<std::chrono::hours>(d_ms);
+  const auto mins = floor<std::chrono::minutes>(d_ms - hrs);
+  const auto secs = floor<std::chrono::seconds>(d_ms - hrs - mins);
+  const auto milli = floor<std::chrono::milliseconds>(d_ms - hrs - mins - secs);
+  return std::format("{:02}:{:02}:{:02}.{:03}", hrs.count(), mins.count(),
+                     secs.count(), milli.count());
+#else
   return std::format("{}", std::chrono::hh_mm_ss{d_ms});
+#endif
 }
 
 inline constexpr auto end_module_tag = ">>END_MODULE\n";
