@@ -58,11 +58,6 @@ if(PACKAGE)
   include(cmake/package.cmake)
 endif()
 
-if(ORIGINAL_DUPS)
-  message(STATUS "Building with original duplication analysis method")
-  add_compile_options(-DORIGINAL_DUPS)
-endif()
-
 find_package(LIBDEFLATE REQUIRED)
 find_package(HTSLIB 1.18 REQUIRED)
 find_package(ZLIB REQUIRED)
