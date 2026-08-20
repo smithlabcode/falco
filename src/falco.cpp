@@ -277,7 +277,7 @@ main(int argc, char *argv[]) {
     if (argc >= 2)
       app.footer(std::format(description, falco::get_share_dir()));
 
-    // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     app.get_formatter()->long_option_alignment_ratio(0.2);
     app.set_help_flag("-h,--help", "Print more detailed help");
     app.set_version_flag("--version", VERSION, "Print program version");
