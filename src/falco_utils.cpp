@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cmath>
+#include <compare>
 #include <cstdint>
 #include <ctime>  // for std::localtime
 #include <format>
@@ -17,7 +18,6 @@
 [[nodiscard]] auto
 size_to_units(const std::int64_t s, const std::string &suffix) -> std::string {
   const auto as_frac_2 = [](const auto a, const auto b) {
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     return std::floor(10 * as_frac(a, b)) / 10;
   };
   if (s >= gigabytes)
@@ -63,10 +63,9 @@ get_theoretical_distribution(const std::vector<double> &gc,
   const auto sd = std::sqrt(as_frac(
     std::reduce(std::cbegin(id_gc), std::cend(id_gc)), total_count - 1));
   const auto to_normal = [&](const auto val) {
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     return std::exp(-cntr_sq(val) / (2.0 * sd * sd));
   };
-  auto normed = std::views::iota(0u, n_bins) |
+  auto normed = std::views::iota(0U, n_bins) |
                 std::views::transform(to_normal) |
                 std::ranges::to<std::vector>();
   const auto denom = std::reduce(std::cbegin(normed), std::cend(normed));
@@ -103,17 +102,15 @@ smooth_gc_content(const std::vector<double> &data,
       std::ranges::subrange(std::cbegin(data), std::cbegin(data) + w)));
 #if __cpp_lib_ranges_slide
   for (const auto &window : data | std::views::slide(window_size))
-    // cppcheck-suppress useStlAlgorithm
     smoothed.push_back(get_mean(window));
 #else
-  for (auto i = 0LU; i < std::size(data); ++i)
-    // cppcheck-suppress useStlAlgorithm
-    smoothed.push_back(get_mean(std::ranges::subrange(
-      std::cbegin(data) + i, std::cbegin(data) + i + window_size)));
+  const auto lim = std::cend(data) - window_size;
+  for (auto itr = std::cbegin(data); itr != lim; ++itr)
+    smoothed.push_back(get_mean(std::ranges::subrange(itr, itr + window_size)));
 #endif
+  const auto d_end = std::cend(data);
   for (auto w = (window_size + 1) / 2; w > 1; --w)
-    smoothed.push_back(get_mean(
-      std::ranges::subrange(std::cend(data) - w + 1, std::cend(data))));
+    smoothed.push_back(get_mean(std::ranges::subrange(d_end - w + 1, d_end)));
   return smoothed;
 }
 
@@ -122,33 +119,34 @@ combine_gc_content_for_lengths(const std::vector<falco::gc_content_array> &gcs)
   -> std::vector<double> {
   static constexpr auto histogram_size = 101;
   std::vector<double> hist(histogram_size);
-  for (auto i = 0U; i < std::size(gcs); ++i) {
-    if (std::reduce(std::cbegin(gcs[i]), std::cend(gcs[i])) == 0)
+  for (const auto &gc : gcs) {
+    if (std::ranges::none_of(gc, [](const auto x) { return x > 0.0; }))
       continue;
-    const auto increm = as_frac(histogram_size, std::size(gcs[i]));
-    for (auto gc_idx = 0U; gc_idx < std::size(gcs[i]); ++gc_idx) {
-      const auto curr_percent = gc_idx * increm;
-      const auto next_percent = (gc_idx + 1) * increm;
+    const auto increment = as_frac(histogram_size, std::size(gc));
+    for (auto gc_idx = 0U; gc_idx < std::size(gc); ++gc_idx) {
+      const auto curr_percent = gc_idx * increment;
+      const auto next_percent = (gc_idx + 1) * increment;
       const auto start_in_hist =
-        static_cast<std::uint64_t>(std::floor(curr_percent));
+        static_cast<std::int64_t>(std::floor(curr_percent));
       // ADS: below, not sure best way to do this for all edge cases
       const auto stop_in_hist =
-        static_cast<std::uint64_t>(std::min(static_cast<double>(histogram_size),
-                                            std::ceil(next_percent))) -
+        static_cast<std::int64_t>(std::min(static_cast<double>(histogram_size),
+                                           std::ceil(next_percent))) -
         1;
       assert(stop_in_hist < histogram_size);
       const auto splits = start_in_hist != stop_in_hist;
       const auto frac_left =
         splits ? static_cast<double>(start_in_hist) + 1.0 - curr_percent
-               : increm;
+               : increment;
       const auto frac_right =
-        splits ? next_percent - static_cast<double>(stop_in_hist) : increm;
-      for (auto h_idx = start_in_hist; h_idx <= stop_in_hist; ++h_idx) {
-        const auto contrib = (h_idx == start_in_hist)  ? frac_left
-                             : (h_idx == stop_in_hist) ? frac_right
-                                                       : 1.0;
-        hist[h_idx] += contrib * as_frac(gcs[i][gc_idx], increm);
-      }
+        splits ? next_percent - static_cast<double>(stop_in_hist) : increment;
+      const auto hist_begin = std::begin(hist) + start_in_hist;
+      const auto hist_end = std::cbegin(hist) + stop_in_hist;
+      const auto gc_val = as_frac(gc[gc_idx], increment);
+      for (auto hist_itr = hist_begin; hist_itr <= hist_end; ++hist_itr)
+        *hist_itr += gc_val * ((hist_itr == hist_begin) ? frac_left
+                               : (hist_itr == hist_end) ? frac_right
+                                                        : 1.0);
     }
   }
   return hist;
