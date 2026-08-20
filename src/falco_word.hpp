@@ -8,6 +8,7 @@
 #include <format>
 #include <iterator>
 #include <ranges>
+#include <span>
 #include <string>
 
 // conversion for kmers to include 'N'
@@ -18,6 +19,8 @@
 // T (84)10 = (1010100)2 => 001
 
 struct falco_word {
+  static constexpr std::span extended_bases = "GTCAN";
+  static constexpr auto extended_alpha_size = 5;
   static constexpr auto shift_for_width_bits = 56u;
   static constexpr auto width_bits_removal_mask = 0xffffffffffffff;
   static constexpr auto max_lo_lim = 27u;
@@ -30,12 +33,10 @@ struct falco_word {
 
   falco_word(auto b, std::uint64_t w) {
     static constexpr auto fw_encode = [](const auto c) {
-      // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
-      return ((c >> 1) & 7) ^ 3;
+      return ((c >> 1) & 7) ^ 3;  // NOLINT(*-avoid-magic-numbers)
     };
     static const auto enc_shift = [&](auto &x, auto &c) {
-      // NOLINTNEXTLINE (cppcoreguidelines-avoid-magic-numbers)
-      x = (x * 5) + fw_encode(*c++);
+      x = (x * extended_alpha_size) + fw_encode(*c++);
     };
     w = w < max_hi_lim ? w : max_hi_lim;
     const auto lo_lim = b + (w > max_lo_lim ? max_lo_lim : w);
@@ -49,11 +50,8 @@ struct falco_word {
 
   [[nodiscard]] static auto
   string_impl(auto word, auto n_bases) {
-    static constexpr auto extended_bases = "GTCAN";
-    static constexpr auto extended_alpha_size = 5;
     std::string r;
     for (auto i = 0u; i < n_bases; ++i) {
-      // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
       r += extended_bases[word % extended_alpha_size];
       word /= extended_alpha_size;
     }
@@ -74,11 +72,12 @@ struct falco_word {
   [[nodiscard]] auto
   hash() const noexcept {
     // ADS: from boost multiprecision hash, but for 64 bits
+    // ADS: this might already be in the boost unordered_map header
+    static constexpr auto left_shift = 6;
     static constexpr auto magic = 0x517cc1b727220a95;
     static constexpr auto hashfun = std::hash<std::uint64_t>{};
     const auto h = hashfun(lo);
-    // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return h ^ ((hashfun(hi) + magic) + (h << 6) + (h >> 2));
+    return h ^ ((hashfun(hi) + magic) + (h << left_shift) + (h >> 2));
   }
 };
 
