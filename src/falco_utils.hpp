@@ -74,7 +74,7 @@ struct enumerate_t : std::ranges::range_adaptor_closure<enumerate_t> {
   [[nodiscard]] constexpr auto
   operator()(R &&r) const {
     const auto d = std::ranges::distance(r);
-    return std::views::zip(std::views::iota(0, d), static_cast<R &&>(r));
+    return std::views::zip(std::views::iota(0, d), std::forward<R &&>(r));
   }
 };
 inline constexpr enumerate_t enumerate;
@@ -93,6 +93,7 @@ resize_gc_content(const std::uint32_t updated_length,
   gc_content.resize(std::min(static_cast<std::int32_t>(updated_length + 1),
                              falco::gc_content_array_max_size));
   for (auto i = prev_size; i < std::size(gc_content); ++i)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
     gc_content[i].resize(i + 1);
 }
 
@@ -145,7 +146,8 @@ inline constexpr auto end_module_tag = ">>END_MODULE\n";
 
 [[nodiscard]] inline constexpr auto
 encode(const char c) {
-  return (c >> 1) & 3;  // Ns are counted as G so must be subtracted
+  static constexpr auto two_bit_mask = 3;
+  return (c >> 1) & two_bit_mask;  // Ns are counted as G so must be subtracted
 }
 
 [[nodiscard]] inline constexpr auto
@@ -157,9 +159,8 @@ inline constexpr auto nibble_size = 4;
 
 [[nodiscard]] inline constexpr auto
 encode_nibble(const char c) {
-  // ADS: 15 is to keep 4 bits
-  // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
-  return (c >> 1) & 15;  // N gets separate encoding
+  static constexpr auto four_bit_mask = 15;  // ADS: 15 is to keep 4 bits
+  return (c >> 1) & four_bit_mask;           // N gets separate encoding
 }
 
 [[nodiscard]] inline constexpr auto
@@ -305,13 +306,11 @@ median_tabular(const auto &a) {
 }
 
 // clang-format off
-// NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
 [[nodiscard]] inline constexpr auto median_val(const auto &q) { return q[0]; }
 [[nodiscard]] inline constexpr auto lquart_val(const auto &q) { return q[1]; }
 [[nodiscard]] inline constexpr auto uquart_val(const auto &q) { return q[2]; }
 [[nodiscard]] inline constexpr auto ldec_val(const auto &q) { return q[3]; }
 [[nodiscard]] inline constexpr auto udec_val(const auto &q) { return q[4]; }
-// NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 // clang-format on
 
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers)
@@ -336,8 +335,8 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 
 [[nodiscard]] auto
-size_to_units(const std::int64_t s, const std::string &suffix = "iB")
-  -> std::string;
+size_to_units(const std::int64_t s,
+              const std::string &suffix = "iB") -> std::string;
 
 [[nodiscard]] inline auto
 get_max_size(const auto &x) {
@@ -347,28 +346,31 @@ get_max_size(const auto &x) {
 }
 
 [[nodiscard]] inline auto
-estimate_read_length_fastq_chunk(const auto &data, const auto n) {
+estimate_read_length_fastq_chunk(const auto &data,
+                                 const auto n) -> std::uint64_t {
   static constexpr auto fastq_lines_per_read = 4;
   assert(n >= 1);
   const auto valid = [](const auto c) {
     return c == 'A' || c == 'C' || c == 'G' || c == 'T' || c == 'N';
   };
   std::vector<std::int64_t> lines;
-  for (auto i = 0u; i + 1 < n; ++i)
+  for (auto i = 0U; i + 1 < n; ++i)
     if (data[i] == '\n')
       lines.push_back(i + 1);
   if (std::size(lines) < fastq_lines_per_read)
-    return 1ul;
-  auto total = 0ul;
+    return 1LU;
+  const auto is_record = [&](const auto l) {
+    return data[std::get<0>(l)] == '@' && data[std::get<2>(l)] == '+' &&
+           valid(data[std::get<1>(l)]);
+  };
+  auto total = 0LU;
 #if __cpp_lib_ranges_zip
   for (const auto l : lines | std::views::adjacent<fastq_lines_per_read - 1>) {
 #else
-  for (auto i = 0U; i + fastq_lines_per_read < std::size(lines) + 1; ++i) {
-    std::tuple<std::int64_t, std::int64_t, std::int64_t> l{i, i + 1, i + 2};
+  for (auto i = 0L; i + fastq_lines_per_read < std::ssize(lines) + 1; ++i) {
+    auto l = std::tuple{i, i + 1, i + 2};
 #endif
-    if (data[std::get<0>(l)] == '@' && data[std::get<2>(l)] == '+' &&
-        valid(data[std::get<1>(l)]))
-      // cppcheck-suppress useStlAlgorithm
+    if (is_record(l))
       total += (std::get<2>(l) - std::get<1>(l)) - 1;
   }
   return total / (std::size(lines) / fastq_lines_per_read);
