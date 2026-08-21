@@ -187,7 +187,6 @@ line: {{color: "{}"}}
                    return make_group_tag_quoted(g);
                  });
   const auto total_by_pos = nucs | std::views::transform(sum);
-  const auto colors = std::span{base_colors_for_html};
   std::vector<std::string> r;
   for (const auto idx : std::views::iota(0, alphabet_size)) {
     const auto pct_for_pos = [idx](const auto &nucs_for_pos, const auto tot) {
@@ -201,7 +200,8 @@ line: {{color: "{}"}}
       y.push_back(pct_for_pos(nuc, tot));
 #endif
     r.emplace_back(fmt::format(per_base_fmt, fmt::join(x, ","),
-                               fmt::join(y, ","), bases[idx], colors[idx]));
+                               fmt::join(y, ","), bases[idx],
+                               base_colors_for_html[idx]));
   }
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
