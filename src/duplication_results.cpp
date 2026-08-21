@@ -25,6 +25,7 @@
 #include <limits>
 #include <numeric>
 #include <ranges>
+#include <span>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -35,7 +36,7 @@
 
 static constexpr auto n_bins = 16;
 
-static constexpr auto bin_breaks = std::array{
+static constexpr auto bin_breaks_impl = std::array{
   1,
   2,
   3,
@@ -54,11 +55,12 @@ static constexpr auto bin_breaks = std::array{
   10'000,
   std::numeric_limits<int>::max(),
 };
+static constexpr std::span bin_breaks = bin_breaks_impl;
 
 // clang-format off
 
 // ADS: previously for plots: std::array{"1", "2", ..., "5k+", "10k+"}
-static constexpr auto bin_labels = std::array{
+static constexpr auto bin_labels_impl = std::array{
   "0",
   "1",
   "2",
@@ -77,6 +79,7 @@ static constexpr auto bin_labels = std::array{
   ">5k",
   ">10k",
 };
+static constexpr std::span bin_labels = bin_labels_impl;
 
 // clang-format on
 
@@ -181,9 +184,7 @@ make_bins(const auto &breaks, const auto &hist) {
   std::vector<std::uint64_t> binned(std::size(breaks), 0);
   auto b_itr = std::cbegin(breaks);
   for (const auto [i, h] : falco::views::enumerate(hist)) {
-    // ADS: clang-tidy false positive?
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    b_itr += (b_itr < std::cend(breaks) && i >= *b_itr);
+    b_itr += (b_itr != std::cend(breaks) && i >= *b_itr);
     binned[std::distance(std::cbegin(breaks), b_itr)] += h;
   }
   return binned;
