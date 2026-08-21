@@ -95,11 +95,10 @@ load_config_and_set_graders(const std::string &filename,
         continue;
       const auto get_cutoff = [&](const std::string &label0) {
         const auto x = json_in[label][label0].get<std::string>();
-        const auto beg = std::data(x);
-        const auto end = beg + std::size(x);  // NOLINT(*-pointer-arithmetic)
         double val{};
-        const auto res = std::from_chars(beg, end, val);
-        if (res.ec != std::errc{})
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        if (std::from_chars(std::data(x), std::data(x) + std::size(x), val)
+              .ec != std::errc{})
           throw std::runtime_error("error parsing cutoff: " + x);
         return val;
       };
