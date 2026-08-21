@@ -115,7 +115,7 @@ smooth_gc_content(const std::vector<double> &data,
 }
 
 [[nodiscard]] auto
-combine_gc_content_for_lengths(const std::vector<falco::gc_content_array> &gcs)
+combine_gc_content_for_lengths(const std::vector<falco::gc_content_t> &gcs)
   -> std::vector<double> {
   static constexpr auto histogram_size = 101;
   std::vector<double> hist(histogram_size);

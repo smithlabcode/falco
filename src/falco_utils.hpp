@@ -14,6 +14,7 @@
 #include <iterator>
 #include <numeric>
 #include <ranges>
+#include <span>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -29,9 +30,12 @@ static constexpr auto adenine_index = 0;
 static constexpr auto cytosine_index = 1;
 static constexpr auto thymine_index = 2;
 static constexpr auto guanine_index = 3;
+static constexpr std::span bases = "ACTG";  // ADS: index this with vars above
+
+static constexpr auto alphabet_size = 4;
 static constexpr auto unknown_base_index = 3;
 
-static constexpr auto bases = "ACTG";  // ADS: index this with vars above
+static constexpr auto nibble_size = 4;
 
 static constexpr auto base_permutation_for_report = {
   guanine_index,
@@ -48,17 +52,16 @@ static constexpr auto base_colors_for_html = std::array{
 };
 
 namespace falco {
-static constexpr auto alphabet_size = 4;
-// ADS: gc_content_array_max_lim: the max read length for which there will be a
-// vector of the exact size to count the number of GC in reads of that length
-// without any kind of rounding. I think this was originally 500 in Falco v1,
-// but I'm not sure it makes any difference. The algorithm for combining the
-// different lengths is different, and in theory more accurate (principled), but
-// the implementation led me to much confusion.
-static constexpr auto gc_content_array_max_lim = 250;
-static constexpr auto gc_content_array_max_size = gc_content_array_max_lim + 1;
+// ADS: gc_content_max_lim: the max read length for which there will be a vector
+// of the exact size to count the number of GC in reads of that length without
+// any kind of rounding. I think this was originally 500 in Falco v1, but I'm
+// not sure it makes any difference. The algorithm for combining the different
+// lengths is different, and in theory more accurate (principled), but the
+// implementation led me to much confusion.
+static constexpr auto gc_content_max_lim = 250;
+static constexpr auto gc_content_max_size = gc_content_max_lim + 1;
 using nuc_array = std::array<std::uint64_t, alphabet_size>;
-using gc_content_array = std::vector<std::uint64_t>;
+using gc_content_t = std::vector<std::uint64_t>;
 
 // ADS: this is because I wrote falco v2 using std::views::enumerate in many
 // places, but macOS apple-clang still doesn't have this c++20 feature. Not
@@ -88,17 +91,17 @@ static constexpr std::int64_t kilobytes = 1024;
 
 [[nodiscard]] inline auto
 resize_gc_content(const std::uint32_t updated_length,
-                  std::vector<falco::gc_content_array> &gc_content) {
+                  std::vector<falco::gc_content_t> &gc_content) {
   const auto prev_size = std::size(gc_content);
   gc_content.resize(std::min(static_cast<std::int32_t>(updated_length + 1),
-                             falco::gc_content_array_max_size));
-  for (auto i = prev_size; i < std::size(gc_content); ++i)
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-avoid-unchecked-container-access)
-    gc_content[i].resize(i + 1);
+                             falco::gc_content_max_size));
+  auto sp = std::span(std::begin(gc_content) + prev_size, std::end(gc_content));
+  for (auto [idx, gc] : falco::views::enumerate(sp))
+    gc.resize(prev_size + idx + 1);
 }
 
 [[nodiscard]] auto
-combine_gc_content_for_lengths(const std::vector<falco::gc_content_array> &gcs)
+combine_gc_content_for_lengths(const std::vector<falco::gc_content_t> &gcs)
   -> std::vector<double>;
 
 [[nodiscard]] auto
@@ -154,8 +157,6 @@ encode(const char c) {
 is_gc(const char c) {
   return (c >> 1) & 1;
 }
-
-inline constexpr auto nibble_size = 4;
 
 [[nodiscard]] inline constexpr auto
 encode_nibble(const char c) {
@@ -283,7 +284,7 @@ count_gc(auto seq_itr, const auto seq_end) {
 
 [[nodiscard]] inline auto
 tabular_dot(const auto &a) {
-  auto total = static_cast<std::remove_cvref_t<decltype(a)>::value_type>(0);
+  typename std::remove_cvref_t<decltype(a)>::value_type total{};
   for (const auto [i, x] : falco::views::enumerate(a))
     total += i * x;
   return total;
@@ -291,9 +292,7 @@ tabular_dot(const auto &a) {
 
 [[nodiscard]] inline auto
 mean_tabular(const auto &a) {
-  const auto num = tabular_dot(a);
-  const auto denom = std::reduce(std::cbegin(a), std::cend(a));
-  return static_cast<double>(num) / static_cast<double>(denom);
+  return as_frac(tabular_dot(a), std::reduce(std::cbegin(a), std::cend(a)));
 }
 
 [[nodiscard]] inline auto
@@ -301,8 +300,8 @@ median_tabular(const auto &a) {
   using value_type = std::decay_t<decltype(a)>::value_type;
   std::vector<value_type> cumul(std::size(a), 0);
   std::inclusive_scan(std::cbegin(a), std::cend(a), std::begin(cumul));
-  const auto ub = std::ranges::upper_bound(cumul, cumul.back() / 2);
-  return static_cast<std::uint32_t>(std::distance(std::begin(cumul), ub));
+  const auto upper = std::ranges::upper_bound(cumul, cumul.back() / 2);
+  return static_cast<std::uint32_t>(std::distance(std::begin(cumul), upper));
 }
 
 // clang-format off
