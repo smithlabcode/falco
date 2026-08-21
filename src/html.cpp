@@ -26,9 +26,10 @@
 #include <map>
 #include <numeric>
 #include <ranges>
+#include <span>
 #include <stdexcept>
 #include <string>
-#include <vector>  // IWYU pragma: keep
+#include <vector>
 
 [[nodiscard]] auto
 get_summary(const file_grades &grades) -> std::string {
@@ -186,11 +187,11 @@ line: {{color: "{}"}}
                    return make_group_tag_quoted(g);
                  });
   const auto total_by_pos = nucs | std::views::transform(sum);
+  const auto colors = std::span{base_colors_for_html};
   std::vector<std::string> r;
-  // NOLINTBEGIN(*-constant-array-index,*-pointer-arithmetic)
-  for (const auto idx : std::views::iota(0, falco::alphabet_size)) {
+  for (const auto idx : std::views::iota(0, alphabet_size)) {
     const auto pct_for_pos = [idx](const auto &nucs_for_pos, const auto tot) {
-      return pct(as_frac(nucs_for_pos[idx], tot));
+      return pct(as_frac(std::span{nucs_for_pos}[idx], tot));
     };
 #if __cpp_lib_ranges_zip
     const auto y = std::views::zip_transform(pct_for_pos, nucs, total_by_pos);
@@ -200,10 +201,8 @@ line: {{color: "{}"}}
       y.push_back(pct_for_pos(nuc, tot));
 #endif
     r.emplace_back(fmt::format(per_base_fmt, fmt::join(x, ","),
-                               fmt::join(y, ","), bases[idx],
-                               base_colors_for_html[idx]));
+                               fmt::join(y, ","), bases[idx], colors[idx]));
   }
-  // NOLINTEND(*-constant-array-index,*-pointer-arithmetic)
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
   return fmt::format(html_module_fmt, grade, label, title, grade,
@@ -281,19 +280,16 @@ yaxis: {{title: "Density", rangemode: "tozero"}},
   const auto title = grades.get_title(label);
   // output quality values between first non-zero and last zero
   const auto gt0 = [&](const auto x) { return x > 0; };
-  const auto begin_obs_itr = std::ranges::find_if(qual_by_read, gt0);
-  if (begin_obs_itr == std::cend(qual_by_read))
+  const auto qbr = std::span{qual_by_read};
+  const auto beg_itr = std::ranges::find_if(qbr, gt0);
+  if (beg_itr == std::cend(qbr))
     throw std::runtime_error("error finding quality scores generating html");
-  const std::int64_t begin_obs =
-    std::distance(std::cbegin(qual_by_read), begin_obs_itr);
-  const auto end_obs_subrange = std::ranges::find_last_if(qual_by_read, gt0);
-  const std::int64_t end_obs =
-    std::ssize(qual_by_read) - std::ssize(end_obs_subrange) + 1;
-  assert(begin_obs >= 0 && end_obs <= falco::max_qual_val);
-  const auto x = std::views::iota(begin_obs, end_obs);
-  const auto q_beg = std::cbegin(qual_by_read);
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  const auto y = std::ranges::subrange{q_beg + begin_obs, q_beg + end_obs};
+  const auto beg_pos = std::distance(std::cbegin(qbr), beg_itr);
+  const auto end_range = std::ranges::find_last_if(qbr, gt0);
+  const auto end_pos = std::ssize(qbr) - std::ssize(end_range) + 1;
+  assert(beg_pos >= 0 && end_pos <= falco::max_qual_val);
+  const auto x = std::views::iota(beg_pos, end_pos);
+  const auto y = qbr.subspan(beg_pos, std::size(x));
   return fmt::format(
     html_module_fmt, grade, label, title, grade,
     fmt::format(plot_fmt, fmt::join(x, ","), fmt::join(y, ",")));
@@ -382,8 +378,8 @@ basic_stats_html(const file_info &info, const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 tile_html(const tile_processor::tiles_centered_t &centered,
-          const std::vector<base_group_t> &groups, const file_grades &grades)
-  -> std::string {
+          const std::vector<base_group_t> &groups,
+          const file_grades &grades) -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto n_quants = 20.0;
   // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
@@ -442,8 +438,8 @@ yaxis: {{title: "tile", type: "category"}},
 }
 
 [[nodiscard]] auto
-kmer_html(const std::vector<kmer_result> &results, const file_grades &grades)
-  -> std::string {
+kmer_html(const std::vector<kmer_result> &results,
+          const file_grades &grades) -> std::string {
   static constexpr auto label = "kmer";
   static constexpr auto plot_format = R"(<div id="kmer_plot"></div>
 <script>Plotly.newPlot("kmer_plot",
