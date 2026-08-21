@@ -37,19 +37,25 @@ static constexpr auto unknown_base_index = 3;
 
 static constexpr auto nibble_size = 4;
 
-static constexpr auto base_permutation_for_report = {
+namespace falco {
+static constexpr auto base_permutation_for_report_impl = {
   guanine_index,
   adenine_index,
   thymine_index,
   cytosine_index,
 };
-
-static constexpr auto base_colors_for_html = std::array{
+static constexpr auto base_colors_for_html_impl = std::array{
   "green",  // adenine
   "blue",   // cytosine
   "red",    // thymine
   "black",  // guanine
 };
+}  // namespace falco
+
+static constexpr std::span base_permutation_for_report =
+  falco::base_permutation_for_report_impl;
+static constexpr std::span base_colors_for_html =
+  falco::base_colors_for_html_impl;
 
 namespace falco {
 // ADS: gc_content_max_lim: the max read length for which there will be a vector
