@@ -17,6 +17,7 @@
 #include <limits>
 #include <numeric>
 #include <ranges>
+#include <span>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -165,11 +166,9 @@ kmer_counter::get_kmer_results() const -> std::vector<kmer_result> {
 kmer_counter::decode_kmer(auto word, const auto n_bases) -> std::string {
   static constexpr auto mask = 3u;
   static constexpr auto bits_per_base = 2u;
-  static constexpr auto bases = "ACTG";
   std::string r;
   using pos_t = std::decay_t<decltype(n_bases)>;
   for (pos_t i = 0; i < n_bases; ++i, word >>= bits_per_base)
-    // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-pointer-arithmetic)
     r += bases[word & mask];
   std::ranges::reverse(r);
   return r;
