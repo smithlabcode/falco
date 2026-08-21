@@ -28,7 +28,7 @@ struct results_summary {
   std::uint64_t total_bases{};
   std::uint64_t total_gc{};
   std::vector<falco::nuc_array> base_counts;
-  std::vector<falco::gc_content_array> gc_content_for_lengths;
+  std::vector<falco::gc_content_t> gc_content_for_lengths;
   std::vector<double> gc_content;
   std::vector<std::uint64_t> n_counts;
   std::vector<std::uint64_t> lengths;
