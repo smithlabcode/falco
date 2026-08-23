@@ -4,23 +4,13 @@
 #define SRC_SAMREC_HPP_
 
 #include <cstdint>
-#include <format>
 #include <iterator>
 #include <string>
-#include <utility>
 #include <vector>
-
-#ifdef bam_is_rev
-#undef bam_is_rev
-#endif
-
-#ifdef BAM_FREVERSE
-#undef BAM_FREVERSE
-#endif
 
 class samrec {
 public:
-  using pos_t = char *;
+  using pos_t = std::vector<char>::const_iterator;
 
 private:
   static constexpr auto qual_missing_symbol = '*';         // from SAMv1.pdf
@@ -40,9 +30,7 @@ public:
   friend constexpr auto get_qual(const samrec &);
   friend constexpr auto get_qual_end(const samrec &);
   friend constexpr auto get_qual_size(const samrec &);
-  // clang-format on
 
-  // clang-format off
   samrec() = default;
   ~samrec() = default;
   samrec(const samrec &) = delete;
@@ -52,26 +40,15 @@ public:
   // clang-format on
 
   [[nodiscard]] auto
-  to_string() const {
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    return std::format(
-      "@{}\n{}\n+\n{}",
-      std::string(std::data(buffer), std::data(buffer) + name_len),
-      std::string(std::data(buffer) + name_len,
-                  std::data(buffer) + name_len + seq_len),
-      std::string(std::data(buffer) + name_len + seq_len,
-                  std::data(buffer) + name_len + seq_len + seq_len));
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  }
+  to_string() const -> std::string;
 
   operator bool() const { return name_len != 0; }
 
   [[nodiscard]] static auto
-  get_next(samrec::pos_t &cursor, const samrec::pos_t end_itr,
-           samrec &rec) -> bool;
+  get_next(pos_t &cursor, const pos_t end_itr, samrec &rec) -> bool;
 
   [[nodiscard]] static auto
-  find_end_pos(pos_t itr, const pos_t end) -> samrec::pos_t;
+  find_end_pos(pos_t itr, const pos_t end) -> pos_t;
 };
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -115,8 +92,6 @@ get_qual_size(const samrec &rec) {
   return get_seq_size(rec);
 }
 // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
-using sam_chunks_t = std::vector<std::pair<samrec::pos_t, samrec::pos_t>>;
 
 struct sam_task_t {
   samrec::pos_t beg{};
