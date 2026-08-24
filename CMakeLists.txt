@@ -104,6 +104,7 @@ target_link_libraries(fastq_bgzf_file PUBLIC
 
 add_library(bam_header OBJECT src/bam_header.cpp)
 
+add_library(bamrec OBJECT src/bamrec.cpp)
 add_library(bam_file OBJECT src/bam_file.cpp)
 target_link_libraries(bam_file PUBLIC HTSLIB::HTSLIB)
 
@@ -210,6 +211,7 @@ target_link_libraries(falco PUBLIC
   fastq_gz_file
   fastq_bgzf_file
   bam_file
+  bamrec
   sam_file
   samrec
   bam_header
