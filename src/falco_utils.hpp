@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <charconv>
 #include <chrono>
 #include <concepts>
 #include <cstdint>
@@ -16,6 +17,8 @@
 #include <ranges>
 #include <span>
 #include <string>
+#include <string_view>
+#include <system_error>
 #include <tuple>
 #include <type_traits>
 #include <vector>
@@ -89,6 +92,20 @@ struct enumerate_t : std::ranges::range_adaptor_closure<enumerate_t> {
 inline constexpr enumerate_t enumerate;
 #endif
 }  // namespace views
+
+template <typename T> struct from_chars_result {
+  T ptr{};
+  std::errc ec{};
+};
+
+template <typename itr_t>
+[[nodiscard]] auto
+from_chars(itr_t itr, const auto end, auto &r) -> from_chars_result<itr_t> {
+  const std::string_view to_parse(itr, end);
+  const auto beg = std::cbegin(to_parse);
+  auto [ptr, ec] = std::from_chars(beg, std::cend(to_parse), r);
+  return from_chars_result<itr_t>(itr + std::distance(beg, ptr), ec);
+}
 }  // namespace falco
 
 static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
