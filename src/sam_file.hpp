@@ -4,8 +4,10 @@
 #define SRC_SAM_FILE_HPP_
 
 #include <atomic>
+#include <compare>
 #include <cstdint>
 #include <cstdio>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,8 +17,8 @@ struct task_queue;
 class sam_file {
   static constexpr auto min_buf_size = 64 * 1024;
   std::vector<char> buffer;
-  std::int64_t last{};
-  std::int64_t cursor{};
+  std::vector<char>::iterator cursor;
+  std::vector<char>::iterator last;
   std::unique_ptr<std::FILE, int (*)(std::FILE *)> in;
 
 public:
@@ -39,6 +41,8 @@ public:
   reset() -> void {
     buffer.clear();
     buffer.shrink_to_fit();
+    cursor = std::begin(buffer);
+    last = cursor;
   }
 
 private:
