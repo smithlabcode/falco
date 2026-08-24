@@ -4,11 +4,11 @@
 #define SRC_TILE_PROCESSOR_HPP_
 
 #include "base_groups.hpp"
+#include "falco_utils.hpp"
 #include "quality_score.hpp"
 
 #include "boost/boost_unordered.hpp"
 
-#include <charconv>
 #include <cstdint>
 #include <iterator>
 #include <map>
@@ -103,7 +103,7 @@ private:
     while (colon_count < tile_id_position && tile_itr != name_end)
       colon_count += (*tile_itr++ == ':');
     std::uint32_t curr_tile_id{};
-    const auto [_, ec] = std::from_chars(tile_itr, name_end, curr_tile_id);
+    const auto [_, ec] = falco::from_chars(tile_itr, name_end, curr_tile_id);
     if (ec != std::errc{})
       throw std::system_error(std::make_error_code(ec),
                               "failed to parse tile id");
