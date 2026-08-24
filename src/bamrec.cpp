@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "bamrec.hpp"
-#include "quality_score.hpp"
 
 #include <algorithm>
+#include <format>
 #include <span>
 #include <string>
 

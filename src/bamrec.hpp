@@ -3,28 +3,13 @@
 #ifndef SRC_BAMREC_HPP_
 #define SRC_BAMREC_HPP_
 
-#include <htslib/bgzf.h>   // for BGZF
-#include <htslib/hfile.h>  // for htell
-
 #include <algorithm>
-#include <array>
-#include <cassert>
-#include <cstdio>
-#include <cstdlib>
+#include <cstdint>
 #include <cstring>
 #include <filesystem>
-#include <format>
-#include <fstream>
-#include <iostream>
 #include <iterator>
-#include <memory>
-#include <print>
-#include <ranges>
-#include <stdexcept>
+#include <span>
 #include <string>
-#include <string_view>
-#include <utility>  // IWYU print: keep
-#include <variant>
 #include <vector>
 
 #ifdef bam_is_rev
