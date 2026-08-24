@@ -40,7 +40,7 @@ estimate_n_reads_bam(const std::string &filename)
     throw std::runtime_error("failed to identify file format: " + filename);
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-  const auto &fp = format->format == bam ? f->fp.bgzf->fp : f->fp.hfile;
+  const auto fp = format->format == bam ? f->fp.bgzf->fp : f->fp.hfile;
   const auto pos_after_header = htell(fp);
   std::unique_ptr<bam1_t, void (*)(bam1_t *)> rec(bam_init1(), &bam_destroy1);
   std::uint64_t n_reads{};
@@ -53,11 +53,12 @@ estimate_n_reads_bam(const std::string &filename)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "error reading bam record from: " + filename);
   const auto pos_after_reads = htell(fp);
-  const auto n_compressed_bytes = pos_after_reads - pos_after_header;
+  const auto n_bytes = pos_after_reads - pos_after_header;
   const auto filesize = std::filesystem::file_size(filename);
-  const auto estimate = static_cast<std::uint64_t>(
-    as_frac(n_reads * (filesize - pos_after_header), n_compressed_bytes));
-  return {estimate, total_read_len / n_reads, filesize};
+  const auto n_reads_estimate = static_cast<std::uint64_t>(
+    as_frac(n_reads * (filesize - pos_after_header), n_bytes));
+  const auto read_len_estimate = total_read_len / n_reads;
+  return {n_reads_estimate, read_len_estimate, filesize};
 }
 
 [[nodiscard]] auto
@@ -138,10 +139,10 @@ partition(auto itr,                     //
           std::atomic_int32_t &n_tasks) {
   // ADS: this isn't working as desired: the end position of each part should be
   // the first record end past the 'end_itr' below unless end_itr == end
-  const auto dist = std::distance(itr, end);
+  auto dist = std::distance(itr, end);
   const auto chunk_size = (dist + n_chunks - 1) / n_chunks;
   while (itr != end) {
-    const auto dist = std::distance(itr, end);
+    dist = std::distance(itr, end);
     auto end_itr = itr + (dist < chunk_size ? dist : chunk_size);
     // ADS: find_end_pos doesn't find end pos of a record, but of a range, so
     // includes multiple records
@@ -164,13 +165,14 @@ bam_file::get_chunks(const std::int64_t n_chunks,  //
   // input buffer has been inflated and will provide data for analysis
   std::swap(input_buffer, output_buffer);
   std::swap(output_last, input_last);
-  auto itr = std::data(output_buffer);
-  const auto end = itr + output_last;  // NOLINT(*-pointer-arithmetic)
-  if (bh)                              // if we are still parsing the header
+  const auto beg = std::cbegin(output_buffer);
+  const auto end = beg + output_last;
+  auto itr = beg;
+  if (bh)  // if we are still parsing the header
     itr = bh.update(itr, end);
-  if (std::distance(itr, end) > 0)
+  if (itr != end)
     itr = partition(itr, end, n_chunks, file_id, tq, n_tasks);
-  output_cursor = std::distance(std::data(output_buffer), itr);
+  output_cursor = std::distance(beg, itr);
 }
 
 auto
