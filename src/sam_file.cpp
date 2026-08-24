@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <iterator>
 #include <ranges>
+#include <span>
 #include <stdexcept>
 #include <system_error>
 
@@ -46,58 +47,55 @@ sam_file::skip_header() -> bool {
 
 auto
 sam_file::shift_output_buffer() -> void {
-  if (cursor == 0)  // shifting at cursor == 0 would do nothing
+  if (cursor == std::cbegin(buffer))
+    // shifting at cursor == 0 would do nothing
     return;
-  const auto n_bytes = last - cursor;
-  std::copy_n(std::cbegin(buffer) + cursor, n_bytes, std::begin(buffer));
-  last = n_bytes;
-  cursor = 0;
+  const auto n_bytes = std::ranges::distance(cursor, last);
+  std::copy(cursor, last, std::begin(buffer));
+  cursor = std::begin(buffer);
+  last = cursor + n_bytes;
 }
 
 auto
 sam_file::get_chunks(const std::int64_t n_chunks,  //
                      const std::int32_t file_id,   //
                      task_queue &tq,               //
-                     std::atomic_int32_t &n_tasks  //
-                     ) -> void {
+                     std::atomic_int32_t &n_tasks) -> void {
   assert(n_chunks > 0);
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
-  const auto data = std::data(buffer);
+  const auto beg_itr = std::begin(buffer);
+  const auto end_itr = last;
   // clang-format off
   const auto fwd_to_read_start = [&](auto p) {
-    if (p == 0) return p;
-    while (p < last && data[p] != '\n') ++p;
-    if (p < last) ++p;
+    if (p == beg_itr) return p;
+    while (p != end_itr && *p != '\n') ++p;
+    if (p != end_itr) ++p;
     return p;
   };
   const auto rev_to_read_start = [&](auto p) {
-    while (p > 0 && data[p - 1] != '\n') --p;
+    while (p != beg_itr && *(p - 1) != '\n') --p;
     return p;
   };
   // clang-format on
-  const auto n_bytes_available = last;
+  const auto n_bytes_available = std::distance(beg_itr, end_itr);
   const auto chunk_size = (n_bytes_available + n_chunks - 1) / n_chunks;
   assert(n_chunks > 0);
-  std::int64_t start_pos{};
-  std::int64_t chunk_end{};
+  auto start_pos = beg_itr;
+  auto chunk_end = beg_itr;
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
     const auto chunk_beg = fwd_to_read_start(start_pos);
     auto stop_pos = start_pos + chunk_size;
     chunk_end = fwd_to_read_start(stop_pos);
-    if (chunk_idx == n_chunks - 1) {  // final chunk has only full records
+    if (chunk_idx + 1 == n_chunks) {  // final chunk has only full records
       const auto prev_start = rev_to_read_start(chunk_end);
-      const auto n_trailing = std::count(data + prev_start, data + last, '\n');
+      const auto n_trailing = std::count(prev_start, end_itr, '\n');
       if (n_trailing == 0)
         chunk_end = prev_start;
     }
     ++n_tasks;
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    tq.push(file_id, sam_task_t(data + chunk_beg, data + chunk_end));
+    tq.push(file_id, sam_task_t(chunk_beg, chunk_end));
     start_pos = stop_pos;
   }
   cursor = chunk_end;
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
 auto
@@ -105,11 +103,10 @@ sam_file::make_tasks(const std::int64_t n_chunks,  //
                      const std::int32_t file_id,   //
                      task_queue &tq,               //
                      std::atomic_int32_t &n_tasks) -> void {
-  n_tasks = 1;  // for current task, which makes tasks
+  n_tasks = 1;  // for current task, which makes more tasks
   shift_output_buffer();
-  auto data = std::data(buffer);
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  const auto r = std::fread(data + last, 1, std::size(buffer) - last, in.get());
+  auto inbuf = std::span(last, std::end(buffer));
+  const auto r = std::fread(std::data(inbuf), 1, std::size(inbuf), in.get());
   if (std::ferror(in.get()))
     std::system_error(std::make_error_code(std::errc(errno)),
                       "error reading SAM file");
