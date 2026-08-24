@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "bgzf_reader.hpp"
-#include "bgzf_block.hpp"  // for bgzf_block_t, max_bgzf_block_size
+#include "bgzf_block.hpp"
 
+#include <bit>
 #include <cassert>
 #include <cerrno>
 #include <cstdint>
@@ -12,19 +13,23 @@
 #include <string>
 #include <system_error>
 
-// NOLINTBEGIN(*-bounds-pointer-arithmetic,*-avoid-magic-numbers,*-type-reinterpret-cast)
+// NOLINTBEGIN(*-bounds-pointer-arithmetic)
 [[nodiscard]] static inline constexpr auto
 get_unaligned_le32(const std::uint8_t *p) -> std::uint32_t {
-  return (static_cast<std::uint32_t>(p[3]) << 24) |
-         (static_cast<std::uint32_t>(p[2]) << 16) |
-         (static_cast<std::uint32_t>(p[1]) << 8) |
-         (static_cast<std::uint32_t>(p[0]) << 0);
+  std::uint32_t x{};
+  // NOLINTNEXTLINE(*-type-reinterpret-cast)
+  std::memcpy(reinterpret_cast<std::uint8_t *>(&x), p, sizeof(std::uint32_t));
+  if constexpr (std::endian::native == std::endian::big)
+    return std::byteswap(x);
+  else
+    return x;
 }
 
 [[nodiscard]] static inline constexpr auto
 get_isize(const auto *data, const auto data_size) {
   static constexpr decltype(data_size) isize_size = 4;
   assert(data_size > isize_size);
+  // NOLINTNEXTLINE(*-type-reinterpret-cast)
   const auto u_data = reinterpret_cast<const std::uint8_t *>(data);
   const auto u_data_isize = u_data + data_size - isize_size;
   return data_size < isize_size
@@ -60,10 +65,9 @@ bgzf_reader::read_data() -> bool {
   end_in = next_in + unused_in;
   const auto avail_in = inbuf_size - unused_in;
   const auto r = std::fread(end_in, 1, avail_in, fp.get());
-  if (std::ferror(fp.get())) {
-    const auto errc = std::make_error_code(std::errc(errno));
-    throw std::system_error(errc, "failed reading input");
-  }
+  if (std::ferror(fp.get()))
+    throw std::system_error(std::make_error_code(std::errc(errno)),
+                            "failed reading input");
   end_in += r;  // will usually be end of inbuf
   return r > 0;
 }
@@ -91,4 +95,4 @@ bgzf_reader::get_decomp_task(char *out_itr) -> bgzf_block_t {
   next_out += max_bgzf_block_size;
   return task;
 }
-// NOLINTEND(*-bounds-pointer-arithmetic,*-avoid-magic-numbers,*-type-reinterpret-cast)
+// NOLINTEND(*-bounds-pointer-arithmetic)
