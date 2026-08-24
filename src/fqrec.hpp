@@ -53,8 +53,6 @@ struct fq_task_t {
   fqrec::pos_t end{};
 };
 
-using fq_chunks_t = std::vector<std::pair<fqrec::pos_t, fqrec::pos_t>>;
-
 [[nodiscard]] inline auto
 get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
   // ADS: need to make sure cursor < end_itr or we will move past
