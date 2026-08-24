@@ -7,10 +7,11 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 struct bam_header {
-  using iterator = char *;
-  using const_iterator = const char *;
+  using iterator = std::vector<char>::iterator;
+  using const_iterator = std::vector<char>::const_iterator;
 
   static constexpr auto magic = "BAM\1";
   static constexpr auto magic_size = 4;
@@ -30,7 +31,7 @@ struct bam_header {
   }
 
   [[nodiscard]] auto
-  update(iterator itr, const iterator end) -> iterator;
+  update(const_iterator itr, const const_iterator end) -> const_iterator;
 
   [[nodiscard]] auto
   ref_incomplete() const -> bool {
