@@ -41,10 +41,10 @@
 
 class bamrec {
 public:
-  using pos_t = char *;
+  using pos_t = std::vector<char>::const_iterator;
 
 private:
-  struct bamrec_core_t {
+  struct core_t {
     static constexpr auto sz = 36;
     static constexpr auto read_name_offset = 36;
     std::uint32_t block_size{};  // 0
@@ -96,7 +96,7 @@ private:
   static constexpr auto flag_offset = 14;
   static constexpr auto l_seq_offset = 16;
 
-  bamrec_core_t core;
+  core_t core;
   std::vector<char> buffer;
   std::uint32_t name_len{};
   std::uint32_t seq_len{};
@@ -123,20 +123,7 @@ public:
   // clang-format on
 
   [[nodiscard]] auto
-  to_string() const {
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    auto qual_itr = std::data(buffer) + name_len + seq_len;
-    std::string qual_fixed(seq_len, '\0');
-    std::transform(qual_itr, qual_itr + seq_len, std::begin(qual_fixed),
-                   [](const auto c) { return c + quality_score_offset; });
-    return std::format(
-      "@{}\n{}\n+\n{}",
-      std::string(std::data(buffer), std::data(buffer) + name_len),
-      std::string(std::data(buffer) + name_len,
-                  std::data(buffer) + name_len + seq_len),
-      qual_fixed);
-    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  }
+  to_string() const -> std::string;
 
   operator bool() const { return name_len != 0; }
 
@@ -144,13 +131,12 @@ public:
   get_next(auto &itr, const auto end, bamrec &rec) -> bool;
 
   [[nodiscard]] static auto
-  find_end_pos(pos_t itr, const pos_t end) -> bamrec::pos_t;
+  find_end_pos(pos_t itr, const pos_t end) -> pos_t;
 };
 
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 [[nodiscard]] inline constexpr auto
 get_name(const bamrec &rec) {
-  return std::data(rec.buffer);
+  return std::cbegin(rec.buffer);
 }
 
 [[nodiscard]] inline constexpr auto
@@ -187,9 +173,6 @@ get_qual_end(const bamrec &rec) {
 get_qual_size(const bamrec &rec) {
   return get_seq_size(rec);
 }
-// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-
-using bam_chunks_t = std::vector<std::pair<bamrec::pos_t, bamrec::pos_t>>;
 
 struct bam_task_t {
   bamrec::pos_t beg{};
@@ -213,7 +196,6 @@ assign_sequence_revcomp(BidirIt first, auto last, OutputIt d_first) {
   constexpr auto seq_nt16_str = "=ACMGRSVTWYHKDBN";
   constexpr auto bam_seqi = [](const auto s, const auto i) -> int {
     constexpr auto low_nibble_on = 0xf;
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     return s[i >> 1] >> ((~i & 1) << 2) & low_nibble_on;
   };
   for (auto j = last; j != 0; ++d_first)
@@ -236,41 +218,37 @@ assign_sequence(BidirIt first, auto last, OutputIt d_first) {
 
 [[nodiscard]] inline auto
 bamrec::get_next(auto &itr, const auto end, bamrec &rec) -> bool {
-  bamrec::bamrec_core_t &core = rec.core;
-  if (std::distance(itr, end) < bamrec::bamrec_core_t::sz)
+  if (std::distance(itr, end) < core_t::sz)
     return false;
-  std::memcpy(&core, itr, sizeof core);
-  if (std::distance(itr, end) < core.real_block_size())
+  core_t &c = rec.core;
+  std::memcpy(&c, std::data(std::span{itr, end}), sizeof c);
+  if (std::distance(itr, end) < c.real_block_size())
     return false;
-  rec.name_len = (core.l_read_name - 1);  // we don't need the '\0'
-  rec.seq_len = core.l_seq;
+  rec.name_len = c.l_read_name - 1;  // we don't need the '\0'
+  rec.seq_len = c.l_seq;
   const auto rec_size = rec.name_len + 2 * rec.seq_len;
   if (std::size(rec.buffer) < rec_size)
     rec.buffer.resize(rec_size);
-  auto data_itr = std::data(rec.buffer);
-  std::memcpy(data_itr, itr + bamrec_core_t::read_name_offset, rec.name_len);
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  data_itr += rec.name_len;  // increment data cursor to sequence
-  auto seq_in = itr + core.seq_offset();
-  if (core.bam_is_rev())
-    assign_sequence_revcomp(seq_in, core.l_seq, data_itr);
+  auto out_itr = std::begin(rec.buffer);
+  std::copy_n(itr + core_t::read_name_offset, rec.name_len, out_itr);
+  out_itr += rec.name_len;  // increment data cursor to sequence
+  auto seq_in = itr + c.seq_offset();
+  if (c.bam_is_rev())
+    assign_sequence_revcomp(seq_in, c.l_seq, out_itr);
   else
-    assign_sequence(seq_in, core.l_seq, data_itr);
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  data_itr += rec.seq_len;  // increment data cursor to qual
-  const auto has_qual = (itr[core.qual_offset()] != qual_missing_code);
+    assign_sequence(seq_in, c.l_seq, out_itr);
+  out_itr += rec.seq_len;  // increment data cursor to qual
+  const auto has_qual = (itr[c.qual_offset()] != qual_missing_code);
   if (has_qual) {
-    const auto qual_itr = itr + core.qual_offset();
-    if (core.bam_is_rev())
-      std::reverse_copy(qual_itr, qual_itr + rec.seq_len, data_itr);
+    const auto qual_itr = itr + c.qual_offset();
+    if (c.bam_is_rev())
+      std::reverse_copy(qual_itr, qual_itr + rec.seq_len, out_itr);
     else
-      // std::memcpy(data_itr, itr + core.qual_offset(), rec.seq_len);
-      std::copy(qual_itr, qual_itr + rec.seq_len, data_itr);
+      std::copy(qual_itr, qual_itr + rec.seq_len, out_itr);
   }
   else
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    data_itr[0] = static_cast<char>(qual_missing_code);
-  itr += core.real_block_size();
+    *out_itr = static_cast<char>(qual_missing_code);
+  itr += c.real_block_size();
   return true;
 }
 
@@ -280,13 +258,13 @@ get_next(auto &itr, const auto end, bamrec &rec) -> bool {
 }
 
 [[nodiscard]] inline auto
-bamrec::find_end_pos(pos_t itr, const pos_t end) -> bamrec::pos_t {
+bamrec::find_end_pos(pos_t itr, const pos_t end) -> pos_t {
   static constexpr std::int64_t record_size_size = sizeof(std::uint32_t);
   std::uint32_t record_size{};
   while (itr != end) {
     if (std::distance(itr, end) < record_size_size)
       return itr;
-    std::memcpy(&record_size, itr, record_size_size);
+    std::memcpy(&record_size, std::data(std::span{itr, end}), record_size_size);
     record_size += record_size_size;
     if (std::distance(itr, end) < record_size)
       return itr;
