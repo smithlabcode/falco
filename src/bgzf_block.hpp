@@ -21,12 +21,10 @@ struct bgzf_block_t {
   // clang-format off
   bgzf_block_t(const bgzf_block_t &src) = delete;
   auto operator=(const bgzf_block_t &src) -> bgzf_block_t & = delete;
-
   bgzf_block_t() = default;
   ~bgzf_block_t() = default;
   bgzf_block_t(bgzf_block_t &&src) noexcept = default;
   auto operator=(bgzf_block_t &&src) noexcept -> bgzf_block_t & = default;
-
   [[nodiscard]] auto data() const -> const char * { return in_itr; }
   [[nodiscard]] auto operator<=>(const bgzf_block_t &other) const = default;
   operator bool() const { return size > 0; }
@@ -35,8 +33,6 @@ struct bgzf_block_t {
   auto
   decompress() -> void;
 };
-
-using bgzf_chunks_t = std::vector<bgzf_block_t>;
 
 inline auto
 decompress(bgzf_block_t &x) -> void {  // free function
