@@ -7,6 +7,7 @@
 #include "falco_word.hpp"
 #include "task_queue.hpp"
 
+#include <htslib/bgzf.h>  // IWYU pragma: keep
 #include <htslib/hfile.h>
 #include <htslib/sam.h>
 
