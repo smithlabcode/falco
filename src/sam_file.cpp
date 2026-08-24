@@ -47,13 +47,10 @@ sam_file::skip_header() -> bool {
 
 auto
 sam_file::shift_output_buffer() -> void {
-  if (cursor == std::cbegin(buffer))
-    // shifting at cursor == 0 would do nothing
+  if (cursor == std::cbegin(buffer))  // shifting here does nothing
     return;
-  const auto n_bytes = std::ranges::distance(cursor, last);
-  std::copy(cursor, last, std::begin(buffer));
+  last = std::copy(cursor, last, std::begin(buffer));
   cursor = std::begin(buffer);
-  last = cursor + n_bytes;
 }
 
 auto
