@@ -4,7 +4,6 @@
 #define SRC_BGZF_BLOCK_HPP_
 
 #include <cstdint>
-#include <vector>
 
 static constexpr auto max_bgzf_block_size = 65536;
 
@@ -26,7 +25,6 @@ struct bgzf_block_t {
   bgzf_block_t(bgzf_block_t &&src) noexcept = default;
   auto operator=(bgzf_block_t &&src) noexcept -> bgzf_block_t & = default;
   [[nodiscard]] auto data() const -> const char * { return in_itr; }
-  [[nodiscard]] auto operator<=>(const bgzf_block_t &other) const = default;
   operator bool() const { return size > 0; }
   // clang-format on
 
