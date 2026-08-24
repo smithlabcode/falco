@@ -54,7 +54,7 @@ public:
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 [[nodiscard]] inline constexpr auto
 get_name(const samrec &rec) {
-  return std::data(rec.buffer);
+  return std::cbegin(rec.buffer);
 }
 
 [[nodiscard]] inline constexpr auto
