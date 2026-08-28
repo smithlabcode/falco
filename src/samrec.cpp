@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "samrec.hpp"
-#include "falco_utils.hpp"
 #include "quality_score.hpp"
 
 #include <algorithm>
 #include <cassert>
+#include <charconv>
 #include <format>
 #include <iterator>
+#include <memory>
 #include <span>
 #include <stdexcept>
 #include <system_error>
@@ -42,9 +43,8 @@ samrec::get_next(pos_t &cursor, const pos_t end_itr, samrec &rec) -> bool {
     static constexpr auto BAM_FREVERSE = 16;
     return (flag & BAM_FREVERSE) != 0;
   };
-
-  const auto next_delim = [end_itr](auto &itr) {
-    itr = std::find(itr, end_itr, '\t');
+  const auto next_delim = [end_itr](auto &x) {
+    x = std::find(x, end_itr, '\t');
   };
 
   auto itr = cursor;
@@ -59,10 +59,11 @@ samrec::get_next(pos_t &cursor, const pos_t end_itr, samrec &rec) -> bool {
 
   // get the flag (for revcomp)
   int flag{};
-  auto [flag_end, ec] = falco::from_chars(itr, end_itr, flag);
+  auto [flag_end, ec] =
+    std::from_chars(std::to_address(itr), std::to_address(end_itr), flag);
   if (ec != std::errc{})
     return false;
-  itr += std::distance(itr, flag_end);
+  itr += std::distance(std::to_address(itr), flag_end);
   if (itr++ == end_itr)
     return false;
 
