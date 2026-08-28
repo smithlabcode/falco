@@ -8,7 +8,6 @@
 #include <cstring>
 #include <filesystem>
 #include <iterator>
-#include <span>
 #include <string>
 #include <vector>
 
@@ -206,7 +205,7 @@ bamrec::get_next(auto &itr, const auto end, bamrec &rec) -> bool {
   if (std::distance(itr, end) < core_t::sz)
     return false;
   core_t &c = rec.core;
-  std::memcpy(&c, std::data(std::span{itr, end}), sizeof c);
+  std::memcpy(std::addressof(c), std::to_address(itr), sizeof c);
   if (std::distance(itr, end) < c.real_block_size())
     return false;
   rec.name_len = c.l_read_name - 1;  // we don't need the '\0'
@@ -249,7 +248,8 @@ bamrec::find_end_pos(pos_t itr, const pos_t end) -> pos_t {
   while (itr != end) {
     if (std::distance(itr, end) < record_size_size)
       return itr;
-    std::memcpy(&record_size, std::data(std::span{itr, end}), record_size_size);
+    std::memcpy(std::addressof(record_size), std::to_address(itr),
+                record_size_size);
     record_size += record_size_size;
     if (std::distance(itr, end) < record_size)
       return itr;
