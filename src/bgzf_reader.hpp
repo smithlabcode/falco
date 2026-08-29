@@ -31,6 +31,8 @@ struct gzip_header {
   std::uint16_t size{};     // 16 [2]
   // 18
 
+  // ADS: total size is 20 bytes because of alignment and 32-bit values
+
   [[nodiscard]] auto
   check_magic() const -> bool {
     return id1 == magic1 && id2 == magic2;  // ADS: check b and c also
