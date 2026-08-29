@@ -11,7 +11,6 @@
 #include <cstdint>
 #include <iterator>
 #include <ranges>
-#include <span>
 #include <stdexcept>
 #include <system_error>
 
@@ -102,8 +101,8 @@ sam_file::make_tasks(const std::int64_t n_chunks,  //
                      std::atomic_int32_t &n_tasks) -> void {
   n_tasks = 1;  // for current task, which makes more tasks
   shift_output_buffer();
-  auto inbuf = std::span(last, std::end(buffer));
-  const auto r = std::fread(std::data(inbuf), 1, std::size(inbuf), in.get());
+  const auto n_bytes = std::distance(last, std::end(buffer));
+  const auto r = std::fread(std::to_address(last), 1, n_bytes, in.get());
   if (std::ferror(in.get()))
     std::system_error(std::make_error_code(std::errc(errno)),
                       "error reading SAM file");
