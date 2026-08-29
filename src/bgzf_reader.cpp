@@ -12,35 +12,33 @@
 #include <memory>
 #include <string>
 #include <system_error>
+#include <utility>
 
-// NOLINTBEGIN(*-bounds-pointer-arithmetic)
 [[nodiscard]] static inline constexpr auto
-get_unaligned_le32(const std::uint8_t *p) -> std::uint32_t {
-  std::uint32_t x{};
-  // NOLINTNEXTLINE(*-type-reinterpret-cast)
-  std::memcpy(reinterpret_cast<std::uint8_t *>(&x), p, sizeof(std::uint32_t));
+get_unaligned_le32(const auto p) -> std::int32_t {
+  std::int32_t value{};
+  std::memcpy(std::addressof(value), p, sizeof(std::int32_t));
   if constexpr (std::endian::native == std::endian::big)
-    return std::byteswap(x);
+    return std::byteswap(value);
   else
-    return x;
+    return value;
 }
 
 [[nodiscard]] static inline constexpr auto
-get_isize(const auto *data, const auto data_size) {
+get_isize(const auto data, const auto data_size) {
   static constexpr decltype(data_size) isize_size = 4;
   assert(data_size > isize_size);
-  // NOLINTNEXTLINE(*-type-reinterpret-cast)
-  const auto u_data = reinterpret_cast<const std::uint8_t *>(data);
-  const auto u_data_isize = u_data + data_size - isize_size;
-  return data_size < isize_size
-           ? 0
-           : static_cast<std::int32_t>(get_unaligned_le32(u_data_isize));
+  const auto data_isize = data + data_size - isize_size;
+  return data_size < isize_size ? 0 : get_unaligned_le32(data_isize);
 }
 
 auto
-assign(gzip_header &hdr, auto *data) -> void {
-  // NOLINTNEXTLINE(*-type-reinterpret-cast)
-  std::memcpy(reinterpret_cast<std::uint8_t *>(&hdr), data, gzip_header_size);
+assign(gzip_header &hdr, const auto data) -> void {
+  // ADS: data from the file takes 18 bytes, the fields of the struct take 18
+  // bytes, but the struct occupies 20 due to uint32_t members
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  std::memcpy(reinterpret_cast<std::uint8_t *>(&hdr), std::to_address(data),
+              gzip_header_size);
 }
 
 bgzf_reader::bgzf_reader(const std::string &filename,
@@ -62,14 +60,16 @@ bgzf_reader::read_data() -> bool {
   const auto unused_in = std::distance(next_in, end_in);
   std::memcpy(inbuf.get(), next_in, unused_in);
   next_in = inbuf.get();
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   end_in = next_in + unused_in;
   const auto avail_in = inbuf_size - unused_in;
-  const auto r = std::fread(end_in, 1, avail_in, fp.get());
+  const auto n_bytes = std::fread(end_in, 1, avail_in, fp.get());
   if (std::ferror(fp.get()))
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed reading input");
-  end_in += r;  // will usually be end of inbuf
-  return r > 0;
+  // will usually be end of inbuf
+  end_in += n_bytes;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  return n_bytes > 0;
 }
 
 [[nodiscard]] inline constexpr auto
@@ -85,6 +85,7 @@ bgzf_reader::get_decomp_task(char *out_itr) -> bgzf_block_t {
     return bgzf_block_t{};
   assign(gh, next_in);
   assert(gh.check_magic());
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   next_in += gzip_header_size;
   const auto body_size = get_gzip_body_size(gh);
   if (std::distance(next_in, end_in) < body_size && !read_data())
@@ -93,6 +94,6 @@ bgzf_reader::get_decomp_task(char *out_itr) -> bgzf_block_t {
   bgzf_block_t task(get_isize(next_in, body_size), out_itr, next_out);
   next_in += body_size;
   next_out += max_bgzf_block_size;
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   return task;
 }
-// NOLINTEND(*-bounds-pointer-arithmetic)
