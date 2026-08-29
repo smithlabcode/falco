@@ -53,12 +53,13 @@ public:
 
 [[nodiscard]] inline constexpr auto
 get_name(const samrec &rec) {
-  return std::cbegin(rec.buffer);
+  // ADS: something is unhappy when this function returns an interator
+  return std::data(rec.buffer);
 }
 
 [[nodiscard]] inline constexpr auto
 get_name_end(const samrec &rec) {
-  return get_name(rec) + rec.name_len;
+  return get_name(rec) + rec.name_len;  // NOLINT
 }
 
 [[nodiscard]] inline constexpr auto
@@ -68,7 +69,7 @@ get_seq(const samrec &rec) {
 
 [[nodiscard]] inline constexpr auto
 get_seq_end(const samrec &rec) {
-  return get_seq(rec) + rec.seq_len;
+  return get_seq(rec) + rec.seq_len;  // NOLINT
 }
 
 [[nodiscard]] inline constexpr auto
@@ -83,7 +84,7 @@ get_qual(const samrec &rec) {
 
 [[nodiscard]] inline constexpr auto
 get_qual_end(const samrec &rec) {
-  return get_qual(rec) + rec.seq_len;
+  return get_qual(rec) + rec.seq_len;  // NOLINT
 }
 
 [[nodiscard]] inline constexpr auto
