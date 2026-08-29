@@ -34,7 +34,8 @@ samrec::to_string() const -> std::string {
 }
 
 [[nodiscard]] auto
-samrec::get_next(pos_t &cursor, const pos_t end_itr, samrec &rec) -> bool {
+samrec::get_next(samrec::pos_t &cursor, const samrec::pos_t end_itr,
+                 samrec &rec) -> bool {
   static constexpr auto n_fields_to_skip = 7;
   constexpr auto complem = [](const auto x) {
     return "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
