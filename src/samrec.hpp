@@ -13,8 +13,8 @@ public:
   using pos_t = std::vector<char>::const_iterator;
 
 private:
-  static constexpr auto qual_missing_symbol = '*';         // from SAMv1.pdf
-  static constexpr std::uint8_t qual_missing_code = 0xff;  // from sam.c
+  static constexpr auto qual_missing_symbol = '*';  // from SAMv1.pdf
+  static constexpr char qual_missing_code = -1;     // 0xff from sam.c
 
   std::vector<char> buffer;
   std::uint32_t name_len{};
@@ -51,7 +51,6 @@ public:
   find_end_pos(pos_t itr, const pos_t end) -> pos_t;
 };
 
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 [[nodiscard]] inline constexpr auto
 get_name(const samrec &rec) {
   return std::cbegin(rec.buffer);
@@ -91,7 +90,6 @@ get_qual_end(const samrec &rec) {
 get_qual_size(const samrec &rec) {
   return get_seq_size(rec);
 }
-// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 struct sam_task_t {
   samrec::pos_t beg{};
@@ -99,7 +97,7 @@ struct sam_task_t {
 };
 
 [[nodiscard]] inline auto
-get_next(auto &itr, const auto end, samrec &rec) -> bool {
+get_next(samrec::pos_t &itr, const samrec::pos_t end, samrec &rec) -> bool {
   return samrec::get_next(itr, end, rec);
 }
 
