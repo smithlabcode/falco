@@ -80,126 +80,49 @@ endif()
 add_library(adapter_set OBJECT src/adapter_set.cpp)
 add_library(falco_utils OBJECT src/falco_utils.cpp)
 add_library(base_groups OBJECT src/base_groups.cpp)
-
 add_library(bgzf_block OBJECT src/bgzf_block.cpp)
-target_link_libraries(bgzf_block PUBLIC LIBDEFLATE::LIBDEFLATE)
-
 add_library(bgzf_reader OBJECT src/bgzf_reader.cpp)
-target_link_libraries(bgzf_reader PUBLIC bgzf_block)
-
 add_library(fastq_file OBJECT src/fastq_file.cpp)
-target_link_libraries(fastq_file PUBLIC HTSLIB::HTSLIB)
-
 add_library(fastq_gz_file OBJECT src/fastq_gz_file.cpp)
-target_link_libraries(fastq_gz_file PUBLIC HTSLIB::HTSLIB)
+add_library(fastq_bgzf_file OBJECT src/fastq_bgzf_file.cpp)
+add_library(bam_header OBJECT src/bam_header.cpp)
+add_library(bamrec OBJECT src/bamrec.cpp)
+add_library(bam_file OBJECT src/bam_file.cpp)
+add_library(samrec OBJECT src/samrec.cpp)
+add_library(sam_file OBJECT src/sam_file.cpp)
+add_library(falco_file_format OBJECT src/falco_file_format.cpp)
+add_library(quality_score OBJECT src/quality_score.cpp)
+add_library(tile_processor OBJECT src/tile_processor.cpp)
+add_library(falco_grade OBJECT src/falco_grade.cpp)
+add_library(kmer_counter OBJECT src/kmer_counter.cpp)
+add_library(contaminants OBJECT src/contaminants.cpp)
+add_library(duplication_results OBJECT src/duplication_results.cpp)
+add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
+add_library(report OBJECT src/report.cpp)
+add_library(html OBJECT src/html.cpp)
+add_library(results_collector INTERFACE)
+add_library(results_summary OBJECT src/results_summary.cpp)
+add_library(falco_analyzer OBJECT src/falco_analyzer.cpp)
+add_library(get_binary_dir OBJECT src/get_binary_dir.cpp)
+add_library(run_mode OBJECT src/run_mode.cpp)
+add_library(falco_config OBJECT src/falco_config.cpp)
+add_library(original_duplicates OBJECT src/original_duplicates.cpp)
+
+target_link_libraries(bgzf_block PRIVATE LIBDEFLATE::LIBDEFLATE)
+target_link_libraries(fastq_bgzf_file PRIVATE
+  HTSLIB::HTSLIB
+  LIBDEFLATE::LIBDEFLATE
+)
+target_link_libraries(bam_file PRIVATE HTSLIB::HTSLIB)
+target_link_libraries(falco_file_format PRIVATE HTSLIB::HTSLIB)
+target_link_libraries(tile_processor PRIVATE HTSLIB::HTSLIB)
+target_link_libraries(fastq_gz_file PRIVATE HTSLIB::HTSLIB)
 if(USE_ISAL)
   target_link_libraries(fastq_gz_file PUBLIC ISAL::ISAL)
 endif()
 
-add_library(fastq_bgzf_file OBJECT src/fastq_bgzf_file.cpp)
-target_link_libraries(fastq_bgzf_file PUBLIC
-  HTSLIB::HTSLIB
-  LIBDEFLATE::LIBDEFLATE
-)
-
-add_library(bam_header OBJECT src/bam_header.cpp)
-
-add_library(bamrec OBJECT src/bamrec.cpp)
-add_library(bam_file OBJECT src/bam_file.cpp)
-target_link_libraries(bam_file PUBLIC HTSLIB::HTSLIB)
-
-add_library(samrec OBJECT src/samrec.cpp)
-add_library(sam_file OBJECT src/sam_file.cpp)
-target_link_libraries(sam_file PUBLIC HTSLIB::HTSLIB)
-
-add_library(falco_file_format OBJECT src/falco_file_format.cpp)
-target_link_libraries(falco_file_format PUBLIC HTSLIB::HTSLIB)
-
-add_library(quality_score OBJECT src/quality_score.cpp)
-target_link_libraries(quality_score PUBLIC falco_file_format)
-
-add_library(tile_processor OBJECT src/tile_processor.cpp)
-target_link_libraries(tile_processor PUBLIC
-  falco_file_format
-  HTSLIB::HTSLIB
-)
-
-add_library(falco_grade OBJECT src/falco_grade.cpp)
-target_link_libraries(falco_grade PUBLIC
-  falco_utils
-  quality_score
-)
-
-add_library(kmer_counter OBJECT src/kmer_counter.cpp)
-target_link_libraries(kmer_counter PUBLIC
-  falco_grade
-  falco_utils
-)
-
-add_library(contaminants OBJECT src/contaminants.cpp)
-
-add_library(duplication_results OBJECT src/duplication_results.cpp)
-target_link_libraries(duplication_results PUBLIC
-  falco_grade
-  falco_utils
-  contaminants
-)
-
-add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
-target_link_libraries(adapter_matcher PUBLIC
-  falco_utils
-  falco_grade
-  adapter_set
-)
-
-add_library(report OBJECT src/report.cpp)
-target_link_libraries(report PUBLIC
-  tile_processor
-  quality_score
-  kmer_counter
-  falco_utils
-)
-
-add_library(html OBJECT src/html.cpp)
-target_link_libraries(html PUBLIC
-  tile_processor
-  quality_score
-  kmer_counter
-  falco_utils
-)
-
-add_library(results_collector INTERFACE)
-target_link_libraries(results_collector INTERFACE fastq_file)
-
-add_library(results_summary OBJECT src/results_summary.cpp)
-target_link_libraries(results_summary PUBLIC
-  adapter_matcher
-  duplication_results
-  falco_grade
-  falco_utils
-  html
-  kmer_counter
-  quality_score
-  report
-  tile_processor
-  results_collector
-)
-
-add_library(falco_analyzer OBJECT src/falco_analyzer.cpp)
-# ADS: not sure why the line below is needed on some systems, but dependencies
-# in this file are a mess
-target_link_libraries(falco_analyzer PUBLIC HTSLIB::HTSLIB)
-
-add_library(get_binary_dir OBJECT src/get_binary_dir.cpp)
-add_library(run_mode OBJECT src/run_mode.cpp)
-add_library(falco_config OBJECT src/falco_config.cpp)
-target_link_libraries(falco_config PUBLIC run_mode)
-
-add_library(original_duplicates OBJECT src/original_duplicates.cpp)
-target_link_libraries(original_duplicates PUBLIC HTSLIB::HTSLIB)
-
 add_executable(falco src/falco.cpp)
-target_link_libraries(falco PUBLIC
+target_link_libraries(falco PRIVATE
   tile_processor
   contaminants
   adapter_matcher
