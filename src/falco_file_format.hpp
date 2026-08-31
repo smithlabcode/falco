@@ -5,8 +5,6 @@
 
 #include "nlohmann/json.hpp"
 
-#include <htslib/sam.h>
-
 #include <cstdint>
 #include <format>
 #include <iterator>
@@ -69,19 +67,6 @@ struct std::formatter<falco::file_format> : std::formatter<std::string> {
       std::to_string(std::to_underlying(f)), ctx);
   }
 };
-
-// ADS: unused?
-[[nodiscard]] constexpr auto
-is_sequence_data(const auto hts_fp) -> bool {
-  return hts_get_format(hts_fp)->category == sequence_data;
-}
-
-[[nodiscard]] constexpr auto
-is_sequence_data(const std::string &filename) -> bool {
-  using hts_file_unique_ptr = std::unique_ptr<htsFile, int (*)(htsFile *)>;
-  hts_file_unique_ptr fp(hts_open(std::data(filename), "r"), &hts_close);
-  return is_sequence_data(fp.get());
-}
 
 [[nodiscard]] auto
 get_file_format(const std::string &filename)
