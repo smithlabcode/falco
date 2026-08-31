@@ -2,6 +2,8 @@
 
 #include "falco_file_format.hpp"
 
+#include <htslib/sam.h>
+
 #include <array>
 #include <cstdlib>
 #include <filesystem>
