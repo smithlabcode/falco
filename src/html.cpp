@@ -23,12 +23,13 @@
 #include <cmath>
 #include <format>
 #include <iterator>
-#include <map>
+#include <map>  // for tile_processor::tiles_centered_t
 #include <numeric>
 #include <ranges>
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <tuple>  // for std::get probably in fmt
 #include <vector>
 
 [[nodiscard]] auto
@@ -368,7 +369,7 @@ basic_stats_html(const file_info &info, const std::uint64_t n_reads,
     html_module_fmt, grade, label, title, grade,
     fmt::format(table_fmt, fmt::arg("filename_stem", info.name),
                 fmt::arg("file_type", info.description),
-                fmt::arg("encoding", to_string(info.encoding)),
+                fmt::arg("encoding", encoding_to_string(info.encoding)),
                 fmt::arg("n_reads", n_reads),
                 fmt::arg("lengths_label", lengths_label),
                 fmt::arg("mean_length", as_frac(total_nucs, n_reads)),
@@ -378,8 +379,8 @@ basic_stats_html(const file_info &info, const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 tile_html(const tile_processor::tiles_centered_t &centered,
-          const std::vector<base_group_t> &groups,
-          const file_grades &grades) -> std::string {
+          const std::vector<base_group_t> &groups, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto n_quants = 20.0;
   // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
@@ -438,8 +439,8 @@ yaxis: {{title: "tile", type: "category"}},
 }
 
 [[nodiscard]] auto
-kmer_html(const std::vector<kmer_result> &results,
-          const file_grades &grades) -> std::string {
+kmer_html(const std::vector<kmer_result> &results, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "kmer";
   static constexpr auto plot_format = R"(<div id="kmer_plot"></div>
 <script>Plotly.newPlot("kmer_plot",
@@ -468,10 +469,12 @@ name: "{}",
   };
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
+  // NOLINTBEGIN(clang-analyzer-optin.cplusplus.UninitializedObject)
   return fmt::format(
     html_module_fmt, grade, label, title, grade,
     fmt::format(
       plot_format,
       fmt::format("[{}]",
                   fmt::join(std::views::transform(results, format1), ",\n"))));
+  // NOLINTEND(clang-analyzer-optin.cplusplus.UninitializedObject)
 }
