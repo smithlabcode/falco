@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>  // IWYU pragma: keep
 #include <cassert>
 #include <cstdint>
 #include <cstdlib>
@@ -17,6 +18,7 @@
 #include <span>
 #include <string>
 #include <system_error>
+#include <tuple>  // IWYU pragma: keep
 #include <type_traits>
 #include <utility>
 #include <vector>
