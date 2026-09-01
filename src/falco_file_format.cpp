@@ -7,7 +7,11 @@
 #include <array>
 #include <cstdlib>
 #include <filesystem>
+#include <iterator>
+#include <memory>
 #include <stdexcept>
+#include <string>
+#include <tuple>
 
 [[nodiscard]] auto
 get_file_format(const std::string &filename)
