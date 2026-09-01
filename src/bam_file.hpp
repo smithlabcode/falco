@@ -62,7 +62,10 @@ public:
   ~bam_file() = default;
   // clang-format on
 
-  [[nodiscard]] operator bool() const { return !had_last_chunks; }
+  [[nodiscard]]
+  operator bool() const {
+    return !had_last_chunks;
+  }
 
   friend auto
   reset(bam_file &reads_file) -> void;
@@ -121,8 +124,8 @@ estimate_n_reads_bam(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
 [[nodiscard]] auto
-init_dups(const std::string &filename,
-          const std::uint64_t n_unique) -> dups_map_t;
+init_dups(const std::string &filename, const std::uint64_t n_unique)
+  -> dups_map_t;
 
 inline auto
 make_tasks(bam_file &reads_file,          //

@@ -19,7 +19,9 @@
 #include <stdexcept>
 #include <string>
 #include <system_error>
+#include <tuple>
 #include <utility>
+#include <vector>
 
 [[nodiscard]] auto
 estimate_n_reads_bam(const std::string &filename)
@@ -63,8 +65,8 @@ estimate_n_reads_bam(const std::string &filename)
 }
 
 [[nodiscard]] auto
-init_dups(const std::string &filename,
-          const std::uint64_t n_unique) -> dups_map_t {
+init_dups(const std::string &filename, const std::uint64_t n_unique)
+  -> dups_map_t {
   static constexpr auto complem = [](const auto x) {
     return "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
   };
