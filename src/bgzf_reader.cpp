@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cerrno>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <memory>
@@ -28,6 +29,7 @@ get_unaligned_le32(const auto p) -> std::int32_t {
 get_isize(const auto data, const auto data_size) {
   static constexpr decltype(data_size) isize_size = 4;
   assert(data_size > isize_size);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const auto data_isize = data + data_size - isize_size;
   return data_size < isize_size ? 0 : get_unaligned_le32(data_isize);
 }
@@ -50,7 +52,8 @@ bgzf_reader::bgzf_reader(const std::string &filename,
   next_in{inbuf.get()},                                       //
   end_in{inbuf.get()},                                        //
   next_out{outbuf.get()},                                     //
-  end_out{outbuf.get() + buf_size}                            //
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  end_out{outbuf.get() + buf_size}  //
 {}
 
 [[nodiscard]] auto
