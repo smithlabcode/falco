@@ -14,9 +14,6 @@
 #include <htslib/bgzf.h>
 #include <htslib/sam.h>
 
-#define FMT_HEADER_ONLY
-#include "fmt/format.h"
-
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -28,6 +25,7 @@
 #include <ranges>
 #include <stdexcept>
 #include <string>
+#include <tuple>  // for std::get
 #include <utility>
 #include <vector>
 
@@ -170,18 +168,19 @@ tile_processor::add_and_consume(
   const auto pair_plus = [](const auto &a, const auto &b) {
     return std::pair{a.first + b.first, a.second + b.second};
   };
-  for (auto &[tile_id, rhs_qual] : rhs.quals) {
-    const auto quals_itr = quals.find(tile_id);
+  for (auto &[rhs_tile_id, rhs_qual] : rhs.quals) {
+    const auto quals_itr = quals.find(rhs_tile_id);
     if (quals_itr != std::end(quals)) {
-      auto &qual = quals_itr->second;
-      if (std::size(rhs_qual) > std::size(qual))
-        std::swap(rhs_qual, qual);
-      std::ranges::transform(qual, rhs_qual, std::begin(qual), pair_plus);
+      auto &curr_qual = quals_itr->second;
+      if (std::size(rhs_qual) > std::size(curr_qual))
+        std::swap(rhs_qual, curr_qual);
+      std::ranges::transform(curr_qual, rhs_qual, std::begin(curr_qual),
+                             pair_plus);
       rhs_qual.clear();
       rhs_qual.shrink_to_fit();
     }
     else
-      quals.emplace(tile_id, std::move(rhs_qual));
+      quals.emplace(rhs_tile_id, std::move(rhs_qual));
   }
   rhs.release();
 }
