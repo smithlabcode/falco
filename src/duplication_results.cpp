@@ -11,6 +11,7 @@
 #include "run_mode.hpp"
 
 #define FMT_HEADER_ONLY
+#include "fmt/base.h"
 #include "fmt/format.h"
 #include "fmt/ranges.h"
 
@@ -124,8 +125,8 @@ duplication_results::get_overrepresented(const std::uint64_t n_reads) const
 }
 
 auto
-duplication_results::initialize(const run_mode &mode,
-                                const file_info &info) -> void {
+duplication_results::initialize(const run_mode &mode, const file_info &info)
+  -> void {
   read_skip =
     info.n_reads_est < max_n_reads_total
       ? 0
@@ -282,8 +283,8 @@ get_grade_duplication(const dup_summary_t &summary) -> std::string {
 }
 
 [[nodiscard]] auto
-duplication_report(const dup_summary_t &summary,
-                   const file_grades &grades) -> std::string {
+duplication_report(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
                                     "#Total Deduplicated Percentage\t{:.6f}\n";
@@ -305,9 +306,10 @@ duplication_report(const dup_summary_t &summary,
             std::max(static_cast<std::uint64_t>(1), reduce(summary.hist_mass)));
   auto r = std::format(start_tag, grades.grade(label), pct(frac_dedup));
   r += header;
-  for (const auto [label, mass] :
+  for (const auto [bin_label, mass] :
        std::views::zip(bin_labels, binned_mass_pct) | std::views::drop(1))
-    r += std::format("{}\t{:.3g}\n", label, mass);  // Percentage format is .3g
+    r +=
+      std::format("{}\t{:.3g}\n", bin_label, mass);  // Percentage format is .3g
   return r + end_module_tag;
 }
 
@@ -345,8 +347,8 @@ overrepresented_html(const std::vector<overrep_t> &overrep,
 }
 
 [[nodiscard]] auto
-duplication_html(const dup_summary_t &summary,
-                 const file_grades &grades) -> std::string {
+duplication_html(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto plot_format = R"(<div id="duplication_plot"></div>
 <script>Plotly.newPlot("duplication_plot",
@@ -389,11 +391,12 @@ yaxis: {{title: "% of sequences"}},
   };
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
-  return fmt::format(
-    html_module_fmt, grade, label, title, grade,
+  const auto the_plot =
+    // NOLINTNEXTLINE(clang-analyzer-optin.cplusplus.UninitializedObject)
     fmt::format(plot_format,                                          //
                 x, to_pct(summary.hist_mass) | std::views::drop(1),   // y_tot,
                 x, to_pct(summary.hist_dedup) | std::views::drop(1),  // y_dedup
                 x, x_text | std::views::drop(1)  // tickvals
-                ));
+    );
+  return fmt::format(html_module_fmt, grade, label, title, grade, the_plot);
 }
