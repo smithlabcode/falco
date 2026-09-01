@@ -11,6 +11,7 @@
 #include <memory>
 #include <span>
 #include <stdexcept>
+#include <string>
 #include <system_error>
 
 #ifdef BAM_FREVERSE
