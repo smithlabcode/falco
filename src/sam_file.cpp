@@ -9,9 +9,11 @@
 #include <cassert>
 #include <cerrno>
 #include <cstdint>
+#include <cstdio>
 #include <iterator>
 #include <ranges>
 #include <stdexcept>
+#include <string>
 #include <system_error>
 
 sam_file::sam_file(const std::string &filename, const std::int64_t buf_size) :
@@ -22,6 +24,8 @@ sam_file::sam_file(const std::string &filename, const std::int64_t buf_size) :
                       "failed to read file");
   if (!skip_header())
     std::runtime_error("failed to validated SAM file header: " + filename);
+  cursor = std::begin(buffer);
+  last = std::begin(buffer);
 }
 
 [[nodiscard]] auto
