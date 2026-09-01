@@ -131,6 +131,7 @@ y: {},
 type: "line",
 name: "{}",
 }})";
+  // NOLINTNEXTLINE(clang-analyzer-optin.cplusplus.UninitializedObject)
   assert(std::size(groups) == std::size(adap_counts));
   // calcualte the x axis first
   const auto x = groups | std::views::transform([&](const auto &g) {
@@ -146,9 +147,9 @@ name: "{}",
     std::ranges::transform(cumulative[curr], cumulative[prev],
                            std::begin(cumulative[curr]), std::plus{});
 #endif
-  const auto n_pos = max_read_len + 1 >= adapter_size
-                       ? max_read_len - adapter_size + 1
-                       : max_read_len;
+  // NOLINTNEXTLINE(clang-analyzer-optin.cplusplus.UninitializedObject)
+  const auto n_pos =
+    max_read_len + 1 > adapter_size ? (max_read_len + 1) - adapter_size : 0U;
   const auto last_group_to_keep = std::ranges::find_if(
     groups, [&](const auto &g) { return n_pos <= g.first; });
   cumulative.resize(std::distance(std::cbegin(groups), last_group_to_keep));
@@ -164,13 +165,15 @@ name: "{}",
       return pct_of_reads(cumul[adap_id]);
     };
     const auto y = cumulative | std::views::transform(make_y);
+    // NOLINTNEXTLINE(clang-analyzer-optin.cplusplus.UninitializedObject)
     html_by_adapter.emplace_back(fmt::format(adapter_fmt, x, y, adap_name));
   }
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
-  return fmt::format(
-    html_module_fmt, grade, label, title, grade,
-    std::format(plot_fmt, fmt::format("[{:n:}]", html_by_adapter)));
+  const auto the_plot =
+    // NOLINTNEXTLINE(clang-analyzer-optin.cplusplus.UninitializedObject)
+    std::format(plot_fmt, fmt::format("[{:n:}]", html_by_adapter));
+  return fmt::format(html_module_fmt, grade, label, title, grade, the_plot);
 }
 
 auto
