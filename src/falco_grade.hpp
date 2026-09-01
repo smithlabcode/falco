@@ -83,8 +83,8 @@ struct file_grades {
   [[nodiscard]] auto
   grade(const std::string &name) const -> std::string;
 
-  [[nodiscard]] auto
-  get_title(const std::string &name) const -> std::string;
+  [[nodiscard]] static auto
+  get_title(const std::string &name) -> std::string;
 
   [[nodiscard]] auto
   to_string(const std::string &infile_path) const -> std::string;

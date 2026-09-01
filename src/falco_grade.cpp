@@ -61,7 +61,7 @@ file_grades::grade(const std::string &label) const -> std::string {
 }
 
 [[nodiscard]] auto
-file_grades::get_title(const std::string &name) const -> std::string {
+file_grades::get_title(const std::string &name) -> std::string {
   const auto itr = std::ranges::find(section_names, name);
   if (itr == std::cend(section_names))
     throw std::runtime_error(std::format("bad section name: {}", name));
@@ -106,8 +106,8 @@ grader_set::get_grader(const std::string &label) -> const grader & {
 }
 
 [[nodiscard]] auto
-grader_set::get_grade(const std::string &label,
-                      const double value) -> std::string {
+grader_set::get_grade(const std::string &label, const double value)
+  -> std::string {
   return get_grader(label).identify_grade(value);
 }
 
@@ -129,7 +129,7 @@ get_grade_sequence_length(const std::vector<std::uint64_t> &lengths)
   static constexpr auto label = "sequence_length";
   if (lengths.empty())
     return grader_set::get_grade(label, 0.0);
-  const bool has_empty_reads = std::size(lengths) > 0 && lengths[0] > 0;
+  const bool has_empty_reads = lengths[0] > 0;
   if (has_empty_reads)
     return "fail";
   const auto n_lengths =
@@ -153,8 +153,8 @@ single_delta(const auto a, const auto b, const auto tot) {
 }
 
 [[nodiscard]] static auto
-get_grade_sequence_impl(const std::vector<falco::nuc_array> &nucs,
-                        auto &&delta) -> std::string {
+get_grade_sequence_impl(const std::vector<falco::nuc_array> &nucs, auto &&delta)
+  -> std::string {
   static constexpr auto label = "sequence";
   if (nucs.empty())
     return grader_set::get_grade(label, 0.0);
