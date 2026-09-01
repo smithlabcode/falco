@@ -20,6 +20,7 @@
 #include <mutex>
 #include <ranges>
 #include <thread>
+#include <tuple>  // for std::get (iwyu fp)
 #include <utility>
 #include <variant>
 #include <vector>
@@ -34,7 +35,6 @@ analyze(const std::uint32_t n_threads, const run_mode &mode,
   const std::int32_t n_files = static_cast<std::int32_t>(std::size(infos));
   if (dups_init.empty())
     dups_init.resize(n_files);
-  std::vector<std::atomic_int32_t> n_tasks(n_files);
   std::atomic_uint32_t n_active_files{static_cast<std::uint32_t>(n_files)};
   auto results =
     std::vector(n_threads, std::vector<results_collector>(n_files));
@@ -45,6 +45,7 @@ analyze(const std::uint32_t n_threads, const run_mode &mode,
     tq.push(file_id, std::monostate{});
 
   {  // scope to join jthreads
+    std::vector<std::atomic_int32_t> n_tasks(n_files);
     std::vector<std::jthread> workers;
     for (const auto th_id : std::views::iota(0u, n_threads))
       workers.emplace_back([&, n_threads, th_id] {
