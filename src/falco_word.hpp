@@ -36,6 +36,7 @@ struct falco_word {
       return ((c >> 1) & 7) ^ 3;  // NOLINT(*-avoid-magic-numbers)
     };
     static const auto enc_shift = [&](auto &x, auto &c) {
+      // NOLINTNEXTLINE(clang-analyzer-security.ArrayBound)
       x = (x * extended_alpha_size) + fw_encode(*c++);
     };
     w = w < max_hi_lim ? w : max_hi_lim;
