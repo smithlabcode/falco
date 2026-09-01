@@ -12,8 +12,6 @@
 #include <thread>  // IWYU pragma: keep
 #include <vector>
 
-class run_mode;
-
 struct kmer_result {
   // holds info for {kmer} x {position} to be sorted, filtered and output
   std::uint64_t kmer{};
@@ -83,8 +81,8 @@ struct kmer_counter {
     }
   }
 
-  auto
-  apply_groups(const run_mode &mode) -> void;
+  // auto
+  // apply_groups(const run_mode &mode) -> void;
 
   auto
   operator+=(const kmer_counter &rhs) -> const kmer_counter &;
