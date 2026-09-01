@@ -17,6 +17,7 @@
 #include <ranges>
 #include <string>
 #include <thread>
+#include <utility>  // for std::move
 #include <vector>
 
 [[nodiscard]] auto
@@ -55,7 +56,7 @@ initialize_original_duplicates(
   std::ranges::for_each(workers, [](auto &w) { w.join(); });
   std::vector<dups_init_t> ret;
   ret.reserve(n_files);
-  for (const auto &d : dups)
-    ret.emplace_back(d);
+  std::ranges::for_each(dups,
+                        [&](auto &&d) { ret.emplace_back(std::move(d)); });
   return ret;
 }
