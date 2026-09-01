@@ -21,6 +21,7 @@
 #include <ranges>
 #include <string>
 #include <system_error>
+#include <tuple>  // IWYU pragma: keep
 #include <utility>
 #include <vector>
 
@@ -52,12 +53,12 @@ estimate_n_reads_fastq_bgzf(const std::string &filename)
 }
 
 [[nodiscard]] auto
-init_dups_fq(const std::string &filename,
-             const std::uint64_t n_unique) -> dups_map_t {
+init_dups_fq(const std::string &filename, const std::uint64_t n_unique)
+  -> dups_map_t {
   static constexpr auto n_unique_multiplier = 10;
   std::unique_ptr<BGZF, int (*)(BGZF *)> f(bgzf_open(std::data(filename), "r"),
                                            &bgzf_close);
-  if (!f)
+  if (f.get() == nullptr)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to open file: " + filename);
   dups_map_t dups;
@@ -117,6 +118,7 @@ fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,  //
   std::swap(input_last, output_last);
 
   const auto data = std::data(output_buffer);
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const auto not_read_start = [](const auto s, const auto p) {
     // ADS: could get confused if '+' lines have full name info
     return s[p] != '@' || (p > 0 && s[p - 1] != '\n') ||
@@ -134,6 +136,7 @@ fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,  //
       --pos;
     return pos;
   };
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const auto n_bytes_available = output_last;
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   assert(n_chunks > 0);
