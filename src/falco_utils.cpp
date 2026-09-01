@@ -2,6 +2,7 @@
 
 #include "falco_utils.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <compare>
