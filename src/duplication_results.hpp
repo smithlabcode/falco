@@ -39,7 +39,7 @@ struct dups_init_t {
   std::int64_t count_at_limit{};
   dups_map_t dups_zero;
   dups_init_t() = default;
-  dups_init_t(const dups_map_t &dups) {
+  explicit dups_init_t(const dups_map_t &dups) {
     const auto vals = dups | std::views::values;
     count_at_limit = static_cast<std::int64_t>(
       std::reduce(std::cbegin(vals), std::cend(vals)));
@@ -113,12 +113,12 @@ struct duplication_results {
 get_grade_duplication(const dup_summary_t &summary) -> std::string;
 
 [[nodiscard]] auto
-duplication_report(const dup_summary_t &summary,
-                   const file_grades &grades) -> std::string;
+duplication_report(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string;
 
 [[nodiscard]] auto
-duplication_html(const dup_summary_t &summary,
-                 const file_grades &grades) -> std::string;
+duplication_html(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string;
 
 [[nodiscard]] auto
 get_grade_overrepresented(const std::uint64_t n_reads,
