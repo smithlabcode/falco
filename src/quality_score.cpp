@@ -12,6 +12,7 @@
 #include <iterator>
 #include <ranges>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -70,7 +71,7 @@ adjust_fastq_qual_encoding(std::vector<falco::qual_array> &qual_by_pos,
 }
 
 [[nodiscard]] auto
-to_string(const falco::encoding e) -> std::string {
+encoding_to_string(const falco::encoding e) -> std::string {
   const auto u = std::to_underlying(e);
   assert(u < std::size(falco::format_labels));
   return falco::format_labels[u];  // NOLINT(*-pro-bounds-constant-array-index)

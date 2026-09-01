@@ -52,7 +52,7 @@ using qual_array = std::array<std::uint64_t, max_qual_val + 1>;
 }  // namespace falco
 
 [[nodiscard]] auto
-to_string(const falco::encoding e) -> std::string;
+encoding_to_string(const falco::encoding e) -> std::string;
 
 [[nodiscard]] auto
 get_quality_score_offset(const falco::encoding e) -> std::int64_t;
