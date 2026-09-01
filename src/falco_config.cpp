@@ -41,8 +41,8 @@ split(const std::string &s) {
 }
 
 auto
-load_config_and_set_graders(const std::string &filename,
-                            run_mode &mode) -> void {
+load_config_and_set_graders(const std::string &filename, run_mode &mode)
+  -> void {
   // ADS: (todo) handle carriage returns and other control chars
   std::ifstream in(filename);
   if (!in)
@@ -61,9 +61,10 @@ load_config_and_set_graders(const std::string &filename,
   }
 
   // modes
-  for (const auto &label : run_mode::get_labels())
+  std::ranges::for_each(run_mode::get_labels(), [&](const auto &label) {
     if (json_in.contains(label) && !json_in[label].contains("ignore"))
       throw std::runtime_error("invalid config: " + to_string(json_in[label]));
+  });
 
   std::unordered_map<std::string, bool> modes_in;
   try {
@@ -83,11 +84,12 @@ load_config_and_set_graders(const std::string &filename,
   mode.assign(modes_in);
 
   // grades
-  for (const auto &label : grade_labels)
-    if (json_in.contains(label) &&
-        !(json_in[label].contains("error") && json_in[label].contains("warn")))
-      throw std::runtime_error("missing config value for: " +
-                               std::string(label));
+  std::ranges::for_each(grade_labels, [&](const auto &l) {
+    if (json_in.contains(l) &&
+        !(json_in[l].contains("error") && json_in[l].contains("warn")))
+      throw std::runtime_error("missing config value for: " + std::string(l));
+  });
+
   std::unordered_map<std::string, grader> graders;
   try {
     for (const auto &label : grade_labels) {
