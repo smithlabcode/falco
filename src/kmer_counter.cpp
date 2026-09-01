@@ -174,10 +174,10 @@ kmer_counter::decode_kmer(auto word, const auto n_bases) -> std::string {
   return r;
 }
 
-auto
-kmer_counter::apply_groups([[maybe_unused]] const run_mode &mode) -> void {
-  // ADS: !!! should we be computing the 'results' here?
-}
+// auto
+// kmer_counter::apply_groups([[maybe_unused]] const run_mode &mode) -> void {
+//   // ADS: !!! should we be computing the 'results' here?
+// }
 
 [[nodiscard]] auto
 get_grade_kmer(const std::vector<kmer_result> &results) -> std::string {
