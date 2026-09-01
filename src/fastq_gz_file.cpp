@@ -19,6 +19,7 @@
 #include <ranges>
 #include <string>
 #include <system_error>
+#include <tuple>  // IWYU pragma: keep
 #include <vector>
 
 [[nodiscard]] auto
@@ -57,6 +58,7 @@ fastq_gz_file::get_chunks(const std::int64_t n_chunks,  //
   static constexpr auto rec_lines = 4;  // FASTQ
   assert(n_chunks > 0);
   const auto data = std::data(outbuf);
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const auto not_read_start = [](const auto s, const auto p) {
     // ADS: could get confused if '+' lines have full name info
     return s[p] != '@' || (p > 0 && s[p - 1] != '\n') ||
@@ -74,6 +76,7 @@ fastq_gz_file::get_chunks(const std::int64_t n_chunks,  //
       --p;
     return p;
   };
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const auto n_bytes_available =
     buf_sz - cursor;  // ADS: I think cursor must always be 0 here
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
