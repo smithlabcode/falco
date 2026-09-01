@@ -4,6 +4,7 @@
 #define SRC_CONTAMINANTS_HPP_
 
 #include <cstdint>
+#include <ranges>  // for std::pair
 #include <string>
 #include <utility>  // IWYU pragma: keep
 #include <vector>
