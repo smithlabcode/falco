@@ -95,7 +95,7 @@ static constexpr std::int64_t gigabytes = 1024 * 1024 * 1024;
 static constexpr std::int64_t megabytes = 1024 * 1024;
 static constexpr std::int64_t kilobytes = 1024;
 
-[[nodiscard]] inline auto
+inline auto
 resize_gc_content(const std::uint32_t updated_length,
                   std::vector<falco::gc_content_t> &gc_content) {
   const auto prev_size = std::size(gc_content);
@@ -340,8 +340,8 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 
 [[nodiscard]] auto
-size_to_units(const std::int64_t s,
-              const std::string &suffix = "iB") -> std::string;
+size_to_units(const std::int64_t s, const std::string &suffix = "iB")
+  -> std::string;
 
 [[nodiscard]] inline auto
 get_max_size(const auto &x) {
@@ -351,8 +351,8 @@ get_max_size(const auto &x) {
 }
 
 [[nodiscard]] inline auto
-estimate_read_length_fastq_chunk(const auto &data,
-                                 const auto n) -> std::uint64_t {
+estimate_read_length_fastq_chunk(const auto &data, const auto n)
+  -> std::uint64_t {
   static constexpr auto fastq_lines_per_read = 4;
   assert(n >= 1);
   const auto valid = [](const auto c) {
