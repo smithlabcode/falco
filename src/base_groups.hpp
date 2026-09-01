@@ -23,8 +23,8 @@ make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
                  const std::uint64_t n_groups_target) -> base_group_vec;
 
 [[nodiscard]] auto
-get_default_base_groups(const std::uint64_t n_bases,
-                        const bool make_groups) -> base_group_vec;
+get_default_base_groups(const std::uint64_t n_bases, const bool make_groups)
+  -> base_group_vec;
 
 [[nodiscard]] auto
 make_group_tag(const base_group_t g) -> std::string;
@@ -32,7 +32,7 @@ make_group_tag(const base_group_t g) -> std::string;
 [[nodiscard]] auto
 make_group_tag_quoted(const base_group_t g) -> std::string;
 
-[[nodiscard]] auto
+void
 apply_base_groups(const base_group_vec &groups, auto &rows) {
   assert(std::size(rows) <= groups.back().second);
   auto group_itr = std::cbegin(groups);
@@ -50,7 +50,7 @@ apply_base_groups(const base_group_vec &groups, auto &rows) {
   rows.resize(current_row);
 }
 
-[[nodiscard]] auto
+void
 apply_base_groups(const base_group_vec &groups, auto &rows, const auto &adder) {
   assert(std::size(rows) <= groups.back().second);
   auto group_itr = std::cbegin(groups);
