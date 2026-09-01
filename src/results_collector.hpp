@@ -134,7 +134,8 @@ struct alignas(assumed_page_size) results_collector {
     const auto seq_end = get_seq_end(rec);
     count_nucs(seq_itr, seq_end, base_counts);
     const auto gc = count_gc(seq_itr, seq_end);
-    assert(get_arr_idx(read_len) < std::ssize(gc_content));
+    assert(static_cast<std::uint64_t>(get_arr_idx(read_len)) <
+           std::size(gc_content));
     ++gc_content[get_arr_idx(read_len)][get_gc_idx(gc, read_len)];
     count_ns(seq_itr, seq_end, n_counts);
     const auto tot = count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
@@ -196,17 +197,17 @@ accumulate_results(std::vector<std::vector<results_collector>> &r,
 }
 
 inline auto
-process_reads(results_collector &results, fq_task_t &task) {
+process_reads(results_collector &results, const fq_task_t &task) {
   results.process_reads_fq(task.beg, task.end);
 }
 
 inline auto
-process_reads(results_collector &results, bam_task_t &task) {
+process_reads(results_collector &results, const bam_task_t &task) {
   results.process_reads_bam(task.beg, task.end);
 }
 
 inline auto
-process_reads(results_collector &results, sam_task_t &task) {
+process_reads(results_collector &results, const sam_task_t &task) {
   results.process_reads_sam(task.beg, task.end);
 }
 
