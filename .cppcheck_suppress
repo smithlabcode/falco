@@ -35,9 +35,12 @@ missingInclude
 *:*CLI11.hpp
 *:*json.hpp
 *:*boost_unordered.hpp
+*:fmt/*.h
 # Problem caused by external files
 toomanyconfigs
 # More problems caused by external files -- with too many ifdefs
 normalCheckLevelMaxBranches
 # This seems not to work with the designs used here
 duplInheritedMember
+# Seems like iterator variables for std::views disagree with this
+constStatement
