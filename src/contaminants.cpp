@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>  // for std::get
 #include <utility>
 #include <vector>
 
@@ -197,7 +198,8 @@ load_contaminants(const std::string &filename) -> void {
       continue;
     line.remove_suffix(std::size(line) - to_keep_suffix - 1);
     std::string cleaned_line;
-    for (auto itr = std::cbegin(line); itr != std::cend(line); ++itr)
+    for (auto itr = std::cbegin(line); itr != std::cend(line);
+         itr = std::next(itr))
       if (!std::isblank(*itr) ||
           (std::next(itr) != std::cend(line) && *itr != *std::next(itr)))
         cleaned_line += *itr;
