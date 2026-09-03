@@ -58,7 +58,7 @@ fastq_stdin::get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
     return pos;
   };
   // clang-format on
-  const auto n_bytes_available = std::distance(beg_itr, last);
+  const std::int64_t n_bytes_available = std::distance(beg_itr, last);
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   std::vector<std::pair<std::int64_t, std::int64_t>> chunks(n_chunks);
   auto start_itr = beg_itr;
