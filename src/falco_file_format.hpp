@@ -23,6 +23,19 @@ enum class file_format : std::uint8_t {
   bam,
 };
 
+// clang-format off
+static constexpr auto file_format_names_impl = std::array{
+  "unknown",     //
+  "fastq",       //
+  "fastq_gz",    //
+  "fastq_bgzf",  //
+  "sam",         //
+  "bam",         //
+};
+// clang-format on
+
+static constexpr std::span file_format_names = file_format_names_impl;
+
 // NOLINTNEXTLINE
 NLOHMANN_JSON_SERIALIZE_ENUM(  //
   file_format,                 //
@@ -62,7 +75,7 @@ struct std::formatter<falco::file_format> : std::formatter<std::string> {
   auto
   format(const falco::file_format &f, auto &ctx) const {
     return std::formatter<std::string>::format(
-      std::to_string(std::to_underlying(f)), ctx);
+      falco::file_format_names[std::to_underlying(f)], ctx);
   }
 };
 
