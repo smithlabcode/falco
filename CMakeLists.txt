@@ -83,6 +83,7 @@ add_library(base_groups OBJECT src/base_groups.cpp)
 add_library(bgzf_block OBJECT src/bgzf_block.cpp)
 add_library(bgzf_reader OBJECT src/bgzf_reader.cpp)
 add_library(fastq_file OBJECT src/fastq_file.cpp)
+add_library(fastq_stdin OBJECT src/fastq_stdin.cpp)
 add_library(fastq_gz_file OBJECT src/fastq_gz_file.cpp)
 add_library(fastq_bgzf_file OBJECT src/fastq_bgzf_file.cpp)
 add_library(bam_header OBJECT src/bam_header.cpp)
@@ -131,6 +132,7 @@ target_link_libraries(falco PRIVATE
   original_duplicates
   kmer_counter
   fastq_file
+  fastq_stdin
   fastq_gz_file
   fastq_bgzf_file
   bam_file
