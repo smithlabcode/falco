@@ -23,7 +23,7 @@ sam_file::sam_file(const std::string &filename, const std::int64_t buf_size) :
     std::system_error(std::make_error_code(std::errc(errno)),
                       "failed to read file");
   if (!skip_header())
-    std::runtime_error("failed to validated SAM file header: " + filename);
+    std::runtime_error("failed to validate SAM header: " + filename);
   cursor = std::begin(buffer);
   last = std::begin(buffer);
 }
@@ -77,14 +77,14 @@ sam_file::get_chunks(const std::int64_t n_chunks,  //
   };
   // clang-format on
   const auto n_bytes_available = std::distance(beg_itr, end_itr);
-  const auto chunk_size = (n_bytes_available + n_chunks - 1) / n_chunks;
+  const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   assert(n_chunks > 0);
-  auto start_pos = beg_itr;
-  auto chunk_end = beg_itr;
+  auto start_itr = beg_itr;
+  auto chunk_end = start_itr;
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
-    const auto chunk_beg = fwd_to_read_start(start_pos);
-    auto stop_pos = start_pos + chunk_size;
-    chunk_end = fwd_to_read_start(stop_pos);
+    const auto chunk_beg = fwd_to_read_start(start_itr);
+    const auto stop_itr = start_itr + chunk_size + (chunk_idx < remainder);
+    chunk_end = fwd_to_read_start(stop_itr);
     if (chunk_idx + 1 == n_chunks) {  // final chunk has only full records
       const auto prev_start = rev_to_read_start(chunk_end);
       const auto n_trailing = std::count(prev_start, end_itr, '\n');
@@ -93,9 +93,19 @@ sam_file::get_chunks(const std::int64_t n_chunks,  //
     }
     ++n_tasks;
     tq.push(file_id, sam_task_t(chunk_beg, chunk_end));
-    start_pos = stop_pos;
+    start_itr = stop_itr;
   }
   cursor = chunk_end;
+}
+
+auto
+sam_file::load_next() -> void {
+  const auto n_bytes = std::distance(last, std::end(buffer));
+  last += static_cast<std::int64_t>(
+    std::fread(std::to_address(last), 1, n_bytes, in.get()));
+  if (std::ferror(in.get()))
+    std::system_error(std::make_error_code(std::errc(errno)),
+                      "error reading SAM file");
 }
 
 auto
@@ -105,11 +115,6 @@ sam_file::make_tasks(const std::int64_t n_chunks,  //
                      std::atomic_int32_t &n_tasks) -> void {
   n_tasks = 1;  // for current task, which makes more tasks
   shift_output_buffer();
-  const auto n_bytes = std::distance(last, std::end(buffer));
-  const auto r = std::fread(std::to_address(last), 1, n_bytes, in.get());
-  if (std::ferror(in.get()))
-    std::system_error(std::make_error_code(std::errc(errno)),
-                      "error reading SAM file");
-  last += static_cast<std::int64_t>(r);
+  load_next();
   get_chunks(n_chunks, file_id, tq, n_tasks);
 }
