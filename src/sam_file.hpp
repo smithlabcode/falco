@@ -53,6 +53,9 @@ private:
   auto
   shift_output_buffer() -> void;
 
+  auto
+  load_next() -> void;
+
   [[nodiscard]] auto
   skip_header() -> bool;
 };
