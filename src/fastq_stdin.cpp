@@ -60,7 +60,6 @@ fastq_stdin::get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
   // clang-format on
   const std::int64_t n_bytes_available = std::distance(beg_itr, last);
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
-  std::vector<std::pair<std::int64_t, std::int64_t>> chunks(n_chunks);
   auto start_itr = beg_itr;
   auto chunk_end = start_itr;
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
@@ -89,14 +88,16 @@ fastq_stdin::shift_output_buffer() -> void {
 
 auto
 fastq_stdin::load_next() -> void {
-  const auto n_bytes = std::distance(last, std::end(buffer));
-  const auto r = read(0, std::to_address(last), n_bytes);
-  if (r == -1)
-    std::system_error(std::make_error_code(std::errc(errno)),
-                      "error reading fastq from stdin");
-  if (r == 0)
-    hit_eof = true;
-  last += static_cast<std::int64_t>(r);
+  auto space = std::distance(last, std::end(buffer));
+  std::int64_t n{1};
+  while (space > 0 && (n = read(0, std::to_address(last), space)) != 0) {
+    if (n == -1)
+      std::system_error(std::make_error_code(std::errc(errno)),
+                        "error reading fastq from stdin");
+    space -= n;
+    last += n;
+  }
+  hit_eof = (n == 0);
 }
 
 auto
