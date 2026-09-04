@@ -35,33 +35,52 @@ tile_processor::init(const file_info &info) -> void {
 }
 
 [[nodiscard]] auto
-get_name_fastq(const std::string &filename) -> std::string {
+get_names_fastq(const std::string &filename) -> std::vector<std::string> {
+  static constexpr auto n_records = 100;
+  static constexpr auto n_lines_per_record = 4;
+  static constexpr auto n_total_lines = n_records * n_lines_per_record;
+  static constexpr auto name_line = 0;
   std::unique_ptr<BGZF, int (*)(BGZF *)> in(bgzf_open(std::data(filename), "r"),
                                             &bgzf_close);
   if (!in)
     throw std::runtime_error("failed to open gz file: " + filename);
-  kstring_t str = KS_INITIALIZE;
-  const auto r = bgzf_getline(in.get(), '\n', &str);
-  if (r < 0)
-    throw std::runtime_error("failed to read line from: " + filename);
-  std::string line(str.s, str.l);
-  ks_free(&str);
-  return line;
+  std::vector<std::string> names;
+  std::uint32_t line_count{};
+  for (auto i = 0; i < n_total_lines; ++i) {
+    kstring_t str = KS_INITIALIZE;
+    const auto r = bgzf_getline(in.get(), '\n', &str);
+    if (r == -1)  // EOF (htslib/bgzf.h)
+      break;
+    if (r < -1)  // ERROR (htslib/bgzf.h)
+      throw std::runtime_error("failed to read line from: " + filename);
+    if (line_count % n_lines_per_record == name_line)
+      names.emplace_back(str.s, str.l);
+    ks_free(&str);
+    ++line_count;
+  }
+  return names;
 }
 
 [[nodiscard]] auto
-get_name_bam(const std::string &filename) -> std::string {
+get_names_bam(const std::string &filename) -> std::vector<std::string> {
+  static constexpr auto n_records = 100;
   std::unique_ptr<samFile, int (*)(samFile *)> in(
     hts_open(std::data(filename), "r"), &hts_close);
   if (!in)
     throw std::runtime_error("failed to open BAM/SAM file: " + filename);
   std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h(sam_hdr_read(in.get()),
                                                       &sam_hdr_destroy);
-  std::unique_ptr<bam1_t, void (*)(bam1_t *)> b(bam_init1(), &bam_destroy1);
-  const auto r = sam_read1(in.get(), h.get(), b.get());  // -1 on EOF
-  if (r < -1)
-    throw std::runtime_error("failed reading bam record");
-  return bam_get_qname(b);
+  std::vector<std::string> names;
+  for (auto i = 0; i < n_records; ++i) {
+    std::unique_ptr<bam1_t, void (*)(bam1_t *)> b(bam_init1(), &bam_destroy1);
+    const auto r = sam_read1(in.get(), h.get(), b.get());  // -1 on EOF
+    if (r == -1)  // EOF (htslib/bgzf.h)
+      break;
+    if (r < -1)  // ERROR (htslib/bgzf.h)
+      throw std::runtime_error("failed reading BAM/SAM record: " + filename);
+    names.emplace_back(bam_get_qname(b));
+  }
+  return names;
 }
 
 [[nodiscard]] auto
@@ -168,7 +187,7 @@ tile_processor::add_and_consume(
   const auto pair_plus = [](const auto &a, const auto &b) {
     return std::pair{a.first + b.first, a.second + b.second};
   };
-  for (auto &[rhs_tile_id, rhs_qual] : rhs.quals) {
+  for (auto &&[rhs_tile_id, rhs_qual] : rhs.quals) {
     const auto quals_itr = quals.find(rhs_tile_id);
     if (quals_itr != std::end(quals)) {
       auto &curr_qual = quals_itr->second;
@@ -199,18 +218,41 @@ get_tile_info(const std::string &filename) -> std::uint32_t {
     throw std::runtime_error("failed to open file: " + filename);
 
   const auto hts_fmt = hts_get_format(fp.get());
-  if (hts_fmt->format != fastq_format && hts_fmt->format != bam &&
+  if (hts_fmt->format != fastq_format &&  //
+      hts_fmt->format != bam &&           //
       hts_fmt->format != sam)
     return 0;
 
-  const auto line = (hts_fmt->format == bam || hts_fmt->format == sam)
-                      ? get_name_bam(filename)
-                      : get_name_fastq(filename);
+  const auto names = (hts_fmt->format == bam || hts_fmt->format == sam)
+                       ? get_names_bam(filename)
+                       : get_names_fastq(filename);
 
-  const auto colons_found = std::ranges::count(line, ':');
-  return colons_found >= colon_cutoff_1
-           ? colon_cutoff_1_val
-           : (colons_found >= colon_cutoff_2 ? colon_cutoff_2_val : 0);
+  const auto n_colons =
+    std::ranges::min(names | std::views::transform([](const auto &x) {
+                       return std::ranges::count(x, ':');
+                     }));
+
+  const auto colon_cutoff_val =
+    (n_colons >= colon_cutoff_1)
+      ? colon_cutoff_1_val
+      : (n_colons >= colon_cutoff_2 ? colon_cutoff_2_val : 0);
+  // now verify that they are all valid
+  if (colon_cutoff_val > 0)
+    for (const auto &name : names) {
+      auto tile_itr = std::cbegin(name);
+      auto colon_count = 0;
+      while (colon_count < colon_cutoff_val && tile_itr != std::cend(name))
+        colon_count += (*tile_itr++ == ':');
+      std::uint32_t curr_tile_id{};
+      const auto [_, ec] =
+        std::from_chars(std::to_address(tile_itr),
+                        std::to_address(std::cend(name)), curr_tile_id);
+      if (ec != std::errc{})
+        throw std::system_error(
+          std::make_error_code(ec),
+          "error identifying numerical tile id; rerun with --no-tiles");
+    }
+  return colon_cutoff_val;
 }
 
 [[nodiscard]] auto
