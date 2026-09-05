@@ -86,19 +86,23 @@ fastq_stdin::shift_output_buffer() -> void {
 [[nodiscard]] static auto
 validate_fastq(const auto &buffer) {
   static constexpr auto n_bytes_to_validate = 16 * 1024;
-  // verify that no two consecutive newlines are followed by a '@'
-  bool prev_was_ampersand{false};
+  static constexpr auto name_line_symbol = '@';
+  static constexpr auto plus_line_symbol = '+';
+  static constexpr auto lines_per_rec = 4;
+  static constexpr auto name_line = 0;
+  static constexpr auto plus_line = 2;
+  bool prev_nl{true};
   auto n_bytes = 0;
-  for (auto itr = std::cbegin(buffer); itr + 1 != std::cend(buffer); ++itr) {
-    if (*itr == '\n') {
-      if (*(itr + 1) == '@') {
-        if (prev_was_ampersand)
-          return false;
-        prev_was_ampersand = true;
-      }
-      else
-        prev_was_ampersand = false;
-    }
+  auto n_lines = 0;
+  for (const auto c : buffer) {
+    if (prev_nl && (n_lines % lines_per_rec == name_line) &&
+        c != name_line_symbol)
+      return false;
+    if (prev_nl && (n_lines % lines_per_rec == plus_line) &&
+        c != plus_line_symbol)
+      return false;
+    prev_nl = (c == '\n');
+    n_lines += prev_nl;
     if (++n_bytes == n_bytes_to_validate)
       return true;
   }
