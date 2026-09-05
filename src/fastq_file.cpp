@@ -47,7 +47,7 @@ estimate_n_reads_fastq(const std::string &filename)
     return {{}, {}, filesize};
 
   const auto [part_size, remainder] = (filesize < n_parts * max_part_size)
-                                        ? std::div(filesize, n_parts)
+                                        ? std::ldiv(filesize, n_parts)
                                         : std::ldiv_t{max_part_size, 0};
   auto n_lines = 0LU;
   auto readlen_est = 0LU;
@@ -151,7 +151,7 @@ fastq_file::get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
     return pos;
   };
   // clang-format on
-  const auto [chunk_size, remainder] = std::div(std::ssize(buffer), n_chunks);
+  const auto [chunk_size, remainder] = std::ldiv(std::ssize(buffer), n_chunks);
   auto start_pos = beg_itr;
   auto chunk_end = start_pos;
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
