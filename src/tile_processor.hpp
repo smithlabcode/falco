@@ -23,7 +23,7 @@ struct file_info;
 
 // Notes
 //
-// - The number of tiles should never exceed 2500?
+// - The number of tiles should not exceed 2500
 // - Among the first 10k reads, all should contribute to tiles?
 
 class tile_processor {
@@ -33,6 +33,7 @@ public:
   using qual_vec = std::vector<std::pair<std::uint64_t, std::uint64_t>>;
   using tile_qual_map_t = boost::unordered_flat_map<std::uint32_t, qual_vec>;
   static constexpr auto read_skip = 10 - 1;
+  static constexpr auto max_allowed_tiles = 2500;  // from FastQC
 
   std::uint32_t tile_id_position{};
   std::int32_t read_idx{};
@@ -61,8 +62,8 @@ public:
     if (read_idx-- == 0) [[unlikely]] {
       read_idx = read_skip;
       update_tile_id(get_name(rec), get_name_end(rec));
-      const auto curr_len = static_cast<std::uint32_t>(get_seq_size(rec));
-      if (curr_len > max_read_len)
+      if (const auto curr_len = static_cast<std::uint32_t>(get_seq_size(rec));
+          curr_len > max_read_len)
         resize(curr_len);
       count_quals_itr(get_qual(rec), get_qual_end(rec), qual);
     }
@@ -99,6 +100,8 @@ private:
 
   auto
   update_tile_id(const auto name_beg, const auto name_end) {
+    static constexpr auto too_many_tiles_msg =
+      R"(too many tiles observed; likely misidentified tile id position)";
     auto tile_itr = name_beg;
     auto colon_count = 0u;
     while (colon_count < tile_id_position && tile_itr != name_end)
@@ -107,15 +110,16 @@ private:
     const auto [_, ec] = std::from_chars(
       std::to_address(tile_itr), std::to_address(name_end), curr_tile_id);
     if (ec != std::errc{})
-      throw std::system_error(std::make_error_code(ec),
-                              "failed to parse tile id");
+      throw std::system_error(std::make_error_code(ec), "parsing tile id");
     if (curr_tile_id != tile_id) {
       tile_id = curr_tile_id;
-      auto tile_id_itr = quals.find(tile_id);
-      if (tile_id_itr == std::cend(quals))
-        tile_id_itr =
-          quals.emplace(tile_id, qual_vec(max_read_len, {0, 0})).first;
-      qual = std::begin(tile_id_itr->second);
+      auto id_itr = quals.find(tile_id);
+      if (id_itr == std::cend(quals)) {
+        id_itr = quals.emplace(tile_id, qual_vec(max_read_len, {0, 0})).first;
+        if (std::size(quals) > max_allowed_tiles)
+          throw std::runtime_error(too_many_tiles_msg);
+      }
+      qual = std::begin(id_itr->second);
     }
   }
 };
