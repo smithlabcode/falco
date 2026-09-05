@@ -3,7 +3,7 @@
 // clang-format off
 static constexpr auto about = R"(Falco v{})";
 static constexpr auto description =
-  R"(Note: Always use bgzip when compressing files to gz format. It comes with samtools.
+  R"(Note: Always use bgzip when compressing to gz format. It comes with samtools.
 
 EXAMPLES:
 
@@ -32,6 +32,12 @@ $ falco --preseq -o results SRX081761_1.fq.gz
 Output files include:
 results/SRX081761_1/preseq_hist.txt
 
+Take input from a pipe (accepts FASTQ or SAM):
+$ samtools view SRX081761_1.bam | falco --stdin sam -o results SRX081761
+Output files will be created in "results/SRX081761".  Reading from stdin
+disables tile analysis. To re-enable it, specify either 4 or 6 to indicate
+position of the tile id in read names.  Example: "--stdin fq:4"
+
 Default configuration files can be found here:
 {}
 Use these as templates. Copy and modify them to customize your analysis.
@@ -50,6 +56,7 @@ Use these as templates. Copy and modify them to customize your analysis.
 #include "fastq_bgzf_file.hpp"
 #include "fastq_file.hpp"
 #include "fastq_gz_file.hpp"
+#include "fastq_stdin.hpp"
 #include "file_info.hpp"
 #include "get_binary_dir.hpp"
 #include "original_duplicates.hpp"
@@ -57,6 +64,7 @@ Use these as templates. Copy and modify them to customize your analysis.
 #include "results_summary.hpp"
 #include "run_mode.hpp"
 #include "sam_file.hpp"
+#include "sam_stdin.hpp"
 #include "tile_processor.hpp"
 
 #include "CLI11/CLI11.hpp"
@@ -143,6 +151,38 @@ make_reads_files(const std::vector<file_info> &infos,
 }
 
 [[nodiscard]] static auto
+make_reads_file_stdin(const std::vector<file_info> &infos,
+                      const std::int64_t buf_size)
+  -> std::vector<reads_file_t> {
+  std::vector<reads_file_t> reads_files;
+  switch (infos.front().format) {
+  case falco::file_format::fastq:
+    reads_files.emplace_back(fastq_stdin(buf_size));
+    break;
+  case falco::file_format::sam:
+    reads_files.emplace_back(sam_stdin(buf_size));
+    break;
+  default:
+    throw std::runtime_error("unsupported stdin file format");
+  }
+  return reads_files;
+}
+
+[[nodiscard]] static auto
+get_file_info_stdin(const std::vector<std::string> &names,
+                    const std::pair<falco::file_format, std::uint32_t> &ft_tile)
+  -> std::vector<file_info> {
+  file_info info;
+  info.name = names.front();
+  info.format = ft_tile.first;
+  info.description = std::format("{} from standard input", info.format);
+  info.size = 0;
+  info.has_tiles = (ft_tile.second != 0);
+  info.tile_id_position = ft_tile.second;
+  return std::vector<file_info>(1, info);
+}
+
+[[nodiscard]] static auto
 get_file_info(const auto &infiles) {
   std::vector<file_info> infos;
   for (const auto [file_id, infile] : falco::views::enumerate(infiles)) {
@@ -150,17 +190,17 @@ get_file_info(const auto &infiles) {
     const auto tile_id_position = get_tile_info(infile);
     const bool has_tiles = (tile_id_position != 0);
     const auto [n_reads_est, read_len_est, filesize] = [&] {
-      if (input_format == falco::file_format::bam)
-        return estimate_n_reads_bam(infile);
-      if (input_format == falco::file_format::sam)
-        return estimate_n_reads_bam(infile);
-      if (input_format == falco::file_format::fastq_bgzf)
-        return estimate_n_reads_fastq_bgzf(infile);
-      if (input_format == falco::file_format::fastq_gz)
-        return estimate_n_reads_fastq_gz(infile);
-      if (input_format == falco::file_format::fastq)
-        return estimate_n_reads_fastq(infile);
-      throw std::runtime_error("invalid reads file format");
+      // clang-format off
+      using falco::file_format;
+      switch (input_format) {
+      case file_format::bam: return estimate_n_reads_bam(infile);
+      case file_format::sam: return estimate_n_reads_bam(infile);
+      case file_format::fastq_bgzf: return estimate_n_reads_fastq_bgzf(infile);
+      case file_format::fastq_gz: return estimate_n_reads_fastq_gz(infile);
+      case file_format::fastq: return estimate_n_reads_fastq(infile);
+      default: throw std::runtime_error("invalid reads file format");
+      }
+      // clang-format on
     }();
     infos.push_back({
       .name = std::filesystem::path{infile}.filename().string(),
@@ -256,15 +296,20 @@ main(int argc, char *argv[]) {
       {"k"s, kilobytes},
     });
 
-    const auto license_callback = [&](auto) {
-      std::print("{}", license_text);
-      throw CLI::Success();
-    };
-
     struct FormatWithoutFlagDefaults : public CLI::Formatter {
       FormatWithoutFlagDefaults() : Formatter() {
         CLI::FormatterBase::enable_default_flag_values_ = false;
       }
+    };
+
+    // Related to reading data from stdin
+    const auto format_name_map = std::map{
+      std::pair{"fq"s, falco::file_format::fastq},
+      {"sam"s, falco::file_format::sam},
+    };
+    auto stdin_info = std::pair{
+      falco::file_format::unknown,
+      0U,
     };
 
     CLI::App app{std::format(about, VERSION)};
@@ -277,18 +322,20 @@ main(int argc, char *argv[]) {
     if (argc >= 2)
       app.footer(std::format(description, falco::get_share_dir()));
 
+    // clang-format off
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     app.get_formatter()->long_option_alignment_ratio(0.2);
     app.set_help_flag("-h,--help", "Print more detailed help");
     app.set_version_flag("--version", VERSION, "Print program version");
-    // clang-format off
-    app.add_flag("--license", license_callback, "Print full license")
+    app.add_flag("--license", [&](auto) { std::print("{}", license_text); throw CLI::Success(); },
+                 "Print full license")
       ->callback_priority(CLI::CallbackPriority::PreRequirementsCheck);
-    app.add_option("INFILES", infiles,
-                   "FASTQ (plain, GZIP or BGZF) or BAM/SAM")
-      ->required()
+    auto infiles_opt =
+      app.add_option("INFILES", infiles,
+                     "FASTQ (plain, GZIP or BGZF) or BAM/SAM")
       ->option_text(" ")
-      ->check(CLI::ExistingFile);
+      ->required()
+      ->check(CLI::ExistingFile, "file_check");
     app.add_option("-o,--output", outdir, "Output directory (required)")
       ->required()
       ->option_text("DIR");
@@ -321,6 +368,22 @@ main(int argc, char *argv[]) {
       ->option_text(" ")
       ->capture_default_str()
       ->transform(size_from_units);
+    app.add_option_function<std::pair<falco::file_format, std::uint32_t>>(
+      "--stdin",
+      [&](const auto &arg) { // callback is to allow trailing arg to be name
+        stdin_info = arg;
+        infiles_opt->get_validator("file_check")->active(false);
+        infiles_opt->expected(1);
+      },
+      "Read from stdin assuming given format (see help)")
+      ->option_text("fq|sam[:{4,6}]")
+      ->delimiter(':')
+      ->allow_extra_args(false)
+      ->type_size(1, 2)
+      ->transform(CLI::CheckedTransformer(format_name_map, CLI::ignore_case)
+                  .application_index(0))
+      ->check(CLI::IsMember({4, 6}).application_index(1))
+      ->callback_priority(CLI::CallbackPriority::PreRequirementsCheck);
     app.add_flag("--bisulfite", do_bisulfite,
                  "Assume bisulfite when grading sequence content")
       ->option_text(" ");
@@ -357,6 +420,8 @@ main(int argc, char *argv[]) {
       return EXIT_SUCCESS;
     }
     CLI11_PARSE(app, argc, argv);
+
+    const bool do_stdin = stdin_info.first != falco::file_format::unknown;
 
     run_mode mode;  // declare mode here so we can assign from config file
     if (!config_file.empty())
@@ -401,7 +466,8 @@ main(int argc, char *argv[]) {
                  adapters_file, adapter_set::n_adapters());
 
     // not const because infos will change later when we can deduce the encoding
-    auto infos = get_file_info(infiles);
+    auto infos = do_stdin ? get_file_info_stdin(infiles, stdin_info)
+                          : get_file_info(infiles);
 
     // restrict buffer size to avoid using a possibly harmful amount of memory
     const auto get_sz = [](const auto &i) { return i.size; };
@@ -440,9 +506,11 @@ main(int argc, char *argv[]) {
     auto dups = do_original_dups
                   ? initialize_original_duplicates(infiles, infos, n_threads)
                   : std::vector<dups_init_t>{};
+    auto reads_files = do_stdin ? make_reads_file_stdin(infos, buffer_size)
+                                : make_reads_files(infos, infiles, buffer_size);
     auto results =
-      analyze(n_threads, mode, infos,
-              make_reads_files(infos, infiles, buffer_size), std::move(dups));
+      analyze(n_threads, mode, infos, std::move(reads_files), std::move(dups));
+
     write_output(mode, infos, outdirs, std::move(results));
 
     if (verbose)
