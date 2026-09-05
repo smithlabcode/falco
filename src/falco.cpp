@@ -370,7 +370,7 @@ main(int argc, char *argv[]) {
       ->transform(size_from_units);
     app.add_option_function<std::pair<falco::file_format, std::uint32_t>>(
       "--stdin",
-      [&](const auto &arg) { // callback is to allow trailing arg to be name
+      [&](const auto &arg) {  // callback is to allow trailing arg to be name
         stdin_info = arg;
         infiles_opt->get_validator("file_check")->active(false);
         infiles_opt->expected(1);
@@ -382,6 +382,7 @@ main(int argc, char *argv[]) {
       ->type_size(1, 2)
       ->transform(CLI::CheckedTransformer(format_name_map, CLI::ignore_case)
                   .application_index(0))
+      // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
       ->check(CLI::IsMember({4, 6}).application_index(1))
       ->callback_priority(CLI::CallbackPriority::PreRequirementsCheck);
     app.add_flag("--bisulfite", do_bisulfite,

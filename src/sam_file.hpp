@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <iterator>
-#include <memory>
+#include <memory>  // IWYU pragma: keep
 #include <string>
 #include <vector>
 

@@ -6,12 +6,9 @@
 #include <atomic>
 #include <compare>
 #include <cstdint>
-#include <cstdio>
 #include <iterator>
-#include <memory>
 #include <string>
 #include <tuple>
-#include <variant>
 #include <vector>
 
 struct task_queue;
@@ -23,7 +20,7 @@ struct fastq_stdin {
   std::vector<char>::iterator last;
   bool hit_eof{};
 
-  fastq_stdin(const std::int64_t buf_size);
+  explicit fastq_stdin(const std::int64_t buf_size);
   operator bool() const { return cursor < last || !hit_eof; }
 
   // clang-format off

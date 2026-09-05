@@ -10,17 +10,21 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <algorithm>  // IWYU pragma: keep
+#include <algorithm>
 #include <cassert>
+#include <cerrno>
+#include <compare>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <iterator>
+#include <memory>
 #include <ranges>
 #include <span>
 #include <string>
 #include <system_error>
-#include <tuple>  // IWYU pragma: keep
-#include <type_traits>
-#include <utility>
+#include <tuple>
 #include <vector>
 
 [[nodiscard]] auto
@@ -119,6 +123,7 @@ fastq_file::load_next() -> void {
   if (start_in_file < stop_in_file) {  // this exist for empty files
     length = stop_in_file - start_in_file;
     mmap_fastq(fd, start_in_file, length, mmap_data);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     buffer = std::span(mmap_data + offset_in_buf, length - offset_in_buf);
   }
 }

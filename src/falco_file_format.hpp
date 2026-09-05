@@ -5,8 +5,10 @@
 
 #include "nlohmann/json.hpp"
 
+#include <array>
 #include <cstdint>
 #include <format>
+#include <span>
 #include <string>
 #include <thread>
 #include <tuple>
