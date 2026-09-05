@@ -86,6 +86,28 @@ fastq_stdin::shift_output_buffer() -> void {
   cursor = std::begin(buffer);
 }
 
+[[nodiscard]] static auto
+validate_fastq(const auto &buffer) {
+  static constexpr auto n_bytes_to_validate = 16 * 1024;
+  // verify that no two consecutive newlines are followed by a '@'
+  bool prev_was_ampersand{false};
+  auto n_bytes = 0;
+  for (auto itr = std::cbegin(buffer); itr + 1 != std::cend(buffer); ++itr) {
+    if (*itr == '\n') {
+      if (*(itr + 1) == '@') {
+        if (prev_was_ampersand)
+          return false;
+        prev_was_ampersand = true;
+      }
+      else
+        prev_was_ampersand = false;
+    }
+    if (++n_bytes == n_bytes_to_validate)
+      return true;
+  }
+  return true;
+}
+
 auto
 fastq_stdin::load_next() -> void {
   auto space = std::distance(last, std::end(buffer));
@@ -98,6 +120,8 @@ fastq_stdin::load_next() -> void {
     last += n;
   }
   hit_eof = (n == 0);
+  if (!validate_fastq(buffer))
+    throw std::runtime_error("input appears not to be FASTQ");
 }
 
 auto
