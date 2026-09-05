@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <iterator>
+#include <span>
 #include <string>
 #include <system_error>
 #include <tuple>
@@ -21,25 +22,17 @@ struct task_queue;
 
 struct fastq_file {
   static constexpr auto min_buf_size = 65536;
-  std::int64_t target_buffer_size{};
+  std::int64_t target_length{};
   std::int64_t filesize{};
-  char *buffer{};
-  std::int64_t buffer_size{};
+  char *mmap_data{};
+  std::int64_t length{};
   std::int64_t start_in_file{};
   std::int64_t stop_in_file{};
-  std::int64_t cursor{};
   int fd{};
+  std::span<char> buffer{};
+  std::span<char>::iterator last{};
 
-  fastq_file(const std::string &filename,
-             const std::int64_t target_buffer_size) :
-    target_buffer_size{
-      std::max(target_buffer_size, static_cast<std::int64_t>(min_buf_size))},
-    filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
-    fd{open(std::data(filename), O_RDONLY, 0)} {
-    if (fd < 0)
-      throw std::system_error(std::make_error_code(std::errc(errno)),
-                              "failed to open file: " + filename);
-  }
+  fastq_file(const std::string &filename, const std::int64_t target_length);
 
   // clang-format off
   fastq_file(const fastq_file &) = delete;
@@ -48,14 +41,15 @@ struct fastq_file {
   // clang-format on
 
   fastq_file(fastq_file &&src) noexcept :
-    target_buffer_size{src.target_buffer_size},  //
-    filesize{src.filesize},                      //
-    buffer{src.buffer},                          //
-    buffer_size{src.buffer_size},                //
-    start_in_file{src.start_in_file},            //
-    stop_in_file{src.stop_in_file},              //
-    cursor{src.cursor},                          //
-    fd{dup(src.fd)}                              // <- LOOK
+    target_length{src.target_length},  //
+    filesize{src.filesize},            //
+    mmap_data{src.mmap_data},          //
+    length{src.length},                //
+    start_in_file{src.start_in_file},  //
+    stop_in_file{src.stop_in_file},    //
+    fd{dup(src.fd)},                   // <- LOOK
+    buffer{src.buffer},                //
+    last{src.last}                     //
   {}
 
   auto
