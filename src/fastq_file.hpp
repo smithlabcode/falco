@@ -3,18 +3,12 @@
 #ifndef SRC_FASTQ_FILE_HPP_
 #define SRC_FASTQ_FILE_HPP_
 
-#include <fcntl.h>
 #include <unistd.h>
 
-#include <algorithm>
 #include <atomic>
-#include <cerrno>
 #include <cstdint>
-#include <filesystem>
-#include <iterator>
 #include <span>
 #include <string>
-#include <system_error>
 #include <tuple>
 #include <variant>
 

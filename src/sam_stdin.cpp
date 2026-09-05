@@ -4,23 +4,25 @@
 #include "samrec.hpp"
 #include "task_queue.hpp"
 
+#include <unistd.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <cerrno>
 #include <cstdint>
-#include <cstdio>
+#include <cstdlib>
 #include <iterator>
+#include <memory>
 #include <ranges>
-#include <stdexcept>
 #include <string>
 #include <system_error>
+#include <tuple>  // IWYU pragma: keep
 
 sam_stdin::sam_stdin(const std::int64_t buf_size) :
   buffer(buf_size + min_buf_size), cursor{std::begin(buffer)},
   last{std::begin(buffer)} {
-  if (!skip_header())
-    std::runtime_error("failed to validate SAM header: stdin");
+  skip_header();
 }
 
 [[nodiscard]] auto
@@ -32,8 +34,8 @@ estimate_n_reads_sam_stdin(const std::string &)
   return {assumed_n_reads, assumed_read_len, assumed_filesize};
 }
 
-[[nodiscard]] auto
-sam_stdin::skip_header() -> bool {
+auto
+sam_stdin::skip_header() -> void {
   bool pre_header = true;
   while (cursor == std::cbegin(buffer)) {
     load_next();
@@ -51,7 +53,6 @@ sam_stdin::skip_header() -> bool {
       shift_output_buffer();  // in prep for subsequent load-next
     }
   }
-  return true;
 }
 
 auto
@@ -110,8 +111,8 @@ sam_stdin::load_next() -> void {
   std::int64_t n{1};
   while (space > 0 && (n = read(0, std::to_address(last), space)) != 0) {
     if (n == -1)
-      std::system_error(std::make_error_code(std::errc(errno)),
-                        "error reading fastq from stdin");
+      throw std::system_error(std::make_error_code(std::errc(errno)),
+                              "error reading fastq from stdin");
     space -= n;
     last += n;
   }

@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <ranges>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <utility>

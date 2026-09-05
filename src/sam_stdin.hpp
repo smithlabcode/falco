@@ -6,10 +6,9 @@
 #include <atomic>
 #include <compare>
 #include <cstdint>
-#include <cstdio>
 #include <iterator>
-#include <memory>
 #include <string>
+#include <tuple>
 #include <vector>
 
 struct task_queue;
@@ -22,7 +21,7 @@ class sam_stdin {
   bool hit_eof{};
 
 public:
-  sam_stdin(const std::int64_t buf_size);
+  explicit sam_stdin(const std::int64_t buf_size);
   operator bool() const { return cursor < last || !hit_eof; }
 
   // clang-format off
@@ -56,8 +55,8 @@ private:
   auto
   load_next() -> void;
 
-  [[nodiscard]] auto
-  skip_header() -> bool;
+  auto
+  skip_header() -> void;
 };
 
 [[nodiscard]] auto

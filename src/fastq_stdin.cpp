@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "fastq_stdin.hpp"
-#include "falco_utils.hpp"
 #include "fqrec.hpp"
 #include "task_queue.hpp"
 
@@ -11,15 +10,13 @@
 #include <cassert>
 #include <cerrno>
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <ranges>
-#include <span>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <tuple>
-#include <utility>
 #include <vector>
 
 fastq_stdin::fastq_stdin(const std::int64_t buf_size) :
