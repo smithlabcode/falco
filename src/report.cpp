@@ -118,19 +118,17 @@ quality_sequence_report(const falco::qual_array &qual_by_read,
   r += header;
   // output quality values between first and last non-zero
   const auto gt0 = [&](const auto x) { return x > 0; };
-  const auto begin_obs_itr = std::ranges::find_if(qual_by_read, gt0);
-  if (begin_obs_itr == std::cend(qual_by_read))
+  const auto qbr = std::span(qual_by_read);
+  const auto beg_obs_itr = std::ranges::find_if(qbr, gt0);
+  const auto end_obs_itr = std::cbegin(std::ranges::find_last_if(qbr, gt0));
+  if (beg_obs_itr == std::cend(qbr) && end_obs_itr == std::cend(qbr))
     throw std::runtime_error("error finding quality scores generating report");
-  const std::int64_t begin_obs =
-    std::distance(std::cbegin(qual_by_read), begin_obs_itr);
-  const auto end_obs_subrange = std::ranges::find_last_if(qual_by_read, gt0);
-  const std::int64_t end_obs =
-    std::ssize(qual_by_read) - std::ssize(end_obs_subrange) + 1;
-  assert(begin_obs >= 0 && end_obs <= falco::max_qual_val);
-  for (const auto q : std::views::iota(begin_obs, end_obs))
-    // cppcheck-suppress useStlAlgorithm
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-    r += std::format("{}\t{}\n", q, qual_by_read[q]);
+  const auto beg_idx = std::distance(std::cbegin(qbr), beg_obs_itr);
+  const auto end_idx = std::distance(std::cbegin(qbr), end_obs_itr);
+  assert(end_idx <= falco::max_qual_val);
+  std::ranges::for_each(
+    std::views::iota(beg_idx, end_idx + 1),
+    [&](const auto q) { r += std::format("{}\t{}\n", q, qbr[q]); });
   r += end_module_tag;
   return r;
 }
@@ -208,8 +206,8 @@ basic_stats_report(const file_info &info, const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 tile_report(const tile_processor::tiles_centered_t &centered,
-            const std::vector<base_group_t> &groups, const file_grades &grades)
-  -> std::string {
+            const std::vector<base_group_t> &groups,
+            const file_grades &grades) -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto max_precision{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
@@ -228,8 +226,8 @@ tile_report(const tile_processor::tiles_centered_t &centered,
 }
 
 [[nodiscard]] auto
-kmer_report(const std::vector<kmer_result> &results, const file_grades &grades)
-  -> std::string {
+kmer_report(const std::vector<kmer_result> &results,
+            const file_grades &grades) -> std::string {
   static constexpr auto label = "kmer";
   static constexpr auto start_tag = ">>Kmer Content\t{}\n";
   static constexpr auto header = "#Sequence\t"
