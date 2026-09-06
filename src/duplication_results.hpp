@@ -53,7 +53,8 @@ struct duplication_results {
   static constexpr auto max_n_reads_total{1'000'000};
   static constexpr auto max_reads_to_hash{100'000};
   static constexpr auto default_read_skip{10};
-  static constexpr auto overrep_cutoff = 0.001;
+  static constexpr auto overrep_frac_cutoff = 0.001;
+  static constexpr auto overrep_count_cutoff = 5;
 
   std::int64_t count_at_limit{};
   std::int64_t read_skip{default_read_skip};
