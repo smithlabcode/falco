@@ -82,7 +82,6 @@ Use these as templates. Copy and modify them to customize your analysis.
 #include <fstream>
 #include <functional>
 #include <iterator>
-#include <limits>
 #include <map>
 #include <memory>
 #include <print>
@@ -172,6 +171,10 @@ make_reads_file_stdin(const std::vector<file_info> &infos,
 get_file_info_stdin(const std::vector<std::string> &names,
                     const std::pair<falco::file_format, std::uint32_t> &ft_tile)
   -> std::vector<file_info> {
+  const auto [n_reads_est, read_len_est, _] =
+    ft_tile.first == falco::file_format::fastq
+      ? estimate_n_reads_fastq_stdin(names.front())
+      : estimate_n_reads_sam_stdin(names.front());
   file_info info;
   info.name = names.front();
   info.format = ft_tile.first;
@@ -179,6 +182,8 @@ get_file_info_stdin(const std::vector<std::string> &names,
   info.size = 0;
   info.has_tiles = (ft_tile.second != 0);
   info.tile_id_position = ft_tile.second;
+  info.n_reads_est = n_reads_est;
+  info.read_len_est = read_len_est;
   return std::vector<file_info>(1, info);
 }
 
@@ -267,6 +272,7 @@ main(int argc, char *argv[]) {
 
     static constexpr auto buffer_size_default = 256 * 1024 * 1024;
     static constexpr std::int64_t min_buf_size = 1024 * 1024;
+    static constexpr std::int64_t max_buf_size = 1024L * 1024L * 1024L * 1024L;
     std::vector<std::string> infiles;
     std::string contam_file;
     std::string config_file;
@@ -327,8 +333,9 @@ main(int argc, char *argv[]) {
     app.get_formatter()->long_option_alignment_ratio(0.2);
     app.set_help_flag("-h,--help", "Print more detailed help");
     app.set_version_flag("--version", VERSION, "Print program version");
-    app.add_flag("--license", [&](auto) { std::print("{}", license_text); throw CLI::Success(); },
-                 "Print full license")
+    app.add_flag("--license", [&](auto) {
+      std::print("{}", license_text); throw CLI::Success(); },
+      "Print full license")
       ->callback_priority(CLI::CallbackPriority::PreRequirementsCheck);
     auto infiles_opt =
       app.add_option("INFILES", infiles,
@@ -345,7 +352,7 @@ main(int argc, char *argv[]) {
       ->option_text(std::format("[{}]", n_threads));
     app.add_option("-m,--mem", buffer_size,
                    "Input memory buffer size (G/M/K units ok)")
-      ->check(CLI::Range(min_buf_size, std::numeric_limits<std::int64_t>::max()))
+      ->check(CLI::Range(min_buf_size, max_buf_size))
       ->option_text(std::format("[{}]", size_to_units(buffer_size_default)))
       ->capture_default_str()
       ->transform(size_from_units);
@@ -423,6 +430,14 @@ main(int argc, char *argv[]) {
     CLI11_PARSE(app, argc, argv);
 
     const bool do_stdin = stdin_info.first != falco::file_format::unknown;
+    if (do_stdin) {
+      const auto deduced_do_tiles = stdin_info.second ? 1 : -1;
+      if (do_tiles && do_tiles != deduced_do_tiles) {
+        std::println("inconsistent tile analysis args for data from stdin");
+        return EXIT_FAILURE;
+      }
+      do_tiles = deduced_do_tiles;
+    }
 
     run_mode mode;  // declare mode here so we can assign from config file
     if (!config_file.empty())
@@ -473,7 +488,7 @@ main(int argc, char *argv[]) {
     // restrict buffer size to avoid using a possibly harmful amount of memory
     const auto get_sz = [](const auto &i) { return i.size; };
     const auto max_sz = std::ranges::max(std::views::transform(infos, get_sz));
-    buffer_size = buffer_size < max_sz ? buffer_size : max_sz;
+    buffer_size = buffer_size < max_sz ? buffer_size : min_buf_size;
 
     const auto min_buffer_size = get_min_buffer_size(max_read_length);
     if (min_buffer_size > buffer_size) {
