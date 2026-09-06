@@ -56,7 +56,7 @@ private:
 };
 
 [[nodiscard]] auto
-estimate_n_reads_fastq(const std::string &filename)
+estimate_n_reads_fastq_stdin(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
 inline auto
