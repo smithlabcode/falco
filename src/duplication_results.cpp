@@ -109,7 +109,9 @@ duplication_results::get_preseq_hist() const
 [[nodiscard]] auto
 duplication_results::get_overrepresented(const std::uint64_t n_reads) const
   -> std::vector<overrep_t> {
-  const auto cutoff = static_cast<double>(n_reads) * overrep_cutoff;
+  const auto cutoff =
+    std::max(static_cast<double>(n_reads) * overrep_frac_cutoff,
+             static_cast<double>(overrep_count_cutoff));
   const auto gte_cutoff = [&](const auto p) { return p.second >= cutoff; };
   const auto rev_p = [&](const auto p) { return std::pair{p.second, p.first}; };
   auto overrep = dups | std::views::filter(gte_cutoff) |
