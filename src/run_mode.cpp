@@ -44,6 +44,11 @@
 // do_original_dups (use the original duplication mode from FastQC and Falco v1)
 // do_preseq (make another output file for input to preseq)
 //
+// ADS (2026-09-08 edit): added do_stdin because otherwise it's a floating
+// almost global variable.
+//
+// do_stdin (multiple effects; allows input of FASTQ or SAM from stdin)
+//
 // clang-format on
 
 // clang-format off
@@ -64,6 +69,7 @@ std::vector<std::string> run_mode::labels{  // NOLINT(cert-err58-cpp)
 
 auto
 run_mode::assign(const std::unordered_map<std::string, bool> &modes) -> void {
+  // ADS: only assigns settings that could be from the config file
   static const auto set_mode = [&](const std::string &label, auto &the_mode) {
     const auto itr = modes.find(label);
     if (itr != std::cend(modes))
@@ -86,6 +92,7 @@ auto
 run_mode::set_unassigned() -> void {
   // clang-format off
   // settings below are not in config file
+  if (do_stdin_ == 0) do_stdin_ = do_stdin_default;
   if (do_groups_ == 0) do_groups_ = do_groups_default;
   if (do_bisulfite_ == 0) do_bisulfite_ = do_bisulfite_default;
   if (do_preseq_ == 0) do_preseq_ = do_preseq_default;
