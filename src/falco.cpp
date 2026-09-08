@@ -222,12 +222,14 @@ get_file_info(const auto &infiles) {
 }
 
 [[nodiscard]] static auto
-make_outdirs(const auto &ins, const auto &outdir) -> std::vector<std::string> {
+make_outdirs(const auto &ins, const auto &outdir,
+             const bool keep_extn = false) -> std::vector<std::string> {
   namespace fs = std::filesystem;
   fs::create_directory(outdir);
   const auto compose_dirname = [&](const auto &fname) {
-    const auto without_path = fs::path{fname}.filename();
-    return (fs::path{outdir} / remove_extension(without_path)).string();
+    const auto without_path = fs::path{fname}.filename().string();
+    const auto name = keep_extn ? without_path : remove_extension(without_path);
+    return (fs::path{outdir} / name).string();
   };
   const auto dnames = ins | std::views::transform(compose_dirname);
   std::ranges::for_each(dnames, [](const auto &d) { fs::create_directory(d); });
@@ -460,7 +462,7 @@ main(int argc, char *argv[]) {
     mode.set_do_original_dups(do_original_dups);
     mode.set_unassigned();
 
-    const auto outdirs = make_outdirs(infiles, outdir);
+    const auto outdirs = make_outdirs(infiles, outdir, do_stdin);
 
     if (!contam_file.empty()) {
       load_contaminants(contam_file);
