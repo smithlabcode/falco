@@ -15,6 +15,7 @@
 #include <iterator>
 #include <memory>
 #include <ranges>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <tuple>  // IWYU pragma: keep
