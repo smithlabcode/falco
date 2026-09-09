@@ -16,6 +16,8 @@ struct file_grades;
 struct kmer_result;
 struct file_info;
 
+static constexpr auto html_readlen_cutoff = 1000;
+
 // grade / section_label / section_title / grade / text
 static constexpr auto html_module_fmt =
   R"(<div class="module">
