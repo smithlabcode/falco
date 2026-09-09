@@ -29,7 +29,8 @@
 #include <span>
 #include <stdexcept>
 #include <string>
-#include <tuple>  // for std::get probably in fmt
+#include <tuple>    // for std::get probably in fmt
+#include <utility>  // for pair
 #include <vector>
 
 [[nodiscard]] auto
