@@ -19,16 +19,8 @@
 #include <unordered_map>
 #include <vector>
 
-#ifndef NDEBUG
-static bool applied_groups{false};
-#endif
-
 auto
 results_summary::apply_groups() -> void {
-#ifndef NDEBUG
-  assert(!applied_groups);
-  applied_groups = true;
-#endif
   groups = get_default_base_groups(max_read_len, mode.do_groups());
   if (mode.do_groups()) {
     apply_base_groups(groups, base_counts);
@@ -191,6 +183,10 @@ results_summary::get_html() -> std::string {
   if (!mode.do_groups() && max_read_len > html_readlen_cutoff) {
     mode.set_do_groups(1);
     apply_groups();
+    // ADS: this below is not good. The issues related to different groupings
+    // for the grading and report, vs. the HTML, need to be handled better
+    // overall.
+    centered = tp.get_centered();
   }
 
   if (mode.do_adap())
