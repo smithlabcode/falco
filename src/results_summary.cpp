@@ -19,8 +19,16 @@
 #include <unordered_map>
 #include <vector>
 
+#ifndef NDEBUG
+static bool applied_groups{false};
+#endif
+
 auto
 results_summary::apply_groups() -> void {
+#ifndef NDEBUG
+  assert(!applied_groups);
+  applied_groups = true;
+#endif
   groups = get_default_base_groups(max_read_len, mode.do_groups());
   if (mode.do_groups()) {
     apply_base_groups(groups, base_counts);
@@ -172,13 +180,18 @@ results_summary::get_report() const -> std::string {
 }
 
 [[nodiscard]] auto
-results_summary::get_html() const -> std::string {
+results_summary::get_html() -> std::string {
   const auto basic_stats =
     basic_stats_html(info, n_reads, min_read_len, max_read_len, median_read_len,
                      total_gc, total_bases, grades);
   auto sections = std::unordered_map<std::string, std::string>{
     {"basic_stats", basic_stats},
   };
+
+  if (!mode.do_groups() && max_read_len > html_readlen_cutoff) {
+    mode.set_do_groups(1);
+    apply_groups();
+  }
 
   if (mode.do_adap())
     sections.emplace("adapter", am.html(n_reads, max_read_len, groups, grades));
