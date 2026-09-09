@@ -80,7 +80,7 @@ struct results_summary {
   get_report() const -> std::string;
 
   [[nodiscard]] auto
-  get_html() const -> std::string;
+  get_html() -> std::string;
 
   [[nodiscard]] auto
   get_summary() const -> std::string;
