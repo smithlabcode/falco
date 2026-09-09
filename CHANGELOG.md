@@ -8,7 +8,7 @@ Changes:
 * Building on macOS: code updates for easier building using Apple Clang on
   macOS.
 * Standard input: Falco can now accept piped or redirected input from stdin in
-  either SAM or FASTQ format.
+  either SAM or FASTQ format (thanks to @kerrycobb for initiating this).
 
 ## falco 2.0.1 (2026-08-12)
 
