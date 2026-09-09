@@ -426,7 +426,7 @@ yaxis: {{title: "tile", type: "category"}},
   };
   const auto z = std::views::transform(centered | std::views::values, format1);
 
-  assert(std::size(centered) == std::size(groups));
+  assert(std::size(std::cbegin(centered)->second) == std::size(groups));
   const auto grade = grades.grade(label);
   const auto title = grades.get_title(label);
   return fmt::format(
