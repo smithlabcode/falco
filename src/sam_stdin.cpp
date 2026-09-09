@@ -119,6 +119,20 @@ sam_stdin::load_next() -> void {
   hit_eof = (n == 0);
 }
 
+[[nodiscard]] auto
+validate_sam(const auto &buffer) {
+  // SAM format has 11+ fields, tab separated and the docs give a regex for each
+  // field. We are only checking the first char of the first field.
+  static constexpr auto n_bytes_to_validate = 16L * 1024;
+  assert(std::size(buffer));
+  const auto n_bytes = std::min(n_bytes_to_validate, std::ssize(buffer));
+  const auto buf_end = std::cbegin(buffer) + n_bytes - (n_bytes >= 1L);
+  for (auto itr = std::cbegin(buffer); itr != buf_end; ++itr)
+    if (*itr == '\n' && *(itr + 1) == '@')
+      return false;
+  return true;
+}
+
 auto
 sam_stdin::make_tasks(const std::int64_t n_chunks,  //
                       const std::int32_t file_id,   //
@@ -127,5 +141,7 @@ sam_stdin::make_tasks(const std::int64_t n_chunks,  //
   n_tasks = 1;  // for current task, which makes more tasks
   shift_output_buffer();
   load_next();
+  if (!validate_sam(buffer))
+    throw std::runtime_error("input appears not to be SAM");
   get_chunks(n_chunks, file_id, tq, n_tasks);
 }
