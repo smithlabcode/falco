@@ -86,8 +86,8 @@ sequence_length_html(const std::vector<std::uint64_t> &lengths,
 Plotly.newPlot("length_plot",
 [{}],
 {{
-xaxis: {{title: "Sequence length"}},
-yaxis: {{title: "Number of sequences"}},
+xaxis: {{title: "Sequence length", automargin: true}},
+yaxis: {{title: "Number of sequences", automargin: true}},
 }});
 </script>
 )";
@@ -125,7 +125,7 @@ Plotly.newPlot("gc_sequence_plot",
 [{}],
 {{
 xaxis: {{title: "% GC"}},
-yaxis: {{title: "Density"}}
+yaxis: {{title: "Density", automargin: true}}
 }});
 </script>
 )";
@@ -168,7 +168,7 @@ sequence_html(const std::vector<falco::nuc_array> &nucs,
 Plotly.newPlot("sequence_plot",
 [{}],
 {{
-xaxis: {{title: "Base position"}},
+xaxis: {{title: "Base position", automargin: true}},
 yaxis: {{title: "Per base sequence content", range: [0, 100]}},
 }});
 </script>
@@ -228,7 +228,7 @@ line: {{color: "red"}},
 name: "Fraction of N reads per base"
 }}],
 {{
-xaxis: {{title: "Base position"}},
+xaxis: {{title: "Base position", automargin: true}},
 yaxis: {{title: "% N", range: [0, 100]}},
 }}
 );</script>
@@ -272,7 +272,7 @@ line: {{color: "red"}},
 name: "Sequence quality distribution"
 }}],
 {{
-xaxis: {{title: "Phred quality", range: [0, 40]}},
+xaxis: {{title: "Phred quality", range: [0, 40], automargin: true}},
 yaxis: {{title: "Density", rangemode: "tozero"}},
 }});
 </script>
@@ -308,7 +308,7 @@ Plotly.newPlot("quality_base_plot",
 [{}],
 {{
 showlegend: false,
-xaxis: {{title: "Base position"}},
+xaxis: {{title: "Base position", automargin: true}},
 yaxis: {{title: "Phred quality", rangemode: "tozero"}},
 }});
 </script>
@@ -399,7 +399,7 @@ showscale: true,
 }}],
 {{
 showlegend: false,
-xaxis: {{title: "Base position"}},
+xaxis: {{title: "Base position", automargin: true}},
 yaxis: {{title: "tile", type: "category"}},
 }}
 )""";
