@@ -1,6 +1,16 @@
 # falco changelog
 
-## falco 2.0.1 (2026-08-03)
+## falco 2.0.2 (2026-09-09)
+
+Changes:
+* Input for preseq: falco can output a file (`outdir/preseq_hist.txt`) that
+  can be directly input to preseq for library complexity analysis.
+* Building on macOS: code updates for easier building using Apple Clang on
+  macOS.
+* Standard input: Falco can now accept piped or redirected input from stdin in
+  either SAM or FASTQ format.
+
+## falco 2.0.1 (2026-08-12)
 
 Changes:
 * GC content distribution across reads now smoothing more similarly to falco v1
