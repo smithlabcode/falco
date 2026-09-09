@@ -9,6 +9,8 @@ Changes:
   macOS.
 * Standard input: Falco can now accept piped or redirected input from stdin in
   either SAM or FASTQ format (thanks to @kerrycobb for initiating this).
+* HTML report: for reads longer than 1000 bp, plots in the HTML will have
+  bases grouped to prevent generating very large, slow and unreadable HTML.
 
 ## falco 2.0.1 (2026-08-12)
 
