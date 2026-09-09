@@ -41,10 +41,9 @@ conda install -c bioconda falco
 
 ## Building
 
-- Falco uses features of C++23. To compile on Linux: GCC >= 14.2.0 or LLVM-Clang >= 20.0.0.
-  On macOS, GCC >= 15. Unfortunately GCC 16.1 has bugs that impact
-  falco, and 16.1 is the most recent on macOS through Homebrew. These seem to be
-  fixed in GCC 16.2, and GCC 15 can also be obtained through Homebrew.
+- Falco uses features of C++23. To compile on Linux:
+  GCC >= 14.2.0 or LLVM-Clang >= 20.0.0.  On macOS, GCC >= 15 or GCC 16.2, which
+  is the most recent (not GCC 16.1, which has a bug).
 - Falco uses the cmake build system.
 - Dependencies:
   * [HTSLib](https://github.com/samtools/htslib): used for identifying file formats.
@@ -72,7 +71,6 @@ specified directly.
 
 I'm explaining this via a clean Ubuntu instance in docker:
 ```
-docker pull ubuntu:latest
 docker run -it ubuntu:latest bash
 ```
 Inside the docker:
@@ -80,7 +78,6 @@ Inside the docker:
 export DEBIAN_FRONTEND=noninteractive &&
 apt-get update &&
 apt-get install -y --no-install-recommends \
-    libssl-dev \
     zlib1g-dev \
     libdeflate-dev \
     libisal-dev \
@@ -106,10 +103,10 @@ I don't have the same ability to test with clean OS images for macOS
 (suggestions welcome). The best I can do is use the GitHub macOS runners, which
 already have some of the dependencies installed. Here is what works:
 ```
-brew install libdeflate isa-l htslib samtools &&  # samtools for testing
+brew install libdeflate htslib samtools &&  # samtools for testing
 git clone https://github.com/smithlabcode/falco.git &&
 cd falco &&
-cmake -B build -DUSE_ISAL=on -DCMAKE_CXX_COMPILER=g++-15 -DCMAKE_BUILD_TYPE=Release &&
+cmake -B build -DCMAKE_CXX_COMPILER=g++-15 -DCMAKE_BUILD_TYPE=Release &&
 cmake --build build -j8 &&
 ctest --test-dir build
 ```
@@ -117,6 +114,8 @@ ZLib is already installed on macOS, HTSLib installs libdeflate as a dependency
 and samtools installs both as dependency. To see what's already installed on
 GitHub's macOS look
 [here](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-Readme.md).
+Note: ISA-L was designed for Intel hardware. It works on Apple silicon, but only
+gives 1-2% speedup in my tests.
 
 ## Changes in Falco v2.0
 
@@ -124,13 +123,14 @@ GitHub's macOS look
 
 I found that the method for tile analysis is a bit unstable, and the tile grade
 can be slightly unstable. The only way to notice this is to process reads from
-the same input file in different orders. This happens as a side effect of
+the same input file in different orders, which happens as a side effect of
 analyzing reads concurrently with threads. Here is my understanding of how
-FastQC works, and how I implemented falco v2.0. Please comment if you see
-anything incorrect.
+FastQC works, and how I implemented tile analysis in falco v2. Please comment if
+you see anything incorrect.
 
 - Tile analysis is done for 1/10 of the reads (though FastQC includes all among
   the first 10k reads).
+- If more than 2500 tiles are identified, an error is assumed.
 - Accumulating results: For each counted read, for each position in the read,
   the quality score contributes to that tile's mean for the given position.
 - Summarizing tile results: For each read position, the mean over tiles' quality
@@ -145,6 +145,11 @@ runs, so the 1/10 reads contributing to the tile analysis also changes between
 runs. I've noticed that this can lead to differences between runs, and in some
 cases this has changed the grade between pass/warn and warn/fail. So it is
 possible the grade can differ between runs for the same data.
+
+About input from stdin: If you are using standard input tile analysis is diabled
+unless you specify where to find the tile info in the read name, e.g.,
+`cat file.fq | falco --stdin fq:4 outdir`, where the 4 indicates that the tile is
+after the 4th colon in the read name. The only supported positions are 4 and 6.
 
 ### Duplication results
 
