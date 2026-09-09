@@ -38,6 +38,12 @@ Output files will be created in "results/SRX081761".  Reading from stdin
 disables tile analysis. To re-enable it, specify either 4 or 6 to indicate
 position of the tile id in read names.  Example: "--stdin fq:4"
 
+Group bases in the output:
+$ falco --groups -o results SRX081761_1.fastq
+Output is summarized in base position groups after the first 9 bp. As in FastQC,
+grouping is done before grading and therefore impacts grades. If reads exceed
+1000 bp grouping is done automatically in HTML files without impacting grades.
+
 Default configuration files can be found here:
 {}
 Use these as templates. Copy and modify them to customize your analysis.
@@ -116,7 +122,7 @@ write_output(
   for (const auto [result, info, outdir] :
        std::views::zip(results, infos, outdirs)) {
     const auto outdir_path = std::filesystem::path{outdir};
-    const auto summary = results_summary(std::move(result), mode, info);
+    auto summary = results_summary(std::move(result), mode, info);
     write_file(outdir_path / report_filename, summary.get_report());
     write_file(outdir_path / html_filename, summary.get_html());
     write_file(outdir_path / summary_filename, summary.get_summary());
@@ -396,7 +402,7 @@ main(int argc, char *argv[]) {
         infiles_opt->expected(1);
       },
       "Read from stdin assuming given format (see help)")
-      ->option_text("fq|sam[:{4,6}]")
+      ->option_text("fq|sam[:N]")
       ->delimiter(':')
       ->allow_extra_args(false)
       ->type_size(1, 2)
@@ -419,7 +425,8 @@ main(int argc, char *argv[]) {
       }, "Use original duplication mode (enables --dups)")
       ->excludes(preseq_opt)
       ->option_text(" ");
-    app.add_flag("--groups", do_groups, "Group base positions in output")
+    app.add_flag("--groups", do_groups,
+                 "Group base positions in output (see help)")
       ->option_text(" ");
     app.add_flag("--tiles,!--no-tiles", do_tiles,
                  "Toggle per-tile quality analysis (default: on)")
