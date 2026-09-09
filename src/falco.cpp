@@ -168,6 +168,15 @@ make_reads_file_stdin(const std::vector<file_info> &infos,
 }
 
 [[nodiscard]] static auto
+make_reads_files(const run_mode &mode, const std::vector<file_info> &infos,
+                 const std::vector<std::string> &infiles,
+                 const std::int64_t buffer_size) -> std::vector<reads_file_t> {
+  // ADS: need to do this differently for stdin
+  return mode.do_stdin() ? make_reads_file_stdin(infos, buffer_size)
+                         : make_reads_files(infos, infiles, buffer_size);
+}
+
+[[nodiscard]] static auto
 get_file_info_stdin(const std::vector<std::string> &names,
                     const std::pair<falco::file_format, std::uint32_t> &ft_tile)
   -> std::vector<file_info> {
@@ -287,6 +296,7 @@ main(int argc, char *argv[]) {
     int do_dup_analysis{};
     int do_adap{};
 
+    int do_stdin{};
     int do_groups{};
     int do_bisulfite{};
     int do_preseq{};
@@ -311,8 +321,8 @@ main(int argc, char *argv[]) {
     };
 
     // Related to reading data from stdin
-    const auto format_name_map = std::map{
-      std::pair{"fq"s, falco::file_format::fastq},
+    const auto format_name_map = std::map<std::string, falco::file_format>{
+      {"fq"s, falco::file_format::fastq},
       {"sam"s, falco::file_format::sam},
     };
     auto stdin_info = std::pair{
@@ -380,6 +390,7 @@ main(int argc, char *argv[]) {
     app.add_option_function<std::pair<falco::file_format, std::uint32_t>>(
       "--stdin",
       [&](const auto &arg) {  // callback is to allow trailing arg to be name
+        do_stdin = 1;
         stdin_info = arg;
         infiles_opt->get_validator("file_check")->active(false);
         infiles_opt->expected(1);
@@ -431,8 +442,15 @@ main(int argc, char *argv[]) {
     }
     CLI11_PARSE(app, argc, argv);
 
-    const bool do_stdin = stdin_info.first != falco::file_format::unknown;
-    if (do_stdin) {
+    run_mode mode;  // declare mode here so we can assign from config file
+    if (!config_file.empty())
+      load_config_and_set_graders(config_file, mode);
+    else
+      // if no config file, use default graders
+      grader_set::instance();
+
+    mode.set_do_stdin(do_stdin);
+    if (mode.do_stdin()) {
       const auto deduced_do_tiles = stdin_info.second ? 1 : -1;
       if (do_tiles && do_tiles != deduced_do_tiles) {
         std::println("inconsistent tile analysis args for data from stdin");
@@ -440,13 +458,6 @@ main(int argc, char *argv[]) {
       }
       do_tiles = deduced_do_tiles;
     }
-
-    run_mode mode;  // declare mode here so we can assign from config file
-    if (!config_file.empty())
-      load_config_and_set_graders(config_file, mode);
-    else
-      // if no config file, use default graders
-      grader_set::instance();
 
     // now set run mode values to take priority over config file
     if (!adapters_file.empty())
@@ -462,7 +473,7 @@ main(int argc, char *argv[]) {
     mode.set_do_original_dups(do_original_dups);
     mode.set_unassigned();
 
-    const auto outdirs = make_outdirs(infiles, outdir, do_stdin);
+    const auto outdirs = make_outdirs(infiles, outdir, mode.do_stdin());
 
     if (!contam_file.empty()) {
       load_contaminants(contam_file);
@@ -484,8 +495,8 @@ main(int argc, char *argv[]) {
                  adapters_file, adapter_set::n_adapters());
 
     // not const because infos will change later when we can deduce the encoding
-    auto infos = do_stdin ? get_file_info_stdin(infiles, stdin_info)
-                          : get_file_info(infiles);
+    auto infos = mode.do_stdin() ? get_file_info_stdin(infiles, stdin_info)
+                                 : get_file_info(infiles);
 
     // restrict buffer size to avoid using a possibly harmful amount of memory
     const auto get_sz = [](const auto &i) { return i.size; };
@@ -524,8 +535,9 @@ main(int argc, char *argv[]) {
     auto dups = do_original_dups
                   ? initialize_original_duplicates(infiles, infos, n_threads)
                   : std::vector<dups_init_t>{};
-    auto reads_files = do_stdin ? make_reads_file_stdin(infos, buffer_size)
-                                : make_reads_files(infos, infiles, buffer_size);
+
+    auto reads_files = make_reads_files(mode, infos, infiles, buffer_size);
+
     auto results =
       analyze(n_threads, mode, infos, std::move(reads_files), std::move(dups));
 
