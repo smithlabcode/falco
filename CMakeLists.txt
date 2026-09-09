@@ -4,7 +4,7 @@
 # $ cmake --version
 cmake_minimum_required(VERSION 3.30)
 project(falco
-  VERSION 2.0.1
+  VERSION 2.0.2
   DESCRIPTION "A tool to assess the quality of sequence read data"
   HOMEPAGE_URL https://github.com/smithlabcode/falco
   LANGUAGES CXX
