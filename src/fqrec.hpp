@@ -51,6 +51,10 @@ struct fqrec {
 struct fq_task_t {
   fqrec::pos_t beg{};
   fqrec::pos_t end{};
+  fq_task_t(const fqrec::pos_t beg, const fqrec::pos_t end) :
+    beg{beg}, end{end} {}
+  fq_task_t(const auto beg_arg, const auto end_arg) :
+    beg{std::to_address(beg_arg)}, end{std::to_address(end_arg)} {}
 };
 
 [[nodiscard]] inline auto
