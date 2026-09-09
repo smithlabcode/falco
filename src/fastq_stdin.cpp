@@ -68,8 +68,7 @@ fastq_stdin::get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
           std::count(prev, std::end(buffer), '\n') < rec_lines)
         chunk_end = prev;
     ++n_tasks;
-    tq.push(file_id,
-            fq_task_t(std::to_address(chunk_beg), std::to_address(chunk_end)));
+    tq.push(file_id, fq_task_t(chunk_beg, chunk_end));
     start_itr = stop_itr;
   }
   cursor = chunk_end;
@@ -84,7 +83,7 @@ fastq_stdin::shift_output_buffer() -> void {
 }
 
 [[nodiscard]] static auto
-validate_fastq(const auto &buffer) {
+validate_fastq(const auto &buffer) -> bool {
   static constexpr auto n_bytes_to_validate = 16 * 1024;
   static constexpr auto name_line_symbol = '@';
   static constexpr auto plus_line_symbol = '+';
@@ -121,8 +120,6 @@ fastq_stdin::load_next() -> void {
     last += n;
   }
   hit_eof = (n == 0);
-  if (!validate_fastq(buffer))
-    throw std::runtime_error("input appears not to be FASTQ");
 }
 
 auto
@@ -133,5 +130,7 @@ fastq_stdin::make_tasks(const std::int64_t n_chunks,  //
   n_tasks = 1;  // for current task, which makes more tasks
   shift_output_buffer();
   load_next();
+  if (!validate_fastq(buffer))
+    throw std::runtime_error("input appears not to be FASTQ");
   get_chunks(n_chunks, file_id, tq, n_tasks);
 }
