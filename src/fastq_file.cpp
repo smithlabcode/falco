@@ -163,8 +163,7 @@ fastq_file::get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
           std::count(prev, end_itr, '\n') < rec_lines)
         chunk_end = prev;
     ++n_tasks;
-    tq.push(file_id,
-            fq_task_t(std::to_address(chunk_beg), std::to_address(chunk_end)));
+    tq.push(file_id, fq_task_t(chunk_beg, chunk_end));
     start_pos = stop_pos;
   }
   last = chunk_end;
