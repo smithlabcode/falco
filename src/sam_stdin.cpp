@@ -119,8 +119,8 @@ sam_stdin::load_next() -> void {
   hit_eof = (n == 0);
 }
 
-[[nodiscard]] auto
-validate_sam(const auto &buffer) {
+[[nodiscard]] static auto
+validate_sam(const auto &buffer) -> bool {
   // SAM format has 11+ fields, tab separated and the docs give a regex for each
   // field. We are only checking the first char of the first field.
   static constexpr auto n_bytes_to_validate = 16L * 1024;
