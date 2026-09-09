@@ -121,7 +121,7 @@ adapter_matcher::html(const std::uint64_t n_reads,
 Plotly.newPlot("adapters_plot",
 {},
 {{
-xaxis: {{title: "Base position"}},
+xaxis: {{title: "Base position", automargin: true}},
 yaxis: {{title: "% sequences with adapter before position"}},
 }});
 </script>)";
