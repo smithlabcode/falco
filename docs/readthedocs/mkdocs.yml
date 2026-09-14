@@ -1,0 +1,6 @@
+site_name: falco
+strict: true
+
+theme: readthedocs
+nav:
+   - Home: 'index.md'
