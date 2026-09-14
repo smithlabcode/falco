@@ -12,7 +12,7 @@ them [here](https://github.com/smithlabcode/falco/discussions).
 Falco was conceived as an emulation of the popular
 [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc) software to
 check large sequencing reads for common problems. Falco was rewritten for
-version 2.0 in order to facilitate incoroprating new functionality moving
+version 2.0 in order to facilitate incorporating new functionality moving
 forward.
 
 ## Quick start
@@ -23,7 +23,7 @@ Example:
 ```
 falco -o output input.fq
 ```
-This generates 3 files in the direcotry named `output` (creating it if needed):
+This generates 3 files in the directory named `output` (creating it if needed):
 * `fastqc_data.txt` is a text file with a summary of the QC metrics.
 * `fastqc_report.html` is the visual HTML report showing plots of the QC metrics
   summarized in the text summary.
@@ -140,20 +140,20 @@ you see anything incorrect.
   all centered values, across all tiles and across all positions.
 
 Based on the assumptions above, the grade uses an extreme value statistic. When
-introducing multithreading to falco, the order of reads analyzed changes between
+introducing multi-threading to falco, the order of reads analyzed changes between
 runs, so the 1/10 reads contributing to the tile analysis also changes between
 runs. I've noticed that this can lead to differences between runs, and in some
 cases this has changed the grade between pass/warn and warn/fail. So it is
 possible the grade can differ between runs for the same data.
 
-About input from stdin: If you are using standard input tile analysis is diabled
+About input from stdin: If you are using standard input tile analysis is disabled
 unless you specify where to find the tile info in the read name, e.g.,
 `cat file.fq | falco --stdin fq:4 outdir`, where the 4 indicates that the tile is
 after the 4th colon in the read name. The only supported positions are 4 and 6.
 
 ### Duplication results
 
-I changed how falco evaluates "duplcation". Although the format of the output is
+I changed how falco evaluates "duplication". Although the format of the output is
 the same, the numbers differ dramatically. The motivation for the change is to
 produce more useful output, and to soon build
 [preseq](https://github.com/smithlabcode/preseq) into falco.
@@ -171,7 +171,7 @@ can be turned on with `--orig-dups`. Here's how the old and new analyses differ.
 - 1,000,000 reads are hashed and counted (first 50nt of each read).
 - These are taken approximately uniformly throughout the input.
 - Although there is no randomization, if multiple threads are used the results
-  will appear as though they are randomly sampled due to fluctaions in thread
+  will appear as though they are randomly sampled due to fluctuations in thread
   speed changing which 1M reads are hashed.
 
 ## Citing falco
