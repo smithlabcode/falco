@@ -98,7 +98,7 @@ static constexpr std::int64_t kilobytes = 1024;
 inline auto
 resize_gc_content(const std::uint32_t updated_length,
                   std::vector<falco::gc_content_t> &gc_content) {
-  const auto prev_size = std::size(gc_content);
+  const auto prev_size = std::ssize(gc_content);
   gc_content.resize(std::min(static_cast<std::int32_t>(updated_length + 1),
                              falco::gc_content_max_size));
   auto sp = std::span(std::begin(gc_content) + prev_size, std::end(gc_content));
@@ -340,8 +340,8 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 
 [[nodiscard]] auto
-size_to_units(const std::int64_t s, const std::string &suffix = "iB")
-  -> std::string;
+size_to_units(const std::int64_t s,
+              const std::string &suffix = "iB") -> std::string;
 
 [[nodiscard]] inline auto
 get_max_size(const auto &x) {
@@ -351,8 +351,8 @@ get_max_size(const auto &x) {
 }
 
 [[nodiscard]] inline auto
-estimate_read_length_fastq_chunk(const auto &data, const auto n)
-  -> std::uint64_t {
+estimate_read_length_fastq_chunk(const auto &data,
+                                 const auto n) -> std::uint64_t {
   static constexpr auto fastq_lines_per_read = 4;
   assert(n >= 1);
   const auto valid = [](const auto c) {
