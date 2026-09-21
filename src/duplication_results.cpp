@@ -2,7 +2,7 @@
 
 #include "duplication_results.hpp"
 
-#include "contaminants.hpp"
+#include "contaminant_set.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "falco_word.hpp"
@@ -122,13 +122,13 @@ duplication_results::get_overrepresented(const std::uint64_t n_reads) const
     ret.emplace_back(
       seq, n_obs,
       pct(as_frac(n_obs, std::max(static_cast<std::uint64_t>(1), n_reads))),
-      match_contaminant(seq.string()));
+      contaminant_set::match(seq.string()));
   return ret;
 }
 
 auto
-duplication_results::initialize(const run_mode &mode, const file_info &info)
-  -> void {
+duplication_results::initialize(const run_mode &mode,
+                                const file_info &info) -> void {
   read_skip =
     info.n_reads_est < max_n_reads_total
       ? 0
@@ -177,7 +177,7 @@ overrepresented_report(const std::vector<overrep_t> &overrep,
     r += header;
     for (const auto &[seq, n_obs, pct_val, contam_id] : overrep)
       r += std::format("{}\t{}\t{:.3g}\t{}\n", seq, n_obs, pct_val,
-                       get_contam_name(contam_id));
+                       contaminant_set::get_name(contam_id));
   }
   return r + end_module_tag;
 }
@@ -285,8 +285,8 @@ get_grade_duplication(const dup_summary_t &summary) -> std::string {
 }
 
 [[nodiscard]] auto
-duplication_report(const dup_summary_t &summary, const file_grades &grades)
-  -> std::string {
+duplication_report(const dup_summary_t &summary,
+                   const file_grades &grades) -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
                                     "#Total Deduplicated Percentage\t{:.6f}\n";
@@ -342,15 +342,15 @@ overrepresented_html(const std::vector<overrep_t> &overrep,
                        "No overrepresented sequences");
   const auto rows = std::views::transform(overrep, [&](const auto &o) {
     return fmt::format(html_table_row_fmt, o.w.string(), o.n_obs, o.pct_val,
-                       get_contam_name(o.contam_id));
+                       contaminant_set::get_name(o.contam_id));
   });
   return fmt::format(html_module_fmt, grade, label, title, grade,
                      fmt::format(html_table, fmt::join(rows, "\n")));
 }
 
 [[nodiscard]] auto
-duplication_html(const dup_summary_t &summary, const file_grades &grades)
-  -> std::string {
+duplication_html(const dup_summary_t &summary,
+                 const file_grades &grades) -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto plot_format = R"(<div id="duplication_plot"></div>
 <script>Plotly.newPlot("duplication_plot",
