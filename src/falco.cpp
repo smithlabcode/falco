@@ -52,7 +52,7 @@ Use these as templates. Copy and modify them to customize your analysis.
 
 #include "adapter_set.hpp"
 #include "bam_file.hpp"
-#include "contaminants.hpp"
+#include "contaminant_set.hpp"
 #include "duplication_results.hpp"
 #include "falco_analyzer.hpp"
 #include "falco_config.hpp"
@@ -483,11 +483,11 @@ main(int argc, char *argv[]) {
     const auto outdirs = make_outdirs(infiles, outdir, mode.do_stdin());
 
     if (!contam_file.empty()) {
-      load_contaminants(contam_file);
+      contaminant_set::instance(contam_file);
       if (verbose)
         std::print("contaminants file: {}\n"
                    "number of contaminants: {}\n",
-                   contam_file, std::size(contaminants));
+                   contam_file, contaminant_set::n_contaminants());
     }
 
     const auto &as = adapter_set::instance(mode, adapters_file);
