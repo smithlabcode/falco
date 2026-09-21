@@ -97,7 +97,7 @@ add_library(quality_score OBJECT src/quality_score.cpp)
 add_library(tile_processor OBJECT src/tile_processor.cpp)
 add_library(falco_grade OBJECT src/falco_grade.cpp)
 add_library(kmer_counter OBJECT src/kmer_counter.cpp)
-add_library(contaminants OBJECT src/contaminants.cpp)
+add_library(contaminant_set OBJECT src/contaminant_set.cpp)
 add_library(duplication_results OBJECT src/duplication_results.cpp)
 add_library(adapter_matcher OBJECT src/adapter_matcher.cpp)
 add_library(report OBJECT src/report.cpp)
@@ -126,7 +126,7 @@ endif()
 add_executable(falco src/falco.cpp)
 target_link_libraries(falco PRIVATE
   tile_processor
-  contaminants
+  contaminant_set
   adapter_matcher
   adapter_set
   duplication_results
