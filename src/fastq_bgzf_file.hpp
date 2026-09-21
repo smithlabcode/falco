@@ -64,16 +64,16 @@ public:
   ~fastq_bgzf_file() = default;
   // clang-format on
 
-  [[nodiscard]] operator bool() const { return !had_last_chunks; }
+  operator bool() const { return !had_last_chunks; }
 
   friend auto
   reset(fastq_bgzf_file &reads_file) -> void;
 
   friend auto
-  make_tasks(fastq_bgzf_file &reads_file,   //
-             const std::int64_t n_threads,  //
-             const std::int32_t file_id,    //
-             task_queue &tq,                //
+  make_tasks(fastq_bgzf_file &reads_file,
+             const std::int64_t n_threads,
+             const std::int32_t file_id,
+             task_queue &tq,
              std::atomic_int32_t &n_tasks) -> void;
 
 private:
@@ -87,20 +87,26 @@ private:
   }
 
   auto
-  get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
-             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
+  get_chunks(const std::int64_t n_chunks,
+             const std::int32_t file_id,
+             task_queue &tq,
+             std::atomic_int32_t &n_tasks) -> void;
 
   auto
-  load_next(const std::int32_t file_id, task_queue &tq,
+  load_next(const std::int32_t file_id,
+            task_queue &tq,
             std::atomic_int32_t &n_tasks) -> void;
 
   auto
-  make_tasks_inflate(const std::int32_t file_id, task_queue &tq,
+  make_tasks_inflate(const std::int32_t file_id,
+                     task_queue &tq,
                      std::atomic_int32_t &n_tasks) -> void;
 
   auto
-  make_tasks(const std::int64_t n_threads, const std::int32_t file_id,
-             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
+  make_tasks(const std::int64_t n_threads,
+             const std::int32_t file_id,
+             task_queue &tq,
+             std::atomic_int32_t &n_tasks) -> void;
 
   [[nodiscard]] auto
   inflate_only() const -> bool {
@@ -123,14 +129,14 @@ estimate_n_reads_fastq_bgzf(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
 [[nodiscard]] auto
-init_dups_fq(const std::string &filename,
-             const std::uint64_t n_unique) -> dups_map_t;
+init_dups_fq(const std::string &filename, const std::uint64_t n_unique)
+  -> dups_map_t;
 
 inline auto
-make_tasks(fastq_bgzf_file &reads_file,   //
-           const std::int64_t n_threads,  //
-           const std::int32_t file_id,    //
-           task_queue &tq,                //
+make_tasks(fastq_bgzf_file &reads_file,
+           const std::int64_t n_threads,
+           const std::int32_t file_id,
+           task_queue &tq,
            std::atomic_int32_t &n_tasks) -> void {
   n_tasks = 1;  // +1 so not to decrement to zero until current thread done
   if (!reads_file.inflate_only())

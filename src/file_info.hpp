@@ -33,8 +33,15 @@ struct file_info {
     encoding = e;
   }
 
-  NLOHMANN_DEFINE_TYPE_INTRUSIVE(file_info, name, format, description, size,
-                                 n_reads_est, read_len_est, encoding, has_tiles,
+  NLOHMANN_DEFINE_TYPE_INTRUSIVE(file_info,
+                                 name,
+                                 format,
+                                 description,
+                                 size,
+                                 n_reads_est,
+                                 read_len_est,
+                                 encoding,
+                                 has_tiles,
                                  tile_id_position);
 };
 

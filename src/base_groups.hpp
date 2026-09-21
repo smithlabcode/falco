@@ -19,7 +19,8 @@ using base_group_t = std::pair<std::uint64_t, std::uint64_t>;
 using base_group_vec = std::vector<base_group_t>;
 
 [[nodiscard]] auto
-make_base_groups(const std::uint64_t n_bases, const std::uint64_t n_initial,
+make_base_groups(const std::uint64_t n_bases,
+                 const std::uint64_t n_initial,
                  const std::uint64_t n_groups_target) -> base_group_vec;
 
 [[nodiscard]] auto

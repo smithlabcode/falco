@@ -56,10 +56,14 @@ struct bam_header {
     }
   }
 
-  NLOHMANN_DEFINE_TYPE_INTRUSIVE(bam_header, magic_bytes_remaining,
-                                 l_text_bytes_remaining, l_text,
-                                 n_ref_bytes_remaining, n_ref,
-                                 l_name_bytes_remaining, name_bytes_remaining,
+  NLOHMANN_DEFINE_TYPE_INTRUSIVE(bam_header,
+                                 magic_bytes_remaining,
+                                 l_text_bytes_remaining,
+                                 l_text,
+                                 n_ref_bytes_remaining,
+                                 n_ref,
+                                 l_name_bytes_remaining,
+                                 name_bytes_remaining,
                                  l_ref_bytes_remaining);
 };
 

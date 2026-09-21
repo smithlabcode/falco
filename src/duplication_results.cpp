@@ -127,8 +127,8 @@ duplication_results::get_overrepresented(const std::uint64_t n_reads) const
 }
 
 auto
-duplication_results::initialize(const run_mode &mode,
-                                const file_info &info) -> void {
+duplication_results::initialize(const run_mode &mode, const file_info &info)
+  -> void {
   read_skip =
     info.n_reads_est < max_n_reads_total
       ? 0
@@ -138,7 +138,8 @@ duplication_results::initialize(const run_mode &mode,
 }
 
 auto
-duplication_results::initialize(const run_mode &mode, const file_info &info,
+duplication_results::initialize(const run_mode &mode,
+                                const file_info &info,
                                 const dups_init_t &dups_init) -> void {
   initialize(mode, info);
   dups = dups_init.dups_zero;
@@ -196,7 +197,8 @@ make_bins(const auto &breaks, const auto &hist) {
 // ADS: for original dups, from FastQC extrapolation of dup counts.
 [[nodiscard]] auto
 get_corrected_count(const std::uint64_t count_at_limit,
-                    const std::uint64_t n_reads, const std::uint64_t dup_level,
+                    const std::uint64_t n_reads,
+                    const std::uint64_t dup_level,
                     const std::uint64_t n_obs) -> double {
   static constexpr auto epsilon = 0.01;
   if (count_at_limit == n_reads)  // we saw everything
@@ -285,8 +287,8 @@ get_grade_duplication(const dup_summary_t &summary) -> std::string {
 }
 
 [[nodiscard]] auto
-duplication_report(const dup_summary_t &summary,
-                   const file_grades &grades) -> std::string {
+duplication_report(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
                                     "#Total Deduplicated Percentage\t{:.6f}\n";
@@ -349,8 +351,8 @@ overrepresented_html(const std::vector<overrep_t> &overrep,
 }
 
 [[nodiscard]] auto
-duplication_html(const dup_summary_t &summary,
-                 const file_grades &grades) -> std::string {
+duplication_html(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto plot_format = R"(<div id="duplication_plot"></div>
 <script>Plotly.newPlot("duplication_plot",

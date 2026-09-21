@@ -85,7 +85,9 @@ fastq_file::fastq_file(const std::string &filename,
 }
 
 static inline auto
-mmap_fastq(const int fd, const std::int64_t offset, const std::int64_t length,
+mmap_fastq(const int fd,
+           const std::int64_t offset,
+           const std::int64_t length,
            auto &data) {
   static constexpr auto prot = PROT_READ;
   static constexpr auto flags = MAP_PRIVATE;
@@ -129,8 +131,10 @@ fastq_file::load_next() -> void {
 }
 
 auto
-fastq_file::get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
-                       task_queue &tq, std::atomic_int32_t &n_tasks) -> void {
+fastq_file::get_chunks(const std::int64_t n_chunks,
+                       const std::int32_t file_id,
+                       task_queue &tq,
+                       std::atomic_int32_t &n_tasks) -> void {
   static constexpr auto rec_lines = 4;  // FASTQ
   assert(n_chunks > 0);
   const auto beg_itr = std::begin(buffer);

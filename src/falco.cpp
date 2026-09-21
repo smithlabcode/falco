@@ -111,7 +111,8 @@ write_file(const auto &filename, const auto &data) {
 
 static auto
 write_output(
-  const run_mode &mode, std::vector<file_info> &infos,
+  const run_mode &mode,
+  std::vector<file_info> &infos,
   const std::vector<std::string> &outdirs,
   // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
   std::vector<results_collector> &&results) {
@@ -174,7 +175,8 @@ make_reads_file_stdin(const std::vector<file_info> &infos,
 }
 
 [[nodiscard]] static auto
-make_reads_files(const run_mode &mode, const std::vector<file_info> &infos,
+make_reads_files(const run_mode &mode,
+                 const std::vector<file_info> &infos,
                  const std::vector<std::string> &infiles,
                  const std::int64_t buffer_size) -> std::vector<reads_file_t> {
   // ADS: need to do this differently for stdin
@@ -237,8 +239,8 @@ get_file_info(const auto &infiles) {
 }
 
 [[nodiscard]] static auto
-make_outdirs(const auto &ins, const auto &outdir,
-             const bool keep_extn = false) -> std::vector<std::string> {
+make_outdirs(const auto &ins, const auto &outdir, const bool keep_extn = false)
+  -> std::vector<std::string> {
   namespace fs = std::filesystem;
   fs::create_directory(outdir);
   const auto compose_dirname = [&](const auto &fname) {

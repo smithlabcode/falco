@@ -9,8 +9,9 @@
 #include <cassert>
 #include <cstdint>
 #include <format>
-#include <initializer_list>  // IWYU pragma: keep
-#include <iterator>          // IWYU pragma: keep
+#include <initializer_list>
+#include <iterator>
+#include <span>
 #include <string>
 #include <vector>  // IWYU pragma: keep
 
@@ -25,7 +26,7 @@ enum class encoding : std::uint8_t {
 
 // NOLINTNEXTLINE
 NLOHMANN_JSON_SERIALIZE_ENUM(  //
-  encoding,                    //
+  encoding,
   {
     {encoding::unknown, "Unknown"},
     {encoding::sanger, "Sanger / Illumina 1.9"},
@@ -37,16 +38,18 @@ static constexpr auto max_qual_val = 126;
 static constexpr auto sanger_min_qual = 33;
 static constexpr auto solexa_min_qual = 64;
 // clang-format off
-static constexpr auto min_qual_offsets = std::array{
+static constexpr auto min_qual_offsets_impl = std::array{
   0,
   sanger_min_qual,  // Sanger / Illumina 1.9
   solexa_min_qual,  // Solexa / Illumina 1.3 / Illumina 1.5
 };
-static constexpr auto format_labels = std::array{
+static constexpr std::span min_qual_offsets = min_qual_offsets_impl;
+static constexpr auto format_labels_impl = std::array{
   "Unknown",
   "Sanger / Illumina 1.9",
   "Solexa / Illumina <= 1.8",
 };
+static constexpr std::span format_labels = format_labels_impl;
 using qual_array = std::array<std::uint64_t, max_qual_val + 1>;
 // clang-format on
 }  // namespace falco
@@ -70,7 +73,8 @@ adjust_fastq_qual_encoding(std::vector<falco::qual_array> &qual_by_pos,
                            const falco::encoding enc) -> void;
 
 [[nodiscard]] static inline auto
-count_quals(auto qual_itr, const auto qual_end,
+count_quals(auto qual_itr,
+            const auto qual_end,
             auto &tab) {  // cppcheck-suppress constParameterReference
   auto out_itr = std::begin(tab);
   auto qual_tot = 0;
@@ -84,7 +88,8 @@ count_quals(auto qual_itr, const auto qual_end,
 }
 
 [[nodiscard]] static inline auto
-count_quals_rev(auto qual_itr, const auto qual_end,
+count_quals_rev(auto qual_itr,
+                const auto qual_end,
                 auto &tab) {  // cppcheck-suppress constParameterReference
   auto out_itr = std::begin(tab) + std::distance(qual_itr, qual_end);
   auto qual_tot = 0;
