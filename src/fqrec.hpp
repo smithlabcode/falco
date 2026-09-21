@@ -8,11 +8,11 @@
 #include <cerrno>
 #include <concepts>
 #include <cstdint>
-#include <cstdio>  // IWYU pragma: keep
+#include <cstdio>
 #include <cstdlib>
-#include <cstring>  // IWYU pragma: keep
+#include <cstring>
 #include <filesystem>
-#include <format>  // IWYU pragma: keep
+#include <format>
 #include <iterator>
 #include <memory>
 #include <ranges>
@@ -38,6 +38,7 @@ struct fqrec {
   [[nodiscard]] auto
   string() const -> std::string { return {n, e}; }
 };
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 [[nodiscard]] constexpr auto get_name(const fqrec &rec) { return rec.n; }
 [[nodiscard]] constexpr auto get_name_end(const fqrec &rec) { return rec.r - 1; }
 [[nodiscard]] constexpr auto get_seq(const fqrec &rec) { return rec.r; }
@@ -46,6 +47,7 @@ struct fqrec {
 [[nodiscard]] constexpr auto get_qual(const fqrec &rec) { return rec.q; }
 [[nodiscard]] constexpr auto get_qual_end(const fqrec &rec) { return rec.e - 1; }
 [[nodiscard]] constexpr auto get_qual_size(const fqrec &rec) { return std::size(rec); }
+// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 // clang-format on
 
 struct fq_task_t {
@@ -68,6 +70,7 @@ get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
   };
 
   // clang-format off
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   next_newline(itr);
   if (itr++ == end_itr) return {};
   const auto r = itr;
@@ -83,6 +86,7 @@ get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
   next_newline(itr);
   if (itr++ == end_itr) return {};
   const auto e = itr;
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   // clang-format on
 
   cursor = e;

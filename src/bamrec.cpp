@@ -13,15 +13,16 @@
 [[nodiscard]] auto
 bamrec::to_string() const -> std::string {
   const auto buffer_s = std::span(std::cbegin(buffer), std::cend(buffer));
-  const auto name_itr = std::cbegin(buffer_s);
-  const auto seq_itr = name_itr + name_len;
-  const auto qual_itr = seq_itr + seq_len;
-  std::string qual_fixed(seq_len, '\0');
-  std::transform(qual_itr, qual_itr + seq_len, std::begin(qual_fixed),
-                 [](const auto c) { return c + quality_score_offset; });
-  return std::format("@{}\n{}\n+\n{}",                //
-                     std::string(name_itr, seq_itr),  //
-                     std::string(seq_itr, qual_itr),  //
+  const auto name_s = buffer_s.subspan(0, name_len);
+  const auto seq_s = buffer_s.subspan(name_len, seq_len);
+  const auto qual_s = buffer_s.subspan(name_len + seq_len, seq_len);
+  auto qual_fixed = std::string(std::cbegin(qual_s), std::cend(qual_s));
+  std::ranges::transform(qual_fixed, std::begin(qual_fixed), [&](const auto c) {
+    return c + quality_score_offset;
+  });
+  return std::format("@{}\n{}\n+\n{}",  //
+                     std::string(std::cbegin(name_s), std::cend(name_s)),
+                     std::string(std::cbegin(seq_s), std::cend(seq_s)),
                      qual_fixed);
 }
 
@@ -33,33 +34,31 @@ bamrec::to_string() const -> std::string {
 #undef bam_seqi
 #endif
 
-template <class BidirIt, class OutputIt>
-static inline constexpr OutputIt
-assign_sequence_revcomp(BidirIt first, auto last, OutputIt d_first) {
+template <class bidir_itr_t, class output_itr_t>
+static inline constexpr output_itr_t
+assign_sequence_revcomp(bidir_itr_t first, auto last, output_itr_t d_first) {
+  static constexpr std::span seq_nt16_str = "=ACMGRSVTWYHKDBN";
   constexpr auto complem = [](const auto x) {
     return "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
   };
-  constexpr auto seq_nt16_str = "=ACMGRSVTWYHKDBN";
   constexpr auto bam_seqi = [](const auto s, const auto i) -> int {
     constexpr auto low_nibble_on = 0xf;
     return s[i >> 1] >> ((~i & 1) << 2) & low_nibble_on;
   };
   for (auto j = last; j != 0; ++d_first)
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     *d_first = complem(seq_nt16_str[bam_seqi(first, --j)]);
   return d_first;
 }
 
-template <class BidirIt, class OutputIt>
-static inline constexpr OutputIt
-assign_sequence(BidirIt first, auto last, OutputIt d_first) {
-  constexpr auto seq_nt16_str = "=ACMGRSVTWYHKDBN";
+template <class bidir_itr_t, class output_itr_t>
+static inline constexpr output_itr_t
+assign_sequence(bidir_itr_t first, auto last, output_itr_t d_first) {
+  static constexpr std::span seq_nt16_str = "=ACMGRSVTWYHKDBN";
   constexpr auto bam_seqi = [](const auto s, const auto i) -> int {
     constexpr auto low_nibble_on = 0xf;
     return s[i >> 1] >> ((~i & 1) << 2) & low_nibble_on;
   };
   for (auto j = 0U; j != last; ++j)
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     *d_first++ = seq_nt16_str[bam_seqi(first, j)];
   return d_first;
 }
