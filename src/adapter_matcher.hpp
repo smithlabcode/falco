@@ -71,12 +71,14 @@ struct adapter_matcher {
   get_grade(const std::uint64_t n_reads) const -> std::string;
 
   [[nodiscard]] auto
-  report(const std::uint64_t n_reads, const std::uint64_t max_read_len,
+  report(const std::uint64_t n_reads,
+         const std::uint64_t max_read_len,
          const base_group_vec &groups,
          const file_grades &grades) const -> std::string;
 
   [[nodiscard]] auto
-  html(const std::uint64_t n_reads, const std::uint64_t max_read_len,
+  html(const std::uint64_t n_reads,
+       const std::uint64_t max_read_len,
        const base_group_vec &groups,
        const file_grades &grades) const -> std::string;
 };

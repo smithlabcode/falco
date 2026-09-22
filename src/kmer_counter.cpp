@@ -61,6 +61,8 @@ gamma_p_series(const double a, const double x) -> double {
     if (term < eps * sum)
       break;
   }
+  // ADS: std::lgamma is unsafe
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   return sum * std::exp(-x + a * std::log(x) - std::lgamma(a));
 }
 
@@ -91,6 +93,8 @@ gamma_q_contfrac(const double a, const double x) {
     if (std::abs(delta - 1.0) < epsilon)
       break;
   }
+  // ADS: std::lgamma is unsafe
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   return std::exp(-x + a * std::log(x) - std::lgamma(a)) * h;
 }
 

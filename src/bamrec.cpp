@@ -64,8 +64,8 @@ assign_sequence(bidir_itr_t first, auto last, output_itr_t d_first) {
 }
 
 [[nodiscard]] auto
-bamrec::get_next(bamrec::pos_t &itr, const bamrec::pos_t end,
-                 bamrec &rec) -> bool {
+bamrec::get_next(bamrec::pos_t &itr, const bamrec::pos_t end, bamrec &rec)
+  -> bool {
   if (std::distance(itr, end) < bam_core_t::sz)
     return false;
   bam_core_t core{};
@@ -80,7 +80,7 @@ bamrec::get_next(bamrec::pos_t &itr, const bamrec::pos_t end,
   auto out_itr = std::begin(rec.buffer);
   std::copy_n(itr + bam_core_t::read_name_offset, rec.name_len, out_itr);
   out_itr += rec.name_len;  // increment data cursor to sequence
-  auto seq_in = itr + core.seq_offset();
+  const auto seq_in = itr + core.seq_offset();
   if (core.bam_is_rev())
     assign_sequence_revcomp(seq_in, core.l_seq, out_itr);
   else
@@ -102,8 +102,8 @@ bamrec::get_next(bamrec::pos_t &itr, const bamrec::pos_t end,
 }
 
 [[nodiscard]] auto
-bamrec::find_end_pos(bamrec::pos_t itr,
-                     const bamrec::pos_t end) -> bamrec::pos_t {
+bamrec::find_end_pos(bamrec::pos_t itr, const bamrec::pos_t end)
+  -> bamrec::pos_t {
   static constexpr std::int64_t record_size_size = sizeof(std::uint32_t);
   std::uint32_t record_size{};
   while (itr != end) {

@@ -40,13 +40,17 @@ struct fastq_stdin {
   }
 
   auto
-  make_tasks(const std::int64_t n_chunks, const std::int32_t file_id,
-             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
+  make_tasks(const std::int64_t n_chunks,
+             const std::int32_t file_id,
+             task_queue &tq,
+             std::atomic_int32_t &n_tasks) -> void;
 
 private:
   auto
-  get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
-             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
+  get_chunks(const std::int64_t n_chunks,
+             const std::int32_t file_id,
+             task_queue &tq,
+             std::atomic_int32_t &n_tasks) -> void;
 
   auto
   shift_output_buffer() -> void;

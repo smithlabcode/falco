@@ -74,7 +74,8 @@ public:
     buf_data = std::data(outbuf);
   }
 
-  [[nodiscard]] operator bool() const {  // does compressed data remain?
+  [[nodiscard]]
+  operator bool() const {  // does compressed data remain?
     return isal_ok && (!std::feof(in.get()) || state.avail_in > 0);
   }
 
@@ -101,8 +102,10 @@ public:
   }
 
   auto
-  get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
-             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
+  get_chunks(const std::int64_t n_chunks,
+             const std::int32_t file_id,
+             task_queue &tq,
+             std::atomic_int32_t &n_tasks) -> void;
 
   auto
   reset() -> void {
@@ -203,7 +206,10 @@ public:
   ~fastq_gz_file() = default;
   // clang-format on
 
-  [[nodiscard]] operator bool() const { return buf_used == buf_size; }
+  [[nodiscard]]
+  operator bool() const {
+    return buf_used == buf_size;
+  }
 
   auto
   load_next() -> void {
@@ -222,8 +228,10 @@ public:
   }
 
   auto
-  get_chunks(const std::int64_t n_chunks, const std::int32_t file_id,
-             task_queue &tq, std::atomic_int32_t &n_tasks) -> void;
+  get_chunks(const std::int64_t n_chunks,
+             const std::int32_t file_id,
+             task_queue &tq,
+             std::atomic_int32_t &n_tasks) -> void;
 
   auto
   reset() -> void {

@@ -35,8 +35,10 @@ public:
   }
 
   friend auto
-  make_tasks(auto &reads_file, const std::int64_t n_threads,
-             const std::int32_t file_id, task_queue &tq,
+  make_tasks(auto &reads_file,
+             const std::int64_t n_threads,
+             const std::int32_t file_id,
+             task_queue &tq,
              std::atomic_int32_t &n_tasks) -> void {
     reads_file.self_->make_tasks_(n_threads, file_id, tq, n_tasks);
   }
@@ -56,8 +58,10 @@ private:
     explicit model(T x) : data_(std::move(x)) {}
 
     auto
-    make_tasks_(const std::int64_t n_threads, const std::int32_t file_id,
-                task_queue &tq, std::atomic_int32_t &n_tasks) -> void override {
+    make_tasks_(const std::int64_t n_threads,
+                const std::int32_t file_id,
+                task_queue &tq,
+                std::atomic_int32_t &n_tasks) -> void override {
       make_tasks(data_, n_threads, file_id, tq, n_tasks);
     }
 

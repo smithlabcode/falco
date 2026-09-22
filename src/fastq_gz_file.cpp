@@ -27,8 +27,8 @@ estimate_n_reads_fastq_gz(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t> {
   static constexpr auto fastq_lines_per_read = 4;
   static constexpr auto n_bytes = 1024 * 1024;
-  std::unique_ptr<BGZF, int (*)(BGZF *)> f(bgzf_open(std::data(filename), "r"),
-                                           &bgzf_close);
+  const std::unique_ptr<BGZF, int (*)(BGZF *)> f(
+    bgzf_open(std::data(filename), "r"), &bgzf_close);
   std::vector<std::uint8_t> buf(n_bytes);
   const auto r = bgzf_read(f.get(), std::data(buf), n_bytes);
   if (r < 0)

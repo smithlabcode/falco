@@ -1,9 +1,17 @@
 Checks: "
+  concurrency-*,
   cert-*,
   cppcoreguidelines-*,
   performance-*,
   clang-diagnostic-*,
   clang-analyzer-*,
+  modernize-*,
+  misc-*,
+  portability-*,
+  -misc-include-cleaner,
+  -misc-use-anonymous-namespace,
+  -misc-header-include-cycle,
+  -modernize-use-trailing-return-type,
   -clang-diagnostic-unqualified-std-cast-call,
   -clang-diagnostic-unknown-warning-option,
   -clang-analyzer-unix.BlockInCriticalSection,
@@ -28,17 +36,14 @@ CheckOptions:
   cert-dcl16-c.NewSuffixes: 'L;LL;LU;LLU'
   cert-err33-c.AllowCastToVoid: 'true'
   cert-err33-c.CheckedFunctions: '*'
-  cert-oop54-cpp.WarnOnlyIfThisHasSuspiciousField: 'false'
-  cert-str34-c.DiagnoseSignedUnsignedCharComparisons: 'false'
-  cppcoreguidelines-non-private-member-variables-in-classes.IgnorePublicMemberVariables: 'true'
   cppcoreguidelines-rvalue-reference-param-not-moved.AllowPartialMove: 'true'
   cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues: '1;2;3;4;10'
   cppcoreguidelines-avoid-magic-numbers.IgnoredFloatingPointValues: '1.0;2.0;10.0;100.0'
   google-readability-braces-around-statements.ShortStatementLines: '1'
-  google-readability-function-size.StatementThreshold: '800'
   google-readability-namespace-comments.ShortNamespaceLines: '10'
   google-readability-namespace-comments.SpacesBeforeComments: '2'
-  llvm-else-after-return.WarnOnConditionVariables: 'false'
-  llvm-else-after-return.WarnOnUnfixable: 'false'
-  llvm-qualified-auto.AddConstToQualified: 'false'
+  llvm-else-after-return.WarnOnConditionVariables: 'true'
+  llvm-else-after-return.WarnOnUnfixable: 'true'
+  llvm-qualified-auto.AddConstToQualified: 'true'
+  modernize-use-trailing-return-type.TransformLambdas: none
 SystemHeaders: 'false'

@@ -13,6 +13,7 @@
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 [[nodiscard]] auto
@@ -95,7 +96,7 @@ smooth_gc_content(const std::vector<double> &data,
   const auto get_mean = [&](std::ranges::viewable_range auto &&r) {
     return as_frac(std::reduce(std::cbegin(r), std::cend(r)), std::size(r));
   };
-  assert(window_size < static_cast<std::int64_t>(std::size(data)));
+  assert(std::cmp_less(window_size, std::size(data)));
   std::vector<double> smoothed;
   for (auto w = 1; w < (window_size + 1) / 2; ++w)
     smoothed.push_back(get_mean(
@@ -163,6 +164,7 @@ format_program_start_date_and_time() -> std::string {
   const auto t = get_program_start_time();
   const auto t_c = std::chrono::system_clock::to_time_t(t);
   std::ostringstream oss;
+  // NOLINTNEXTLINE(concurrency-mt-unsafe)
   oss << std::put_time(std::localtime(&t_c), "%F %T %Z");
   return oss.str();
 }

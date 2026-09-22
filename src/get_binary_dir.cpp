@@ -5,7 +5,7 @@
 #include <config.h>
 
 #if defined(__linux__)
-#include <limits.h>  // IWYU pragma: keep
+#include <climits>  // IWYU pragma: keep
 #include <unistd.h>
 #elif defined(__APPLE__)
 #include <libproc.h>

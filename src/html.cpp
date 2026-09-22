@@ -33,7 +33,7 @@
 #include <utility>  // for pair
 #include <vector>
 
-[[nodiscard]] auto
+[[nodiscard]] static auto
 get_summary(const file_grades &grades) -> std::string {
   static constexpr auto summary_fmt = R"(
 <div class="summary"><h2>Summary</h2>
@@ -53,22 +53,10 @@ get_summary(const file_grades &grades) -> std::string {
 }
 
 [[nodiscard]] auto
-get_html_module(const std::string &label, const std::string &text,
-                const file_grades &grades) -> std::string {
-  static constexpr auto module_fmt =
-    R"(<div class="module">
-<h2 class="{}" id="{}">{}: {}</h2>
-{}
-</div>)";
-  const auto grade = grades.grade(label);
-  const auto title = grades.get_title(label);
-  return fmt::format(module_fmt, label, grade, title, grade, text);
-}
-
-[[nodiscard]] auto
-falco_get_html(const file_info &info, const file_grades &grades,
+falco_get_html(const file_info &info,
+               const file_grades &grades,
                const std::string &analysis_modules) -> std::string {
-  return fmt::format(falco_html_body,                                         //
+  return fmt::format(falco_html_body,
                      fmt::arg("date", format_program_start_date_and_time()),  //
                      fmt::arg("filename", info.name),                         //
                      fmt::arg("style", style),                                //
@@ -342,11 +330,13 @@ yaxis: {{title: "Phred quality", rangemode: "tozero"}},
 }
 
 [[nodiscard]] auto
-basic_stats_html(const file_info &info, const std::uint64_t n_reads,
+basic_stats_html(const file_info &info,
+                 const std::uint64_t n_reads,
                  const std::uint64_t min_read_len,
                  const std::uint64_t max_read_len,
                  const std::uint64_t median_read_len,
-                 const std::uint64_t total_gc, const std::uint64_t total_nucs,
+                 const std::uint64_t total_gc,
+                 const std::uint64_t total_nucs,
                  const file_grades &grades) -> std::string {
   static constexpr auto label = "basic_stats";
   static constexpr auto table_fmt =
@@ -381,8 +371,8 @@ basic_stats_html(const file_info &info, const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 tile_html(const tile_processor::tiles_centered_t &centered,
-          const std::vector<base_group_t> &groups,
-          const file_grades &grades) -> std::string {
+          const std::vector<base_group_t> &groups, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto n_quants = 20.0;
   // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
@@ -442,8 +432,8 @@ yaxis: {{title: "tile", type: "category"}},
 }
 
 [[nodiscard]] auto
-kmer_html(const std::vector<kmer_result> &results,
-          const file_grades &grades) -> std::string {
+kmer_html(const std::vector<kmer_result> &results, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "kmer";
   static constexpr auto plot_format = R"(<div id="kmer_plot"></div>
 <script>Plotly.newPlot("kmer_plot",

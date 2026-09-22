@@ -6,8 +6,8 @@
 #include <stdexcept>
 
 [[nodiscard]] auto
-bam_header::update(const_iterator itr,
-                   const const_iterator end) -> const_iterator {
+bam_header::update(const_iterator itr, const const_iterator end)
+  -> const_iterator {
   static constexpr auto msg = "incorrect BAM magic identified: {} at {}";
   const auto update_u32 = [](auto &val, const auto inc, const auto the_byte) {
     // NOLINTNEXTLINE(*-avoid-magic-numbers)
