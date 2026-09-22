@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <cstdint>
 #include <cstdlib>
 #include <iterator>
