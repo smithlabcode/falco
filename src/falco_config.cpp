@@ -22,7 +22,7 @@
 #include <unordered_map>
 #include <vector>
 
-[[nodiscard]] auto
+[[nodiscard]] static auto
 strip(const std::string &s) -> std::string {
   if (s.empty())
     return {};
@@ -34,7 +34,7 @@ strip(const std::string &s) -> std::string {
   return std::string{start, std::cbegin(stop) + 1};
 }
 
-[[nodiscard]] auto
+[[nodiscard]] static auto
 split(const std::string &s) {
   std::istringstream iss(s);
   return std::vector<std::string>{std::istream_iterator<std::string>{iss}, {}};

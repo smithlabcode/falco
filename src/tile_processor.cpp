@@ -34,14 +34,14 @@ tile_processor::init(const file_info &info) -> void {
   tile_id_position = info.tile_id_position;
 }
 
-[[nodiscard]] auto
+[[nodiscard]] static auto
 get_names_fastq(const std::string &filename) -> std::vector<std::string> {
   static constexpr auto n_records = 100;
   static constexpr auto n_lines_per_record = 4;
   static constexpr auto n_total_lines = n_records * n_lines_per_record;
   static constexpr auto name_line = 0;
-  std::unique_ptr<BGZF, int (*)(BGZF *)> in(bgzf_open(std::data(filename), "r"),
-                                            &bgzf_close);
+  const std::unique_ptr<BGZF, int (*)(BGZF *)> in(
+    bgzf_open(std::data(filename), "r"), &bgzf_close);
   if (!in)
     throw std::runtime_error("failed to open gz file: " + filename);
   std::vector<std::string> names;
@@ -61,15 +61,18 @@ get_names_fastq(const std::string &filename) -> std::vector<std::string> {
   return names;
 }
 
-[[nodiscard]] auto
+[[nodiscard]] static auto
 get_names_bam(const std::string &filename) -> std::vector<std::string> {
   static constexpr auto n_records = 100;
-  std::unique_ptr<samFile, int (*)(samFile *)> in(
+  const std::unique_ptr<samFile, int (*)(samFile *)> in(
     hts_open(std::data(filename), "r"), &hts_close);
   if (!in)
     throw std::runtime_error("failed to open BAM/SAM file: " + filename);
-  std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h(sam_hdr_read(in.get()),
-                                                      &sam_hdr_destroy);
+  const std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h(
+    sam_hdr_read(in.get()), &sam_hdr_destroy);
+  if (!h)
+    throw std::system_error(std::make_error_code(std::errc(errno)),
+                            "failed to read header: " + filename);
   std::vector<std::string> names;
   for (auto i = 0; i < n_records; ++i) {
     std::unique_ptr<bam1_t, void (*)(bam1_t *)> b(bam_init1(), &bam_destroy1);
@@ -212,7 +215,7 @@ get_tile_info(const std::string &filename) -> std::uint32_t {
   static constexpr auto colon_cutoff_2 = 4;
   static constexpr auto colon_cutoff_2_val = 2;
 
-  std::unique_ptr<htsFile, int (*)(htsFile *)> fp(
+  const std::unique_ptr<htsFile, int (*)(htsFile *)> fp(
     hts_open(std::data(filename), "r"), &hts_close);
   if (!fp)
     throw std::runtime_error("failed to open file: " + filename);

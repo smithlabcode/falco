@@ -71,19 +71,20 @@ file_grades::get_title(const std::string &name) -> std::string {
 
 [[nodiscard]] auto
 grader::identify_grade(const double value) const -> std::string {
+  using std::string_literals::operator""s;
   if (warn < fail) {
     if (value < warn)
-      return "pass";
+      return "pass"s;
     if (value < fail)
-      return "warn";
-    return "fail";
+      return "warn"s;
+    return "fail"s;
   }
   else {
     if (value < fail)
-      return "fail";
+      return "fail"s;
     if (value < warn)
-      return "warn";
-    return "pass";
+      return "warn"s;
+    return "pass"s;
   }
   throw std::runtime_error(
     std::format("value {} outside grade range: {}", value, *this));
@@ -92,7 +93,7 @@ grader::identify_grade(const double value) const -> std::string {
 [[nodiscard]] auto
 grader::to_string() const -> std::string {
   static constexpr auto n_indent = 4;
-  nlohmann::json data = *this;
+  const nlohmann::json data = *this;
   return data.dump(n_indent);
 }
 
@@ -147,8 +148,8 @@ get_grade_gc_sequence(const std::vector<double> &gc_content) -> std::string {
   return grader_set::get_grade(label, sum_deviation_from_normal(gc_content));
 }
 
-[[nodiscard]] inline constexpr auto
-single_delta(const auto a, const auto b, const auto tot) {
+[[nodiscard]] static inline constexpr auto
+single_delta(const auto a, const auto b, const auto tot) -> double {
   return pct(as_frac(a, tot)) - pct(as_frac(b, tot));
 }
 

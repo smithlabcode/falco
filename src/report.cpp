@@ -42,6 +42,7 @@ sequence_length_report(const std::vector<std::uint64_t> &lengths,
   const auto eq0 = [](const auto &x) { return std::get<1>(x) == 0; };
   auto r = std::format(start_tag, grades.grade(label));
   r += header;
+  // NOLINTNEXTLINE(misc-const-correctness)
   auto to_report =
     falco::views::enumerate(lengths) | std::views::drop_while(eq0);
   for (const auto [idx, len] : to_report)
@@ -206,8 +207,8 @@ basic_stats_report(const file_info &info, const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 tile_report(const tile_processor::tiles_centered_t &centered,
-            const std::vector<base_group_t> &groups,
-            const file_grades &grades) -> std::string {
+            const std::vector<base_group_t> &groups, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto max_precision{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";
@@ -226,8 +227,8 @@ tile_report(const tile_processor::tiles_centered_t &centered,
 }
 
 [[nodiscard]] auto
-kmer_report(const std::vector<kmer_result> &results,
-            const file_grades &grades) -> std::string {
+kmer_report(const std::vector<kmer_result> &results, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "kmer";
   static constexpr auto start_tag = ">>Kmer Content\t{}\n";
   static constexpr auto header = "#Sequence\t"

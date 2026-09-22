@@ -27,30 +27,31 @@
 estimate_n_reads_bam(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t> {
   static constexpr auto max_n_reads = 128 * 1024;
-  std::unique_ptr<htsFile, int (*)(htsFile *)> f(
+  const std::unique_ptr<htsFile, int (*)(htsFile *)> in(
     hts_open(std::data(filename), "r"), &hts_close);
-  if (!f)
+  if (!in)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to open file: " + filename);
-  std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h(sam_hdr_read(f.get()),
-                                                      &sam_hdr_destroy);
+  const std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h(
+    sam_hdr_read(in.get()), &sam_hdr_destroy);
   if (!h)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to read header: " + filename);
 
-  const auto format = hts_get_format(f.get());
+  const auto format = hts_get_format(in.get());
   if (!format)
     throw std::runtime_error("failed to identify file format: " + filename);
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-  const auto fp = format->format == bam ? f->fp.bgzf->fp : f->fp.hfile;
+  const auto fp = format->format == bam ? in->fp.bgzf->fp : in->fp.hfile;
   const auto pos_after_header = htell(fp);
-  std::unique_ptr<bam1_t, void (*)(bam1_t *)> rec(bam_init1(), &bam_destroy1);
+  const std::unique_ptr<bam1_t, void (*)(bam1_t *)> rec(bam_init1(),
+                                                        &bam_destroy1);
   std::uint64_t n_reads{};
   std::uint64_t total_read_len{};
   int r{};
   while (n_reads++ < max_n_reads &&
-         (r = sam_read1(f.get(), h.get(), rec.get())) >= 0)
+         (r = sam_read1(in.get(), h.get(), rec.get())) >= 0)
     total_read_len += rec->core.l_qseq;
   if (r < -1)  // error
     throw std::system_error(std::make_error_code(std::errc(errno)),
@@ -71,13 +72,13 @@ init_dups(const std::string &filename, const std::uint64_t n_unique)
     return "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
   };
   static constexpr auto n_unique_multiplier = 10;
-  std::unique_ptr<htsFile, int (*)(htsFile *)> f(
+  const std::unique_ptr<htsFile, int (*)(htsFile *)> in(
     hts_open(std::data(filename), "r"), &hts_close);
-  if (!f)
+  if (!in)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to open file: " + filename);
-  std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h(sam_hdr_read(f.get()),
-                                                      &sam_hdr_destroy);
+  const std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h(
+    sam_hdr_read(in.get()), &sam_hdr_destroy);
   if (!h)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to read header: " + filename);
@@ -90,7 +91,7 @@ init_dups(const std::string &filename, const std::uint64_t n_unique)
   std::uint64_t n_reads{};
   const auto max_n_reads = n_unique_multiplier * n_unique;
   while (n_reads++ < max_n_reads && std::size(dups) < n_unique &&
-         (r = sam_read1(f.get(), h.get(), rec.get())) >= 0) {
+         (r = sam_read1(in.get(), h.get(), rec.get())) >= 0) {
     const auto l_qseq = rec->core.l_qseq;
     const auto seq = bam_get_seq(rec.get());
     if (std::ssize(buffer) < l_qseq)
@@ -133,7 +134,7 @@ bam_file::load_next(const std::int32_t file_id,  //
   input_last = std::distance(std::data(input_buffer), in_itr);
 }
 
-[[nodiscard]] inline auto
+[[nodiscard]] static inline auto
 partition(auto itr,                     //
           const auto end,               //
           const std::int64_t n_chunks,  //
@@ -146,10 +147,10 @@ partition(auto itr,                     //
   const auto chunk_size = (dist + n_chunks - 1) / n_chunks;
   while (itr != end) {
     dist = std::distance(itr, end);
-    auto end_itr = itr + (dist < chunk_size ? dist : chunk_size);
+    const auto end_itr = itr + (dist < chunk_size ? dist : chunk_size);
     // ADS: find_end_pos doesn't find end pos of a record, but of a range, so
     // includes multiple records
-    auto next_itr = bamrec::find_end_pos(itr, end_itr);
+    const auto next_itr = bamrec::find_end_pos(itr, end_itr);
     if (next_itr == itr)
       break;
     ++n_tasks;

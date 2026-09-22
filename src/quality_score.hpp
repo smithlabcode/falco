@@ -59,7 +59,7 @@ get_quality_score_offset(const falco::encoding e) -> std::int64_t;
 
 [[nodiscard]] auto
 identify_encoding(const std::vector<falco::qual_array> &qual_counts,
-                  file_info &info) -> falco::encoding;
+                  const file_info &info) -> falco::encoding;
 
 [[nodiscard]] auto
 get_quality_score_label(const falco::encoding e) -> std::string;

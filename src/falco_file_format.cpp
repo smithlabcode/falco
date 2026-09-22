@@ -16,7 +16,7 @@
 [[nodiscard]] auto
 get_file_format(const std::string &filename)
   -> std::tuple<falco::file_format, std::string> {
-  std::unique_ptr<htsFile, int (*)(htsFile *)> fp(
+  const std::unique_ptr<htsFile, int (*)(htsFile *)> fp(
     hts_open(std::data(filename), "r"), &hts_close);
   if (!fp)
     throw std::runtime_error("failed to open file: " + filename);

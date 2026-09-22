@@ -40,7 +40,7 @@ initialize_original_duplicates(
       std::uint64_t file_id{};
       while (true) {
         {
-          std::scoped_lock l(mtx);
+          const std::scoped_lock l(mtx);
           if (n_active_files == 0)
             return;
           file_id = --n_active_files;

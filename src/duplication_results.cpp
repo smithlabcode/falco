@@ -127,8 +127,8 @@ duplication_results::get_overrepresented(const std::uint64_t n_reads) const
 }
 
 auto
-duplication_results::initialize(const run_mode &mode,
-                                const file_info &info) -> void {
+duplication_results::initialize(const run_mode &mode, const file_info &info)
+  -> void {
   read_skip =
     info.n_reads_est < max_n_reads_total
       ? 0
@@ -194,7 +194,7 @@ make_bins(const auto &breaks, const auto &hist) {
 }
 
 // ADS: for original dups, from FastQC extrapolation of dup counts.
-[[nodiscard]] auto
+[[nodiscard]] static auto
 get_corrected_count(const std::uint64_t count_at_limit,
                     const std::uint64_t n_reads, const std::uint64_t dup_level,
                     const std::uint64_t n_obs) -> double {
@@ -243,10 +243,10 @@ duplication_results::get_dups_summary(const std::uint64_t n_reads) const
       [](const auto x) { return std::get<0>(x) * std::get<1>(x); }) |
     std::ranges::to<std::vector>();
   return dup_summary_t{
-    max_dup,
-    n_reads,                // number of counted reads
-    std::move(hist_mass),   // move to avoid copying when making tuple
-    std::move(hist_dedup),  // move to avoid copying when making tuple
+    .max_dup = max_dup,
+    .n_reads = n_reads,                   // number of counted reads
+    .hist_mass = std::move(hist_mass),    // move to avoid copy making tuple
+    .hist_dedup = std::move(hist_dedup),  // move to avoid copy making tuple
   };
 }
 
@@ -264,10 +264,10 @@ duplication_results::get_dups_summary() const -> dup_summary_t {
       [](const auto x) { return std::get<0>(x) * std::get<1>(x); }) |
     std::ranges::to<std::vector>();
   return dup_summary_t{
-    max_dup,
-    get_n_counted_reads(),  // number of counted reads
-    std::move(hist_mass),   // move to avoid copying when making tuple
-    std::move(hist_dedup),  // move to avoid copying when making tuple
+    .max_dup = max_dup,
+    .n_reads = get_n_counted_reads(),     // number of counted reads
+    .hist_mass = std::move(hist_mass),    // move to avoid copy making tuple
+    .hist_dedup = std::move(hist_dedup),  // move to avoid copy making tuple
   };
 }
 
@@ -285,8 +285,8 @@ get_grade_duplication(const dup_summary_t &summary) -> std::string {
 }
 
 [[nodiscard]] auto
-duplication_report(const dup_summary_t &summary,
-                   const file_grades &grades) -> std::string {
+duplication_report(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto start_tag = ">>Sequence Duplication Levels\t{}\n"
                                     "#Total Deduplicated Percentage\t{:.6f}\n";
@@ -349,8 +349,8 @@ overrepresented_html(const std::vector<overrep_t> &overrep,
 }
 
 [[nodiscard]] auto
-duplication_html(const dup_summary_t &summary,
-                 const file_grades &grades) -> std::string {
+duplication_html(const dup_summary_t &summary, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "duplication";
   static constexpr auto plot_format = R"(<div id="duplication_plot"></div>
 <script>Plotly.newPlot("duplication_plot",

@@ -91,7 +91,7 @@ samrec::get_next(samrec::pos_t &cursor, const samrec::pos_t end_itr,
   if (itr++ == end_itr)
     return false;
 
-  if (qual_len != rec.seq_len)
+  if (qual_len != seq_len)
     throw std::runtime_error("quality scores invalid for record: " +
                              std::string(name_itr, name_itr + name_len));
 
@@ -99,9 +99,9 @@ samrec::get_next(samrec::pos_t &cursor, const samrec::pos_t end_itr,
   if (std::ssize(rec.buffer) < rec_size)
     rec.buffer.resize(rec_size);
 
-  auto out_name_itr = std::begin(rec.buffer);
-  auto out_seq_itr = out_name_itr + name_len;
-  auto out_qual_itr = out_seq_itr + seq_len;
+  const auto out_name_itr = std::begin(rec.buffer);
+  const auto out_seq_itr = out_name_itr + name_len;
+  const auto out_qual_itr = out_seq_itr + seq_len;
   std::copy_n(name_itr, name_len, out_name_itr);
 
   if (bam_is_rev(flag)) {

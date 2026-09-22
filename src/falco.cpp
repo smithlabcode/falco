@@ -199,7 +199,7 @@ get_file_info_stdin(const std::vector<std::string> &names,
   info.tile_id_position = ft_tile.second;
   info.n_reads_est = n_reads_est;
   info.read_len_est = read_len_est;
-  return std::vector<file_info>(1, info);
+  return std::vector{1, info};
 }
 
 [[nodiscard]] static auto
@@ -237,8 +237,8 @@ get_file_info(const auto &infiles) {
 }
 
 [[nodiscard]] static auto
-make_outdirs(const auto &ins, const auto &outdir,
-             const bool keep_extn = false) -> std::vector<std::string> {
+make_outdirs(const auto &ins, const auto &outdir, const bool keep_extn = false)
+  -> std::vector<std::string> {
   namespace fs = std::filesystem;
   fs::create_directory(outdir);
   const auto compose_dirname = [&](const auto &fname) {
@@ -343,13 +343,13 @@ main(int argc, char *argv[]) {
     argv = app.ensure_utf8(argv);
     app.usage(
       std::format("Usage: {} [options] -o OUTDIR INFILES", PROJECT_NAME));
-    if (argc >= 2)
-      app.footer(std::format(description, falco::get_share_dir()));
+    app.footer(std::format(description, falco::get_share_dir()));
 
     // clang-format off
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     app.get_formatter()->long_option_alignment_ratio(0.2);
     app.set_help_flag("-h,--help", "Print more detailed help");
+    // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
     app.set_version_flag("--version", VERSION, "Print program version");
     app.add_flag("--license", [&](auto) {
       std::print("{}", license_text); throw CLI::Success(); },
@@ -511,7 +511,7 @@ main(int argc, char *argv[]) {
     buffer_size = buffer_size < max_sz ? buffer_size : min_buf_size;
 
     const auto min_buffer_size = get_min_buffer_size(max_read_length);
-    if (min_buffer_size > buffer_size) {
+    if (std::cmp_greater(min_buffer_size, buffer_size)) {
       buffer_size = min_buffer_size;
       if (verbose)
         std::println("buffer size increased to accommodate max read length");

@@ -35,7 +35,7 @@ estimate_n_reads_fastq(const std::string &filename)
   static constexpr auto max_part_size = 1024 * 1024;
   std::vector<char> buffer(max_part_size);
 
-  std::unique_ptr<std::FILE, int (*)(std::FILE *)> in(
+  const std::unique_ptr<std::FILE, int (*)(std::FILE *)> in(
     std::fopen(std::data(filename), "r"), &std::fclose);
   if (!in)
     throw std::system_error(std::make_error_code(std::errc(errno)),
@@ -46,9 +46,10 @@ estimate_n_reads_fastq(const std::string &filename)
   if (filesize < n_parts)
     return {{}, {}, filesize};
 
-  const auto [part_size, remainder] = (filesize < n_parts * max_part_size)
-                                        ? std::ldiv(filesize, n_parts)
-                                        : std::ldiv_t{max_part_size, 0};
+  const auto [part_size, remainder] =
+    (filesize < n_parts * max_part_size)
+      ? std::ldiv(filesize, n_parts)
+      : std::ldiv_t{.quot = max_part_size, .rem = 0};
   auto n_lines = 0LU;
   auto readlen_est = 0LU;
   auto offset = 0L;
@@ -85,17 +86,6 @@ fastq_file::fastq_file(const std::string &filename,
 }
 
 static inline auto
-mmap_fastq(const int fd, const std::int64_t offset, const std::int64_t length,
-           auto &data) {
-  static constexpr auto prot = PROT_READ;
-  static constexpr auto flags = MAP_PRIVATE;
-  data = static_cast<char *>(mmap(nullptr, length, prot, flags, fd, offset));
-  if (data == MAP_FAILED)
-    throw std::system_error(std::make_error_code(std::errc(errno)),
-                            "failed to mmap file");
-}
-
-static inline auto
 cleanup_mmap_fastq(auto &data, std::int64_t &length) {
   if (data == nullptr)
     return;
@@ -107,6 +97,17 @@ cleanup_mmap_fastq(auto &data, std::int64_t &length) {
 auto
 fastq_file::reset() -> void {
   cleanup_mmap_fastq(mmap_data, length);
+}
+
+static inline auto
+mmap_fastq(const int fd, const std::int64_t offset, const std::int64_t length,
+           auto &data) {
+  static constexpr auto prot = PROT_READ;
+  static constexpr auto flags = MAP_PRIVATE;
+  data = static_cast<char *>(mmap(nullptr, length, prot, flags, fd, offset));
+  if (data == MAP_FAILED)
+    throw std::system_error(std::make_error_code(std::errc(errno)),
+                            "failed to mmap file");
 }
 
 auto

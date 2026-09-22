@@ -10,7 +10,7 @@
 
 #include <algorithm>
 #include <array>
-#include <assert.h>
+#include <cassert>
 #include <format>
 #include <iterator>
 #include <numeric>

@@ -34,7 +34,7 @@ get_isize(const auto data, const auto data_size) {
   return data_size < isize_size ? 0 : get_unaligned_le32(data_isize);
 }
 
-auto
+static inline auto
 assign(gzip_header &hdr, const auto data) -> void {
   // ADS: data from the file takes 18 bytes, the fields of the struct take 18
   // bytes, but the struct occupies 20 due to uint32_t members
@@ -75,7 +75,7 @@ bgzf_reader::read_data() -> bool {
   return n_bytes > 0;
 }
 
-[[nodiscard]] inline constexpr auto
+[[nodiscard]] static inline constexpr auto
 get_gzip_body_size(const gzip_header &gh) -> std::uint32_t {
   return (static_cast<std::uint32_t>(gh.size) + 1) - gzip_header_size;
 }

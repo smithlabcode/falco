@@ -30,15 +30,18 @@ estimate_n_reads_fastq_bgzf(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t> {
   static constexpr auto fastq_lines_per_read = 4;
   static constexpr auto n_bytes = 1024 * 1024;
-  std::unique_ptr<BGZF, int (*)(BGZF *)> f(bgzf_open(std::data(filename), "r"),
-                                           &bgzf_close);
+  const std::unique_ptr<BGZF, int (*)(BGZF *)> in(
+    bgzf_open(std::data(filename), "r"), &bgzf_close);
+  if (!in)
+    throw std::system_error(std::make_error_code(std::errc(errno)),
+                            "failed to open file: " + filename);
   std::vector<std::uint8_t> buf(n_bytes);
-  const auto r = bgzf_read(f.get(), std::data(buf), n_bytes);
+  const auto r = bgzf_read(in.get(), std::data(buf), n_bytes);
   if (r < 0)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed reading gz input file");
   // ADS: 'htell' function works below because 'f' has no threadpool
-  const auto n_compressed_bytes = htell(f.get()->fp);
+  const auto n_compressed_bytes = htell(in.get()->fp);
   const auto total_newlines = std::ranges::count(buf, '\n');
 
   const auto inflation_factor = as_frac(n_bytes, n_compressed_bytes);
@@ -56,9 +59,9 @@ estimate_n_reads_fastq_bgzf(const std::string &filename)
 init_dups_fq(const std::string &filename, const std::uint64_t n_unique)
   -> dups_map_t {
   static constexpr auto n_unique_multiplier = 10;
-  std::unique_ptr<BGZF, int (*)(BGZF *)> f(bgzf_open(std::data(filename), "r"),
-                                           &bgzf_close);
-  if (f.get() == nullptr)
+  const std::unique_ptr<BGZF, int (*)(BGZF *)> in(
+    bgzf_open(std::data(filename), "r"), &bgzf_close);
+  if (!in)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to open file: " + filename);
   dups_map_t dups;
@@ -68,7 +71,7 @@ init_dups_fq(const std::string &filename, const std::uint64_t n_unique)
   std::uint64_t n_reads{};
   const auto max_n_reads = n_unique_multiplier * n_unique;
   while (n_reads < max_n_reads && std::size(dups) < n_unique &&
-         (r = bgzf_getline(f.get(), '\n', &s)) >= 0) {
+         (r = bgzf_getline(in.get(), '\n', &s)) >= 0) {
     if (n_lines % 4 == 1) {
       const auto l_qseq = ks_len(&s);
       const auto seq = ks_c_str(&s);

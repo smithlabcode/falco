@@ -33,7 +33,7 @@
 #include <utility>  // for pair
 #include <vector>
 
-[[nodiscard]] auto
+[[nodiscard]] static auto
 get_summary(const file_grades &grades) -> std::string {
   static constexpr auto summary_fmt = R"(
 <div class="summary"><h2>Summary</h2>
@@ -50,19 +50,6 @@ get_summary(const file_grades &grades) -> std::string {
       sections.emplace_back(fmt::format(item_fmt, grades.grade(name), name,
                                         grades.get_title(name)));
   return fmt::format(summary_fmt, fmt::join(sections, "\n"));
-}
-
-[[nodiscard]] auto
-get_html_module(const std::string &label, const std::string &text,
-                const file_grades &grades) -> std::string {
-  static constexpr auto module_fmt =
-    R"(<div class="module">
-<h2 class="{}" id="{}">{}: {}</h2>
-{}
-</div>)";
-  const auto grade = grades.grade(label);
-  const auto title = grades.get_title(label);
-  return fmt::format(module_fmt, label, grade, title, grade, text);
 }
 
 [[nodiscard]] auto
@@ -381,8 +368,8 @@ basic_stats_html(const file_info &info, const std::uint64_t n_reads,
 
 [[nodiscard]] auto
 tile_html(const tile_processor::tiles_centered_t &centered,
-          const std::vector<base_group_t> &groups,
-          const file_grades &grades) -> std::string {
+          const std::vector<base_group_t> &groups, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto n_quants = 20.0;
   // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
@@ -442,8 +429,8 @@ yaxis: {{title: "tile", type: "category"}},
 }
 
 [[nodiscard]] auto
-kmer_html(const std::vector<kmer_result> &results,
-          const file_grades &grades) -> std::string {
+kmer_html(const std::vector<kmer_result> &results, const file_grades &grades)
+  -> std::string {
   static constexpr auto label = "kmer";
   static constexpr auto plot_format = R"(<div id="kmer_plot"></div>
 <script>Plotly.newPlot("kmer_plot",

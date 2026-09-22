@@ -6,6 +6,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <utility>
 
 auto
 bgzf_block_t::decompress() -> void {
@@ -21,6 +22,6 @@ bgzf_block_t::decompress() -> void {
     size,                                                          //
     &inflated_size);
   assert(result == LIBDEFLATE_SUCCESS &&
-         inflated_size == static_cast<std::size_t>(size));
+         std::cmp_equal(inflated_size, static_cast<std::size_t>(size)));
   libdeflate_free_decompressor(decompressor);
 }
