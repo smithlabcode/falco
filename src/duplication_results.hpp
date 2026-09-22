@@ -62,7 +62,8 @@ struct duplication_results {
   dups_map_t dups;
 
   auto
-  initialize(const run_mode &mode, const file_info &info,
+  initialize(const run_mode &mode,
+             const file_info &info,
              const dups_init_t &dups_init) -> void;
 
   auto

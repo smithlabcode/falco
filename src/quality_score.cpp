@@ -6,7 +6,6 @@
 #include "file_info.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cassert>  // IWYU pragma: keep
 #include <format>
 #include <iterator>
@@ -46,13 +45,11 @@ identify_encoding(const std::vector<falco::qual_array> &qual_counts,
 
 [[nodiscard]] auto
 get_quality_score_offset(const falco::encoding e) -> std::int64_t {
-  // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
   return falco::min_qual_offsets[std::to_underlying(e)];
 }
 
 [[nodiscard]] auto
 get_quality_score_label(const falco::encoding e) -> std::string {
-  // NOLINTNEXTLINE (cppcoreguidelines-pro-bounds-constant-array-index)
   return falco::format_labels[std::to_underlying(e)];
 }
 
@@ -74,5 +71,5 @@ adjust_fastq_qual_encoding(std::vector<falco::qual_array> &qual_by_pos,
 encoding_to_string(const falco::encoding e) -> std::string {
   const auto u = std::to_underlying(e);
   assert(u < std::size(falco::format_labels));
-  return falco::format_labels[u];  // NOLINT(*-pro-bounds-constant-array-index)
+  return falco::format_labels[u];
 }

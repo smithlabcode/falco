@@ -9,7 +9,7 @@ class run_mode;
 
 // ADS: run mode is an out-param because it might be partially set already
 auto
-load_config_and_set_graders(const std::string &filename,
-                            run_mode &mode) -> void;
+load_config_and_set_graders(const std::string &filename, run_mode &mode)
+  -> void;
 
 #endif  // SRC_FALCO_CONFIG_HPP_

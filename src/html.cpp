@@ -53,9 +53,10 @@ get_summary(const file_grades &grades) -> std::string {
 }
 
 [[nodiscard]] auto
-falco_get_html(const file_info &info, const file_grades &grades,
+falco_get_html(const file_info &info,
+               const file_grades &grades,
                const std::string &analysis_modules) -> std::string {
-  return fmt::format(falco_html_body,                                         //
+  return fmt::format(falco_html_body,
                      fmt::arg("date", format_program_start_date_and_time()),  //
                      fmt::arg("filename", info.name),                         //
                      fmt::arg("style", style),                                //
@@ -329,11 +330,13 @@ yaxis: {{title: "Phred quality", rangemode: "tozero"}},
 }
 
 [[nodiscard]] auto
-basic_stats_html(const file_info &info, const std::uint64_t n_reads,
+basic_stats_html(const file_info &info,
+                 const std::uint64_t n_reads,
                  const std::uint64_t min_read_len,
                  const std::uint64_t max_read_len,
                  const std::uint64_t median_read_len,
-                 const std::uint64_t total_gc, const std::uint64_t total_nucs,
+                 const std::uint64_t total_gc,
+                 const std::uint64_t total_nucs,
                  const file_grades &grades) -> std::string {
   static constexpr auto label = "basic_stats";
   static constexpr auto table_fmt =

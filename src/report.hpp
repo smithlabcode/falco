@@ -45,11 +45,13 @@ quality_base_report(const std::vector<falco::qual_array> &qual,
                     const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-basic_stats_report(const file_info &info, const std::uint64_t n_reads,
+basic_stats_report(const file_info &info,
+                   const std::uint64_t n_reads,
                    const std::uint64_t min_read_len,
                    const std::uint64_t max_read_len,
                    const std::uint64_t median_read_len,
-                   const std::uint64_t total_gc, const std::uint64_t total_nucs,
+                   const std::uint64_t total_gc,
+                   const std::uint64_t total_nucs,
                    const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
@@ -58,7 +60,7 @@ tile_report(const tile_processor::tiles_centered_t &centered,
             const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-kmer_report(const std::vector<kmer_result> &results,
-            const file_grades &grades) -> std::string;
+kmer_report(const std::vector<kmer_result> &results, const file_grades &grades)
+  -> std::string;
 
 #endif  // SRC_REPORT_HPP_

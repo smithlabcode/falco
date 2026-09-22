@@ -26,7 +26,8 @@ static constexpr auto html_module_fmt =
 </div>)";
 
 [[nodiscard]] auto
-falco_get_html(const file_info &info, const file_grades &grades,
+falco_get_html(const file_info &info,
+               const file_grades &grades,
                const std::string &analysis_modules) -> std::string;
 
 [[nodiscard]] auto
@@ -58,11 +59,13 @@ quality_base_html(const std::vector<falco::qual_array> &qual,
                   const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-basic_stats_html(const file_info &info, const std::uint64_t n_reads,
+basic_stats_html(const file_info &info,
+                 const std::uint64_t n_reads,
                  const std::uint64_t min_read_len,
                  const std::uint64_t max_read_len,
                  const std::uint64_t median_read_len,
-                 const std::uint64_t total_gc, const std::uint64_t total_nucs,
+                 const std::uint64_t total_gc,
+                 const std::uint64_t total_nucs,
                  const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
@@ -71,7 +74,7 @@ tile_html(const tile_processor::tiles_centered_t &centered,
           const file_grades &grades) -> std::string;
 
 [[nodiscard]] auto
-kmer_html(const std::vector<kmer_result> &results,
-          const file_grades &grades) -> std::string;
+kmer_html(const std::vector<kmer_result> &results, const file_grades &grades)
+  -> std::string;
 
 #endif  // SRC_HTML_HPP_

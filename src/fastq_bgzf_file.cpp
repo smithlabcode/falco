@@ -21,7 +21,7 @@
 #include <ranges>
 #include <string>
 #include <system_error>
-#include <tuple>  // IWYU pragma: keep
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -88,7 +88,8 @@ init_dups_fq(const std::string &filename, const std::uint64_t n_unique)
 }
 
 auto
-fastq_bgzf_file::load_next(const std::int32_t file_id, task_queue &tq,
+fastq_bgzf_file::load_next(const std::int32_t file_id,
+                           task_queue &tq,
                            std::atomic_int32_t &n_tasks) -> void {
   is_first_load = false;
   if (output_cursor > 0) {
@@ -102,7 +103,8 @@ fastq_bgzf_file::load_next(const std::int32_t file_id, task_queue &tq,
   auto in_itr = std::data(input_buffer) + input_last;
   while (br.task_ready() && has_in()) {
     auto task = br.get_decomp_task(in_itr);
-    in_itr += task.size;  // NOLINT(*-pro-bounds-pointer-arithmetic)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    in_itr += task.size;
     ++n_tasks;
     tq.push(file_id, std::move(task));
   }
@@ -110,11 +112,10 @@ fastq_bgzf_file::load_next(const std::int32_t file_id, task_queue &tq,
 }
 
 auto
-fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,  //
-                            const std::int32_t file_id,   //
-                            task_queue &tq,               //
-                            std::atomic_int32_t &n_tasks  //
-                            ) -> void {
+fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,
+                            const std::int32_t file_id,
+                            task_queue &tq,
+                            std::atomic_int32_t &n_tasks) -> void {
   static constexpr auto rec_lines = 4;  // FASTQ
   assert(n_chunks > 0);
   std::swap(input_buffer, output_buffer);
@@ -168,7 +169,8 @@ fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,  //
 
 auto
 fastq_bgzf_file::make_tasks(const std::int64_t n_threads,
-                            const std::int32_t file_id, task_queue &tq,
+                            const std::int32_t file_id,
+                            task_queue &tq,
                             std::atomic_int32_t &n_tasks) -> void {
   // ADS: 1 below seems to work best, but not sure why
   static constexpr auto n_chunks_per_thread = 1;

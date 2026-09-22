@@ -138,7 +138,8 @@ duplication_results::initialize(const run_mode &mode, const file_info &info)
 }
 
 auto
-duplication_results::initialize(const run_mode &mode, const file_info &info,
+duplication_results::initialize(const run_mode &mode,
+                                const file_info &info,
                                 const dups_init_t &dups_init) -> void {
   initialize(mode, info);
   dups = dups_init.dups_zero;
@@ -196,7 +197,8 @@ make_bins(const auto &breaks, const auto &hist) {
 // ADS: for original dups, from FastQC extrapolation of dup counts.
 [[nodiscard]] static auto
 get_corrected_count(const std::uint64_t count_at_limit,
-                    const std::uint64_t n_reads, const std::uint64_t dup_level,
+                    const std::uint64_t n_reads,
+                    const std::uint64_t dup_level,
                     const std::uint64_t n_obs) -> double {
   static constexpr auto epsilon = 0.01;
   if (count_at_limit == n_reads)  // we saw everything

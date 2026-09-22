@@ -112,8 +112,8 @@ init_dups(const std::string &filename, const std::uint64_t n_unique)
 }
 
 auto
-bam_file::load_next(const std::int32_t file_id,  //
-                    task_queue &tq,              //
+bam_file::load_next(const std::int32_t file_id,
+                    task_queue &tq,
                     std::atomic_int32_t &n_tasks) -> void {
   is_first_load = false;
   if (output_cursor > 0) {
@@ -135,11 +135,11 @@ bam_file::load_next(const std::int32_t file_id,  //
 }
 
 [[nodiscard]] static inline auto
-partition(auto itr,                     //
-          const auto end,               //
-          const std::int64_t n_chunks,  //
-          const std::int32_t file_id,   //
-          task_queue &tq,               //
+partition(auto itr,
+          const auto end,
+          const std::int64_t n_chunks,
+          const std::int32_t file_id,
+          task_queue &tq,
           std::atomic_int32_t &n_tasks) {
   // ADS: this isn't working as desired: the end position of each part should be
   // the first record end past the 'end_itr' below unless end_itr == end
@@ -161,9 +161,9 @@ partition(auto itr,                     //
 }
 
 auto
-bam_file::get_chunks(const std::int64_t n_chunks,  //
-                     const std::int32_t file_id,   //
-                     task_queue &tq,               //
+bam_file::get_chunks(const std::int64_t n_chunks,
+                     const std::int32_t file_id,
+                     task_queue &tq,
                      std::atomic_int32_t &n_tasks) -> void {
   // Swap so the input buffer can be used to inflate more data and the former
   // input buffer has been inflated and will provide data for analysis
@@ -180,9 +180,9 @@ bam_file::get_chunks(const std::int64_t n_chunks,  //
 }
 
 auto
-bam_file::make_tasks(const std::int64_t n_threads,  //
-                     const std::int32_t file_id,    //
-                     task_queue &tq,                //
+bam_file::make_tasks(const std::int64_t n_threads,
+                     const std::int32_t file_id,
+                     task_queue &tq,
                      std::atomic_int32_t &n_tasks) -> void {
   static constexpr auto n_chunks_per_thread = 8;
   const auto n_chunks = n_chunks_per_thread * n_threads;

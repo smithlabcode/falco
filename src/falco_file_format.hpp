@@ -27,20 +27,21 @@ enum class file_format : std::uint8_t {
 
 // clang-format off
 static constexpr auto file_format_names_impl = std::array{
-  "unknown",     //
-  "fastq",       //
-  "fastq_gz",    //
-  "fastq_bgzf",  //
-  "sam",         //
-  "bam",         //
+  "unknown",
+  "fastq",
+  "fastq_gz",
+  "fastq_bgzf",
+  "sam",
+  "bam",
 };
 // clang-format on
 
 static constexpr std::span file_format_names = file_format_names_impl;
 
+// clang-format off
 // NOLINTNEXTLINE
-NLOHMANN_JSON_SERIALIZE_ENUM(  //
-  file_format,                 //
+NLOHMANN_JSON_SERIALIZE_ENUM(
+  file_format,
   {
     {file_format::unknown, "unknown"},
     {file_format::fastq, "fastq"},
@@ -49,6 +50,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(  //
     {file_format::sam, "SAM"},
     {file_format::bam, "BAM"},
   })
+// clang-format on
 
 [[nodiscard]] constexpr inline auto
 is_mapped_reads(const file_format f) {

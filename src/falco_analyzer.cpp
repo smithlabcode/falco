@@ -28,8 +28,10 @@
 class run_mode;
 
 [[nodiscard]] auto
-analyze(const std::uint32_t n_threads, const run_mode &mode,
-        std::vector<file_info> &infos, std::vector<reads_file_t> reads_files,
+analyze(const std::uint32_t n_threads,
+        const run_mode &mode,
+        std::vector<file_info> &infos,
+        std::vector<reads_file_t> reads_files,
         std::vector<dups_init_t> dups_init) -> std::vector<results_collector> {
   assert(std::size(reads_files) == std::size(infos));
   const auto n_files = static_cast<std::int32_t>(std::size(infos));

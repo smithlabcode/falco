@@ -183,7 +183,8 @@ add(std::ranges::forward_range auto &a1,
 
 inline constexpr auto
 add(std::ranges::forward_range auto &a1,
-    const std::ranges::forward_range auto &a2, const auto adder) {
+    const std::ranges::forward_range auto &a2,
+    const auto adder) {
   std::ranges::transform(a1, a2, std::begin(a1), adder);
 };
 
@@ -225,7 +226,8 @@ add_and_consume(std::ranges::forward_range auto &a1,
 
 inline constexpr auto
 add_and_consume(std::ranges::forward_range auto &a1,
-                std::ranges::forward_range auto a2_sink, const auto adder) {
+                std::ranges::forward_range auto a2_sink,
+                const auto adder) {
   std::ranges::transform(a1, a2_sink, std::begin(a1), adder);
 };
 
@@ -263,7 +265,8 @@ ipow(const auto b, const auto e) -> std::remove_cvref_t<decltype(b)> {
 }
 
 inline constexpr auto
-count_nucs(auto seq_itr, const auto seq_end,
+count_nucs(auto seq_itr,
+           const auto seq_end,
            auto &tab) {  // cppcheck-suppress constParameterReference
   auto out_itr = std::begin(tab);
   while (seq_itr != seq_end)
@@ -271,7 +274,8 @@ count_nucs(auto seq_itr, const auto seq_end,
 }
 
 inline constexpr auto
-count_ns(auto seq_itr, const auto seq_end,
+count_ns(auto seq_itr,
+         const auto seq_end,
          auto &tab) {  // cppcheck-suppress constParameterReference
   auto out_itr = std::begin(tab);
   while (seq_itr != seq_end)
@@ -340,8 +344,8 @@ five_quants(const auto &a) -> std::array<std::uint32_t, 5> {
 // NOLINTEND(cppcoreguidelines-avoid-magic-numbers)
 
 [[nodiscard]] auto
-size_to_units(const std::int64_t s,
-              const std::string &suffix = "iB") -> std::string;
+size_to_units(const std::int64_t s, const std::string &suffix = "iB")
+  -> std::string;
 
 [[nodiscard]] inline auto
 get_max_size(const auto &x) {
@@ -351,8 +355,8 @@ get_max_size(const auto &x) {
 }
 
 [[nodiscard]] inline auto
-estimate_read_length_fastq_chunk(const auto &data,
-                                 const auto n) -> std::uint64_t {
+estimate_read_length_fastq_chunk(const auto &data, const auto n)
+  -> std::uint64_t {
   static constexpr auto fastq_lines_per_read = 4;
   assert(n >= 1);
   const auto valid = [](const auto c) {

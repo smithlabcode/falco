@@ -57,9 +57,9 @@ sam_stdin::skip_header() -> void {
 }
 
 auto
-sam_stdin::get_chunks(const std::int64_t n_chunks,  //
-                      const std::int32_t file_id,   //
-                      task_queue &tq,               //
+sam_stdin::get_chunks(const std::int64_t n_chunks,
+                      const std::int32_t file_id,
+                      task_queue &tq,
                       std::atomic_int32_t &n_tasks) -> void {
   assert(n_chunks > 0);
   const auto beg_itr = std::begin(buffer);
@@ -135,9 +135,9 @@ validate_sam(const auto &buffer) -> bool {
 }
 
 auto
-sam_stdin::make_tasks(const std::int64_t n_chunks,  //
-                      const std::int32_t file_id,   //
-                      task_queue &tq,               //
+sam_stdin::make_tasks(const std::int64_t n_chunks,
+                      const std::int32_t file_id,
+                      task_queue &tq,
                       std::atomic_int32_t &n_tasks) -> void {
   n_tasks = 1;  // for current task, which makes more tasks
   shift_output_buffer();
