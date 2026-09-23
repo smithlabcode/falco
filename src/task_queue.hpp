@@ -51,7 +51,9 @@ struct task_queue {
 
   auto
   request_shutdown() {
+    std::unique_lock tq_lock(mtx);
     stop = true;
+    tq_lock.unlock();
     cv.notify_all();
   }
 };
