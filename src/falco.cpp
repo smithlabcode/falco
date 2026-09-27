@@ -345,7 +345,8 @@ main(int argc, char *argv[]) {
     argv = app.ensure_utf8(argv);
     app.usage(
       std::format("Usage: {} [options] -o OUTDIR INFILES", PROJECT_NAME));
-    app.footer(std::format(description, falco::get_share_dir()));
+    if (argc >= 2)
+      app.footer(std::format(description, falco::get_share_dir()));
 
     // clang-format off
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
