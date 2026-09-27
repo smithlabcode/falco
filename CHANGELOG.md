@@ -1,5 +1,12 @@
 # falco changelog
 
+## falco 2.0.3 (2026-09-27)
+
+Changes:
+* Bugfix: possible race condition for very small input files (or attempting to
+  use massive numbers of threads) that so far has only been seen with very small
+  data files of the kind used for unit tests.
+
 ## falco 2.0.2 (2026-09-09)
 
 Changes:
