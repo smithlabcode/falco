@@ -52,22 +52,22 @@ NLOHMANN_JSON_SERIALIZE_ENUM(
   })
 // clang-format on
 
-[[nodiscard]] constexpr inline auto
+[[nodiscard]] inline constexpr auto
 is_mapped_reads(const file_format f) {
   return f == file_format::sam || f == file_format::bam;
 }
 
-[[nodiscard]] constexpr inline auto
+[[nodiscard]] inline constexpr auto
 is_bam(const file_format f) {
   return f == file_format::bam;
 }
 
-[[nodiscard]] constexpr inline auto
+[[nodiscard]] inline constexpr auto
 is_bgzf(const file_format f) {
   return f == file_format::bam || f == file_format::fastq_bgzf;
 }
 
-[[nodiscard]] constexpr inline auto
+[[nodiscard]] inline constexpr auto
 is_plain(const file_format f) {
   return f == file_format::sam || f == file_format::fastq;
 }

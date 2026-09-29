@@ -66,7 +66,7 @@ gamma_p_series(const double a, const double x) -> double {
   return sum * std::exp(-x + a * std::log(x) - std::lgamma(a));
 }
 
-[[nodiscard]] static constexpr inline auto
+[[nodiscard]] static inline constexpr auto
 safe_floor(const auto x, const auto floor_val) {
   return std::abs(x) < floor_val ? floor_val : x;
 }
