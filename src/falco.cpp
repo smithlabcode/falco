@@ -532,7 +532,7 @@ main(int argc, char *argv[]) {
                    "threads requested: {}\n"
                    "input memory buffer size: {}\n"
                    "max analyzable read length: {}\n",
-                   n_threads, size_to_units(buffer_size),
+                   n_threads, size_to_units(buffer_size, "B"),
                    size_to_units(max_read_length, "bp"));
       std::println("Analyses\n{}", mode.string_verbose());
       std::println("Input files");
