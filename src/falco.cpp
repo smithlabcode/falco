@@ -374,7 +374,8 @@ main(int argc, char *argv[]) {
     app.add_option("-m,--mem", buffer_size,
                    "Input memory buffer size (G/M/K units ok)")
       ->check(CLI::Range(min_buf_size, max_buf_size))
-      ->option_text(std::format("[{}]", size_to_units(buffer_size_default)))
+      ->option_text(std::format("[{}]",
+				size_to_units(buffer_size_default, "")))
       ->capture_default_str()
       ->transform(size_from_units);
     app.add_flag("-v,--verbose", verbose, "Print more info about the run")
