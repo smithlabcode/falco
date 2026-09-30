@@ -309,6 +309,7 @@ main(int argc, char *argv[]) {
     int do_bisulfite{};
     int do_preseq{};
     int do_original_dups{};
+    int do_quals{};
 
     std::uint32_t n_threads{1};
     std::uint32_t max_read_length{};
@@ -437,6 +438,9 @@ main(int argc, char *argv[]) {
     app.add_flag("--tiles,!--no-tiles", do_tiles,
                  "Toggle per-tile quality analysis (default: on)")
       ->option_text(" ");
+    app.add_flag("--quals,!--no-quals", do_quals,
+                 "Toggle quality score analysis (default: on)")
+      ->option_text(" ");
     app.add_flag("--dups,!--no-dups", do_dup_analysis,
                  "Toggle sequence duplication analysis (default: on)")
       ->excludes(orig_dups_opt)
@@ -484,6 +488,7 @@ main(int argc, char *argv[]) {
     mode.set_do_bisulfite(do_bisulfite);
     mode.set_do_preseq(do_preseq);
     mode.set_do_original_dups(do_original_dups);
+    mode.set_do_quals(do_quals);
     mode.set_unassigned();
 
     const auto outdirs = make_outdirs(infiles, outdir, mode.do_stdin());
