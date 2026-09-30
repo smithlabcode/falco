@@ -43,6 +43,7 @@
 // do_bisulfite (changes grading and nothing else)
 // do_original_dups (use the original duplication mode from FastQC and Falco v1)
 // do_preseq (make another output file for input to preseq)
+// do_quals (controls any quality score analysis in case no qual scores present)
 //
 // ADS (2026-09-08 edit): added do_stdin because otherwise it's a floating
 // almost global variable.
@@ -97,6 +98,7 @@ run_mode::set_unassigned() -> void {
   if (do_bisulfite_ == 0) do_bisulfite_ = do_bisulfite_default;
   if (do_preseq_ == 0) do_preseq_ = do_preseq_default;
   if (do_original_dups_ == 0) do_original_dups_ = do_original_dups_default;
+  if (do_quals_ == 0) do_quals_ = do_quals_default;
   //
   if (do_adap_ == 0) do_adap_ = do_adap_default;
   if (do_dups_ == 0) do_dups_ = do_dups_default;
