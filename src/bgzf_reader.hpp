@@ -10,20 +10,25 @@
 #include <iterator>
 #include <memory>
 #include <string>
+#include <vector>
 
 // reads data and provides serialized compressed chunks for deflation
 class bgzf_reader {
+public:
+  using iterator = std::vector<char>::iterator;
+  using const_iterator = std::vector<char>::const_iterator;
+
 private:
   static constexpr auto inbuf_size = 16 * max_bgzf_block_size;
 
   std::unique_ptr<std::FILE, int (*)(std::FILE *)> fp;
   std::uint64_t filesize{};
-  std::unique_ptr<char[]> inbuf;   // NOLINT(cppcoreguidelines-avoid-c-arrays)
-  std::unique_ptr<char[]> outbuf;  // NOLINT(cppcoreguidelines-avoid-c-arrays)
-  char *next_in{};
-  char *end_in{};
-  char *next_out{};
-  char *end_out{};
+  std::vector<char> inbuf;
+  std::vector<char> outbuf;
+  iterator next_in_itr;
+  iterator end_in_itr;
+  iterator next_out_itr;
+  iterator end_out_itr;
 
 public:
   bgzf_reader(const std::string &filename, const std::int64_t buf_size);
@@ -31,7 +36,7 @@ public:
   operator bool() const { return can_produce_data(); }
 
   [[nodiscard]] auto
-  get_decomp_task(char *out_itr) -> bgzf_block_t;
+  get_decomp_task(iterator out_itr) -> bgzf_block_t;
 
   [[nodiscard]] auto
   read_data() -> bool;
@@ -39,7 +44,7 @@ public:
   auto
   release() {
     // ADS: intended analogous to monotonic_buffer_resource release
-    next_out = outbuf.get();
+    next_out_itr = std::begin(outbuf);
   }
 
   [[nodiscard]] auto
@@ -49,8 +54,8 @@ public:
 
   auto
   reset() {
-    inbuf.reset(nullptr);
-    outbuf.reset(nullptr);
+    inbuf.clear();
+    outbuf.clear();
   }
 
 private:
@@ -64,12 +69,12 @@ private:
 
   [[nodiscard]] auto
   can_produce_data() const -> bool {
-    return !at_eof() || next_in != end_in;
+    return !at_eof() || next_in_itr != end_in_itr;
   }
 
   [[nodiscard]] auto
   has_out() const -> bool {
-    return std::distance(next_out, end_out) >= max_bgzf_block_size;
+    return std::distance(next_out_itr, end_out_itr) >= max_bgzf_block_size;
   }
 };
 

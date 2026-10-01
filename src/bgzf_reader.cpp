@@ -9,6 +9,7 @@
 #include <bit>
 #include <cassert>
 #include <cerrno>
+#include <cstddef>  // for std::ptrdiff_t
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -92,7 +93,7 @@ struct gzip_header {
 [[nodiscard]] static inline constexpr auto
 get_unaligned_le32(const auto p) -> std::int32_t {
   std::int32_t value{};
-  std::memcpy(std::addressof(value), p, sizeof(std::int32_t));
+  std::memcpy(std::addressof(value), std::to_address(p), sizeof(std::int32_t));
   if constexpr (std::endian::native == std::endian::big)
     return std::byteswap(value);
   else
@@ -103,7 +104,6 @@ get_unaligned_le32(const auto p) -> std::int32_t {
 get_isize(const auto data, const auto data_size) {
   static constexpr decltype(data_size) isize_size = 4;
   assert(data_size > isize_size);
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const auto data_isize = data + data_size - isize_size;
   return data_size < isize_size ? 0 : get_unaligned_le32(data_isize);
 }
@@ -122,23 +122,23 @@ get_gzip_body_size(const gzip_header &gh) -> std::uint32_t {
 }  // namespace
 
 [[nodiscard]] auto
-bgzf_reader::get_decomp_task(char *out_itr) -> bgzf_block_t {
-  if (std::distance(next_out, end_out) < max_bgzf_block_size)
+bgzf_reader::get_decomp_task(bgzf_reader::iterator out_itr) -> bgzf_block_t {
+  if (std::distance(next_out_itr, end_out_itr) < max_bgzf_block_size)
     return bgzf_block_t{};
-  if (std::distance(next_in, end_in) < gzip_header_size && !read_data())
+  if (std::distance(next_in_itr, end_in_itr) < gzip_header_size && !read_data())
     return bgzf_block_t{};
   gzip_header gh;
   assign(gh, next_in);
   assert(gh.check_magic());
-  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  next_in += gzip_header_size;
+  next_in_itr += gzip_header_size;
   const auto body_size = get_gzip_body_size(gh);
-  if (std::distance(next_in, end_in) < body_size && !read_data())
+  if (std::distance(next_in_itr, end_in_itr) < body_size && !read_data())
     return bgzf_block_t{};
-  std::memcpy(next_out, next_in, body_size);
-  bgzf_block_t task(get_isize(next_in, body_size), out_itr, next_out);
-  next_in += body_size;
-  next_out += max_bgzf_block_size;
-  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  std::copy_n(next_in_itr, body_size, next_out_itr);
+  const auto isize = get_isize(next_in_itr, body_size);
+  assert(isize >= 0);
+  bgzf_block_t task(isize, out_itr, next_out_itr);
+  next_in_itr += body_size;
+  next_out_itr += max_bgzf_block_size;
   return task;
 }
