@@ -39,6 +39,7 @@ CheckOptions:
   cppcoreguidelines-rvalue-reference-param-not-moved.AllowPartialMove: 'true'
   cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues: '1;2;3;4;10'
   cppcoreguidelines-avoid-magic-numbers.IgnoredFloatingPointValues: '1.0;2.0;10.0;100.0'
+  misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: true
   google-readability-braces-around-statements.ShortStatementLines: '1'
   google-readability-namespace-comments.ShortNamespaceLines: '10'
   google-readability-namespace-comments.SpacesBeforeComments: '2'
