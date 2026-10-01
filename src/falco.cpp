@@ -345,17 +345,19 @@ main(int argc, char *argv[]) {
     argv = app.ensure_utf8(argv);
     app.usage(
       std::format("Usage: {} [options] -o OUTDIR INFILES", PROJECT_NAME));
+    // NOLINTBEGIN(clang-analyzer-cplusplus.NewDeleteLeaks)
     if (argc >= 2)
       app.footer(std::format(description, falco::get_share_dir()));
+    // NOLINTEND(clang-analyzer-cplusplus.NewDeleteLeaks)
 
     // clang-format off
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
     app.get_formatter()->long_option_alignment_ratio(0.2);
     app.set_help_flag("-h,--help", "Print more detailed help");
-    // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
     app.set_version_flag("--version", VERSION, "Print program version");
-    app.add_flag("--license", [&](auto) {
-      std::print("{}", license_text); throw CLI::Success(); },
+    app.add_flag("--license",
+      // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
+      [&](auto) { std::print("{}", license_text); throw CLI::Success(); },
       "Print full license")
       ->callback_priority(CLI::CallbackPriority::PreRequirementsCheck);
     auto infiles_opt =
