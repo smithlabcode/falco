@@ -23,6 +23,7 @@
 #include <format>
 #include <iterator>
 #include <limits>
+#include <map>
 #include <numeric>
 #include <ranges>
 #include <span>
@@ -209,8 +210,8 @@ basic_stats_report(const file_info &info,
 
 [[nodiscard]] auto
 tile_report(const tile_processor::tiles_centered_t &centered,
-            const std::vector<base_group_t> &groups, const file_grades &grades)
-  -> std::string {
+            const std::vector<base_group_t> &groups,
+            const file_grades &grades) -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto max_precision{std::numeric_limits<double>::digits10};
   static constexpr auto start_tag = ">>Per tile sequence quality\t{}\n";

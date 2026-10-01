@@ -29,7 +29,6 @@
 #include <span>
 #include <stdexcept>
 #include <string>
-#include <tuple>    // for std::get probably in fmt
 #include <utility>  // for pair
 #include <vector>
 
@@ -371,8 +370,8 @@ basic_stats_html(const file_info &info,
 
 [[nodiscard]] auto
 tile_html(const tile_processor::tiles_centered_t &centered,
-          const std::vector<base_group_t> &groups, const file_grades &grades)
-  -> std::string {
+          const std::vector<base_group_t> &groups,
+          const file_grades &grades) -> std::string {
   static constexpr auto label = "tile";
   static constexpr auto n_quants = 20.0;
   // ADS: ??? (-10: red, 0: light blue, +10: dark blue)
