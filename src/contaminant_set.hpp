@@ -5,7 +5,6 @@
 
 #include <cstdint>
 #include <iterator>
-#include <ranges>  // for std::pair
 #include <string>
 #include <utility>
 #include <vector>
