@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "bgzf_reader.hpp"
+
 #include "bgzf_block.hpp"
 
 #include <bit>
@@ -14,6 +15,7 @@
 #include <string>
 #include <system_error>
 #include <utility>
+#include <algorithm>
 
 [[nodiscard]] static inline constexpr auto
 get_unaligned_le32(const auto p) -> std::int32_t {

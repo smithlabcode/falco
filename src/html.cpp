@@ -31,6 +31,7 @@
 #include <string>
 #include <utility>  // for pair
 #include <vector>
+#include <tuple>
 
 [[nodiscard]] static auto
 get_summary(const file_grades &grades) -> std::string {

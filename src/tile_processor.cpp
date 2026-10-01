@@ -2,6 +2,7 @@
 
 #include "tile_processor.hpp"
 
+
 #include "base_groups.hpp"
 #include "falco_file_format.hpp"
 #include "falco_grade.hpp"
@@ -28,6 +29,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <tuple>
 
 auto
 tile_processor::init(const file_info &info) -> void {
