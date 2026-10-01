@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "contaminant_set.hpp"
+
 #include "falco_utils.hpp"
 
 #include <algorithm>
@@ -11,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 

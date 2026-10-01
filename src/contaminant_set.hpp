@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <ranges>
 
 struct contaminant_set {
   static auto
