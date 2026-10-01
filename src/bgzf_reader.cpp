@@ -61,7 +61,7 @@ bgzf_reader::read_data() -> bool {
   if (at_eof())
     return false;
   const auto unused_in = std::distance(next_in, end_in);
-  std::memcpy(inbuf.get(), next_in, unused_in);
+  std::copy_n(next_in, unused_in, inbuf.get());
   next_in = inbuf.get();
   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   end_in = next_in + unused_in;
