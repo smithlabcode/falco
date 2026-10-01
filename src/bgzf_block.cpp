@@ -16,9 +16,9 @@ bgzf_block_t::decompress() -> void {
   [[maybe_unused]]
   const libdeflate_result result = libdeflate_deflate_decompress(  //
     decompressor,                                                  //
-    in_itr,                                                        //
+    std::to_address(in_itr),                                       //
     max_bgzf_block_size,                                           //
-    out_itr,                                                       //
+    std::to_address(out_itr),                                      //
     size,                                                          //
     &inflated_size);
   assert(result == LIBDEFLATE_SUCCESS &&
