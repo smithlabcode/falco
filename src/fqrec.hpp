@@ -36,7 +36,7 @@ struct fqrec {
   size() const { return static_cast<std::int32_t>(std::distance(r, o)) - 1; }
   [[nodiscard]] operator bool() const { return n != nullptr; }
   [[nodiscard]] auto
-  string() const -> std::string { return {n, e}; }
+  to_string() const -> std::string { return {n, e}; }
 };
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 [[nodiscard]] constexpr auto get_name(const fqrec &rec) { return rec.n; }
