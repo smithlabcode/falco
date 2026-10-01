@@ -99,8 +99,7 @@ fastq_bgzf_file::load_next(const std::int32_t file_id,
     input_last = n_to_keep;
   }
   br.release();  // use like monotonic_buffer_resource
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  auto in_itr = std::data(input_buffer) + input_last;
+  auto in_itr = std::begin(input_buffer) + input_last;
   while (br.task_ready() && has_in()) {
     auto task = br.get_decomp_task(in_itr);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -108,7 +107,7 @@ fastq_bgzf_file::load_next(const std::int32_t file_id,
     ++n_tasks;
     tq.push(file_id, std::move(task));
   }
-  input_last = std::distance(std::data(input_buffer), in_itr);
+  input_last = std::distance(std::begin(input_buffer), in_itr);
 }
 
 auto
