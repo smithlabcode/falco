@@ -11,34 +11,6 @@
 #include <memory>
 #include <string>
 
-static constexpr auto gzip_header_size = 18;
-
-struct gzip_header {
-  static constexpr auto magic1 = 0x1F;
-  static constexpr auto magic2 = 0x8B;
-
-  std::uint8_t id1{};       // 0
-  std::uint8_t id2{};       // 1
-  std::uint8_t cm_eight{};  // 2
-  std::uint8_t flg{};       // 3
-  std::uint32_t mtime{};    // 7 [4]
-  std::uint8_t xfl{};       // 8
-  std::uint8_t os{};        // 9
-  std::uint16_t xlen{};     // 11 [2]
-  char b{};                 // 12
-  char c{};                 // 13
-  std::uint16_t two{};      // 14 [2]
-  std::uint16_t size{};     // 16 [2]
-  // 18
-
-  // ADS: total size is 20 bytes because of alignment and 32-bit values
-
-  [[nodiscard]] auto
-  check_magic() const -> bool {
-    return id1 == magic1 && id2 == magic2;  // ADS: check b and c also
-  }
-};
-
 // reads data and provides serialized compressed chunks for deflation
 class bgzf_reader {
 private:
@@ -46,7 +18,6 @@ private:
 
   std::unique_ptr<std::FILE, int (*)(std::FILE *)> fp;
   std::uint64_t filesize{};
-  gzip_header gh;
   std::unique_ptr<char[]> inbuf;   // NOLINT(cppcoreguidelines-avoid-c-arrays)
   std::unique_ptr<char[]> outbuf;  // NOLINT(cppcoreguidelines-avoid-c-arrays)
   char *next_in{};
