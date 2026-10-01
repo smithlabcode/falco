@@ -35,7 +35,7 @@ missingInclude
 *:*CLI11.hpp
 *:*json.hpp
 *:*boost_unordered.hpp
-*:fmt/*.h
+*:*fmt/*.h
 # Problem caused by external files
 toomanyconfigs
 # More problems caused by external files -- with too many ifdefs
