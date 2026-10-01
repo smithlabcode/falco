@@ -20,7 +20,6 @@
 #include <mutex>
 #include <ranges>
 #include <thread>
-#include <tuple>  // for std::get (iwyu fp)
 #include <utility>
 #include <variant>
 #include <vector>
