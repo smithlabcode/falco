@@ -115,40 +115,56 @@ smooth_gc_content(const std::vector<double> &data,
   return smoothed;
 }
 
+[[nodiscard]] static auto
+get_last_bin(const std::int64_t histogram_size, const double next_percent)
+  -> std::int64_t {
+  const auto one_past_last = std::min(
+    histogram_size, static_cast<std::int64_t>(std::ceil(next_percent)));
+  return one_past_last - 1;
+}
+
+auto
+fill_histogram(const falco::gc_content_t &gc,
+               const std::int32_t gc_idx,
+               const double mass,
+               std::vector<double> &hist) -> void {
+  // ADS: below, not sure best way to do this for all edge cases
+  assert(!hist.empty());
+  const auto curr_percent = gc_idx * mass;
+  const auto next_percent = (gc_idx + 1) * mass;
+  const auto first_bin = static_cast<std::int64_t>(std::floor(curr_percent));
+  const auto last_bin = get_last_bin(std::ssize(hist), next_percent);
+  assert(last_bin < std::ssize(hist));
+  const auto has_splits = first_bin != last_bin;
+  const auto mass_left =
+    has_splits ? static_cast<double>(first_bin) + 1.0 - curr_percent : mass;
+  const auto mass_right =
+    has_splits ? next_percent - static_cast<double>(last_bin) : mass;
+  const auto hist_begin = std::begin(hist) + first_bin;
+  const auto hist_end = std::cbegin(hist) + last_bin;
+  const auto gc_val = as_frac(gc[gc_idx], mass);
+  for (auto hist_itr = hist_begin; hist_itr <= hist_end; ++hist_itr)
+    *hist_itr += gc_val * ((hist_itr == hist_begin) ? mass_left
+                           : (hist_itr == hist_end) ? mass_right
+                                                    : 1.0);
+}
+
 [[nodiscard]] auto
 combine_gc_content_for_lengths(const std::vector<falco::gc_content_t> &gcs)
   -> std::vector<double> {
   static constexpr auto histogram_size = 101;
   std::vector<double> hist(histogram_size);
+  // ADS: iterate over each gc content vector (per length or length group)
   for (const auto &gc : gcs) {
+    // ignore any length groups that have no reads
     if (std::ranges::none_of(gc, [](const auto x) { return x > 0.0; }))
       continue;
-    const auto increment = as_frac(histogram_size, std::size(gc));
-    for (auto gc_idx = 0U; gc_idx < std::size(gc); ++gc_idx) {
-      const auto curr_percent = gc_idx * increment;
-      const auto next_percent = (gc_idx + 1) * increment;
-      const auto start_in_hist =
-        static_cast<std::int64_t>(std::floor(curr_percent));
-      // ADS: below, not sure best way to do this for all edge cases
-      const auto stop_in_hist =
-        static_cast<std::int64_t>(std::min(static_cast<double>(histogram_size),
-                                           std::ceil(next_percent))) -
-        1;
-      assert(stop_in_hist < histogram_size);
-      const auto splits = start_in_hist != stop_in_hist;
-      const auto frac_left =
-        splits ? static_cast<double>(start_in_hist) + 1.0 - curr_percent
-               : increment;
-      const auto frac_right =
-        splits ? next_percent - static_cast<double>(stop_in_hist) : increment;
-      const auto hist_begin = std::begin(hist) + start_in_hist;
-      const auto hist_end = std::cbegin(hist) + stop_in_hist;
-      const auto gc_val = as_frac(gc[gc_idx], increment);
-      for (auto hist_itr = hist_begin; hist_itr <= hist_end; ++hist_itr)
-        *hist_itr += gc_val * ((hist_itr == hist_begin) ? frac_left
-                               : (hist_itr == hist_end) ? frac_right
-                                                        : 1.0);
-    }
+    // 'mass' is the fraction of each bin in the universal gc-content
+    // histogram that is contributed by each full bin in the current
+    // length-specific gc-content histogram
+    const auto mass = as_frac(histogram_size, std::size(gc));
+    for (auto gc_idx = 0; gc_idx < std::ssize(gc); ++gc_idx)
+      fill_histogram(gc, gc_idx, mass, hist);
   }
   return hist;
 }
