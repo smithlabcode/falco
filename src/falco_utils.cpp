@@ -123,18 +123,20 @@ get_last_bin(const std::int64_t histogram_size, const double next_percent)
   return one_past_last - 1;
 }
 
-auto
-fill_histogram(const falco::gc_content_t &gc,
-               const std::int32_t gc_idx,
-               const double mass,
-               std::vector<double> &hist) -> void {
+static auto
+fill_histogram(
+  const falco::gc_content_t &gc,
+  const std::int32_t gc_idx,
+  const double mass,
+  std::vector<double> &hist  // cppcheck-suppress constParameterReference
+  ) -> void {
   // ADS: below, not sure best way to do this for all edge cases
   assert(!hist.empty());
   const auto curr_percent = gc_idx * mass;
   const auto next_percent = (gc_idx + 1) * mass;
   const auto first_bin = static_cast<std::int64_t>(std::floor(curr_percent));
   const auto last_bin = get_last_bin(std::ssize(hist), next_percent);
-  assert(last_bin < std::ssize(hist));
+  assert(std::cmp_less(last_bin, std::size(hist)));
   const auto has_splits = first_bin != last_bin;
   const auto mass_left =
     has_splits ? static_cast<double>(first_bin) + 1.0 - curr_percent : mass;
