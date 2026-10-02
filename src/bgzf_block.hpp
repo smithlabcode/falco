@@ -17,11 +17,11 @@ struct bgzf_block_t {
   // to track one of the sizes or we would have to add an end iterator for one
   // of them.
   std::int32_t size{};
-  iterator out_itr;
-  iterator in_itr;
+  iterator out_itr{};
+  iterator in_itr{};
   bgzf_block_t(const std::int32_t size,
-               iterator out_itr,
-               iterator in_itr) noexcept :
+               const iterator out_itr,
+               const iterator in_itr) noexcept :
     size{size}, out_itr{out_itr}, in_itr{in_itr} {}
 
   // clang-format off
