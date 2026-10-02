@@ -9,6 +9,7 @@
 #include <bit>
 #include <cassert>
 #include <cerrno>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -44,7 +45,8 @@ bgzf_reader::read_data() -> bool {
   if (std::ferror(fp.get()))
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed reading input");
-  end_in_itr += n_bytes;  // will usually be end of inbuf
+  // will usually be end of inbuf
+  end_in_itr += static_cast<std::ptrdiff_t>(n_bytes);
   return n_bytes > 0;
 }
 
