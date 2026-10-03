@@ -107,22 +107,6 @@ resize_gc_content(const std::uint32_t updated_length,
 }
 
 [[nodiscard]] auto
-combine_gc_content_for_lengths(const std::vector<falco::gc_content_t> &gcs)
-  -> std::vector<double>;
-
-[[nodiscard]] auto
-smooth_gc_content(const std::vector<double> &data,
-                  const std::int64_t window_size) -> std::vector<double>;
-
-[[nodiscard]] auto
-get_theoretical_distribution(const std::vector<double> &gc,
-                             const std::uint64_t total_count)
-  -> std::vector<double>;
-
-[[nodiscard]] auto
-sum_deviation_from_normal(const std::vector<double> &gc) -> double;
-
-[[nodiscard]] auto
 get_run_duration(const auto start_time) {
   using namespace std::literals::chrono_literals;
   const auto d = std::chrono::system_clock::now() - start_time;
