@@ -6,6 +6,7 @@
 #include "adapter_matcher.hpp"
 #include "base_groups.hpp"
 #include "duplication_results.hpp"
+#include "falco_gc_summary.hpp"
 #include "falco_grade.hpp"
 #include "falco_utils.hpp"
 #include "file_info.hpp"

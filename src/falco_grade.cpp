@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "falco_grade.hpp"
+#include "falco_gc_summary.hpp"
 
 #include <algorithm>
 #include <cassert>
