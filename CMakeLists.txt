@@ -79,6 +79,7 @@ endif()
 
 add_library(adapter_set OBJECT src/adapter_set.cpp)
 add_library(falco_utils OBJECT src/falco_utils.cpp)
+add_library(falco_gc_summary OBJECT src/falco_gc_summary.cpp)
 add_library(base_groups OBJECT src/base_groups.cpp)
 add_library(bgzf_block OBJECT src/bgzf_block.cpp)
 add_library(bgzf_reader OBJECT src/bgzf_reader.cpp)
@@ -144,6 +145,7 @@ target_link_libraries(falco PRIVATE
   bam_header
   falco_file_format
   falco_utils
+  falco_gc_summary
   falco_grade
   falco_analyzer
   results_summary

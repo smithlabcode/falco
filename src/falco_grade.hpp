@@ -3,6 +3,7 @@
 #ifndef SRC_FALCO_GRADE_HPP_
 #define SRC_FALCO_GRADE_HPP_
 
+#include "falco_gc_summary.hpp"
 #include "falco_utils.hpp"
 #include "quality_score.hpp"
 
