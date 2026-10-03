@@ -3,6 +3,7 @@
 #include "results_summary.hpp"
 
 #include "base_groups.hpp"
+#include "falco_gc_summary.hpp"
 #include "falco_utils.hpp"
 #include "html.hpp"
 #include "report.hpp"
