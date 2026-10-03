@@ -6,14 +6,14 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cmath>
 #include <compare>
 #include <cstdint>
-#include <ctime>  // for std::localtime
-#include <format>
-#include <iomanip>  // for std::put_time
-#include <sstream>
-#include <string>
+#include <functional>
+#include <iterator>
+#include <numeric>
+#include <ranges>
 #include <tuple>
 #include <utility>
 #include <vector>

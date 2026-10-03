@@ -2,19 +2,13 @@
 
 #include "falco_utils.hpp"
 
-#include <algorithm>
-#include <array>
 #include <cmath>
-#include <compare>
 #include <cstdint>
-#include <ctime>  // for std::localtime
+#include <ctime>
 #include <format>
-#include <iomanip>  // for std::put_time
+#include <iomanip>
 #include <sstream>
 #include <string>
-#include <tuple>
-#include <utility>
-#include <vector>
 
 [[nodiscard]] auto
 size_to_units(const std::int64_t s, const std::string &suffix) -> std::string {
