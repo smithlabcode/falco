@@ -6,16 +6,18 @@
 #include "falco_file_format.hpp"
 #include "file_info.hpp"
 
-#include <htslib/bgzf.h>
 #include <htslib/sam.h>
 
 #include <algorithm>
 #include <cassert>  // IWYU pragma: keep
+#include <cerrno>
 #include <format>
 #include <iterator>
+#include <memory>
 #include <ranges>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
