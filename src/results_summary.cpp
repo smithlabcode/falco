@@ -3,6 +3,7 @@
 #include "results_summary.hpp"
 
 #include "base_groups.hpp"
+#include "falco_gc_summary.hpp"
 #include "falco_utils.hpp"
 #include "html.hpp"
 #include "report.hpp"
@@ -47,7 +48,7 @@ results_summary::initialize() -> void {
     return a + nuc[guanine_index] + nuc[cytosine_index];
   };
   total_gc = std::accumulate(std::cbegin(base_counts), std::cend(base_counts),
-                             0ul, gc_acc);
+                             0LU, gc_acc);
   median_read_len =
     min_read_len_itr == std::cend(lengths) ? 0LU : median_tabular(lengths);
 
@@ -94,10 +95,10 @@ results_summary::assign_grades() -> void {
     grades.emplace("overrepresented",
                    get_grade_overrepresented(dup_summary.n_reads, dr));
 
-  if (mode.do_qual_base())
+  if (mode.do_qual_base() && info.has_quals)
     grades.emplace("quality_base", get_grade_quality_base(qual_by_pos));
 
-  if (mode.do_qual_seq())
+  if (mode.do_qual_seq() && info.has_quals)
     grades.emplace("quality_sequence",
                    get_grade_quality_sequence(qual_by_read));
 
@@ -148,11 +149,11 @@ results_summary::get_report() const -> std::string {
     sections.emplace("overrepresented",
                      overrepresented_report(overrep, grades));
 
-  if (mode.do_qual_base())
+  if (mode.do_qual_base() && info.has_quals)
     sections.emplace("quality_base",
                      quality_base_report(qual_by_pos, groups, grades));
 
-  if (mode.do_qual_seq())
+  if (mode.do_qual_seq() && info.has_quals)
     sections.emplace("quality_sequence",
                      quality_sequence_report(qual_by_read, grades));
 
@@ -213,11 +214,11 @@ results_summary::get_html() -> std::string {
   if (mode.do_overrep())
     sections.emplace("overrepresented", overrepresented_html(overrep, grades));
 
-  if (mode.do_qual_base())
+  if (mode.do_qual_base() && info.has_quals)
     sections.emplace("quality_base",
                      quality_base_html(qual_by_pos, groups, grades));
 
-  if (mode.do_qual_seq())
+  if (mode.do_qual_seq() && info.has_quals)
     sections.emplace("quality_sequence",
                      quality_sequence_html(qual_by_read, grades));
 
