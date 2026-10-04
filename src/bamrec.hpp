@@ -80,6 +80,7 @@ public:
   friend constexpr auto get_seq(const bamrec &);
   friend constexpr auto get_seq_end(const bamrec &);
   friend constexpr auto get_seq_size(const bamrec &);
+  friend constexpr auto has_qual(const bamrec &);
   friend constexpr auto get_qual(const bamrec &);
   friend constexpr auto get_qual_end(const bamrec &);
   friend constexpr auto get_qual_size(const bamrec &);
@@ -102,6 +103,11 @@ public:
 
   [[nodiscard]] static auto
   find_end_pos(pos_t itr, const pos_t end) -> pos_t;
+
+  [[nodiscard]] static consteval auto
+  get_qual_missing_code() -> char {
+    return qual_missing_code;
+  }
 };
 
 [[nodiscard]] inline constexpr auto
@@ -135,13 +141,18 @@ get_qual(const bamrec &rec) {
 }
 
 [[nodiscard]] inline constexpr auto
-get_qual_end(const bamrec &rec) {
-  return get_qual(rec) + rec.seq_len;
+has_qual(const bamrec &rec) {
+  return *get_qual(rec) != bamrec::qual_missing_code;
 }
 
 [[nodiscard]] inline constexpr auto
 get_qual_size(const bamrec &rec) {
-  return get_seq_size(rec);
+  return has_qual(rec) ? rec.seq_len : 0U;
+}
+
+[[nodiscard]] inline constexpr auto
+get_qual_end(const bamrec &rec) {
+  return get_qual(rec) + get_qual_size(rec);
 }
 
 struct bam_task_t {
