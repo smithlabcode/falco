@@ -86,8 +86,7 @@ bamrec::get_next(bamrec::pos_t &itr, const bamrec::pos_t end, bamrec &rec)
   else
     assign_sequence(seq_in, core.l_seq, out_itr);
   out_itr += rec.seq_len;  // increment data cursor to qual
-  const auto has_qual = (itr[core.qual_offset()] != qual_missing_code);
-  if (has_qual) {
+  if (itr[core.qual_offset()] != qual_missing_code) {
     const auto qual_itr = itr + core.qual_offset();
     const auto qual_end = qual_itr + rec.seq_len;
     if (core.bam_is_rev())
