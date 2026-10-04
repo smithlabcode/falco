@@ -66,6 +66,7 @@ Use these as templates. Copy and modify them to customize your analysis.
 #include "file_info.hpp"
 #include "get_binary_dir.hpp"
 #include "original_duplicates.hpp"
+#include "quality_score.hpp"
 #include "reads_file.hpp"  // IWYU pragma: keep
 #include "results_summary.hpp"
 #include "run_mode.hpp"

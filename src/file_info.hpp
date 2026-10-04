@@ -3,14 +3,15 @@
 #ifndef SRC_FILE_INFO_HPP_
 #define SRC_FILE_INFO_HPP_
 
-#include "falco_file_format.hpp"
-#include "falco_utils.hpp"
-#include "quality_score.hpp"
-
 #include "nlohmann/json.hpp"
 
 #include <cstdint>
 #include <string>
+
+namespace falco {
+enum class encoding : std::uint8_t;
+enum class file_format : std::uint8_t;
+}  // namespace falco
 
 struct file_info {
   std::string name;
