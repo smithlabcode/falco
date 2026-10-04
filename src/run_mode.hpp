@@ -76,7 +76,7 @@ private:
   static constexpr auto do_bisulfite_default = -1;      // OFF
   static constexpr auto do_preseq_default = -1;         // OFF
   static constexpr auto do_original_dups_default = -1;  // OFF
-  static constexpr auto do_quals_default = 1;
+  static constexpr auto do_quals_default = 1;           // ON
 
   static constexpr auto do_adap_default = 1;  // affects processing
   static constexpr auto do_dups_default = 1;  // affects processing
