@@ -93,6 +93,7 @@ add_library(bam_file OBJECT src/bam_file.cpp)
 add_library(samrec OBJECT src/samrec.cpp)
 add_library(sam_file OBJECT src/sam_file.cpp)
 add_library(sam_stdin OBJECT src/sam_stdin.cpp)
+add_library(file_info OBJECT src/file_info.cpp)
 add_library(falco_file_format OBJECT src/falco_file_format.cpp)
 add_library(quality_score OBJECT src/quality_score.cpp)
 add_library(tile_processor OBJECT src/tile_processor.cpp)
@@ -143,6 +144,7 @@ target_link_libraries(falco PRIVATE
   sam_stdin
   samrec
   bam_header
+  file_info
   falco_file_format
   falco_utils
   falco_gc_summary
