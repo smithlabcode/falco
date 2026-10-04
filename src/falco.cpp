@@ -192,16 +192,20 @@ get_file_info_stdin(const std::vector<std::string> &names,
     ft_tile.first == falco::file_format::fastq
       ? estimate_n_reads_fastq_stdin(names.front())
       : estimate_n_reads_sam_stdin(names.front());
-  file_info info;
-  info.name = names.front();
-  info.format = ft_tile.first;
-  info.description = std::format("{} from standard input", info.format);
-  info.size = 0;
-  info.has_tiles = (ft_tile.second != 0);
-  info.tile_id_position = ft_tile.second;
-  info.n_reads_est = n_reads_est;
-  info.read_len_est = read_len_est;
-  return std::vector{1, info};
+  // clang-format off
+  return std::vector{1, file_info{
+    .name = names.front(),
+    .format = ft_tile.first,
+    .description = std::format("{} from standard input", ft_tile.first),
+    .size = 0,
+    .n_reads_est = n_reads_est,
+    .read_len_est = read_len_est,
+    .has_quals = true,
+    .encoding = falco::encoding::unknown,
+    .has_tiles = (ft_tile.second != 0),
+    .tile_id_position = ft_tile.second,
+    }};
+  // clang-format on
 }
 
 [[nodiscard]] static auto
@@ -211,6 +215,8 @@ get_file_info(const auto &infiles) {
     const auto [input_format, format_description] = get_file_format(infile);
     const auto tile_id_position = get_tile_info(infile);
     const bool has_tiles = (tile_id_position != 0);
+    const bool has_quals =
+      (input_format == falco::file_format::fastq) || bam_has_quals(infile);
     const auto [n_reads_est, read_len_est, filesize] = [&] {
       // clang-format off
       using falco::file_format;
@@ -231,6 +237,8 @@ get_file_info(const auto &infiles) {
       .size = filesize,
       .n_reads_est = n_reads_est,
       .read_len_est = read_len_est,
+      .has_quals = has_quals,
+      .encoding = falco::encoding::unknown,
       .has_tiles = has_tiles,
       .tile_id_position = tile_id_position,
     });
@@ -543,10 +551,8 @@ main(int argc, char *argv[]) {
                    size_to_units(max_read_length, "bp"));
       std::println("Analyses\n{}", mode.string_verbose());
       std::println("Input files");
-      std::ranges::for_each(infos, [](const auto &info) {
-        std::println("{}\t{}\t{}", info.name, info.description,
-                     size_to_units(info.size, std::string{}));
-      });
+      std::ranges::for_each(
+        infos, [](const auto &info) { std::println("{}", info.to_line()); });
       std::println();
     }
 
