@@ -71,8 +71,8 @@ struct alignas(assumed_page_size) results_collector {
     }
     else
       dr.initialize(mode, info);
-    do_tiles = mode.do_tiles() && info.has_tiles;
     do_kmers = mode.do_kmers();
+    do_tiles = mode.do_quals() && mode.do_tiles() && info.has_tiles;
     if (do_tiles)
       tp.init(info);
   }
