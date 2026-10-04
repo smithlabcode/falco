@@ -112,6 +112,11 @@ run_mode::set_unassigned() -> void {
   if (do_length_ == 0) do_length_ = do_length_default;
   if (do_tiles_ == 0) do_tiles_ = do_tiles_default;
   // clang-format on
+
+  if (do_quals_ == -1) {
+    do_qual_seq_ = -1;
+    do_qual_base_ = -1;
+  }
 }
 
 [[nodiscard]] auto
