@@ -92,7 +92,7 @@ samrec::get_next(samrec::pos_t &cursor,
   if (itr++ == end_itr)
     return false;
 
-  if (qual_len != seq_len)
+  if (qual_len != seq_len && qual_len != 1)
     throw std::runtime_error("quality scores invalid for record: " +
                              std::string(name_itr, name_itr + name_len));
 
@@ -108,13 +108,20 @@ samrec::get_next(samrec::pos_t &cursor,
   if (bam_is_rev(flag)) {
     std::reverse_copy(seq_itr, seq_itr + seq_len, out_seq_itr);
     std::transform(out_seq_itr, out_seq_itr + seq_len, out_seq_itr, complem);
-    std::reverse_copy(qual_itr, qual_itr + seq_len, out_qual_itr);
+    if (*qual_itr != qual_missing_code)
+      std::reverse_copy(qual_itr, qual_itr + seq_len, out_qual_itr);
+    else
+      *out_qual_itr = qual_missing_code;
   }
   else {
     std::copy(seq_itr, seq_itr + seq_len, out_seq_itr);
-    std::copy(qual_itr, qual_itr + seq_len, out_qual_itr);
+    if (*qual_itr != qual_missing_code)
+      std::copy(qual_itr, qual_itr + seq_len, out_qual_itr);
+    else
+      *out_qual_itr = qual_missing_code;
   }
-  assert(std::all_of(out_qual_itr, out_qual_itr + seq_len, [](const auto q) {
+
+  assert(std::all_of(get_qual(rec), get_qual_end(rec), [](const auto q) {
     return q >= 0 && q <= falco::max_qual_val;
   }));
 
