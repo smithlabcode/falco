@@ -27,6 +27,7 @@ public:
   friend constexpr auto get_seq(const samrec &);
   friend constexpr auto get_seq_end(const samrec &);
   friend constexpr auto get_seq_size(const samrec &);
+  friend constexpr auto has_qual(const samrec &);
   friend constexpr auto get_qual(const samrec &);
   friend constexpr auto get_qual_end(const samrec &);
   friend constexpr auto get_qual_size(const samrec &);
@@ -49,6 +50,11 @@ public:
 
   [[nodiscard]] static auto
   find_end_pos(pos_t itr, const pos_t end) -> pos_t;
+
+  [[nodiscard]] static consteval auto
+  get_qual_missing_code() -> char {
+    return qual_missing_code;
+  }
 };
 
 [[nodiscard]] inline constexpr auto
@@ -83,13 +89,18 @@ get_qual(const samrec &rec) {
 }
 
 [[nodiscard]] inline constexpr auto
-get_qual_end(const samrec &rec) {
-  return get_qual(rec) + rec.seq_len;  // NOLINT
+has_qual(const samrec &rec) {
+  return *get_qual(rec) != samrec::qual_missing_code;
 }
 
 [[nodiscard]] inline constexpr auto
 get_qual_size(const samrec &rec) {
-  return get_seq_size(rec);
+  return has_qual(rec) ? rec.seq_len : 0U;
+}
+
+[[nodiscard]] inline constexpr auto
+get_qual_end(const samrec &rec) {
+  return get_qual(rec) + get_qual_size(rec);
 }
 
 struct sam_task_t {
