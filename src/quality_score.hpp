@@ -72,6 +72,9 @@ adjust_fastq_qual_encoding(std::vector<falco::qual_array> &qual_by_pos,
                            falco::qual_array &qual_by_read,
                            const falco::encoding enc) -> void;
 
+[[nodiscard]] auto
+bam_has_quals(const std::string &filename) -> bool;
+
 [[nodiscard]] static inline auto
 count_quals(auto qual_itr,
             const auto qual_end,
