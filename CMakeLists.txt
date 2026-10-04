@@ -120,6 +120,7 @@ target_link_libraries(fastq_bgzf_file PRIVATE
 target_link_libraries(bam_file PRIVATE HTSLIB::HTSLIB)
 target_link_libraries(falco_file_format PRIVATE HTSLIB::HTSLIB)
 target_link_libraries(tile_processor PRIVATE HTSLIB::HTSLIB)
++target_link_libraries(quality_score PRIVATE HTSLIB::HTSLIB)
 target_link_libraries(fastq_gz_file PRIVATE HTSLIB::HTSLIB)
 if(USE_ISAL)
   target_link_libraries(fastq_gz_file PUBLIC ISAL::ISAL)
