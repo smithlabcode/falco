@@ -2,8 +2,12 @@
 
 #include "quality_score.hpp"
 
+#include "bamrec.hpp"
 #include "falco_file_format.hpp"
 #include "file_info.hpp"
+
+#include <htslib/bgzf.h>
+#include <htslib/sam.h>
 
 #include <algorithm>
 #include <cassert>  // IWYU pragma: keep
@@ -24,9 +28,11 @@ identify_encoding_impl(const auto &qual_counts,
   };
   if (qual_counts.empty())
     return falco::encoding::unknown;
-  const auto min_qual =
-    std::ranges::min(qual_counts | std::views::transform(first_non_zero)) +
-    qual_offset;
+  const auto min_qual_observed =
+    std::ranges::min(qual_counts | std::views::transform(first_non_zero));
+  if (min_qual_observed == std::ssize(qual_counts.front()))
+    return falco::encoding::unknown;
+  const auto min_qual = min_qual_observed + qual_offset;
   if (min_qual > falco::max_qual_val)
     throw std::runtime_error("invalid qual score: " + std::to_string(min_qual));
   if (min_qual < falco::sanger_min_qual)
@@ -72,4 +78,30 @@ encoding_to_string(const falco::encoding e) -> std::string {
   const auto u = std::to_underlying(e);
   assert(u < std::size(falco::format_labels));
   return falco::format_labels[u];
+}
+
+[[nodiscard]] auto
+bam_has_quals(const std::string &filename) -> bool {
+  static constexpr auto n_records = 100;
+  const std::unique_ptr<samFile, int (*)(samFile *)> in(
+    hts_open(std::data(filename), "r"), &hts_close);
+  if (!in)
+    throw std::runtime_error("failed to open BAM/SAM file: " + filename);
+  const std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h(
+    sam_hdr_read(in.get()), &sam_hdr_destroy);
+  if (!h)
+    throw std::system_error(std::make_error_code(std::errc(errno)),
+                            "failed to read header: " + filename);
+  for (auto i = 0; i < n_records; ++i) {
+    std::unique_ptr<bam1_t, void (*)(bam1_t *)> b(bam_init1(), &bam_destroy1);
+    const auto r = sam_read1(in.get(), h.get(), b.get());  // -1 on EOF
+    if (r == -1)  // EOF (htslib/bgzf.h)
+      break;
+    if (r < -1)  // ERROR (htslib/bgzf.h)
+      throw std::runtime_error("failed reading BAM/SAM record: " + filename);
+    if (static_cast<char>(*bam_get_qual(b)) ==
+        bamrec::get_qual_missing_code())  // (htslib/sam.h)
+      return false;
+  }
+  return true;
 }
