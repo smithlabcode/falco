@@ -10,8 +10,7 @@
 static constexpr auto max_bgzf_block_size = 65536;
 
 struct bgzf_block_t {
-  using iterator = std::vector<char>::iterator;
-  using const_iterator = std::vector<char>::const_iterator;
+  using iterator = char *;
 
   // ADS: because out_itr and in_itr reference separate blocks, either we need
   // to track one of the sizes or we would have to add an end iterator for one
@@ -31,7 +30,6 @@ struct bgzf_block_t {
   ~bgzf_block_t() = default;
   bgzf_block_t(bgzf_block_t &&src) noexcept = default;
   auto operator=(bgzf_block_t &&src) noexcept -> bgzf_block_t & = default;
-  [[nodiscard]] auto data() const { return std::to_address(in_itr); }
   operator bool() const { return size > 0; }
   // clang-format on
 
