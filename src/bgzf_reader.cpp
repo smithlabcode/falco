@@ -9,7 +9,6 @@
 #include <bit>
 #include <cassert>
 #include <cerrno>
-#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -20,15 +19,16 @@
 #include <utility>
 
 bgzf_reader::bgzf_reader(const std::string &filename,
-                         const std::int64_t outbuf_size) :
-  fp(std::fopen(std::data(filename), "r"), &std::fclose),  //
-  filesize{std::filesystem::file_size(filename)},          //
-  inbuf(inbuf_size),                                       //
-  outbuf(outbuf_size),                                     //
-  next_in_itr{std::begin(inbuf)},                          //
-  end_in_itr{std::begin(inbuf)},                           //
-  next_out_itr{std::begin(outbuf)},                        //
-  end_out_itr{std::end(outbuf)}                            //
+                         const std::int64_t buf_size) :
+  fp(std::fopen(std::data(filename), "r"), &std::fclose),     //
+  filesize{std::filesystem::file_size(filename)},             //
+  inbuf(std::make_unique_for_overwrite<char[]>(inbuf_size)),  // NOLINT
+  outbuf(std::make_unique_for_overwrite<char[]>(buf_size)),   // NOLINT
+  next_in_itr{inbuf.get()},                                   //
+  end_in_itr{inbuf.get()},                                    //
+  next_out_itr{outbuf.get()},                                 //
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  end_out_itr{outbuf.get() + buf_size}  //
 {}
 
 [[nodiscard]] auto
@@ -36,17 +36,18 @@ bgzf_reader::read_data() -> bool {
   if (at_eof())
     return false;
   const auto unused_in = std::distance(next_in_itr, end_in_itr);
-  std::copy_n(next_in_itr, unused_in, std::begin(inbuf));
-  next_in_itr = std::begin(inbuf);
+  std::copy_n(next_in_itr, unused_in, inbuf.get());
+  next_in_itr = inbuf.get();
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   end_in_itr = next_in_itr + unused_in;
   const auto avail_in = inbuf_size - unused_in;
-  const auto n_bytes =
-    std::fread(std::to_address(end_in_itr), 1, avail_in, fp.get());
+  const auto n_bytes = std::fread(end_in_itr, 1, avail_in, fp.get());
   if (std::ferror(fp.get()))
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed reading input");
   // will usually be end of inbuf
-  end_in_itr += static_cast<std::ptrdiff_t>(n_bytes);
+  end_in_itr +=
+    n_bytes;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   return n_bytes > 0;
 }
 
@@ -92,7 +93,7 @@ struct gzip_header {
 [[nodiscard]] static inline constexpr auto
 get_unaligned_le32(const auto p) -> std::int32_t {
   std::int32_t value{};
-  std::memcpy(std::addressof(value), std::to_address(p), sizeof(std::int32_t));
+  std::memcpy(std::addressof(value), p, sizeof(std::int32_t));
   if constexpr (std::endian::native == std::endian::big)
     return std::byteswap(value);
   else
@@ -103,6 +104,7 @@ get_unaligned_le32(const auto p) -> std::int32_t {
 get_isize(const auto data, const auto data_size) {
   static constexpr decltype(data_size) isize_size = 4;
   assert(data_size > isize_size);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const auto data_isize = data + data_size - isize_size;
   return data_size < isize_size ? 0 : get_unaligned_le32(data_isize);
 }
@@ -121,7 +123,7 @@ get_gzip_body_size(const gzip_header &gh) -> std::uint32_t {
 }  // namespace
 
 [[nodiscard]] auto
-bgzf_reader::get_decomp_task(bgzf_reader::iterator out_itr) -> bgzf_block_t {
+bgzf_reader::get_decomp_task(char *out_itr) -> bgzf_block_t {
   if (std::distance(next_out_itr, end_out_itr) < max_bgzf_block_size)
     return bgzf_block_t{};
   if (std::distance(next_in_itr, end_in_itr) < gzip_header_size && !read_data())
@@ -129,6 +131,7 @@ bgzf_reader::get_decomp_task(bgzf_reader::iterator out_itr) -> bgzf_block_t {
   gzip_header gh;
   assign_gzip_hdr(gh, next_in_itr);
   assert(gh.check_magic());
+  // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   next_in_itr += gzip_header_size;
   const auto body_size = get_gzip_body_size(gh);
   if (std::distance(next_in_itr, end_in_itr) < body_size && !read_data())
@@ -139,5 +142,6 @@ bgzf_reader::get_decomp_task(bgzf_reader::iterator out_itr) -> bgzf_block_t {
   bgzf_block_t task(isize, out_itr, next_out_itr);
   next_in_itr += body_size;
   next_out_itr += max_bgzf_block_size;
+  // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   return task;
 }
