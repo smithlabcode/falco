@@ -62,7 +62,7 @@ sam_file::get_chunks(std::int64_t n_chunks,
                      const std::int32_t file_id,
                      task_queue &tq,
                      std::atomic_int32_t &n_tasks) -> void {
-  static constexpr auto min_chunk_size = 64 * 1024L;
+  static constexpr std::int64_t min_chunk_size = 64 * 1024;
   assert(n_chunks > 0);
   const auto beg_itr = std::begin(buffer);
   const auto end_itr = last;
