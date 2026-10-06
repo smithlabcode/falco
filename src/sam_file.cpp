@@ -58,10 +58,11 @@ sam_file::shift_output_buffer() -> void {
 }
 
 auto
-sam_file::get_chunks(const std::int64_t n_chunks,  //
-                     const std::int32_t file_id,   //
-                     task_queue &tq,               //
+sam_file::get_chunks(std::int64_t n_chunks,
+                     const std::int32_t file_id,
+                     task_queue &tq,
                      std::atomic_int32_t &n_tasks) -> void {
+  static constexpr auto min_chunk_size = 64 * 1024L;
   assert(n_chunks > 0);
   const auto beg_itr = std::begin(buffer);
   const auto end_itr = last;
@@ -78,7 +79,9 @@ sam_file::get_chunks(const std::int64_t n_chunks,  //
   };
   // clang-format on
   const std::int64_t n_bytes_available = std::distance(beg_itr, end_itr);
-  const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
+  n_chunks = std::min((n_bytes_available + min_chunk_size - 1) / min_chunk_size,
+                      n_chunks);
+  auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   assert(n_chunks > 0);
   auto start_itr = beg_itr;
   auto chunk_end = start_itr;
@@ -110,11 +113,12 @@ sam_file::load_next() -> void {
 }
 
 auto
-sam_file::make_tasks(const std::int64_t n_chunks,  //
-                     const std::int32_t file_id,   //
-                     task_queue &tq,               //
+sam_file::make_tasks(const std::int64_t n_threads,
+                     const std::int32_t file_id,
+                     task_queue &tq,
                      std::atomic_int32_t &n_tasks) -> void {
-  n_tasks = 1;  // for current task, which makes more tasks
+  static constexpr auto n_chunks_per_thread = 8;
+  const auto n_chunks = n_chunks_per_thread * n_threads;
   shift_output_buffer();
   load_next();
   get_chunks(n_chunks, file_id, tq, n_tasks);
