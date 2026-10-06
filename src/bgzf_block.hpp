@@ -4,8 +4,6 @@
 #define SRC_BGZF_BLOCK_HPP_
 
 #include <cstdint>
-#include <memory>
-#include <vector>
 
 static constexpr auto max_bgzf_block_size = 65536;
 
