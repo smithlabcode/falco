@@ -18,7 +18,7 @@
 struct task_queue;
 
 class fastq_bgzf_file {
-  static constexpr std::int64_t min_buf_size = 64 * 1024;
+  static constexpr std::int64_t min_buf_size = 256 * 1024;
   std::vector<char> input_buffer;
   std::vector<char> output_buffer;
   std::int64_t input_last{};
@@ -87,15 +87,15 @@ private:
   }
 
   auto
-  get_chunks(const std::int64_t n_chunks,
-             const std::int32_t file_id,
-             task_queue &tq,
-             std::atomic_int32_t &n_tasks) -> void;
-
-  auto
   load_next(const std::int32_t file_id,
             task_queue &tq,
             std::atomic_int32_t &n_tasks) -> void;
+
+  auto
+  get_chunks(std::int64_t n_chunks,
+             const std::int32_t file_id,
+             task_queue &tq,
+             std::atomic_int32_t &n_tasks) -> void;
 
   auto
   make_tasks_inflate(const std::int32_t file_id,
