@@ -125,7 +125,7 @@ bam_file::load_next(const std::int32_t file_id,
   br.release();  // use like monotonic_buffer_resource
   auto in_itr = std::begin(input_buffer) + input_last;
   while (br.task_ready() && has_in()) {
-    auto task = br.get_decomp_task(in_itr);
+    auto task = br.get_decomp_task(std::to_address(in_itr));
     in_itr += task.size;
     ++n_tasks;
     tq.push(file_id, std::move(task));
