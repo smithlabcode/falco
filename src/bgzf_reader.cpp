@@ -46,8 +46,8 @@ bgzf_reader::read_data() -> bool {
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed reading input");
   // will usually be end of inbuf
-  end_in_itr +=
-    n_bytes;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+  end_in_itr += n_bytes;
   return n_bytes > 0;
 }
 
