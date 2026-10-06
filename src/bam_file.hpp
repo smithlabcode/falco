@@ -19,7 +19,7 @@
 struct task_queue;
 
 class bam_file {
-  static constexpr std::int64_t min_buf_size = 64 * 1024;
+  static constexpr std::int64_t min_buf_size = 256 * 1024;
   std::vector<char> input_buffer;
   std::vector<char> output_buffer;
   std::int64_t input_last{};
@@ -104,7 +104,7 @@ private:
                      std::atomic_int32_t &n_tasks) -> void;
 
   auto
-  make_tasks(const std::int64_t n_chunks,
+  make_tasks(const std::int64_t n_threads,
              const std::int32_t file_id,
              task_queue &tq,
              std::atomic_int32_t &n_tasks) -> void;
