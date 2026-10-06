@@ -33,10 +33,11 @@ estimate_n_reads_fastq_stdin(const std::string &)
 }
 
 auto
-fastq_stdin::get_chunks(const std::int64_t n_chunks,
+fastq_stdin::get_chunks(std::int64_t n_chunks,
                         const std::int32_t file_id,
                         task_queue &tq,
                         std::atomic_int32_t &n_tasks) -> void {
+  static constexpr auto min_chunk_size = 64 * 1024L;
   static constexpr auto rec_lines = 4;  // FASTQ
   const auto beg_itr = std::begin(buffer);
   const auto end_itr = last;
@@ -58,6 +59,8 @@ fastq_stdin::get_chunks(const std::int64_t n_chunks,
   };
   // clang-format on
   const std::int64_t n_bytes_available = std::distance(beg_itr, last);
+  n_chunks = std::min((n_bytes_available + min_chunk_size - 1) / min_chunk_size,
+                      n_chunks);
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   auto start_itr = beg_itr;
   auto chunk_end = start_itr;
@@ -105,7 +108,7 @@ validate_fastq(const auto &buffer) -> bool {
     prev_nl = (c == '\n');
     n_lines += prev_nl;
     if (++n_bytes == n_bytes_to_validate)
-      return true;
+      break;
   }
   return true;
 }
@@ -125,14 +128,15 @@ fastq_stdin::load_next() -> void {
 }
 
 auto
-fastq_stdin::make_tasks(const std::int64_t n_chunks,  //
-                        const std::int32_t file_id,   //
-                        task_queue &tq,               //
+fastq_stdin::make_tasks(const std::int64_t n_threads,
+                        const std::int32_t file_id,
+                        task_queue &tq,
                         std::atomic_int32_t &n_tasks) -> void {
-  n_tasks = 1;  // for current task, which makes more tasks
+  static constexpr auto n_chunks_per_thread = 8;
+  const auto n_chunks = n_chunks_per_thread * n_threads;
   shift_output_buffer();
   load_next();
-  if (!validate_fastq(buffer))
+  if (!validate_fastq(std::span(std::cbegin(buffer), last)))
     throw std::runtime_error("input appears not to be FASTQ");
   get_chunks(n_chunks, file_id, tq, n_tasks);
 }
