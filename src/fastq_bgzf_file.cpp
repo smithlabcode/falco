@@ -111,10 +111,11 @@ fastq_bgzf_file::load_next(const std::int32_t file_id,
 }
 
 auto
-fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,
+fastq_bgzf_file::get_chunks(std::int64_t n_chunks,
                             const std::int32_t file_id,
                             task_queue &tq,
                             std::atomic_int32_t &n_tasks) -> void {
+  static constexpr auto min_chunk_size = 64 * 1024L;
   static constexpr auto rec_lines = 4;  // FASTQ
   assert(n_chunks > 0);
   std::swap(input_buffer, output_buffer);
@@ -141,6 +142,8 @@ fastq_bgzf_file::get_chunks(const std::int64_t n_chunks,
   };
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
   const auto n_bytes_available = output_last;
+  n_chunks = std::min((n_bytes_available + min_chunk_size - 1) / min_chunk_size,
+                      n_chunks);
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   assert(n_chunks > 0);
   std::int64_t start_pos{};
