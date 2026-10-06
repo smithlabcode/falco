@@ -100,7 +100,9 @@ fastq_file::reset() -> void {
 }
 
 static inline auto
-mmap_fastq(const int fd, const std::int64_t offset, const std::int64_t length,
+mmap_fastq(const int fd,
+           const std::int64_t offset,
+           const std::int64_t length,
            auto &data) {
   static constexpr auto prot = PROT_READ;
   static constexpr auto flags = MAP_PRIVATE;
@@ -130,10 +132,11 @@ fastq_file::load_next() -> void {
 }
 
 auto
-fastq_file::get_chunks(const std::int64_t n_chunks,
+fastq_file::get_chunks(std::int64_t n_chunks,
                        const std::int32_t file_id,
                        task_queue &tq,
                        std::atomic_int32_t &n_tasks) -> void {
+  static constexpr auto min_chunk_size = 64 * 1024L;
   static constexpr auto rec_lines = 4;  // FASTQ
   assert(n_chunks > 0);
   const auto beg_itr = std::begin(buffer);
@@ -154,7 +157,9 @@ fastq_file::get_chunks(const std::int64_t n_chunks,
     return pos;
   };
   // clang-format on
-  const auto [chunk_size, remainder] = std::ldiv(std::ssize(buffer), n_chunks);
+  n_chunks = std::min(
+    (std::ssize(buffer) + min_chunk_size - 1) / min_chunk_size, n_chunks);
+  auto [chunk_size, remainder] = std::ldiv(std::ssize(buffer), n_chunks);
   auto start_pos = beg_itr;
   auto chunk_end = start_pos;
   for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
@@ -170,4 +175,15 @@ fastq_file::get_chunks(const std::int64_t n_chunks,
     start_pos = stop_pos;
   }
   last = chunk_end;
+}
+
+auto
+fastq_file::make_tasks(const std::int64_t n_threads,
+                       const std::int32_t file_id,
+                       task_queue &tq,
+                       std::atomic_int32_t &n_tasks) -> void {
+  static constexpr auto n_chunks_per_thread = 8;
+  const auto n_chunks = n_chunks_per_thread * n_threads;
+  load_next();
+  get_chunks(n_chunks, file_id, tq, n_tasks);
 }
