@@ -15,7 +15,7 @@
 struct task_queue;
 
 struct fastq_file {
-  static constexpr auto min_buf_size = 65536;
+  static constexpr auto min_buf_size = 256 * 1024;
   std::int64_t target_length{};
   std::int64_t filesize{};
   char *mmap_data{};
@@ -46,9 +46,6 @@ struct fastq_file {
     last{src.last}                     //
   {}
 
-  auto
-  reset() -> void;
-
   ~fastq_file() {
     reset();
     close(fd);  // will always have been opened using a filename
@@ -56,11 +53,31 @@ struct fastq_file {
 
   operator bool() const { return stop_in_file != filesize; }
 
+  friend auto
+  reset(fastq_file &reads_file) -> void;
+
+  friend auto
+  make_tasks(fastq_file &reads_file,
+             const std::int64_t n_threads,
+             const std::int32_t file_id,
+             task_queue &tq,
+             std::atomic_int32_t &n_tasks) -> void;
+
+private:
+  auto
+  reset() -> void;
+
   auto
   load_next() -> void;
 
   auto
-  get_chunks(const std::int64_t n_chunks,
+  get_chunks(std::int64_t n_chunks,
+             const std::int32_t file_id,
+             task_queue &tq,
+             std::atomic_int32_t &n_tasks) -> void;
+
+  auto
+  make_tasks(const std::int64_t n_threads,
              const std::int32_t file_id,
              task_queue &tq,
              std::atomic_int32_t &n_tasks) -> void;
@@ -76,11 +93,8 @@ make_tasks(fastq_file &reads_file,
            const std::int32_t file_id,
            task_queue &tq,
            std::atomic_int32_t &n_tasks) -> void {
-  static constexpr auto n_chunks_per_thread = 8;
-  const auto n_chunks = n_chunks_per_thread * n_threads;
   n_tasks = 1;  // for current task, which makes tasks
-  reads_file.load_next();
-  reads_file.get_chunks(n_chunks, file_id, tq, n_tasks);
+  reads_file.make_tasks(n_threads, file_id, tq, n_tasks);
 }
 
 inline auto
