@@ -37,7 +37,7 @@ struct task_queue;
 #ifdef HAVE_ISAL
 
 class fastq_gz_file {
-  static constexpr auto min_buf_size = 64 * 1024;
+  static constexpr auto min_buf_size = 256 * 1024;
   static constexpr auto inflate_err_msg =
     R"(Failure during decompression by ISAL. Error code is {}.  Please check that the
 input file is not corrupted by decompressing with gunzip. If the input file is
@@ -177,7 +177,7 @@ private:
 #else  // use bgzf for ordinary gz files
 
 class fastq_gz_file {
-  static constexpr auto min_buf_size = 64 * 1024;
+  static constexpr auto min_buf_size = 256 * 1024;
   char *buf_data{};         // start of the outbuf
   std::int64_t buf_sz{};    // amount of output buffer used
   std::int64_t buf_size{};  // size of allocated buffer

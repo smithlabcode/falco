@@ -50,11 +50,11 @@ estimate_n_reads_fastq_gz(const std::string &filename)
 }
 
 auto
-fastq_gz_file::get_chunks(const std::int64_t n_chunks,  //
-                          const std::int32_t file_id,   //
-                          task_queue &tq,               //
-                          std::atomic_int32_t &n_tasks  //
-                          ) -> void {
+fastq_gz_file::get_chunks(std::int64_t n_chunks,
+                          const std::int32_t file_id,
+                          task_queue &tq,
+                          std::atomic_int32_t &n_tasks) -> void {
+  static constexpr auto min_chunk_size = 64 * 1024L;
   static constexpr auto rec_lines = 4;  // FASTQ
   assert(n_chunks > 0);
   const auto data = std::data(outbuf);
@@ -77,8 +77,9 @@ fastq_gz_file::get_chunks(const std::int64_t n_chunks,  //
     return p;
   };
   // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-  const auto n_bytes_available =
-    buf_sz - cursor;  // ADS: I think cursor must always be 0 here
+  const auto n_bytes_available = buf_sz - cursor;  // ADS: cursor always 0 here?
+  n_chunks = std::min((n_bytes_available + min_chunk_size - 1) / min_chunk_size,
+                      n_chunks);
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   assert(n_chunks > 0);
   std::int64_t start_pos = cursor;  // ADS: I think cursor must always be 0 here
