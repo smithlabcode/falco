@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <memory>
 #include <ranges>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <system_error>
