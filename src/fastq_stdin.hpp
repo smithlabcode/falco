@@ -14,7 +14,7 @@
 struct task_queue;
 
 struct fastq_stdin {
-  static constexpr auto min_buf_size = 64 * 1024;
+  static constexpr auto min_buf_size = 256 * 1024;
   std::vector<char> buffer;
   std::vector<char>::iterator cursor;
   std::vector<char>::iterator last;
@@ -31,6 +31,17 @@ struct fastq_stdin {
   ~fastq_stdin() = default;
   // clang-format on
 
+  friend auto
+  reset(fastq_stdin &reads_file) -> void;
+
+  friend auto
+  make_tasks(fastq_stdin &reads_file,
+             const std::int64_t n_threads,
+             const std::int32_t file_id,
+             task_queue &tq,
+             std::atomic_int32_t &n_tasks) -> void;
+
+private:
   auto
   reset() -> void {
     buffer.clear();
@@ -40,14 +51,13 @@ struct fastq_stdin {
   }
 
   auto
-  make_tasks(const std::int64_t n_chunks,
+  make_tasks(const std::int64_t n_threads,
              const std::int32_t file_id,
              task_queue &tq,
              std::atomic_int32_t &n_tasks) -> void;
 
-private:
   auto
-  get_chunks(const std::int64_t n_chunks,
+  get_chunks(std::int64_t n_chunks,
              const std::int32_t file_id,
              task_queue &tq,
              std::atomic_int32_t &n_tasks) -> void;
@@ -64,14 +74,13 @@ estimate_n_reads_fastq_stdin(const std::string &filename)
   -> std::tuple<std::uint64_t, std::uint64_t, std::int64_t>;
 
 inline auto
-make_tasks(fastq_stdin &reads_file,       //
-           const std::int64_t n_threads,  //
-           const std::int32_t file_id,    //
-           task_queue &tq,                //
+make_tasks(fastq_stdin &reads_file,
+           const std::int64_t n_threads,
+           const std::int32_t file_id,
+           task_queue &tq,
            std::atomic_int32_t &n_tasks) -> void {
-  static constexpr auto n_chunks_per_thread = 8;
-  const auto n_chunks = n_chunks_per_thread * n_threads;
-  reads_file.make_tasks(n_chunks, file_id, tq, n_tasks);
+  n_tasks = 1;  // for current task, which makes more tasks
+  reads_file.make_tasks(n_threads, file_id, tq, n_tasks);
 }
 
 inline auto
