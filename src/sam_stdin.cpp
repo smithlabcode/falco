@@ -57,10 +57,11 @@ sam_stdin::skip_header() -> void {
 }
 
 auto
-sam_stdin::get_chunks(const std::int64_t n_chunks,
+sam_stdin::get_chunks(std::int64_t n_chunks,
                       const std::int32_t file_id,
                       task_queue &tq,
                       std::atomic_int32_t &n_tasks) -> void {
+  static constexpr auto min_chunk_size = 64 * 1024L;
   assert(n_chunks > 0);
   const auto beg_itr = std::begin(buffer);
   const auto end_itr = last;
@@ -77,6 +78,8 @@ sam_stdin::get_chunks(const std::int64_t n_chunks,
   };
   // clang-format on
   const std::int64_t n_bytes_available = std::distance(beg_itr, end_itr);
+  n_chunks = std::min((n_bytes_available + min_chunk_size - 1) / min_chunk_size,
+                      n_chunks);
   const auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
   assert(n_chunks > 0);
   auto start_itr = beg_itr;
@@ -124,7 +127,7 @@ sam_stdin::load_next() -> void {
 validate_sam(const auto &buffer) -> bool {
   // SAM format has 11+ fields, tab separated and the docs give a regex for each
   // field. We are only checking the first char of the first field.
-  static constexpr auto n_bytes_to_validate = 16L * 1024;
+  static constexpr auto n_bytes_to_validate = 16 * 1024L;
   assert(std::size(buffer));
   const auto n_bytes = std::min(n_bytes_to_validate, std::ssize(buffer));
   const auto buf_end = std::cbegin(buffer) + n_bytes - (n_bytes >= 1L);
@@ -135,11 +138,12 @@ validate_sam(const auto &buffer) -> bool {
 }
 
 auto
-sam_stdin::make_tasks(const std::int64_t n_chunks,
+sam_stdin::make_tasks(const std::int64_t n_threads,
                       const std::int32_t file_id,
                       task_queue &tq,
                       std::atomic_int32_t &n_tasks) -> void {
-  n_tasks = 1;  // for current task, which makes more tasks
+  static constexpr auto n_chunks_per_thread = 8;
+  const auto n_chunks = n_chunks_per_thread * n_threads;
   shift_output_buffer();
   load_next();
   if (!validate_sam(buffer))
