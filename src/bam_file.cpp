@@ -142,7 +142,7 @@ partition(auto itr,
           std::atomic_int32_t &n_tasks) {
   // ADS: this isn't working as desired: the end position of each part should be
   // the first record end past the 'end_itr' below unless end_itr == end
-  static constexpr auto min_chunk_size = 64 * 1024L;
+  static constexpr std::int64_t min_chunk_size = 64 * 1024;
   auto chunk_size = (std::distance(itr, end) + n_chunks - 1) / n_chunks;
   chunk_size = std::max(min_chunk_size, chunk_size);
   while (itr != end) {
