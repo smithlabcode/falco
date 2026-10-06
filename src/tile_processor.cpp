@@ -205,6 +205,7 @@ tile_processor::add_and_consume(
     else
       quals.emplace(rhs_tile_id, std::move(rhs_qual));
   }
+  max_read_len = std::max(max_read_len, rhs.max_read_len);
   rhs.release();
 }
 
