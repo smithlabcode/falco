@@ -16,6 +16,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstdint>
+#include <exception>
 #include <iterator>
 #include <mutex>
 #include <ranges>
@@ -46,57 +47,70 @@ analyze(const std::uint32_t n_threads,
   for (const auto file_id : std::views::iota(0, n_files))
     tq.push(file_id, std::monostate{});
 
+  std::exception_ptr eptr;
+
   {  // scope to join jthreads
     std::vector<std::atomic_int32_t> n_tasks(n_files);
     std::vector<std::jthread> workers;
     for (const auto th_id : std::views::iota(0u, n_threads))
       workers.emplace_back([&, n_threads, th_id] {
-        auto &res = results[th_id];
-        for (const auto [file_id, info] : falco::views::enumerate(infos))
-          res[file_id].init(mode, info, dups_init[file_id]);
-        while (true) {
-          auto tq_lock = tq.wait_and_acquire_lock();
-          if (tq.is_finished())
-            return;
-          auto [file_id, task] = tq.pop_and_release_lock(tq_lock);
-          if (std::holds_alternative<fq_task_t>(task))
-            process_reads(res[file_id], std::get<fq_task_t>(task));
-          else if (std::holds_alternative<bam_task_t>(task))
-            process_reads(res[file_id], std::get<bam_task_t>(task));
-          else if (std::holds_alternative<sam_task_t>(task))
-            process_reads(res[file_id], std::get<sam_task_t>(task));
-          else if (std::holds_alternative<bgzf_block_t>(task))
-            decompress(std::get<bgzf_block_t>(task));
-          else {  // monostate means read more data
-            if (!is_active(reads_files[file_id])) {
-              assert(n_tasks[file_id] == 0);
-              reset(reads_files[file_id]);
-              if (n_active_files.fetch_sub(1, std::memory_order_relaxed) == 1) {
-                // ADS: it would not be wrong it two different threads arrived
-                // here, but using fetch_sub should prevent that anyway.
-                tq.request_shutdown();
-                return;
+        try {
+          auto &res = results[th_id];
+          for (const auto [file_id, info] : falco::views::enumerate(infos))
+            res[file_id].init(mode, info, dups_init[file_id]);
+          while (true) {
+            auto tq_lock = tq.wait_and_acquire_lock();
+            if (tq.is_finished())
+              return;
+            auto [file_id, task] = tq.pop_and_release_lock(tq_lock);
+            if (std::holds_alternative<fq_task_t>(task))
+              process_reads(res[file_id], std::get<fq_task_t>(task));
+            else if (std::holds_alternative<bam_task_t>(task))
+              process_reads(res[file_id], std::get<bam_task_t>(task));
+            else if (std::holds_alternative<sam_task_t>(task))
+              process_reads(res[file_id], std::get<sam_task_t>(task));
+            else if (std::holds_alternative<bgzf_block_t>(task))
+              decompress(std::get<bgzf_block_t>(task));
+            else {  // monostate means read more data
+              if (!is_active(reads_files[file_id])) {
+                assert(n_tasks[file_id] == 0);
+                reset(reads_files[file_id]);
+                if (n_active_files.fetch_sub(1, std::memory_order_relaxed) ==
+                    1) {
+                  // ADS: it would not be wrong it two different threads arrived
+                  // here, but using fetch_sub should prevent that anyway.
+                  tq.request_shutdown();
+                  return;
+                }
+                // Must 'continue' here to avoid decrementing n_tasks[file_id]
+                // below, since within this branch we might exit before
+                // decrementing to remove the value that we would have added;
+                // the same is not true of the 'else' case below when make_tasks
+                // is called. So the ++n_tasks[file_id] is inside that function
+                // in each case of typeof(reads_files). Unfortunately changes to
+                // n_tasks need to happen in different places.
+                continue;
               }
-              // Must 'continue' here to avoid decrementing n_tasks[file_id]
-              // below, since within this branch we might exit before
-              // decrementing to remove the value that we would have added; the
-              // same is not true of the 'else' case below when make_tasks is
-              // called. So the ++n_tasks[file_id] is inside that function in
-              // each case of typeof(reads_files). Unfortunately changes to
-              // n_tasks need to happen in different places.
-              continue;
+              else
+                make_tasks(reads_files[file_id], n_threads, file_id, tq,
+                           n_tasks[file_id]);
             }
-            else
-              make_tasks(reads_files[file_id], n_threads, file_id, tq,
-                         n_tasks[file_id]);
+            if (n_tasks[file_id].fetch_sub(1, std::memory_order_relaxed) == 1) {
+              assert(n_tasks[file_id] == 0);
+              tq.push(file_id, std::monostate{});
+            }
           }
-          if (n_tasks[file_id].fetch_sub(1, std::memory_order_relaxed) == 1) {
-            assert(n_tasks[file_id] == 0);
-            tq.push(file_id, std::monostate{});
-          }
+        }
+        catch (...) {
+          eptr = std::current_exception();
+          tq.request_shutdown();  // do this or deadlock
+          return;
         }
       });
   }
+
+  if (eptr)
+    std::rethrow_exception(eptr);
 
   std::vector<results_collector> finalized;
   finalized.reserve(n_files);
