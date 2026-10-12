@@ -318,6 +318,7 @@ main(int argc, char *argv[]) {
     int do_bisulfite{};
     int do_preseq{};
     int do_original_dups{};
+    int do_original_gc{};
     int do_quals{};
 
     std::uint32_t n_threads{1};
@@ -441,6 +442,9 @@ main(int argc, char *argv[]) {
       }, "Use original duplication mode (enables --dups)")
       ->excludes(preseq_opt)
       ->option_text(" ");
+    app.add_flag("--orig-gc", do_original_gc,
+                 "Use original GC smoothing mode (but no truncation)")
+      ->option_text(" ");
     app.add_flag("--groups", do_groups,
                  "Group base positions in output (see help)")
       ->option_text(" ");
@@ -498,6 +502,7 @@ main(int argc, char *argv[]) {
     mode.set_do_preseq(do_preseq);
     mode.set_do_original_dups(do_original_dups);
     mode.set_do_quals(do_quals);
+    mode.set_do_original_gc(do_original_gc);
     mode.set_unassigned();
 
     const auto outdirs = make_outdirs(infiles, outdir, mode.do_stdin());
