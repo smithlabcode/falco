@@ -158,3 +158,58 @@ combine_gc_content_for_lengths(const std::vector<falco::gc_content_t> &gcs)
   }
   return hist;
 }
+
+[[nodiscard]] static auto
+get_low_high_pct(const auto pos, const auto read_length)
+  -> std::tuple<std::uint32_t, std::uint32_t> {
+  static constexpr auto half = 0.5;
+  const auto p = static_cast<double>(pos);
+  const auto l = std::clamp(p - half, 0.0, static_cast<double>(read_length));
+  const auto h = std::clamp(p + half, 0.0, static_cast<double>(read_length));
+  const auto l_pct = std::round((l * 100.0) / read_length);
+  const auto h_pct = std::round((h * 100.0) / read_length);
+  return std::tuple{static_cast<std::uint32_t>(l_pct),
+                    static_cast<std::uint32_t>(h_pct)};
+}
+
+[[nodiscard]] static auto
+get_gc_models(const std::uint32_t read_length)
+  -> std::vector<std::vector<std::pair<std::uint32_t, double>>> {
+  static constexpr auto histogram_size = 101;
+  std::vector<std::uint32_t> claiming_counts(histogram_size);
+  for (auto pos = 0U; pos <= read_length; ++pos) {
+    const auto [low_pct, high_pct] = get_low_high_pct(pos, read_length);
+    for (auto p = static_cast<std::uint32_t>(low_pct);
+         p <= static_cast<std::uint32_t>(high_pct); p++)
+      claiming_counts[p]++;
+  }
+  std::vector<std::vector<std::pair<std::uint32_t, double>>> models(
+    read_length + 1);
+  for (auto pos = 0U; pos <= read_length; ++pos) {
+    const auto [low_pct, high_pct] = get_low_high_pct(pos, read_length);
+    auto model_values =
+      std::vector(high_pct - low_pct + 1.0, std::pair{0U, 0.0});
+    for (auto p = static_cast<std::uint32_t>(low_pct);
+         p <= static_cast<std::uint32_t>(high_pct); ++p)
+      model_values[p - low_pct] = {p, 1.0 / claiming_counts[p]};
+    models[pos] = model_values;
+  }
+  return models;
+}
+
+[[nodiscard]] auto
+combine_gc_content_for_lengths_orig(const std::vector<falco::gc_content_t> &gcs)
+  -> std::vector<double> {
+  static constexpr auto histogram_size = 101;
+  std::vector<double> hist(histogram_size);
+  for (auto read_length = 1U; read_length < std::size(gcs); ++read_length) {
+    auto models = get_gc_models(read_length);
+    const auto &gcs_rl = gcs[read_length];
+    for (auto i = 0U; i <= read_length; ++i) {
+      const auto n_gc = gcs_rl[i];
+      for (auto j = 0U; j < std::size(models[i]); ++j)
+        hist[models[i][j].first] += models[i][j].second * n_gc;
+    }
+  }
+  return hist;
+}
