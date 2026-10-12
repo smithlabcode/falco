@@ -15,3 +15,4 @@ e786bd4d9e6065904ab7b45021e7190b  groups_out/bam_1/fastqc_data.txt
 090a74739499d287a7aeea689a78b4e9  preseq_out/bam_1/fastqc_data.txt
 22573e9861f6c2fa3951712a73e4db4c  sam_out/sam_1/fastqc_data.txt
 bcea1e9f86f0917496b14ae81b6ecbc5  sam_stdin_out/sam_stdin/fastqc_data.txt
+088c04f706f340f058b663d6e0209dca  fastq_orig_gc_out/fastq_bgzip_1/fastqc_data.txt
