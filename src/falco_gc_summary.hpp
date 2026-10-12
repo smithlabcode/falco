@@ -24,4 +24,8 @@ get_theoretical_distribution(const std::vector<double> &gc,
 [[nodiscard]] auto
 sum_deviation_from_normal(const std::vector<double> &gc) -> double;
 
+[[nodiscard]] auto
+combine_gc_content_for_lengths_orig(const std::vector<falco::gc_content_t> &gcs)
+  -> std::vector<double>;
+
 #endif  // SRC_FALCO_GC_SUMMARY_HPP_
