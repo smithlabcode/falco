@@ -22,6 +22,7 @@ public:
   [[nodiscard]] auto do_bisulfite() const -> bool { return do_bisulfite_ == 1; }
   [[nodiscard]] auto do_preseq() const -> bool { return do_preseq_ == 1; }
   [[nodiscard]] auto do_original_dups() const -> bool { return do_original_dups_ == 1; }
+  [[nodiscard]] auto do_original_gc() const -> bool { return do_original_gc_ == 1; }
   [[nodiscard]] auto do_quals() const -> bool { return do_quals_ == 1; }
   //
   [[nodiscard]] auto do_adap() const -> bool { return do_adap_ == 1; }
@@ -47,6 +48,7 @@ public:
   auto set_do_bisulfite(const int x) { if (x) do_bisulfite_ = x; }
   auto set_do_preseq(const int x) { if (x) do_preseq_ = x; }
   auto set_do_original_dups(const int x) { if (x) do_original_dups_ = x; }
+  auto set_do_original_gc(const int x) { if (x) do_original_gc_ = x; }
   auto set_do_quals(const int x) { if (x) do_quals_ = x; }
   //
   auto set_do_adap(const int x) { if (x) do_adap_ = x; }
@@ -76,6 +78,7 @@ private:
   static constexpr auto do_bisulfite_default = -1;      // OFF
   static constexpr auto do_preseq_default = -1;         // OFF
   static constexpr auto do_original_dups_default = -1;  // OFF
+  static constexpr auto do_original_dups_gc = -1;       // OFF
   static constexpr auto do_quals_default = 1;           // ON
 
   static constexpr auto do_adap_default = 1;  // affects processing
@@ -96,6 +99,7 @@ private:
   int do_bisulfite_{};
   int do_preseq_{};
   int do_original_dups_{};
+  int do_original_gc_{};
   int do_quals_{};
 
   int do_adap_{};
