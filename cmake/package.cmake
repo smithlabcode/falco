@@ -8,7 +8,16 @@ set(ZLIB_USE_STATIC_LIBS on)
 if(USE_ISAL)
   set(ISAL_USE_STATIC_LIBS on)
 endif()
-add_link_options(-static-libgcc -static-libstdc++)
+
+check_cxx_compiler_flag(-static-libgcc HAVE_STATIC_LIBGCC)
+if(HAVE_STATIC_LIBGCC)
+  add_link_options(-static-libgcc)
+endif()
+check_cxx_compiler_flag(-static-libstdc++ HAVE_STATIC_LIBSTDCXX)
+if(HAVE_STATIC_LIBSTDCXX)
+  add_link_options(-static-libstdc++)
+endif()
+
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # not macOS
   add_link_options(-s)
 endif()
