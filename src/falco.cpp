@@ -3,7 +3,11 @@
 // clang-format off
 static constexpr auto about = R"(Falco v{})";
 static constexpr auto description =
-  R"(Note: Always use bgzip when compressing to gz format. It comes with samtools.
+  R"(NOTES:
+
+- Prefer bgzip over gzip when compressing to gz format. It comes with samtools.
+- Falco assumes nucleotides symbols ACGT and N. If you modify the input data
+  with other symbols, falco results might be inaccurate.
 
 EXAMPLES:
 
@@ -29,12 +33,11 @@ $ falco --config my_limits.txt -o results project_sample2.fq.gz
 
 Generate a file with duplication info for preseq analysis:
 $ falco --preseq -o results SRX081761_1.fq.gz
-Output files include:
-results/SRX081761_1/preseq_hist.txt
+Output files will include: results/SRX081761_1/preseq_hist.txt
 
 Take input from a pipe (accepts FASTQ or SAM):
 $ samtools view SRX081761_1.bam | falco --stdin sam -o results SRX081761
-Output files will be created in "results/SRX081761".  Reading from stdin
+Output files will be created in 'results/SRX081761'.  Reading from stdin
 disables tile analysis. To re-enable it, specify either 4 or 6 to indicate
 position of the tile id in read names.  Example: "--stdin fq:4"
 
@@ -264,12 +267,13 @@ make_outdirs(const auto &ins, const auto &outdir, const bool keep_extn = false)
 
 // ADS: in functions below, the input_record_multiplier is the relative space
 // for a record: ideally for FASTQ it would be 2x the (max) size of the read
-// name, and 2x the (max) sequence length. For BAM it would be 0.5x the sequence
-// length, the name length and the length of the quality score sequence, plus
-// all other BAM fields. The buffer_multiplier is how much total buffer space is
-// needed for a given record, which is 3 for BAM and BGZF because one for
-// decompression, and then two inflated buffers that are swapped so once can be
-// analyzed while the other is the target of other inflation work.
+// name, and 2x the (max) sequence length. For BAM it would be 0.5x the
+// sequence length, the name length and the length of the quality score
+// sequence, plus all other BAM fields. The buffer_multiplier is how much
+// total buffer space is needed for a given record, which is 3 for BAM and
+// BGZF because one for decompression, and then two inflated buffers that are
+// swapped so once can be analyzed while the other is the target of other
+// inflation work.
 
 [[nodiscard]] static auto
 get_max_read_length(const auto buffer_size) {
@@ -336,6 +340,7 @@ main(int argc, char *argv[]) {
     struct FormatWithoutFlagDefaults : public CLI::Formatter {
       FormatWithoutFlagDefaults() : Formatter() {
         CLI::FormatterBase::enable_default_flag_values_ = false;
+        CLI::FormatterBase::enable_footer_formatting_ = false;
       }
     };
 
@@ -350,8 +355,8 @@ main(int argc, char *argv[]) {
     };
 
     CLI::App app{std::format(about, VERSION)};
-    const auto fmt = std::make_shared<FormatWithoutFlagDefaults>();
-    app.formatter(fmt);
+    const auto app_fmt = std::make_shared<FormatWithoutFlagDefaults>();
+    app.formatter(app_fmt);
 
     argv = app.ensure_utf8(argv);
     app.usage(
