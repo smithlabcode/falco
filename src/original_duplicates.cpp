@@ -23,8 +23,8 @@
 [[nodiscard]] auto
 initialize_original_duplicates(
   const std::vector<std::string> &infiles,
-  [[maybe_unused]] const std::vector<file_info> &infos,
-  [[maybe_unused]] const std::uint32_t n_threads) -> std::vector<dups_init_t> {
+  const std::vector<file_info> &infos,
+  const std::uint32_t n_threads) -> std::vector<dups_init_t> {
   assert(std::size(infiles) == std::size(infos));
   const std::uint64_t n_files = std::size(infiles);
   std::vector<dups_map_t> dups(n_files);
