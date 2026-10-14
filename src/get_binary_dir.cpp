@@ -61,7 +61,8 @@ get_share_dir() -> std::string {
   if (binary_dir.filename() == bin_name)
     binary_dir = binary_dir.parent_path();
   const auto share_path = binary_dir / DATADIR / PROJECT_NAME;
-  return is_directory(share_path) ? share_path.string() : std::string{};
+  return is_directory(share_path) ? share_path.string() :
+    std::string{"**config directory not found; reinstall if you need it**"};
 }
 
 }  // namespace falco
