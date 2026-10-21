@@ -66,6 +66,7 @@ struct results_summary {
     info{info} {
     initialize();
   }
+  // clang-format on
 
   auto
   apply_groups() -> void;
