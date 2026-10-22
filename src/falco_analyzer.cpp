@@ -28,12 +28,14 @@
 
 class run_mode;
 
+template <const bool do_iupac = false>
 [[nodiscard]] auto
-analyze(const std::uint32_t n_threads,
-        const run_mode &mode,
-        std::vector<file_info> &infos,
-        std::vector<reads_file_t> reads_files,
-        std::vector<dups_init_t> dups_init) -> std::vector<results_collector> {
+analyze_impl(const std::uint32_t n_threads,
+             const run_mode &mode,
+             std::vector<file_info> &infos,
+             std::vector<reads_file_t> &&reads_files,
+             std::vector<dups_init_t> &&dups_init)
+  -> std::vector<results_collector> {
   assert(std::size(reads_files) == std::size(infos));
   const auto n_files = static_cast<std::int32_t>(std::size(infos));
   if (dups_init.empty())
@@ -64,11 +66,11 @@ analyze(const std::uint32_t n_threads,
               return;
             auto [file_id, task] = tq.pop_and_release_lock(tq_lock);
             if (std::holds_alternative<fq_task_t>(task))
-              process_reads(res[file_id], std::get<fq_task_t>(task));
+              process_reads<do_iupac>(res[file_id], std::get<fq_task_t>(task));
             else if (std::holds_alternative<bam_task_t>(task))
-              process_reads(res[file_id], std::get<bam_task_t>(task));
+              process_reads<do_iupac>(res[file_id], std::get<bam_task_t>(task));
             else if (std::holds_alternative<sam_task_t>(task))
-              process_reads(res[file_id], std::get<sam_task_t>(task));
+              process_reads<do_iupac>(res[file_id], std::get<sam_task_t>(task));
             else if (std::holds_alternative<bgzf_block_t>(task))
               decompress(std::get<bgzf_block_t>(task));
             else {  // monostate means read more data
@@ -121,4 +123,17 @@ analyze(const std::uint32_t n_threads,
   }
 
   return finalized;
+}
+
+[[nodiscard]] auto
+analyze(const std::uint32_t n_threads,
+        const run_mode &mode,
+        std::vector<file_info> &infos,
+        std::vector<reads_file_t> reads_files,
+        std::vector<dups_init_t> dups_init) -> std::vector<results_collector> {
+  return mode.do_iupac()
+           ? analyze_impl<true>(n_threads, mode, infos, std::move(reads_files),
+                                std::move(dups_init))
+           : analyze_impl<false>(n_threads, mode, infos, std::move(reads_files),
+                                 std::move(dups_init));
 }
