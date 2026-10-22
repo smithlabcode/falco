@@ -10,6 +10,7 @@
 #include "fqrec.hpp"
 #include "reads_file.hpp"
 #include "results_collector.hpp"
+#include "run_mode.hpp"
 #include "samrec.hpp"
 #include "task_queue.hpp"
 
@@ -26,15 +27,13 @@
 #include <variant>
 #include <vector>
 
-class run_mode;
-
 template <const bool do_iupac = false>
 [[nodiscard]] auto
 analyze_impl(const std::uint32_t n_threads,
              const run_mode &mode,
              std::vector<file_info> &infos,
-             std::vector<reads_file_t> &&reads_files,
-             std::vector<dups_init_t> &&dups_init)
+             std::vector<reads_file_t> reads_files,
+             std::vector<dups_init_t> dups_init)
   -> std::vector<results_collector> {
   assert(std::size(reads_files) == std::size(infos));
   const auto n_files = static_cast<std::int32_t>(std::size(infos));
