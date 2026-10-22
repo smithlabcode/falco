@@ -84,33 +84,37 @@ struct alignas(assumed_page_size) results_collector {
       base_counts[i][unknown_base_index] -= n_counts[i];
   }
 
+  template <const bool iupac = false>
   auto
   process_reads_bam(bamrec::pos_t cursor, const bamrec::pos_t lim) -> void {
     bamrec rec{};
     while (cursor < lim && get_next(cursor, lim, rec)) {
-      process_one_read(rec);
+      process_one_read<iupac>(rec);
       ++n_reads;
     }
   }
 
+  template <const bool iupac = false>
   auto
   process_reads_sam(samrec::pos_t cursor, const samrec::pos_t lim) -> void {
     samrec rec{};
     while (cursor < lim && get_next(cursor, lim, rec)) {
-      process_one_read(rec);
+      process_one_read<iupac>(rec);
       ++n_reads;
     }
   }
 
+  template <const bool iupac = false>
   auto
   process_reads_fq(fqrec::pos_t cursor, const fqrec::pos_t lim) -> void {
     fqrec rec{};
     while (cursor < lim && (rec = get_next(cursor, lim))) {
-      process_one_read(rec);
+      process_one_read<iupac>(rec);
       ++n_reads;
     }
   }
 
+  template <const bool iupac = false>
   auto
   process_one_read(const auto &rec) -> void {
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
@@ -137,7 +141,10 @@ struct alignas(assumed_page_size) results_collector {
     assert(static_cast<std::uint64_t>(get_arr_idx(read_len)) <
            std::size(gc_content));
     ++gc_content[get_arr_idx(read_len)][get_gc_idx(gc, read_len)];
-    count_ns(seq_itr, seq_end, n_counts);
+    if constexpr (iupac)
+      count_ns_iupac(seq_itr, seq_end, n_counts);
+    else
+      count_ns(seq_itr, seq_end, n_counts);
     const auto tot = count_quals(get_qual(rec), get_qual_end(rec), qual_by_pos);
     ++qual_by_read[tot / read_len];
     if (do_original_dups)
@@ -182,8 +189,7 @@ struct alignas(assumed_page_size) results_collector {
 };
 
 inline auto
-accumulate_results(std::vector<std::vector<results_collector>> &r,
-                   const std::int32_t file_id) {
+accumulate_results(auto &r, const std::int32_t file_id) {
   auto j = 1u;
   while (j < std::size(r)) {
     std::vector<std::jthread> workers;
@@ -196,19 +202,22 @@ accumulate_results(std::vector<std::vector<results_collector>> &r,
   }
 }
 
+template <const bool iupac = false>
 inline auto
-process_reads(results_collector &results, const fq_task_t &task) {
-  results.process_reads_fq(task.beg, task.end);
+process_reads(auto &results, const fq_task_t &task) {
+  results.template process_reads_fq<iupac>(task.beg, task.end);
 }
 
+template <const bool iupac = false>
 inline auto
-process_reads(results_collector &results, const bam_task_t &task) {
-  results.process_reads_bam(task.beg, task.end);
+process_reads(auto &results, const bam_task_t &task) {
+  results.template process_reads_bam<iupac>(task.beg, task.end);
 }
 
+template <const bool iupac = false>
 inline auto
-process_reads(results_collector &results, const sam_task_t &task) {
-  results.process_reads_sam(task.beg, task.end);
+process_reads(auto &results, const sam_task_t &task) {
+  results.template process_reads_sam<iupac>(task.beg, task.end);
 }
 
 #endif  // SRC_RESULTS_COLLECTOR_HPP_
