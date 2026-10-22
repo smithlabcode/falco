@@ -5,35 +5,33 @@ static constexpr auto about = R"(Falco v{})";
 static constexpr auto description =
   R"(NOTES:
 
-- Prefer bgzip over gzip when compressing to gz format. It comes with samtools.
+- Prefer bgzip over gzip when compressing to gz format. Get it with
+  these packages: tabix (apt), bgzip (pip and dnf) or htslib (brew and conda).
 - Falco assumes nucleotides symbols ACGT and N. If you modify the input data
-  with other symbols, falco results might be inaccurate.
+  with other symbols, use --iupac to ignore non-ACGTN symbols.
 
 EXAMPLES:
 
-Use all defaults making output files in a dir named 'results/SRX081761_1':
+Use all defaults settings:
 $ falco -o results SRX081761_1.fastq
 Output files will be:
 results/SRX081761_1/summary.txt
 results/SRX081761_1/fastqc_data.txt
 results/SRX081761_1/fastqc_results.html
 
-Use 8 cores and analyze all files in 'project' with the fq suffix, and results
-for each input file in their own subdirectory of 'results':
+Multiple cores for multiple input files:
 $ falco -t 8 -o results project/*.fq
-
-Use 64 cores on multiple BAM files in the current directory:
 $ falco -t 64 -o results sample*.bam
 
-Skip adapter content and tile-specific analysis:
+No adapter or tile-specific analysis:
 $ falco --no-adap --no-tiles -o results SRX081761.bam
 
-Use configuration settings from 'my_limits.txt':
+Custom configuration file 'my_limits.txt':
 $ falco --config my_limits.txt -o results project_sample2.fq.gz
 
-Generate a file with duplication info for preseq analysis:
+Generate file for preseq analysis:
 $ falco --preseq -o results SRX081761_1.fq.gz
-Output files will include: results/SRX081761_1/preseq_hist.txt
+Output will include: results/SRX081761_1/preseq_hist.txt
 
 Take input from a pipe (accepts FASTQ or SAM):
 $ samtools view SRX081761_1.bam | falco --stdin sam -o results SRX081761
@@ -385,7 +383,7 @@ main(int argc, char *argv[]) {
       ->check(CLI::ExistingFile, "file_check");
     app.add_option("-o,--output", outdir, "Output directory (required)")
       ->required()
-      ->option_text("DIR");
+      ->option_text("OUTDIR");
     app.add_option("-t,--threads", n_threads,
                    std::format("Threads for analysis (this machine supports: {})",
                                std::thread::hardware_concurrency()))
