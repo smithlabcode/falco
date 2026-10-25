@@ -8,7 +8,7 @@ static constexpr auto description =
 - Prefer bgzip over gzip when compressing to gz format. Get it with
   these packages: tabix (apt), bgzip (pip and dnf) or htslib (brew and conda).
 - Falco assumes nucleotides symbols ACGT and N. If you modify the input data
-  with other symbols, use --iupac to ignore non-ACGTN symbols.
+  with other symbols, they are treated as N, but ACGT are case-insensitive.
 
 EXAMPLES:
 
@@ -322,7 +322,6 @@ main(int argc, char *argv[]) {
     int do_original_dups{};
     int do_original_gc{};
     int do_quals{};
-    int do_iupac{};
 
     std::uint32_t n_threads{1};
     std::uint32_t max_read_length{};
@@ -449,9 +448,6 @@ main(int argc, char *argv[]) {
     app.add_flag("--orig-gc", do_original_gc,
                  "Use original GC smoothing mode (but no truncation)")
       ->option_text(" ");
-    app.add_flag("--iupac", do_iupac,
-                 "For data modified to include non-canonical bases")
-      ->option_text(" ");
     app.add_flag("--groups", do_groups,
                  "Group base positions in output (see help)")
       ->option_text(" ");
@@ -510,7 +506,6 @@ main(int argc, char *argv[]) {
     mode.set_do_original_dups(do_original_dups);
     mode.set_do_quals(do_quals);
     mode.set_do_original_gc(do_original_gc);
-    mode.set_do_iupac(do_iupac);
     mode.set_unassigned();
 
     const auto outdirs = make_outdirs(infiles, outdir, mode.do_stdin());
