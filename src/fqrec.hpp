@@ -59,8 +59,20 @@ struct fq_task_t {
     beg{std::to_address(beg_arg)}, end{std::to_address(end_arg)} {}
 };
 
+struct fq_gz_task_t {
+  fqrec::pos_t beg{};
+  fqrec::pos_t end{};
+  fq_gz_task_t(const fqrec::pos_t beg, const fqrec::pos_t end) :
+    beg{beg}, end{end} {}
+  fq_gz_task_t(const auto beg_arg, const auto end_arg) :
+    beg{std::to_address(beg_arg)}, end{std::to_address(end_arg)} {}
+};
+
 [[nodiscard]] inline auto
 get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
+  const auto iupac = [](auto &c) {
+    c = "NANCNNNGNNNNNNNNNNNNTNNNNNNNNNNN"[c & 31];  // NOLINT
+  };
   // ADS: need to make sure cursor < end_itr or we will move past
   const auto n = cursor;
   auto itr = n + 1;  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -75,7 +87,8 @@ get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
   if (itr++ == end_itr) return {};
   const auto r = itr;
 
-  next_newline(itr);
+  for (; itr != end_itr && *itr != '\n'; ++itr)
+    iupac(*itr);
   if (itr++ == end_itr) return {};
   const auto o = itr;
 
