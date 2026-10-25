@@ -37,23 +37,20 @@ bamrec::to_string() const -> std::string {
 template <class bidir_itr_t, class output_itr_t>
 static inline constexpr output_itr_t
 assign_sequence_revcomp(bidir_itr_t first, auto last, output_itr_t d_first) {
-  static constexpr std::span seq_nt16_str = "=ACMGRSVTWYHKDBN";
-  constexpr auto complem = [](const auto x) {
-    return "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
-  };
+  static constexpr std::span seq_nt16_str_complem = "NTGNCNNNANNNNNNN";
   constexpr auto bam_seqi = [](const auto s, const auto i) -> int {
     constexpr auto low_nibble_on = 0xf;
     return s[i >> 1] >> ((~i & 1) << 2) & low_nibble_on;
   };
   for (auto j = last; j != 0; ++d_first)
-    *d_first = complem(seq_nt16_str[bam_seqi(first, --j)]);
+    *d_first = seq_nt16_str_complem[bam_seqi(first, --j)];
   return d_first;
 }
 
 template <class bidir_itr_t, class output_itr_t>
 static inline constexpr output_itr_t
 assign_sequence(bidir_itr_t first, auto last, output_itr_t d_first) {
-  static constexpr std::span seq_nt16_str = "=ACMGRSVTWYHKDBN";
+  static constexpr std::span seq_nt16_str = "NACNGNNNTNNNNNNN";
   constexpr auto bam_seqi = [](const auto s, const auto i) -> int {
     constexpr auto low_nibble_on = 0xf;
     return s[i >> 1] >> ((~i & 1) << 2) & low_nibble_on;
