@@ -20,6 +20,10 @@
 #include <type_traits>
 #include <vector>
 
+/// ADS: (2026-10-24) intention currently is to be robust to IUPAC degenerate
+/// nucleotide symbols, but current assumption is that this is taken care of
+/// when constructing each record type (i.e., FASTQ, SAM, BAM, etc.)
+
 // N (78)10 = (1001110)2 => 11 => 3 (same as G)
 // A (65)10 = (1000001)2 => 00 => 0
 // C (67)10 = (1000011)2 => 01 => 1
@@ -148,49 +152,6 @@ is_gc(const char c) {
   return (c >> 1) & 1;
 }
 
-/// For robustness to IUPAC degenerate nucleutide symbols in the input
-
-[[nodiscard]] inline constexpr auto
-encode_iupac(const char c) {
-  static constexpr char mask = 31;  // (32 - 1)
-  static constexpr char conversion[] = {
-    3, 0, 3, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,  // 16
-    3, 3, 3, 3, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,  // 32
-  };
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-  return conversion[c & mask];
-}
-
-[[nodiscard]] inline constexpr auto
-is_gc_iupac(const char c) {
-  static constexpr char mask = 31;
-  static constexpr char C_position = 3;
-  static constexpr char G_position = 7;
-  const auto low_bits = (c & mask);
-  return low_bits == C_position || low_bits == G_position;
-}
-
-[[nodiscard]] inline constexpr auto
-is_N_iupac(const char c) {
-  static constexpr auto mask = 31;
-  static constexpr auto N_encoding = 3;
-  static constexpr auto G_position = 7;
-  return encode_iupac(c) == N_encoding && (c & mask) != G_position;
-}
-
-/// ADS: alternate version of is_N_iupac
-
-// [[nodiscard]] inline constexpr auto
-// is_N_iupac(const char c) -> std::uint8_t {
-//   static constexpr char mask = 31;  // (32 - 1)
-//   static constexpr std::uint8_t value_is_N[] = {
-//     1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,  // 16
-//     1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,  // 32
-//   };
-//   // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-//   return value_is_N[c & mask];
-// }
-
 [[nodiscard]] inline constexpr auto
 encode_nibble(const char c) {
   static constexpr auto four_bit_mask = 15;  // ADS: 15 is to keep 4 bits
@@ -301,15 +262,6 @@ count_nucs(auto seq_itr,
 }
 
 inline constexpr auto
-count_nucs_iupac(auto seq_itr,
-                 const auto seq_end,
-                 auto &tab) {  // cppcheck-suppress constParameterReference
-  auto out_itr = std::begin(tab);
-  while (seq_itr != seq_end)
-    ++(*out_itr++)[encode_iupac(*seq_itr++)];
-}
-
-inline constexpr auto
 count_ns(auto seq_itr,
          const auto seq_end,
          auto &tab) {  // cppcheck-suppress constParameterReference
@@ -318,30 +270,11 @@ count_ns(auto seq_itr,
     *out_itr++ += (*seq_itr++ == 'N');
 }
 
-inline constexpr auto
-count_ns_iupac(auto seq_itr,
-               const auto seq_end,
-               auto &tab) {  // cppcheck-suppress constParameterReference
-  auto out_itr = std::begin(tab);
-  while (seq_itr != seq_end)
-    *out_itr++ += is_N_iupac(*seq_itr++);
-}
-
 [[nodiscard]] inline auto
 count_gc(auto seq_itr, const auto seq_end) {
   auto gc = 0;
   while (seq_itr != seq_end) {
     gc += (*seq_itr != 'N' && is_gc(*seq_itr));
-    ++seq_itr;
-  }
-  return gc;
-}
-
-[[nodiscard]] inline auto
-count_gc_iupac(auto seq_itr, const auto seq_end) {
-  auto gc = 0;
-  while (seq_itr != seq_end) {
-    gc += is_gc_iupac(*seq_itr);
     ++seq_itr;
   }
   return gc;
