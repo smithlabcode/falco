@@ -45,11 +45,6 @@
 // do_preseq (make another output file for input to preseq)
 // do_quals (controls any quality score analysis in case no qual scores present)
 //
-// ADS (2026-10-21 edit): added do_iupac as a possibly temporary way for users
-// to allow degenerate IUPAC symbols in their data.
-//
-// do_iupac (ensures robustness to IUPAC degenerate nucleotide symbols)
-//
 // ADS (2026-09-08 edit): added do_stdin because otherwise it's a floating
 // almost global variable.
 //
@@ -104,7 +99,6 @@ run_mode::set_unassigned() -> void {
   if (do_preseq_ == 0) do_preseq_ = do_preseq_default;
   if (do_original_dups_ == 0) do_original_dups_ = do_original_dups_default;
   if (do_quals_ == 0) do_quals_ = do_quals_default;
-  if (do_iupac_ == 0) do_iupac_ = do_iupac_default;
   //
   if (do_adap_ == 0) do_adap_ = do_adap_default;
   if (do_dups_ == 0) do_dups_ = do_dups_default;
@@ -141,7 +135,6 @@ run_mode::string_verbose() const -> std::string {
     {"sequence", "sequence composition"},
     {"sequence_length", "sequence length"},
     {"tile", "per-tile quality"},
-    // {"iupac", "ignore IUPAC degen nucs"},
   };
   static const auto fmt_mode = [&](const std::string &label,
                                    const auto the_mode) {
@@ -162,7 +155,6 @@ run_mode::string_verbose() const -> std::string {
   lines.push_back(fmt_mode("quality_sequence", do_qual_seq()));
   lines.push_back(fmt_mode("sequence", do_sequence()));
   lines.push_back(fmt_mode("tile", do_tiles()));
-  // lines.push_back(fmt_mode("iupac", do_iupac()));
   const auto w = spacer + std::ranges::max(std::views::transform(
                             std::views::values(descriptions),
                             [](const auto &x) { return std::size(x); }));
