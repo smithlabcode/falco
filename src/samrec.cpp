@@ -39,8 +39,11 @@ samrec::get_next(samrec::pos_t &cursor,
                  const samrec::pos_t end_itr,
                  samrec &rec) -> bool {
   static constexpr auto n_fields_to_skip = 7;
-  constexpr auto complem = [](const auto x) {
-    return "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
+  const auto iupac = [](const auto c) -> char {
+    return "NANCNNNGNNNNNNNNNNNNTNNNNNNNNNNN"[c & 31];  // NOLINT
+  };
+  const auto iupac_cmpl = [](const auto c) -> char {
+    return "NTNGNNNCNNNNNNNNNNNNANNNNNNNNNNN"[c & 31];  // NOLINT
   };
   static constexpr auto bam_is_rev = [](const auto flag) -> bool {
     static constexpr auto BAM_FREVERSE = 16;
@@ -107,14 +110,14 @@ samrec::get_next(samrec::pos_t &cursor,
 
   if (bam_is_rev(flag)) {
     std::reverse_copy(seq_itr, seq_itr + seq_len, out_seq_itr);
-    std::transform(out_seq_itr, out_seq_itr + seq_len, out_seq_itr, complem);
+    std::transform(out_seq_itr, out_seq_itr + seq_len, out_seq_itr, iupac_cmpl);
     if (*qual_itr != qual_missing_code)
       std::reverse_copy(qual_itr, qual_itr + seq_len, out_qual_itr);
     else
       *out_qual_itr = qual_missing_code;
   }
   else {
-    std::copy(seq_itr, seq_itr + seq_len, out_seq_itr);
+    std::transform(seq_itr, seq_itr + seq_len, out_seq_itr, iupac);
     if (*qual_itr != qual_missing_code)
       std::copy(qual_itr, qual_itr + seq_len, out_qual_itr);
     else
