@@ -98,7 +98,7 @@ fastq_gz_file::get_chunks(std::int64_t n_chunks,
     }
     ++n_tasks;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    tq.push(file_id, fq_task_t(data + chunk_beg, data + chunk_end));
+    tq.push(file_id, fq_gz_task_t(data + chunk_beg, data + chunk_end));
     start_pos = stop_pos;
   }
   cursor = chunk_end;
