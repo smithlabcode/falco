@@ -10,7 +10,11 @@
 
 #include <variant>
 
-using task_t =
-  std::variant<std::monostate, fq_task_t, bam_task_t, sam_task_t, bgzf_block_t>;
+using task_t = std::variant<std::monostate,
+                            fq_task_t,
+                            fq_gz_task_t,
+                            bam_task_t,
+                            sam_task_t,
+                            bgzf_block_t>;
 
 #endif  // SRC_FALCO_TASK_HPP_
