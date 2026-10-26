@@ -55,6 +55,10 @@ analyze(const std::uint32_t n_threads,
     for (const auto th_id : std::views::iota(0u, n_threads))
       workers.emplace_back([&, n_threads, th_id] {
         try {
+          /// ADS: the 'fq_buffer' is used to make a thread-local copy of mmap
+          /// data so it can be modified without invalidating all
+          /// memories. Declare it here so we have one per thread.
+          std::vector<char> fq_buffer;
           auto &res = results[th_id];
           for (const auto [file_id, info] : falco::views::enumerate(infos))
             res[file_id].init(mode, info, dups_init[file_id]);
@@ -64,7 +68,7 @@ analyze(const std::uint32_t n_threads,
               return;
             auto [file_id, task] = tq.pop_and_release_lock(tq_lock);
             if (std::holds_alternative<fq_task_t>(task))
-              process_reads(res[file_id], std::get<fq_task_t>(task));
+              process_reads(res[file_id], std::get<fq_task_t>(task), fq_buffer);
             else if (std::holds_alternative<fq_gz_task_t>(task))
               process_reads(res[file_id], std::get<fq_gz_task_t>(task));
             else if (std::holds_alternative<bam_task_t>(task))
