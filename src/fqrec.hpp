@@ -57,6 +57,10 @@ struct fq_task_t {
     beg{beg}, end{end} {}
   fq_task_t(const auto beg_arg, const auto end_arg) :
     beg{std::to_address(beg_arg)}, end{std::to_address(end_arg)} {}
+  [[nodiscard]] auto
+  size() const -> std::size_t {
+    return static_cast<std::size_t>(std::max(std::distance(beg, end), 0L));
+  }
 };
 
 struct fq_gz_task_t {
