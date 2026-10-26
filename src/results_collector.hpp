@@ -197,10 +197,15 @@ accumulate_results(std::vector<std::vector<results_collector>> &r,
 }
 
 inline auto
-process_reads(results_collector &results, const fq_task_t &task) {
-  std::vector<char> local_data(task.beg, task.end);
-  results.process_reads_fq(std::to_address(std::begin(local_data)),
-                           std::to_address(std::end(local_data)));
+process_reads(results_collector &results,
+              const fq_task_t &task,
+              std::vector<char> &fq_buffer) {
+  const auto task_size = std::size(task);
+  if (std::size(fq_buffer) < task_size)
+    fq_buffer.resize(task_size);
+  std::memcpy(std::data(fq_buffer), task.beg, task_size);
+  const auto beg = std::to_address(std::begin(fq_buffer));
+  results.process_reads_fq(beg, beg + task_size);
 }
 
 inline auto
