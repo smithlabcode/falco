@@ -196,17 +196,26 @@ accumulate_results(std::vector<std::vector<results_collector>> &r,
   }
 }
 
+// clang-format off
 inline auto
 process_reads(results_collector &results,
-              const fq_task_t &task,
-              std::vector<char> &fq_buffer) {
+              const fq_task_t &task
+#ifdef USE_MMAP_FOR_PLAIN_FASTQ
+              , std::vector<char> &fq_buffer
+#endif  // USE_MMAP_FOR_PLAIN_FASTQ
+) {
+#ifdef USE_MMAP_FOR_PLAIN_FASTQ
   const auto task_size = std::size(task);
   if (std::size(fq_buffer) < task_size)
     fq_buffer.resize(task_size);
   std::memcpy(std::data(fq_buffer), task.beg, task_size);
   const auto beg = std::to_address(std::begin(fq_buffer));
   results.process_reads_fq(beg, beg + task_size);
+#else
+  results.process_reads_fq(task.beg, task.end);
+#endif  // USE_MMAP_FOR_PLAIN_FASTQ
 }
+// clang-format on
 
 inline auto
 process_reads(results_collector &results, const fq_gz_task_t &task) {
