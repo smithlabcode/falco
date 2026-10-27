@@ -91,8 +91,8 @@ get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
   if (itr++ == end_itr) return {};
   const auto r = itr;
 
-  for (; itr != end_itr && *itr != '\n'; ++itr)
-    iupac(*itr);
+  while (itr != end_itr && *itr != '\n')
+    iupac(*itr++);
   if (itr++ == end_itr) return {};
   const auto o = itr;
 
