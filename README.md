@@ -20,7 +20,7 @@ forward.
 You will be able to find binaries for Linux and macOS with the releases.
 
 Example:
-```
+```console
 falco -o output input.fq
 ```
 This generates 3 files in the directory named `output` (creating it if needed):
@@ -35,7 +35,7 @@ This generates 3 files in the directory named `output` (creating it if needed):
 If you use [anaconda](https://anaconda.org) to manage your packages,
 and the `conda` binary is in your path, you can install the most
 recent release of `falco` by running
-```
+```console
 conda install -c bioconda falco
 ```
 
@@ -56,7 +56,7 @@ conda install -c bioconda falco
   you need: `.github/workflows/linux-release.yml` and `.github/workflows/macos-release.yml`
 
 From the root of the repo if you have all dependencies:
-```
+```console
 cmake -B build -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j8  # use -j for more cores when building
 ```
@@ -70,11 +70,11 @@ specified directly.
 ### Linux detailed instructions
 
 I'm explaining this via a clean Ubuntu instance in docker:
-```
+```console
 docker run -it ubuntu:latest bash
 ```
 Inside the docker:
-```
+```console
 export DEBIAN_FRONTEND=noninteractive &&
 apt-get update &&
 apt-get install -y --no-install-recommends \
@@ -102,7 +102,7 @@ you can find them here: `.github/workflows/linux-release.yml`
 I don't have the same ability to test with clean OS images for macOS
 (suggestions welcome). The best I can do is use the GitHub macOS runners, which
 already have some of the dependencies installed. Here is what works:
-```
+```console
 brew install libdeflate htslib samtools &&  # samtools for testing
 git clone https://github.com/smithlabcode/falco.git &&
 cd falco &&
@@ -116,6 +116,28 @@ GitHub's macOS look
 [here](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-Readme.md).
 Note: ISA-L was designed for Intel hardware. It works on Apple silicon, but only
 gives 1-2% speedup in my tests.
+
+### Potential speedups for plain FASTQ file inputs
+
+For uncompressed FASTQ files, run times can be improved by building Falco to
+memory map the input files. This only helps for *uncompressed FASTQ* files. The
+speedup depends on whether your input files remain "hot" during your analysis.
+This is determined by your pipeline, hardware, OS settings, etc. One reason a
+file might stay "hot" is if it's stil in virtual memory from a previous step in
+your pipeline. The speed difference can be almost 2x on some systems, but on
+other systems you might see reduced performance. If you use Falco frequently on
+plain FASTQ files, this might be worth trying. To enable memory mapped plain
+FASTQ files, configure the build with `-DUSE_MMAP_FOR_PLAIN_FASTQ=on`:
+
+```console
+cmake -B build -DCMAKE_CXX_COMPILER=g++ -DUSE_MMAP_FOR_PLAIN_FASTQ=on -DCMAKE_BUILD_TYPE=Release
+```
+
+If you build Falco from source, there's no harm in testing both ways and seeing
+what works best for your pipeline. Just make sure to test using your entire
+pipeline and with both orders of testing the two configurations.  Otherwise you
+risk seeing better performance for whichever is tested second. You can use
+`vmtouch` (available through conda) to load or evict files while testing.
 
 ## Changes in Falco v2.0
 
