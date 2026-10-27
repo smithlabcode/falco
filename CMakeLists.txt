@@ -58,6 +58,14 @@ if(PACKAGE)
   include(cmake/package.cmake)
 endif()
 
+option(USE_MMAP_FOR_PLAIN_FASTQ
+  "Enabling memory mapping for plain FASTQ files"
+  off
+)
+if(USE_MMAP_FOR_PLAIN_FASTQ)
+  add_compile_definitions(USE_MMAP_FOR_PLAIN_FASTQ)
+endif()
+
 find_package(LIBDEFLATE REQUIRED)
 find_package(HTSLIB 1.18 REQUIRED)
 find_package(ZLIB REQUIRED)
