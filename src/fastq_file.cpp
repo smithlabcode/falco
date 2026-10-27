@@ -13,19 +13,24 @@
 #include <algorithm>
 #include <cassert>
 #include <cerrno>
-#include <compare>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <iterator>
-#include <memory>
 #include <ranges>
-#include <span>
 #include <string>
 #include <system_error>
+#ifndef USE_MMAP_FOR_PLAIN_FASTQ
+#include <compare>
+#include <memory>
+#include <span>
 #include <tuple>
 #include <vector>
+#else  // USE_MMAP_FOR_PLAIN_FASTQ
+#include <atomic>
+#include <stdexcept>
+#endif
 
 [[nodiscard]] auto
 estimate_n_reads_fastq(const std::string &filename)
@@ -73,6 +78,89 @@ estimate_n_reads_fastq(const std::string &filename)
 
   return {static_cast<std::uint64_t>(n_reads_est), readlen_est, filesize};
 }
+
+#ifndef USE_MMAP_FOR_PLAIN_FASTQ
+
+fastq_file::fastq_file(const std::string &filename,
+                       const std::int64_t buf_size) :
+  buffer(buf_size + min_buf_size),
+  in(std::fopen(std::data(filename), "r"), &std::fclose) {
+  if (!in)
+    std::system_error(std::make_error_code(std::errc(errno)),
+                      "failed to read file");
+  cursor = std::begin(buffer);
+  last = std::begin(buffer);
+}
+
+auto
+fastq_file::shift_output_buffer() -> void {
+  if (cursor == std::cbegin(buffer))  // shifting here does nothing
+    return;
+  last = std::copy(cursor, last, std::begin(buffer));
+  cursor = std::begin(buffer);
+}
+
+auto
+fastq_file::get_chunks(std::int64_t n_chunks,
+                       const std::int32_t file_id,
+                       task_queue &tq,
+                       std::atomic_int32_t &n_tasks) -> void {
+  static constexpr std::int64_t min_chunk_size = 64 * 1024;
+  static constexpr auto rec_lines = 4;  // FASTQ
+  assert(n_chunks > 0);
+  const auto beg_itr = std::begin(buffer);
+  const auto end_itr = last;
+  // clang-format off
+  const auto not_read_start = [&](const auto p) {
+    // ADS: could get confused if '+' lines have full name info
+    return *p != '@' || (p > beg_itr && *(p - 1) != '\n') ||
+      (p > beg_itr + 2 && *(p - 2) == '+' && *(p - 3) == '\n');
+  };
+  const auto forward_to_start = [&](auto p) {
+    if (p == beg_itr) return p;
+    while (p < end_itr && not_read_start(p)) ++p;
+    return p;
+  };
+  const auto rev_to_read_start = [&](auto p) {
+    while (p != beg_itr && (p == end_itr || not_read_start(p))) --p;
+    return p;
+  };
+  // clang-format on
+  const std::int64_t n_bytes_available = std::distance(beg_itr, end_itr);
+  n_chunks = std::min((n_bytes_available + min_chunk_size - 1) / min_chunk_size,
+                      n_chunks);
+  auto [chunk_size, remainder] = std::div(n_bytes_available, n_chunks);
+  assert(n_chunks > 0);
+  auto start_itr = beg_itr;
+  auto chunk_end = start_itr;
+  for (const auto chunk_idx : std::views::iota(0, n_chunks)) {
+    const auto chunk_beg = forward_to_start(start_itr);
+    const auto stop_itr = start_itr + chunk_size + (chunk_idx < remainder);
+    chunk_end = forward_to_start(stop_itr);
+    if (chunk_idx + 1 == n_chunks) {
+      const auto prev_start = rev_to_read_start(chunk_end);
+      const auto n_trailing = std::count(prev_start, end_itr, '\n');
+      if (n_trailing < rec_lines)
+        chunk_end = prev_start;
+    }
+    ++n_tasks;
+    tq.push(file_id, fq_task_t(chunk_beg, chunk_end));
+    start_itr = stop_itr;
+  }
+  cursor = chunk_end;
+}
+
+auto
+fastq_file::load_next() -> void {
+  const auto n_bytes = std::distance(last, std::end(buffer));
+  last += static_cast<std::int64_t>(
+    std::fread(std::to_address(last), 1, n_bytes, in.get()));
+  if (std::ferror(in.get()))
+    std::system_error(std::make_error_code(std::errc(errno)),
+                      "error reading FASTQ file");
+}
+
+#else  // NOT USE_MMAP_FOR_PLAIN_FASTQ
 
 fastq_file::fastq_file(const std::string &filename,
                        const std::int64_t target_length) :
@@ -166,16 +254,20 @@ fastq_file::get_chunks(std::int64_t n_chunks,
     const auto chunk_beg = forward_to_start(start_pos);
     const auto stop_pos = start_pos + chunk_size + (chunk_idx < remainder);
     chunk_end = forward_to_start(stop_pos);
-    if (chunk_idx + 1 == n_chunks)
-      if (const auto prev = reverse_to_start(chunk_end);
-          std::count(prev, end_itr, '\n') < rec_lines)
+    if (chunk_idx + 1 == n_chunks) {
+      const auto prev = reverse_to_start(chunk_end);
+      const auto n_trailing = std::count(prev, end_itr, '\n');
+      if (n_trailing < rec_lines)
         chunk_end = prev;
+    }
     ++n_tasks;
     tq.push(file_id, fq_task_t(chunk_beg, chunk_end));
     start_pos = stop_pos;
   }
   last = chunk_end;
 }
+
+#endif  // USE_MMAP_FOR_PLAIN_FASTQ
 
 auto
 fastq_file::make_tasks(const std::int64_t n_threads,
@@ -184,6 +276,9 @@ fastq_file::make_tasks(const std::int64_t n_threads,
                        std::atomic_int32_t &n_tasks) -> void {
   static constexpr auto n_chunks_per_thread = 8;
   const auto n_chunks = n_chunks_per_thread * n_threads;
+#ifndef USE_MMAP_FOR_PLAIN_FASTQ
+  shift_output_buffer();
+#endif  // USE_MMAP_FOR_PLAIN_FASTQ
   load_next();
   get_chunks(n_chunks, file_id, tq, n_tasks);
 }
