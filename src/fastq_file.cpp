@@ -5,10 +5,7 @@
 #include "fqrec.hpp"
 #include "task_queue.hpp"
 
-#ifdef __APPLE__
-// ADS: fcntl.h needed on macOS for O_RDONLY
 #include <fcntl.h>  // IWYU pragma: keep
-#endif
 #include <sys/stat.h>
 #ifdef USE_MMAP_FOR_PLAIN_FASTQ
 #include <sys/mman.h>
