@@ -5,7 +5,7 @@
 #include "fqrec.hpp"
 #include "task_queue.hpp"
 
-#ifndef __APPLE__
+#ifdef __APPLE__
 // ADS: fcntl.h needed on macOS for O_RDONLY
 #include <fcntl.h>  // IWYU pragma: keep
 #endif
