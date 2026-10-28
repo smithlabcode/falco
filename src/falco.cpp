@@ -536,7 +536,8 @@ main(int argc, char *argv[]) {
     // restrict buffer size to avoid using a possibly harmful amount of memory
     const auto get_sz = [](const auto &i) { return i.size; };
     const auto max_sz = std::ranges::max(std::views::transform(infos, get_sz));
-    buffer_size = buffer_size < max_sz ? buffer_size : min_buf_size;
+    buffer_size =
+      buffer_size < max_sz ? buffer_size : std::max(max_sz, min_buf_size);
 
     const auto min_buffer_size = get_min_buffer_size(max_read_length);
     if (std::cmp_greater(min_buffer_size, buffer_size)) {
