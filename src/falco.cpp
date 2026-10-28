@@ -7,8 +7,8 @@ static constexpr auto description =
 
 - Prefer bgzip over gzip when compressing to gz format. Get it with
   these packages: tabix (apt), bgzip (pip and dnf) or htslib (brew and conda).
-- Falco assumes nucleotides symbols ACGT and N. If you modify the input data
-  with other symbols, they are treated as N, but ACGT are case-insensitive.
+- Falco assumes nucleotides symbols ACGT and N (upper or lowercase). Any other
+  symbols are counted as N.
 
 EXAMPLES:
 
