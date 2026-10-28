@@ -5,10 +5,15 @@
 #include "fqrec.hpp"
 #include "task_queue.hpp"
 
-#include <fcntl.h>
-#include <sys/mman.h>
+#ifndef __APPLE__
+// ADS: fcntl.h needed on macOS for O_RDONLY
+#include <fcntl.h>  // IWYU pragma: keep
+#endif
 #include <sys/stat.h>
+#ifdef USE_MMAP_FOR_PLAIN_FASTQ
+#include <sys/mman.h>
 #include <unistd.h>
+#endif  // USE_MMAP_FOR_PLAIN_FASTQ
 
 #include <algorithm>
 #include <cassert>
@@ -16,7 +21,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <filesystem>
 #include <iterator>
 #include <ranges>
 #include <string>
@@ -88,6 +92,9 @@ fastq_file::fastq_file(const std::string &filename,
   if (!in)
     std::system_error(std::make_error_code(std::errc(errno)),
                       "failed to read file");
+#ifndef __APPLE__
+  posix_fadvise(fileno(in.get()), 0, 0, POSIX_FADV_SEQUENTIAL);
+#endif
   cursor = std::begin(buffer);
   last = std::begin(buffer);
 }
@@ -166,11 +173,16 @@ fastq_file::fastq_file(const std::string &filename,
                        const std::int64_t target_length) :
   target_length{
     std::max(target_length, static_cast<std::int64_t>(min_buf_size))},
-  filesize{static_cast<std::int64_t>(std::filesystem::file_size(filename))},
   fd{open(std::data(filename), O_RDONLY, 0)} {
   if (fd < 0)
     throw std::system_error(std::make_error_code(std::errc(errno)),
                             "failed to open file: " + filename);
+#ifndef __APPLE__
+  posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL);
+#endif
+  struct stat buf{};
+  fstat(fd, &buf);
+  filesize = buf.st_size;
 }
 
 static inline auto

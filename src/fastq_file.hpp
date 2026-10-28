@@ -3,7 +3,9 @@
 #ifndef SRC_FASTQ_FILE_HPP_
 #define SRC_FASTQ_FILE_HPP_
 
+#ifdef USE_MMAP_FOR_PLAIN_FASTQ
 #include <unistd.h>
+#endif
 
 #include <atomic>
 #include <cstdint>
