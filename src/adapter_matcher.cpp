@@ -55,13 +55,16 @@ adapter_matcher::add_and_consume(adapter_matcher &&rhs) -> void {
 [[nodiscard]] auto
 adapter_matcher::get_grade(const std::uint64_t n_reads) const -> std::string {
   static constexpr auto label = "adapter";
-  const auto max_count =
-    adap_counts.empty()
-      ? 0
-      : std::ranges::max(adap_counts | std::views::transform(std::ranges::max));
+  // The report shows, per adapter, the cumulative percentage of reads with the
+  // adapter starting at or before each position; as in FastQC, the grade is
+  // the maximum of that, i.e. the total count of each adapter over positions.
+  std::vector<std::uint64_t> totals(n_adapters, 0);
+  for (const auto &counts : adap_counts)
+    std::ranges::transform(totals, counts, std::begin(totals), std::plus{});
+  const auto max_count = totals.empty() ? 0 : std::ranges::max(totals);
   return grader_set::get_grade(
     label,
-    as_frac(max_count, std::max(static_cast<std::uint64_t>(1), n_reads)));
+    pct(as_frac(max_count, std::max(static_cast<std::uint64_t>(1), n_reads))));
 }
 
 [[nodiscard]] auto
