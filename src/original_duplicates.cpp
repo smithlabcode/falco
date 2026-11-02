@@ -25,10 +25,19 @@
 [[nodiscard]] auto
 init_orig_dups_bam(const std::string &filename, const std::uint64_t n_unique)
   -> dups_map_t {
-  static constexpr auto complem = [](const auto x) {
-    return "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
-  };
+  // ADS: n_unique_multiplier: contributes to max reads to examine, multiplying
+  // the n_unique that is the target; impossible to know how many needed to hit
+  // the target, so try to overshoot.
   static constexpr auto n_unique_multiplier = 10;
+  static constexpr auto complem = [](char &x) {
+    assert(x >= 'A' && x <= 'T');
+    x = "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
+  };
+  static constexpr auto to_acgtn = [](const char x) {
+    static constexpr char mask = 15;
+    static constexpr std::span seq_nt16_str_acgtn = "NACNGNNNTNNNNNNN";
+    return seq_nt16_str_acgtn[x & mask];
+  };
   const std::unique_ptr<htsFile, int (*)(htsFile *)> in(
     hts_open(std::data(filename), "r"), &hts_close);
   if (!in)
@@ -54,7 +63,7 @@ init_orig_dups_bam(const std::string &filename, const std::uint64_t n_unique)
     if (std::ssize(buffer) < l_qseq)
       buffer.resize(l_qseq);
     for (auto i = 0; i < l_qseq; ++i)
-      buffer[i] = seq_nt16_str[bam_seqi(seq, i)];
+      buffer[i] = to_acgtn(bam_seqi(seq, i));
     if (bam_is_rev(rec.get())) {
       std::reverse(std::begin(buffer), std::begin(buffer) + l_qseq);
       std::transform(std::cbegin(buffer), std::cbegin(buffer) + l_qseq,
@@ -71,7 +80,15 @@ init_orig_dups_bam(const std::string &filename, const std::uint64_t n_unique)
 [[nodiscard]] auto
 init_orig_dups_fq(const std::string &filename, const std::uint64_t n_unique)
   -> dups_map_t {
+  // ADS: n_unique_multiplier: contributes to max reads to examine, multiplying
+  // the n_unique that is the target; impossible to know how many needed to hit
+  // the target, so try to overshoot.
   static constexpr auto n_unique_multiplier = 10;
+  static constexpr auto to_acgtn = [](const auto c) {
+    static constexpr auto mask = 31;
+    static constexpr std::span to_acgtn_sp = "NANCNNNGNNNNNNNNNNNNTNNNNNNNNNNN";
+    return to_acgtn_sp[c & mask];
+  };
   const std::unique_ptr<BGZF, int (*)(BGZF *)> in(
     bgzf_open(std::data(filename), "r"), &bgzf_close);
   if (!in)
@@ -87,6 +104,7 @@ init_orig_dups_fq(const std::string &filename, const std::uint64_t n_unique)
          (r = bgzf_getline(in.get(), '\n', &s)) >= 0) {
     if (n_lines % 4 == 1) {
       const auto l_qseq = ks_len(&s);
+      std::ranges::transform(std::span(s.s, l_qseq), s.s, to_acgtn);
       const auto seq = ks_c_str(&s);
       ++dups[falco_word(seq, l_qseq)];
       ++n_reads;
