@@ -8,6 +8,10 @@
 
 #include "boost/boost_unordered.hpp"
 
+#include <htslib/bgzf.h>  // IWYU pragma: keep
+#include <htslib/hfile.h>
+#include <htslib/sam.h>
+
 #include <algorithm>
 #include <cassert>
 #include <iterator>
@@ -19,7 +23,7 @@
 #include <vector>
 
 [[nodiscard]] auto
-init_dups(const std::string &filename, const std::uint64_t n_unique)
+init_orig_dups_bam(const std::string &filename, const std::uint64_t n_unique)
   -> dups_map_t {
   static constexpr auto complem = [](const auto x) {
     return "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
@@ -65,7 +69,7 @@ init_dups(const std::string &filename, const std::uint64_t n_unique)
 }
 
 [[nodiscard]] auto
-init_dups_fq(const std::string &filename, const std::uint64_t n_unique)
+init_orig_dups_fq(const std::string &filename, const std::uint64_t n_unique)
   -> dups_map_t {
   static constexpr auto n_unique_multiplier = 10;
   const std::unique_ptr<BGZF, int (*)(BGZF *)> in(
@@ -123,10 +127,10 @@ initialize_original_duplicates(const std::vector<std::string> &infiles,
         }
         dups[file_id] =
           falco::is_mapped_reads(infos[file_id].format)
-            ? init_dups(infiles[file_id],
-                        duplication_results::max_reads_to_hash)
-            : init_dups_fq(infiles[file_id],
-                           duplication_results::max_reads_to_hash);
+            ? init_orig_dups_bam(infiles[file_id],
+                                 duplication_results::max_reads_to_hash)
+            : init_orig_dups_fq(infiles[file_id],
+                                duplication_results::max_reads_to_hash);
       }
     });
   std::ranges::for_each(workers, [](auto &w) { w.join(); });
