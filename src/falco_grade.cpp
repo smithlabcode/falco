@@ -24,15 +24,15 @@ static const auto default_graders = std::array{  // NOLINT(cert-err58-cpp)
   grader{.name = "quality_base_median", .warn = 25.0, .fail = 20.0},
   grader{.name = "quality_base_lower",  .warn = 10.0, .fail = 5.00},
   grader{.name = "quality_sequence",    .warn = 27.0, .fail = 20.0},
-  grader{.name = "n_content",           .warn = 0.05, .fail = 0.20},
+  grader{.name = "n_content",           .warn = 5.00, .fail = 20.0},
   grader{.name = "sequence",            .warn = 10.0, .fail = 20.0},
   grader{.name = "sequence_length",     .warn = 1.00, .fail = 1.00},
   grader{.name = "gc_sequence",         .warn = 15.0, .fail = 30.0},
-  grader{.name = "duplication",         .warn = 0.70, .fail = 0.50},
+  grader{.name = "duplication",         .warn = 70.0, .fail = 50.0},
   grader{.name = "overrepresented",     .warn = 0.10, .fail = 1.00},
   grader{.name = "kmer",                .warn = 2.00, .fail = 5.00},
   grader{.name = "tile",                .warn = 5.00, .fail = 10.0},
-  grader{.name = "adapter",             .warn = 0.05, .fail = 0.10},
+  grader{.name = "adapter",             .warn = 5.00, .fail = 10.0},
 };
 // clang-format on
 
@@ -74,9 +74,11 @@ file_grades::get_title(const std::string &name) -> std::string {
 grader::identify_grade(const double value) const -> std::string {
   using std::string_literals::operator""s;
   if (warn < fail) {
-    if (value < warn)
+    // higher is worse: as in FastQC, a value equal to a cutoff does not
+    // reach it (e.g., 0.1% overrepresented passes, more than 0.1% warns)
+    if (value <= warn)
       return "pass"s;
-    if (value < fail)
+    if (value <= fail)
       return "warn"s;
     return "fail"s;
   }
@@ -198,7 +200,7 @@ get_grade_n_content(const std::vector<std::uint64_t> &n_counts,
     std::reduce(std::cbegin(nucs[max_idx]), std::cend(nucs[max_idx]));
   const auto max_n_frac =
     as_frac(n_counts[max_idx], n_counts[max_idx] + total_non_n);
-  return grader_set::get_grade(label, max_n_frac);
+  return grader_set::get_grade(label, pct(max_n_frac));
 }
 
 [[nodiscard]] auto
