@@ -157,11 +157,12 @@ duplication_results::add_and_consume(duplication_results &rhs) -> void {
 get_grade_overrepresented(const std::uint64_t n_reads,
                           const duplication_results &dr) -> std::string {
   static constexpr auto label = "overrepresented";
-  const auto max_n_obs =
-    dr.dups.empty() ? 0LU : std::ranges::max(std::views::values(dr.dups));
-  return grader_set::get_grade(
-    label,
-    as_frac(max_n_obs, std::max(static_cast<std::uint64_t>(1), n_reads)));
+  // As in FastQC, grade on the list the report shows: the percentage of the
+  // most frequent listed sequence (in percent, like the cutoffs), or zero if
+  // no sequence passes the list's cutoffs.
+  const auto overrep = dr.get_overrepresented(n_reads);
+  return grader_set::get_grade(label,
+                               overrep.empty() ? 0.0 : overrep.front().pct_val);
 }
 
 [[nodiscard]] auto
@@ -283,7 +284,7 @@ get_grade_duplication(const dup_summary_t &summary) -> std::string {
   };
   const auto frac_dedup =
     as_frac(reduce(summary.hist_dedup), reduce(summary.hist_mass));
-  return grader_set::get_grade(label, frac_dedup);
+  return grader_set::get_grade(label, pct(frac_dedup));
 }
 
 [[nodiscard]] auto
