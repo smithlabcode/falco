@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT; Copyright 2026 Andrew D Smith
 
 #include "fastq_bgzf_file.hpp"
-#include "duplication_results.hpp"
 #include "falco_utils.hpp"
-#include "falco_word.hpp"
 #include "fqrec.hpp"
 #include "task_queue.hpp"
 
 #include <htslib/bgzf.h>
 #include <htslib/hfile.h>
-#include <htslib/sam.h>
+#include <htslib/sam.h>  // IWYU pragma: keep
 
 #include <algorithm>
 #include <cassert>

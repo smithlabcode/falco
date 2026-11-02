@@ -6,7 +6,6 @@
 #include "bam_header.hpp"
 #include "bgzf_block.hpp"
 #include "bgzf_reader.hpp"
-#include "duplication_results.hpp"
 
 #include <atomic>
 #include <cstdint>

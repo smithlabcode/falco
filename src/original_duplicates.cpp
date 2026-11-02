@@ -4,24 +4,29 @@
 
 #include "duplication_results.hpp"
 #include "falco_file_format.hpp"
+#include "falco_word.hpp"
 #include "file_info.hpp"
 
 #include "boost/boost_unordered.hpp"
 
 #include <htslib/bgzf.h>  // IWYU pragma: keep
-#include <htslib/hfile.h>
 #include <htslib/sam.h>
 
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <iterator>
+#include <memory>
 #include <mutex>
 #include <ranges>
+#include <span>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <utility>  // for std::move
 #include <vector>
 
+namespace {
 [[nodiscard]] auto
 init_orig_dups_bam(const std::string &filename, const std::uint64_t n_unique)
   -> dups_map_t {
@@ -116,6 +121,7 @@ init_orig_dups_fq(const std::string &filename, const std::uint64_t n_unique)
   ks_free(&s);
   return dups;
 }
+}  // namespace
 
 [[nodiscard]] auto
 initialize_original_duplicates(const std::vector<std::string> &infiles,

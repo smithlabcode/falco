@@ -2,9 +2,7 @@
 
 #include "bam_file.hpp"
 #include "bamrec.hpp"
-#include "duplication_results.hpp"
 #include "falco_utils.hpp"
-#include "falco_word.hpp"
 #include "task_queue.hpp"
 
 #include <htslib/bgzf.h>  // IWYU pragma: keep
