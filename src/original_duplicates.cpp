@@ -66,8 +66,7 @@ init_orig_dups_bam(const std::string &filename, const std::uint64_t n_unique)
       buffer[i] = to_acgtn(bam_seqi(seq, i));
     if (bam_is_rev(rec.get())) {
       std::reverse(std::begin(buffer), std::begin(buffer) + l_qseq);
-      std::transform(std::cbegin(buffer), std::cbegin(buffer) + l_qseq,
-                     std::begin(buffer), complem);
+      std::for_each_n(std::begin(buffer), l_qseq, complem);
     }
     ++dups[falco_word(std::data(buffer), l_qseq)];
   }
