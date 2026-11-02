@@ -55,38 +55,6 @@ estimate_n_reads_fastq_bgzf(const std::string &filename)
   return {static_cast<std::uint64_t>(n_reads_est), read_len_est, filesize};
 }
 
-[[nodiscard]] auto
-init_dups_fq(const std::string &filename, const std::uint64_t n_unique)
-  -> dups_map_t {
-  static constexpr auto n_unique_multiplier = 10;
-  const std::unique_ptr<BGZF, int (*)(BGZF *)> in(
-    bgzf_open(std::data(filename), "r"), &bgzf_close);
-  if (!in)
-    throw std::system_error(std::make_error_code(std::errc(errno)),
-                            "failed to open file: " + filename);
-  dups_map_t dups;
-  kstring_t s = KS_INITIALIZE;
-  int r{};
-  std::uint64_t n_lines{};
-  std::uint64_t n_reads{};
-  const auto max_n_reads = n_unique_multiplier * n_unique;
-  while (n_reads < max_n_reads && std::size(dups) < n_unique &&
-         (r = bgzf_getline(in.get(), '\n', &s)) >= 0) {
-    if (n_lines % 4 == 1) {
-      const auto l_qseq = ks_len(&s);
-      const auto seq = ks_c_str(&s);
-      ++dups[falco_word(seq, l_qseq)];
-      ++n_reads;
-    }
-    ++n_lines;
-  }
-  if (r < -1)  // error
-    throw std::system_error(std::make_error_code(std::errc(errno)),
-                            "error reading bam record from: " + filename);
-  ks_free(&s);
-  return dups;
-}
-
 auto
 fastq_bgzf_file::load_next(const std::int32_t file_id,
                            task_queue &tq,

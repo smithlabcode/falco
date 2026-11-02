@@ -65,52 +65,6 @@ estimate_n_reads_bam(const std::string &filename)
   return {n_reads_estimate, read_len_estimate, filesize};
 }
 
-[[nodiscard]] auto
-init_dups(const std::string &filename, const std::uint64_t n_unique)
-  -> dups_map_t {
-  static constexpr auto complem = [](const auto x) {
-    return "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
-  };
-  static constexpr auto n_unique_multiplier = 10;
-  const std::unique_ptr<htsFile, int (*)(htsFile *)> in(
-    hts_open(std::data(filename), "r"), &hts_close);
-  if (!in)
-    throw std::system_error(std::make_error_code(std::errc(errno)),
-                            "failed to open file: " + filename);
-  const std::unique_ptr<sam_hdr_t, void (*)(sam_hdr_t *)> h(
-    sam_hdr_read(in.get()), &sam_hdr_destroy);
-  if (!h)
-    throw std::system_error(std::make_error_code(std::errc(errno)),
-                            "failed to read header: " + filename);
-  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
-  std::unique_ptr<bam1_t, void (*)(bam1_t *)> rec(bam_init1(), &bam_destroy1);
-
-  dups_map_t dups;
-  std::vector<char> buffer;
-  int r{};
-  std::uint64_t n_reads{};
-  const auto max_n_reads = n_unique_multiplier * n_unique;
-  while (n_reads++ < max_n_reads && std::size(dups) < n_unique &&
-         (r = sam_read1(in.get(), h.get(), rec.get())) >= 0) {
-    const auto l_qseq = rec->core.l_qseq;
-    const auto seq = bam_get_seq(rec.get());
-    if (std::ssize(buffer) < l_qseq)
-      buffer.resize(l_qseq);
-    for (auto i = 0; i < l_qseq; ++i)
-      buffer[i] = seq_nt16_str[bam_seqi(seq, i)];
-    if (bam_is_rev(rec.get())) {
-      std::reverse(std::begin(buffer), std::begin(buffer) + l_qseq);
-      std::transform(std::cbegin(buffer), std::cbegin(buffer) + l_qseq,
-                     std::begin(buffer), complem);
-    }
-    ++dups[falco_word(std::data(buffer), l_qseq)];
-  }
-  if (r < -1)  // error
-    throw std::system_error(std::make_error_code(std::errc(errno)),
-                            "error reading bam record from: " + filename);
-  return dups;
-}
-
 auto
 bam_file::load_next(const std::int32_t file_id,
                     task_queue &tq,
