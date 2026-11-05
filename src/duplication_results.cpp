@@ -27,6 +27,7 @@
 #include <numeric>
 #include <ranges>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -236,6 +237,8 @@ duplication_results::get_dups_summary(const std::uint64_t n_reads) const
   std::vector<std::uint64_t> hist_dedup(max_dup + 1);
   for (const auto n_copies : std::views::values(dups))
     ++hist_dedup[n_copies];
+  if (hist_dedup[0] > 0)
+    throw std::runtime_error("Non-zero count of indexed reads seen 0 times");
   for (auto [idx, val] : falco::views::enumerate(hist_dedup))
     val = static_cast<std::uint64_t>(
       get_corrected_count(count_at_limit, n_reads, idx, val));
