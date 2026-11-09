@@ -74,7 +74,7 @@ file_grades::get_title(const std::string &name) -> std::string {
 grader::identify_grade(const double value) const -> std::string {
   using std::string_literals::operator""s;
   if (warn < fail) {
-    // MRS (maximilian.stammnitz@crg.eu) with Claude Opus 5.5:
+    // MRS (maximilian.stammnitz@crg.eu):
     // higher is worse: as in FastQC, a value equal to a cutoff does not
     // reach it (e.g., 0.1% overrepresented passes, more than 0.1% warns)
     if (value <= warn)
