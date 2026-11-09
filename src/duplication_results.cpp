@@ -157,7 +157,7 @@ duplication_results::add_and_consume(duplication_results &rhs) -> void {
 get_grade_overrepresented(const std::uint64_t n_reads,
                           const duplication_results &dr) -> std::string {
   static constexpr auto label = "overrepresented";
-  // MRS (maximilian.stammnitz@crg.eu) with Claude Opus 5.5:
+  // MRS (maximilian.stammnitz@crg.eu):
   // As in FastQC, grade on the list the report shows: the percentage of the
   // most frequent listed sequence (in percent, like the cutoffs), or zero if
   // no sequence passes the list's cutoffs.
