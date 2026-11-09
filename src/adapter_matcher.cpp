@@ -55,6 +55,7 @@ adapter_matcher::add_and_consume(adapter_matcher &&rhs) -> void {
 [[nodiscard]] auto
 adapter_matcher::get_grade(const std::uint64_t n_reads) const -> std::string {
   static constexpr auto label = "adapter";
+  // MRS (maximilian.stammnitz@crg.eu) with Claude Opus 5.5:
   // The report shows, per adapter, the cumulative percentage of reads with the
   // adapter starting at or before each position; as in FastQC, the grade is
   // the maximum of that, i.e. the total count of each adapter over positions.
