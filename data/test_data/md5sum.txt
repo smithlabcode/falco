@@ -17,3 +17,5 @@ e786bd4d9e6065904ab7b45021e7190b  groups_out/bam_1/fastqc_data.txt
 bcea1e9f86f0917496b14ae81b6ecbc5  sam_stdin_out/sam_stdin/fastqc_data.txt
 088c04f706f340f058b663d6e0209dca  fastq_orig_gc_out/fastq_bgzip_1/fastqc_data.txt
 e71cef09fd4b6f4019f8fdb82ee2eaf3  fastq_iupac_out/fastq_1_iupac/fastqc_data.txt
+c827b3a42f08404ac87d3cfb1dc51938  iupac_dups_out/iupac_dups/fastqc_data.txt
+7f06e30c51af849eb74c9066d087173b  iupac_dups_out/iupac_dups_bam/fastqc_data.txt
