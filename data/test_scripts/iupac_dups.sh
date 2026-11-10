@@ -25,6 +25,6 @@ if [[ -e "${infile1}" ]]; then
     fi
     rm -r ${outdir}
 else
-    echo "${infile} not found; skipping remaining tests";
+    echo "${infile1} not found; skipping remaining tests";
     exit 77;
 fi
