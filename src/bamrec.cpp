@@ -37,7 +37,7 @@ bamrec::to_string() const -> std::string {
 template <class bidir_itr_t, class output_itr_t>
 static inline constexpr output_itr_t
 assign_sequence_revcomp(bidir_itr_t first, auto last, output_itr_t d_first) {
-  static constexpr std::array<char, 16> seq_nt16_str_cmpl = {
+  static constexpr auto seq_nt16_str_cmpl = std::array{
     4, 2, 3, 4, 1, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4,
   };
   static constexpr auto bam_seqi = [](const auto s, const auto i) {
@@ -53,8 +53,7 @@ assign_sequence_revcomp(bidir_itr_t first, auto last, output_itr_t d_first) {
 template <class bidir_itr_t, class output_itr_t>
 static inline constexpr output_itr_t
 assign_sequence(bidir_itr_t first, auto last, output_itr_t d_first) {
-  static constexpr auto n_possible_symbols = 16;
-  static constexpr auto seq_nt16_str = std::array<char, n_possible_symbols>{
+  static constexpr auto seq_nt16_str = std::array{
     4, 0, 1, 4, 3, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4,
   };
   static constexpr auto bam_seqi = [](const auto s, const auto i) {
