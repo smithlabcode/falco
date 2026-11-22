@@ -19,7 +19,7 @@
 // T (84)10 = (1010100)2 => 001
 
 struct falco_word {
-  static constexpr std::span extended_bases = "GTCAN";
+  static constexpr std::span extended_bases = "ACTGN";
   static constexpr auto extended_alpha_size = 5;
   static constexpr auto shift_for_width_bits = 56u;
   static constexpr auto width_bits_removal_mask = 0xffffffffffffff;
@@ -32,12 +32,9 @@ struct falco_word {
   operator<=>(const falco_word &) const = default;
 
   falco_word(auto b, std::uint64_t w) {
-    static constexpr auto fw_encode = [](const auto c) {
-      return ((c >> 1) & 7) ^ 3;  // NOLINT(*-avoid-magic-numbers)
-    };
     static const auto enc_shift = [&](auto &x, auto &c) {
       // NOLINTNEXTLINE(clang-analyzer-security.ArrayBound)
-      x = (x * extended_alpha_size) + fw_encode(*c++);
+      x = (x * extended_alpha_size) + *c++;
     };
     w = w < max_hi_lim ? w : max_hi_lim;
     const auto lo_lim = b + (w > max_lo_lim ? max_lo_lim : w);
