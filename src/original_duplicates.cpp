@@ -35,12 +35,17 @@ init_orig_dups_bam(const std::string &filename, const std::uint64_t n_unique)
   // the target, so try to overshoot.
   static constexpr auto n_unique_multiplier = 10;
   static constexpr auto complem = [](char &x) {
-    assert(x >= 'A' && x <= 'T');
-    x = "TNGNNNCNNNNNNNNNNNNA"[x - 'A'];
+    static constexpr auto complement_mapping = std::array{
+      2, 3, 0, 1, 4,  // (A, C, T, G) -> (T, G, A, C)
+    };
+    assert(x >= 0 && x <= 4);
+    x = complement_mapping[x];
   };
   static constexpr auto to_acgtn = [](const char x) {
-    static constexpr char mask = 15;
-    static constexpr std::span seq_nt16_str_acgtn = "NACNGNNNTNNNNNNN";
+    static constexpr auto mask = 15;
+    static constexpr auto seq_nt16_str_acgtn = std::array{
+      4, 0, 1, 4, 3, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4,
+    };
     return seq_nt16_str_acgtn[x & mask];
   };
   const std::unique_ptr<htsFile, int (*)(htsFile *)> in(
@@ -88,10 +93,15 @@ init_orig_dups_fq(const std::string &filename, const std::uint64_t n_unique)
   // the n_unique that is the target; impossible to know how many needed to hit
   // the target, so try to overshoot.
   static constexpr auto n_unique_multiplier = 10;
+  static constexpr auto n_lines_per_record = 4;
+  static constexpr auto record_line_index = 1;
   static constexpr auto to_acgtn = [](const auto c) {
     static constexpr auto mask = 31;
-    static constexpr std::span to_acgtn_sp = "NANCNNNGNNNNNNNNNNNNTNNNNNNNNNNN";
-    return to_acgtn_sp[c & mask];
+    static constexpr auto to_acgtn_a = std::array{
+      4, 0, 4, 1, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+    };
+    return to_acgtn_a[c & mask];
   };
   const std::unique_ptr<BGZF, int (*)(BGZF *)> in(
     bgzf_open(std::data(filename), "r"), &bgzf_close);
@@ -106,7 +116,7 @@ init_orig_dups_fq(const std::string &filename, const std::uint64_t n_unique)
   const auto max_n_reads = n_unique_multiplier * n_unique;
   while (n_reads < max_n_reads && std::size(dups) < n_unique &&
          (r = bgzf_getline(in.get(), '\n', &s)) >= 0) {
-    if (n_lines % 4 == 1) {
+    if (n_lines % n_lines_per_record == record_line_index) {
       const auto l_qseq = ks_len(&s);
       std::ranges::transform(std::span(s.s, l_qseq), s.s, to_acgtn);
       const auto seq = ks_c_str(&s);
