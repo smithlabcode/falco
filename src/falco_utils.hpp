@@ -30,6 +30,12 @@
 // G (71)10 = (1000111)2 => 11 => 3
 // T (84)10 = (1010100)2 => 10 => 2
 
+// N => 100 => 4
+// A => 000 => 0
+// C => 001 => 1
+// G => 011 => 3
+// T => 010 => 2
+
 static constexpr auto adenine_index = 0;
 static constexpr auto cytosine_index = 1;
 static constexpr auto thymine_index = 2;
@@ -37,9 +43,55 @@ static constexpr auto guanine_index = 3;
 static constexpr std::span bases = "ACTG";  // ADS: index this with vars above
 
 static constexpr auto alphabet_size = 4;
-static constexpr auto unknown_base_index = 3;
+static constexpr auto unknown_base_index = 0;
+static constexpr auto N_encoding = 4;
 
 static constexpr auto nibble_size = 4;
+
+[[nodiscard]] inline constexpr auto
+encode(const char c) -> char {
+  static constexpr auto two_bit_mask = 3;
+  return c & two_bit_mask;  // Ns are counted as G so must be subtracted
+}
+
+[[nodiscard]] inline constexpr auto
+is_gc(const char c) -> bool {
+  return c & 1;
+}
+
+[[nodiscard]] inline constexpr auto
+encode_nibble(const char c) -> char {
+  static constexpr auto four_bit_mask = 15;  // ADS: 15 is to keep 4 bits
+  return c & four_bit_mask;                  // N gets separate encoding
+}
+
+inline constexpr auto
+count_nucs(auto seq_itr,
+           const auto seq_end,
+           auto &tab) {  // cppcheck-suppress constParameterReference
+  auto out_itr = std::begin(tab);
+  while (seq_itr != seq_end)
+    ++(*out_itr++)[encode(*seq_itr++)];
+}
+
+inline constexpr auto
+count_ns(auto seq_itr,
+         const auto seq_end,
+         auto &tab) {  // cppcheck-suppress constParameterReference
+  auto out_itr = std::begin(tab);
+  while (seq_itr != seq_end)
+    *out_itr++ += (*seq_itr++ == N_encoding);
+}
+
+[[nodiscard]] inline auto
+count_gc(auto seq_itr, const auto seq_end) {
+  auto gc = 0;
+  while (seq_itr != seq_end) {
+    gc += (*seq_itr != N_encoding) && is_gc(*seq_itr);
+    ++seq_itr;
+  }
+  return gc;
+}
 
 namespace falco {
 static constexpr auto base_permutation_for_report_impl = {
@@ -142,23 +194,6 @@ get_run_duration(const auto start_time) {
 inline constexpr auto end_module_tag = ">>END_MODULE\n";
 
 [[nodiscard]] inline constexpr auto
-encode(const char c) {
-  static constexpr auto two_bit_mask = 3;
-  return (c >> 1) & two_bit_mask;  // Ns are counted as G so must be subtracted
-}
-
-[[nodiscard]] inline constexpr auto
-is_gc(const char c) {
-  return (c >> 1) & 1;
-}
-
-[[nodiscard]] inline constexpr auto
-encode_nibble(const char c) {
-  static constexpr auto four_bit_mask = 15;  // ADS: 15 is to keep 4 bits
-  return (c >> 1) & four_bit_mask;           // N gets separate encoding
-}
-
-[[nodiscard]] inline constexpr auto
 pct(const double a) {
   return 100.0 * a;
 }
@@ -250,34 +285,6 @@ as_frac(const auto a, const auto b) {
 [[nodiscard]] consteval auto
 ipow(const auto b, const auto e) -> std::remove_cvref_t<decltype(b)> {
   return e == 0 ? 1 : (e & 1 ? b : 1) * ipow(b * b, e >> 1);
-}
-
-inline constexpr auto
-count_nucs(auto seq_itr,
-           const auto seq_end,
-           auto &tab) {  // cppcheck-suppress constParameterReference
-  auto out_itr = std::begin(tab);
-  while (seq_itr != seq_end)
-    ++(*out_itr++)[encode(*seq_itr++)];
-}
-
-inline constexpr auto
-count_ns(auto seq_itr,
-         const auto seq_end,
-         auto &tab) {  // cppcheck-suppress constParameterReference
-  auto out_itr = std::begin(tab);
-  while (seq_itr != seq_end)
-    *out_itr++ += (*seq_itr++ == 'N');
-}
-
-[[nodiscard]] inline auto
-count_gc(auto seq_itr, const auto seq_end) {
-  auto gc = 0;
-  while (seq_itr != seq_end) {
-    gc += (*seq_itr != 'N' && is_gc(*seq_itr));
-    ++seq_itr;
-  }
-  return gc;
 }
 
 [[nodiscard]] inline auto
