@@ -26,11 +26,20 @@
 #include <vector>
 
 adapter_matcher::adapter_matcher() {
+  [[maybe_unused]]  // ADS: false positive compiler warning
+  static constexpr auto base_to_idx = [](const auto c) -> char {
+    static constexpr auto mask = 31;
+    static constexpr auto to_acgtn = std::array{
+      4, 0, 4, 1, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+    };
+    return to_acgtn[c & mask];  // NOLINT
+  };
   static constexpr auto shift_plus = [&](const auto r, const auto c) {
-    return (r << nibble_size) + encode_nibble(c);
+    return (r << nibble_size) + encode_nibble(base_to_idx(c));
   };
   static constexpr auto do_encoding = [&](const auto &a) {
-    return std::accumulate(std::cbegin(a), std::cend(a), 0ul, shift_plus);
+    return std::accumulate(std::cbegin(a), std::cend(a), 0LU, shift_plus);
   };
   if (const auto &as = adapter_set::instance(); !as.adapters.empty()) {
     n_adapters = adapter_set::n_adapters();
