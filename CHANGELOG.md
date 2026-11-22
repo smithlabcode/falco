@@ -1,5 +1,16 @@
 # falco changelog
 
+## falco 2.0.4 (2026-11-21)
+
+Changes:
+* Improvements to user interface (argument parsing and verbose output to
+  console)
+* Falco now accepts BAM/SAM files with reads that don't have quality scores
+* GC content can now be output with the original FastQC smoothing
+* All non-ACGTN are converted and handled as N for robustness to IUPAC symbols
+* Fixed bug in decompressing some BGZF files
+* Fixed bugs related to grade cutoffs (by @MaximilianStammnitz)
+
 ## falco 2.0.3 (2026-09-27)
 
 Changes:
