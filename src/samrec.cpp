@@ -38,12 +38,24 @@ samrec::to_string() const -> std::string {
 samrec::get_next(samrec::pos_t &cursor,
                  const samrec::pos_t end_itr,
                  samrec &rec) -> bool {
+  // ADS: number of SAM fields to skip after the flag column and before the read
+  // sequence column
   static constexpr auto n_fields_to_skip = 7;
-  const auto iupac = [](const auto c) -> char {
-    return "NANCNNNGNNNNNNNNNNNNTNNNNNNNNNNN"[c & 31];  // NOLINT
+  static constexpr auto base_to_idx = [](const auto c) -> char {
+    static constexpr auto mask = 31;
+    static constexpr auto to_acgtn = std::array{
+      4, 0, 4, 1, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+    };
+    return to_acgtn[c & mask];  // NOLINT
   };
-  const auto iupac_cmpl = [](const auto c) -> char {
-    return "NTNGNNNCNNNNNNNNNNNNANNNNNNNNNNN"[c & 31];  // NOLINT
+  static constexpr auto base_to_idx_cmpl = [](const auto c) -> char {
+    static constexpr auto mask = 31;
+    static constexpr auto to_acgtn_cmpl = std::array{
+      4, 2, 4, 3, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+    };
+    return to_acgtn_cmpl[c & mask];  // NOLINT
   };
   static constexpr auto bam_is_rev = [](const auto flag) -> bool {
     static constexpr auto BAM_FREVERSE = 16;
@@ -110,14 +122,15 @@ samrec::get_next(samrec::pos_t &cursor,
 
   if (bam_is_rev(flag)) {
     std::reverse_copy(seq_itr, seq_itr + seq_len, out_seq_itr);
-    std::transform(out_seq_itr, out_seq_itr + seq_len, out_seq_itr, iupac_cmpl);
+    std::transform(out_seq_itr, out_seq_itr + seq_len, out_seq_itr,
+                   base_to_idx_cmpl);
     if (*qual_itr != qual_missing_code)
       std::reverse_copy(qual_itr, qual_itr + seq_len, out_qual_itr);
     else
       *out_qual_itr = qual_missing_code;
   }
   else {
-    std::transform(seq_itr, seq_itr + seq_len, out_seq_itr, iupac);
+    std::transform(seq_itr, seq_itr + seq_len, out_seq_itr, base_to_idx);
     if (*qual_itr != qual_missing_code)
       std::copy(qual_itr, qual_itr + seq_len, out_qual_itr);
     else
