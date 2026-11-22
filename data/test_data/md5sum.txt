@@ -7,7 +7,7 @@ bcf8363f788e54d38a5ec758042959ce  ./fastq_plain_out/fastq_1/fastqc_data.txt
 39a5df25471d6f250de7b31a03325254  ./fastq_bgzf_mult_out/fastq_bgzip_2/fastqc_data.txt
 55d98514eda63c2cf4b900a0fb7b074b  ./fastq_bgzf_out/fastq_bgzip_1/fastqc_data.txt
 41a799d28bdc2e35e17546fe2af146cb  ./bam_mult_out/bam_1/fastqc_data.txt
-fbbf6f4d0607abf18425699197fb9e7f  ./bam_mult_out/bam_2/fastqc_data.txt
+953dddfc5bf8d0f045ddc04419c604f8  ./bam_mult_out/bam_2/fastqc_data.txt
 0e0d6a2d5523f50cb2374ef49e498036  ./fastq_stdin_out/fastq_stdin/fastqc_data.txt
 bab943eb8b778badeccb51045c8365b0  ./fastq_gz_out/fastq_gz_1/fastqc_data.txt
 41a799d28bdc2e35e17546fe2af146cb  ./bam_orig_dups_out/bam_1/fastqc_data.txt
