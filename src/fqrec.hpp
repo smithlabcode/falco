@@ -74,8 +74,13 @@ struct fq_gz_task_t {
 
 [[nodiscard]] inline auto
 get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
-  const auto iupac = [](auto &c) {
-    c = "NANCNNNGNNNNNNNNNNNNTNNNNNNNNNNN"[c & 31];  // NOLINT
+  const auto to_acgtn = [](auto &c) {
+    static constexpr auto mask = 31;
+    static constexpr auto x = std::array{
+      4, 0, 4, 1, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4,
+      4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+    };
+    c = x[c & mask];  // NOLINT
   };
   // ADS: need to make sure cursor < end_itr or we will move past
   const auto n = cursor;
@@ -92,7 +97,7 @@ get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
   const auto r = itr;
 
   while (itr != end_itr && *itr != '\n')
-    iupac(*itr++);
+    to_acgtn(*itr++);
   if (itr++ == end_itr) return {};
   const auto o = itr;
 
