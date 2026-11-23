@@ -47,6 +47,7 @@ assign_sequence_revcomp(bidir_itr_t first, auto last, output_itr_t d_first) {
   };
   auto j = last;
   while (j != 0)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
     *d_first++ = seq_nt16_str_cmpl[bam_seqi(first, --j)];
   return d_first;
 }
@@ -62,6 +63,7 @@ assign_sequence(bidir_itr_t first, auto last, output_itr_t d_first) {
     return (s[i >> 1] >> ((~i & 1) << 2)) & low_nibble_on;
   };
   for (auto j = 0U; j != last; ++j)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
     *d_first++ = seq_nt16_str[bam_seqi(first, j)];
   return d_first;
 }
