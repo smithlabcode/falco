@@ -40,6 +40,7 @@ init_orig_dups_bam(const std::string &filename, const std::uint64_t n_unique)
       2, 3, 0, 1, 4,  // (A, C, T, G) -> (T, G, A, C)
     };
     assert(x >= 0 && x <= 4);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
     x = complement_mapping[x];
   };
   static constexpr auto to_acgtn = [](const char x) {
@@ -47,6 +48,7 @@ init_orig_dups_bam(const std::string &filename, const std::uint64_t n_unique)
     static constexpr auto seq_nt16_str_acgtn = std::array<char, mask + 1>{
       4, 0, 1, 4, 3, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4,
     };
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
     return seq_nt16_str_acgtn[x & mask];
   };
   const std::unique_ptr<htsFile, int (*)(htsFile *)> in(
@@ -102,6 +104,7 @@ init_orig_dups_fq(const std::string &filename, const std::uint64_t n_unique)
       4, 0, 4, 1, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4,
       4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
     };
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
     return to_acgtn_a[c & mask];
   };
   const std::unique_ptr<BGZF, int (*)(BGZF *)> in(
