@@ -19,15 +19,15 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iterator>
+#include <memory>
 #include <ranges>
 #include <string>
 #include <system_error>
-#ifndef USE_MMAP_FOR_PLAIN_FASTQ
-#include <compare>
-#include <memory>
-#include <span>
 #include <tuple>
 #include <vector>
+#ifndef USE_MMAP_FOR_PLAIN_FASTQ
+#include <compare>
+#include <span>
 #else  // USE_MMAP_FOR_PLAIN_FASTQ
 #include <atomic>
 #include <stdexcept>
