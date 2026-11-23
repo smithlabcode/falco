@@ -13,6 +13,7 @@
 #include <htslib/sam.h>
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cerrno>
 #include <iterator>

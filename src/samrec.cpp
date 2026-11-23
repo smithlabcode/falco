@@ -4,6 +4,7 @@
 #include "quality_score.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <charconv>
 #include <format>
