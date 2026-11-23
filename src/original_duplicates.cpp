@@ -35,7 +35,7 @@ init_orig_dups_bam(const std::string &filename, const std::uint64_t n_unique)
   // the target, so try to overshoot.
   static constexpr auto n_unique_multiplier = 10;
   static constexpr auto complem = [](char &x) {
-    static constexpr auto complement_mapping = std::array{
+    static constexpr auto complement_mapping = std::array<char, 5>{
       2, 3, 0, 1, 4,  // (A, C, T, G) -> (T, G, A, C)
     };
     assert(x >= 0 && x <= 4);
@@ -43,7 +43,7 @@ init_orig_dups_bam(const std::string &filename, const std::uint64_t n_unique)
   };
   static constexpr auto to_acgtn = [](const char x) {
     static constexpr auto mask = 15;
-    static constexpr auto seq_nt16_str_acgtn = std::array{
+    static constexpr auto seq_nt16_str_acgtn = std::array<char, mask + 1>{
       4, 0, 1, 4, 3, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4,
     };
     return seq_nt16_str_acgtn[x & mask];
@@ -97,7 +97,7 @@ init_orig_dups_fq(const std::string &filename, const std::uint64_t n_unique)
   static constexpr auto record_line_index = 1;
   static constexpr auto to_acgtn = [](const auto c) {
     static constexpr auto mask = 31;
-    static constexpr auto to_acgtn_a = std::array{
+    static constexpr auto to_acgtn_a = std::array<char, mask + 1>{
       4, 0, 4, 1, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4,
       4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
     };

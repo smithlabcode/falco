@@ -76,7 +76,7 @@ struct fq_gz_task_t {
 get_next(fqrec::pos_t &cursor, const fqrec::pos_t end_itr) -> fqrec {
   const auto to_acgtn = [](auto &c) {
     static constexpr auto mask = 31;
-    static constexpr auto x = std::array{
+    static constexpr auto x = std::array<char, mask + 1>{
       4, 0, 4, 1, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4,
       4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
     };

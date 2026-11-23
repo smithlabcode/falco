@@ -43,7 +43,7 @@ samrec::get_next(samrec::pos_t &cursor,
   static constexpr auto n_fields_to_skip = 7;
   static constexpr auto base_to_idx = [](const auto c) -> char {
     static constexpr auto mask = 31;
-    static constexpr auto to_acgtn = std::array{
+    static constexpr auto to_acgtn = std::array<char, mask + 1>{
       4, 0, 4, 1, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4,
       4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
     };
@@ -51,7 +51,7 @@ samrec::get_next(samrec::pos_t &cursor,
   };
   static constexpr auto base_to_idx_cmpl = [](const auto c) -> char {
     static constexpr auto mask = 31;
-    static constexpr auto to_acgtn_cmpl = std::array{
+    static constexpr auto to_acgtn_cmpl = std::array<char, mask + 1>{
       4, 2, 4, 3, 4, 4, 4, 1, 4, 4, 4, 4, 4, 4, 4, 4,
       4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
     };

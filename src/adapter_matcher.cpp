@@ -29,7 +29,7 @@ adapter_matcher::adapter_matcher() {
   [[maybe_unused]]  // ADS: false positive compiler warning
   static constexpr auto base_to_idx = [](const auto c) -> char {
     static constexpr auto mask = 31;
-    static constexpr auto to_acgtn = std::array{
+    static constexpr auto to_acgtn = std::array<char, mask + 1>{
       4, 0, 4, 1, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, 4,
       4, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
     };
