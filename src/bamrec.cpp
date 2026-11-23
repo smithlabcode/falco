@@ -3,6 +3,7 @@
 #include "bamrec.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <format>
 #include <memory>

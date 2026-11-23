@@ -13,6 +13,7 @@
 #include "fmt/ranges.h"  // IWYU pragma: keep
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <format>
