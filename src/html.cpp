@@ -448,6 +448,12 @@ y: [{}],
 type: "line",
 name: "{}",
 }})";
+  const auto grade = grades.grade(label);
+  const auto title = grades.get_title(label);
+  if (results.empty())
+    return fmt::format(
+      html_module_fmt, grade, label, title, grade,
+      R""(<div id="kmer_plot"></div>\n<div>No overrepresented kmers</div>)"");
   const auto get_pos = [&](const auto &x) { return x.pos; };
   const auto xlim = std::ranges::max(std::views::transform(results, get_pos));
   auto mostly0 = std::vector(xlim, 0.0);  // change one position each kmer
@@ -461,8 +467,6 @@ name: "{}",
     return fmt::format(kmer_line_format, fmt::join(xvals, ", "),
                        fmt::join(mostly0, ", "), k.decode());
   };
-  const auto grade = grades.grade(label);
-  const auto title = grades.get_title(label);
   // NOLINTBEGIN(clang-analyzer-optin.cplusplus.UninitializedObject)
   return fmt::format(
     html_module_fmt, grade, label, title, grade,
