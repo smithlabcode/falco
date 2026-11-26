@@ -186,7 +186,7 @@ kmer_counter::decode_kmer(auto word, const auto n_bases) -> std::string {
 [[nodiscard]] auto
 get_grade_kmer(const std::vector<kmer_result> &results) -> std::string {
   static constexpr auto label = "kmer";
-  const auto pval = results.front().pval;
+  const auto pval = results.empty() ? 1.0 : results.front().pval;
   const auto neg_log_p_val =
     pval > 0.0 ? -std::log10(pval) : std::numeric_limits<double>::max();
   return grader_set::get_grade(label, neg_log_p_val);
