@@ -134,10 +134,8 @@ results_summary::get_report() const -> std::string {
   if (mode.do_gc_content())
     sections.emplace("gc_sequence", gc_sequence_report(gc_content, grades));
 
-  if (mode.do_kmers()) {
-    assert(!kmer_results.empty());
+  if (mode.do_kmers())
     sections.emplace("kmer", kmer_report(kmer_results, grades));
-  }
 
   if (mode.do_length())
     sections.emplace("sequence_length",
@@ -201,10 +199,8 @@ results_summary::get_html() -> std::string {
   if (mode.do_gc_content())
     sections.emplace("gc_sequence", gc_sequence_html(gc_content, grades));
 
-  if (mode.do_kmers()) {
-    assert(!kmer_results.empty());
+  if (mode.do_kmers())
     sections.emplace("kmer", kmer_html(kmer_results, grades));
-  }
 
   if (mode.do_length())
     sections.emplace("sequence_length", sequence_length_html(lengths, grades));
