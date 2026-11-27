@@ -1,7 +1,6 @@
 bcf8363f788e54d38a5ec758042959ce  ./fastq_plain_out/fastq_1/fastqc_data.txt
 41a799d28bdc2e35e17546fe2af146cb  ./preseq_out/bam_1/fastqc_data.txt
 39b50a91a778f9713d6b510af435a9f0  ./sam_stdin_out/sam_stdin/fastqc_data.txt
-037cb6bad120661ac15ccf6020cb82b1  ./bam_kmers_out/bam_1/fastqc_data.txt
 41a799d28bdc2e35e17546fe2af146cb  ./bam_out/bam_1/fastqc_data.txt
 55d98514eda63c2cf4b900a0fb7b074b  ./fastq_bgzf_mult_out/fastq_bgzip_1/fastqc_data.txt
 39a5df25471d6f250de7b31a03325254  ./fastq_bgzf_mult_out/fastq_bgzip_2/fastqc_data.txt
@@ -19,3 +18,6 @@ c36524a785c41cd0dbd18b23173e88c6  ./fastq_iupac_out/fastq_1_iupac/fastqc_data.tx
 3c25a00c6744c680059103a6643d1b27  ./iupac_dups_out/iupac_dups_bam/fastqc_data.txt
 672381b9141cb7b217c39b2b5455cb6c  ./iupac_dups_out/iupac_dups/fastqc_data.txt
 8a141f57a21f8f0f1bbc4b80e3a2ec47  ./sam_out/sam_1/fastqc_data.txt
+037cb6bad120661ac15ccf6020cb82b1  ./kmers_out/bam_1/fastqc_data.txt
+a6b078d60d45ba2e34edd7cff517b19e  ./kmers_out/fastq_bgzip_1/fastqc_data.txt
+bcf6ed7982eb16b61725bcc823c7eaad  ./kmers_out/fastq_bgzip_2/fastqc_data.txt
