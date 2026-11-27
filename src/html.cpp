@@ -139,6 +139,7 @@ name: "Theoretical distribution"
   const auto theor = get_theoretical_distribution(
     gc_content, static_cast<std::uint64_t>(total_count));
   const auto gc_smoothed = smooth_gc_content(gc_content, smoothing_window);
+  // NOLINTNEXTLINE(clang-analyzer-optin.cplusplus.UninitializedObject)
   const auto lines_data = fmt::format(gc_fmt, x, gc_smoothed, x, theor);
 
   const auto grade = grades.grade(label);
@@ -414,6 +415,7 @@ yaxis: {{title: "tile", type: "category"}},
   // z: one formatted vector of quality z scores per tile
   const auto format1 = [](const auto &c) {
     // ADS: note the format and precision (3) here
+    // NOLINTNEXTLINE(clang-analyzer-optin.cplusplus.UninitializedObject)
     return fmt::format("[{:.3f}]", fmt::join(c, ","));  // inner lists
   };
   const auto z = std::views::transform(centered | std::views::values, format1);
@@ -453,11 +455,11 @@ name: "{}",
   if (results.empty())
     return fmt::format(
       html_module_fmt, grade, label, title, grade,
-      R""(<div id="kmer_plot"></div>\n<div>No overrepresented kmers</div>)"");
+      R"(<div id="kmer_plot"></div>\n<div>No overrepresented kmers</div>)");
   const auto get_pos = [&](const auto &x) { return x.pos; };
   const auto xlim = std::ranges::max(std::views::transform(results, get_pos));
-  auto mostly0 = std::vector(xlim, 0.0);  // change one position each kmer
-  const auto xvals = std::views::iota(0u, xlim);
+  auto mostly0 = std::vector(xlim + 1, 0.0);  // change one position each kmer
+  const auto xvals = std::views::iota(0U, xlim + 1);
   auto prev = 0;
   const auto format1 = [&](const auto &k) {
     // x: positions in read; y: zeros except at 'pos' for the kmer
@@ -467,12 +469,11 @@ name: "{}",
     return fmt::format(kmer_line_format, fmt::join(xvals, ", "),
                        fmt::join(mostly0, ", "), k.decode());
   };
-  // NOLINTBEGIN(clang-analyzer-optin.cplusplus.UninitializedObject)
+  // NOLINTNEXTLINE(clang-analyzer-optin.cplusplus.UninitializedObject)
   return fmt::format(
     html_module_fmt, grade, label, title, grade,
     fmt::format(
       plot_format,
       fmt::format("[{}]",
                   fmt::join(std::views::transform(results, format1), ",\n"))));
-  // NOLINTEND(clang-analyzer-optin.cplusplus.UninitializedObject)
 }
